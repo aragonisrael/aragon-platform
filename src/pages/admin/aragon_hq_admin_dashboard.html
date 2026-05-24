@@ -1,0 +1,663 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  .hq-root {
+    min-height: 100vh;
+    background: #050812;
+    display: flex;
+    font-family: 'Rajdhani', sans-serif;
+    color: #e0f0ff;
+    direction: rtl;
+  }
+
+  .sidebar {
+    width: 72px;
+    background: #080f1e;
+    border-left: 1px solid #1a2a4a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 0;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    z-index: 10;
+  }
+
+  .sidebar-logo {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: 2px solid #00c8ff;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .sidebar-logo::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    border: 1px solid #7b2fbe;
+    border-top-color: transparent;
+    border-bottom-color: transparent;
+    animation: spin 4s linear infinite;
+  }
+
+  .sidebar-logo-inner {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, #1a6fff, #00c8ff);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', monospace;
+    font-size: 10px; font-weight: 700; color: white;
+  }
+
+  .nav-btn {
+    width: 48px; height: 48px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    color: #4a6080;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px;
+    transition: all 0.2s;
+    font-size: 10px;
+    position: relative;
+  }
+
+  .nav-btn i { font-size: 20px; }
+  .nav-btn:hover { background: #0d1a30; color: #00c8ff; }
+  .nav-btn.active {
+    background: linear-gradient(135deg, #0a1f3d, #0d2a50);
+    color: #00c8ff;
+    border: 1px solid #1a4a80;
+  }
+  .nav-btn.active::before {
+    content: '';
+    position: absolute;
+    right: 0; top: 50%; transform: translateY(-50%);
+    width: 3px; height: 20px;
+    background: #00c8ff;
+    border-radius: 2px 0 0 2px;
+  }
+  .nav-label { font-size: 9px; font-family: 'Rajdhani', sans-serif; }
+
+  .main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .top-bar {
+    height: 64px;
+    background: linear-gradient(90deg, #050812 0%, #080f22 30%, #0a0820 50%, #080f22 70%, #050812 100%);
+    border-bottom: 1px solid #1a2a4a;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    overflow: hidden;
+  }
+
+  .top-bar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(0,200,255,0.03) 60px, rgba(0,200,255,0.03) 61px);
+    pointer-events: none;
+  }
+
+  .top-bar-brand { display: flex; align-items: center; gap: 14px; }
+
+  .brand-circle {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: #080f22;
+    border: 1px solid #1a3a60;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+
+  .brand-circle-inner {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 1px solid #1a3a60;
+    background: transparent;
+  }
+
+  .brand-ring {
+    position: absolute; inset: -3px;
+    border-radius: 50%;
+    border: 1.5px solid transparent;
+    border-top-color: #00c8ff;
+    border-right-color: #7b2fbe;
+    animation: spin 3s linear infinite;
+  }
+
+  .brand-ring-2 {
+    position: absolute; inset: -7px;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    border-bottom-color: #00c8ff44;
+    border-left-color: #7b2fbe44;
+    animation: spin 6s linear infinite reverse;
+  }
+
+  .brand-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 14px; font-weight: 700;
+    letter-spacing: 2px; color: #00c8ff;
+  }
+
+  .brand-sub {
+    font-size: 10px; color: #4a6080;
+    letter-spacing: 1px; margin-top: 1px;
+    font-family: 'Rajdhani', sans-serif;
+  }
+
+  .top-bar-right { display: flex; align-items: center; gap: 12px; }
+
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: #040c18;
+    border: 1px solid #0a2040;
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 12px; color: #4a9060;
+  }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #00e676;
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  .top-bar-neon {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #00c8ff44, #7b2fbe66, #00c8ff44, transparent);
+  }
+
+  .content {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .section-header-line {
+    flex: 1; height: 1px;
+    background: linear-gradient(90deg, #1a2a4a, transparent);
+  }
+
+  .section-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: #c0d8f0;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  .section-icon {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #00c8ff;
+    flex-shrink: 0;
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+
+  .kpi-card {
+    background: linear-gradient(135deg, #070e1c, #0a1428);
+    border: 1px solid #1a2a4a;
+    border-radius: 12px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .kpi-card:hover { border-color: #00c8ff66; }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #00c8ff, #1a6fff);
+  }
+
+  .kpi-card::after {
+    content: '';
+    position: absolute;
+    bottom: -20px; right: -20px;
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #00c8ff08, transparent);
+  }
+
+  .kpi-label {
+    font-size: 11px; color: #4a6080;
+    letter-spacing: 1px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .kpi-label i { font-size: 14px; color: #00c8ff66; }
+
+  .kpi-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 28px; font-weight: 700;
+    color: #00c8ff;
+    line-height: 1; margin-bottom: 6px;
+  }
+
+  .kpi-sub { font-size: 11px; color: #2a4060; }
+
+  .panels-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .panel {
+    background: #070e1c;
+    border: 1px solid #1a2a4a;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .panel-head {
+    padding: 14px 18px;
+    border-bottom: 1px solid #1a2a4a;
+    display: flex; align-items: center; justify-content: space-between;
+    background: #060b18;
+  }
+
+  .panel-head-title {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'Orbitron', monospace;
+    font-size: 11px; letter-spacing: 1.5px;
+    color: #c0d0e0;
+  }
+
+  .panel-head-title i { font-size: 16px; }
+
+  .panel-badge {
+    font-size: 11px; padding: 3px 10px;
+    border-radius: 20px; font-weight: 500;
+  }
+
+  .badge-gold { background: #1a0f02; color: #c8860a; border: 1px solid #c8860a44; }
+  .badge-danger { background: #1a0505; color: #ff4444; border: 1px solid #ff444444; }
+
+  .bonus-row {
+    display: flex; align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid #0d1a2e;
+    gap: 12px;
+    transition: background 0.2s;
+  }
+
+  .bonus-row:last-child { border-bottom: none; }
+  .bonus-row:hover { background: #0a1428; }
+
+  .instructor-avatar {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #0a1f3d, #152a50);
+    border: 1px solid #1a3a6a;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', monospace;
+    font-size: 11px; font-weight: 700; color: #00c8ff;
+    flex-shrink: 0;
+  }
+
+  .instructor-info { flex: 1; min-width: 0; }
+
+  .instructor-name { font-size: 14px; font-weight: 600; color: #c0d8f0; margin-bottom: 2px; }
+  .instructor-meta { font-size: 11px; color: #3a5070; }
+
+  .bonus-amount {
+    font-family: 'Orbitron', monospace;
+    font-size: 16px; font-weight: 700;
+    color: #c8860a;
+    margin-left: auto; margin-right: 12px;
+    white-space: nowrap;
+  }
+
+  .approve-btn {
+    background: linear-gradient(135deg, #1a0f02, #281602);
+    border: 1px solid #c8860a66;
+    color: #c8860a;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; letter-spacing: 0.5px;
+    transition: all 0.2s;
+    white-space: nowrap; flex-shrink: 0;
+  }
+
+  .approve-btn:hover {
+    background: linear-gradient(135deg, #281602, #3a2003);
+    border-color: #c8860a; color: #f0a020;
+  }
+
+  .approve-btn.paid {
+    background: #040c04; border-color: #00e67644;
+    color: #00e676; cursor: default; pointer-events: none;
+  }
+
+  .risk-row {
+    display: flex; align-items: center;
+    padding: 12px 18px;
+    border-bottom: 1px solid #0d1a2e;
+    gap: 12px;
+    transition: background 0.2s;
+  }
+
+  .risk-row:last-child { border-bottom: none; }
+  .risk-row:hover { background: #0a1428; }
+
+  .risk-count-badge {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', monospace;
+    font-size: 13px; font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .rc-low { background: #1a0505; color: #ff4444; border: 1px solid #ff444444; }
+  .rc-mid { background: #1a1205; color: #ff8c00; border: 1px solid #ff8c0044; }
+
+  .risk-info { flex: 1; }
+  .risk-name { font-size: 13px; font-weight: 600; color: #c0d0e0; margin-bottom: 2px; }
+  .risk-meta { font-size: 11px; color: #3a5070; }
+
+  .risk-bar-wrap { width: 70px; }
+
+  .risk-bar-bg {
+    height: 4px; background: #0d1a2e;
+    border-radius: 2px; overflow: hidden; margin-bottom: 3px;
+  }
+
+  .risk-bar-fill { height: 100%; border-radius: 2px; transition: width 0.8s ease; }
+  .risk-target { font-size: 10px; color: #2a4060; text-align: center; }
+
+  .empty-screen {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    height: 100vh; gap: 16px; color: #2a4060;
+  }
+
+  .empty-screen i { font-size: 48px; }
+  .empty-screen-title { font-family: 'Orbitron', monospace; font-size: 14px; letter-spacing: 2px; }
+  .empty-screen-sub { font-size: 13px; }
+
+  .hidden { display: none; }
+
+  .toast-container {
+    position: fixed; top: 20px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000; pointer-events: none;
+  }
+
+  .toast {
+    background: #041a08; border: 1px solid #00e67666;
+    border-radius: 10px; padding: 12px 20px;
+    color: #00e676;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+    animation: toast-in 0.3s ease, toast-out 0.3s ease 2.7s forwards;
+    letter-spacing: 0.5px;
+  }
+
+  .toast i { font-size: 18px; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes toast-out { from { opacity: 1; } to { opacity: 0; } }
+</style>
+
+<h2 class="sr-only">Aragon HQ – לוח בקרה ראשי של מנהל המערכת</h2>
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="hq-root">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-inner">A</div>
+    </div>
+    <button class="nav-btn active" onclick="showPage('dashboard')">
+      <i class="ti ti-layout-dashboard" aria-hidden="true"></i>
+      <span class="nav-label">בית</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('shop')">
+      <i class="ti ti-shopping-bag" aria-hidden="true"></i>
+      <span class="nav-label">חנות</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('missions')">
+      <i class="ti ti-sword" aria-hidden="true"></i>
+      <span class="nav-label">משימות</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('control')">
+      <i class="ti ti-adjustments" aria-hidden="true"></i>
+      <span class="nav-label">בקרה</span>
+    </button>
+  </div>
+
+  <div class="main-area">
+    <div class="top-bar">
+      <div class="top-bar-brand">
+        <div class="brand-circle">
+          <div class="brand-ring"></div>
+          <div class="brand-ring-2"></div>
+          <div class="brand-circle-inner"></div>
+        </div>
+        <div>
+          <div class="brand-title">ARAGON HQ</div>
+          <div class="brand-sub">CYBER CONTROL ROOM</div>
+        </div>
+      </div>
+      <div class="top-bar-right">
+        <div class="status-pill">
+          <div class="status-dot"></div>
+          מערכת פעילה
+        </div>
+        <div style="font-size: 11px; color: #2a4060; font-family: 'Orbitron', monospace;">17.05.26</div>
+      </div>
+      <div class="top-bar-neon"></div>
+    </div>
+
+    <div id="page-dashboard" class="content">
+
+      <div>
+        <div class="section-header">
+          <div class="section-icon"></div>
+          <div class="section-title">מבט על אראגון</div>
+          <div class="section-header-line"></div>
+        </div>
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label"><i class="ti ti-users" aria-hidden="true"></i> תלמידים פעילים</div>
+            <div class="kpi-value">1,870</div>
+            <div class="kpi-sub">ברחבי הרשת</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label"><i class="ti ti-user-star" aria-hidden="true"></i> מדריכים פעילים</div>
+            <div class="kpi-value">12</div>
+            <div class="kpi-sub">בשטח</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label"><i class="ti ti-topology-star" aria-hidden="true"></i> קבוצות פעילות</div>
+            <div class="kpi-value">220</div>
+            <div class="kpi-sub">קבוצות רשומות</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label"><i class="ti ti-chart-line" aria-hidden="true"></i> ממוצע כללי</div>
+            <div class="kpi-value">8.5</div>
+            <div class="kpi-sub">תלמידים לקבוצה</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panels-row">
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-head-title">
+              <i class="ti ti-coin" style="color:#c8860a" aria-hidden="true"></i>
+              מרכז בונוסים — BONUS CENTER
+            </div>
+            <div class="panel-badge badge-gold" id="pendingCount">3 ממתינים</div>
+          </div>
+          <div class="panel-body" id="bonusTable"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-head-title">
+              <i class="ti ti-alert-triangle" style="color:#ff4444" aria-hidden="true"></i>
+              ניהול סיכונים — RISK ALERTS
+            </div>
+            <div class="panel-badge badge-danger">סכנת סגירה</div>
+          </div>
+          <div class="panel-body" id="riskTable"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-shop" class="hidden">
+      <div class="empty-screen">
+        <i class="ti ti-shopping-bag" aria-hidden="true"></i>
+        <div class="empty-screen-title">חנות ולוגיסטיקה</div>
+        <div class="empty-screen-sub">מסך זה יפותח בשלב הבא</div>
+      </div>
+    </div>
+    <div id="page-missions" class="hidden">
+      <div class="empty-screen">
+        <i class="ti ti-sword" aria-hidden="true"></i>
+        <div class="empty-screen-title">מנוע משימות ואתגרים</div>
+        <div class="empty-screen-sub">מסך זה יפותח בשלב הבא</div>
+      </div>
+    </div>
+    <div id="page-control" class="hidden">
+      <div class="empty-screen">
+        <i class="ti ti-adjustments" aria-hidden="true"></i>
+        <div class="empty-screen-title">מרכז בקרה</div>
+        <div class="empty-screen-sub">מסך זה יפותח בשלב הבא</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const MAX_CAPACITY = 15;
+
+const instructors = [
+  { id: 1, initials: 'יי', name: 'ישראל ישראלי', groups: 4, bonus: 530, paid: false },
+  { id: 2, initials: 'סכ', name: 'שירה כהן', groups: 6, bonus: 380, paid: false },
+  { id: 3, initials: 'ול', name: 'ויקטור לוי', groups: 3, bonus: 210, paid: false },
+];
+
+const riskGroups = [
+  { name: 'בי"ס ויצמן — אראגון פרו', city: 'תל אביב', count: 2 },
+  { name: 'בי"ס בן גוריון — ג׳וניור', city: 'ראשון לציון', count: 4 },
+  { name: 'בי"ס אלון — הנדסה ורובוטיקה', city: 'חולון', count: 4 },
+  { name: 'בי"ס קסם — הייטק ג׳וניור', city: 'פתח תקווה', count: 3 },
+];
+
+function renderBonus() {
+  const pending = instructors.filter(i => !i.paid);
+  document.getElementById('pendingCount').textContent = pending.length + ' ממתינים';
+  document.getElementById('bonusTable').innerHTML = instructors.map(inst => `
+    <div class="bonus-row">
+      <div class="instructor-avatar">${inst.initials}</div>
+      <div class="instructor-info">
+        <div class="instructor-name">${inst.name}</div>
+        <div class="instructor-meta">קבוצות משויכות: ${inst.groups}</div>
+      </div>
+      <div class="bonus-amount">${inst.paid ? '0 ₪' : inst.bonus + ' ₪'}</div>
+      <button class="approve-btn ${inst.paid ? 'paid' : ''}" onclick="approveBonus(${inst.id})">
+        ${inst.paid ? '✓ שולם' : 'אשר לתשלום'}
+      </button>
+    </div>
+  `).join('');
+}
+
+function renderRisk() {
+  const sorted = [...riskGroups].sort((a, b) => a.count - b.count);
+  document.getElementById('riskTable').innerHTML = sorted.map(g => {
+    const pct = Math.round(g.count / MAX_CAPACITY * 100);
+    const colorClass = g.count <= 2 ? 'rc-low' : 'rc-mid';
+    const barColor = g.count <= 2 ? '#ff444488' : '#ff8c0088';
+    return `
+      <div class="risk-row">
+        <div class="risk-count-badge ${colorClass}">${g.count}</div>
+        <div class="risk-info">
+          <div class="risk-name">${g.name}</div>
+          <div class="risk-meta">${g.city} · יעד: ${MAX_CAPACITY} מקומות</div>
+        </div>
+        <div class="risk-bar-wrap">
+          <div class="risk-bar-bg">
+            <div class="risk-bar-fill" style="width:${pct}%; background:${barColor}"></div>
+          </div>
+          <div class="risk-target">${g.count}/${MAX_CAPACITY}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function approveBonus(id) {
+  const inst = instructors.find(i => i.id === id);
+  if (!inst || inst.paid) return;
+  inst.paid = true;
+  renderBonus();
+  showToast('הבונוס של ' + inst.name + ' אושר והועבר להיסטוריית תשלומים');
+}
+
+function showPage(page) {
+  ['dashboard','shop','missions','control'].forEach(p => {
+    document.getElementById('page-' + p).classList.toggle('hidden', p !== page);
+  });
+  document.querySelectorAll('.nav-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', ['dashboard','shop','missions','control'][i] === page);
+  });
+}
+
+function showToast(msg) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = '<i class="ti ti-check" aria-hidden="true"></i>' + msg;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+renderBonus();
+renderRisk();
+</script>

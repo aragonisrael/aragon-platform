@@ -1,0 +1,51 @@
+/* Hide duplicate chrome when global Header / container nav is used */
+.student-shell .top-banner,
+.student-shell .nav-bar {
+  display: none !important;
+}
+
+.instructor-shell .navbar,
+.instructor-shell .hero {
+  display: none !important;
+}
+
+.admin-page-root .sidebar {
+  display: none !important;
+}
+
+.admin-page-root .hq-root {
+  min-height: 100%;
+  width: 100%;
+}
+
+.admin-container .hq-root {
+  min-height: 100vh;
+}
+
+.mobile-universe {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  background: #05010f;
+}
+
+.mobile-universe .app,
+.mobile-universe .student-shell > .app {
+  width: 100%;
+  max-width: 420px;
+  min-height: 0;
+  flex: 1;
+  border-radius: 0;
+  margin: 0;
+}
+
+.instructor-shell .app {
+  width: 100%;
+  max-width: 390px;
+  min-height: 0;
+  flex: 1;
+  border-radius: 0;
+  margin: 0;
+}

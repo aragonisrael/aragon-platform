@@ -1,0 +1,400 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  .root{min-height:100vh;background:#050812;display:flex;font-family:'Rajdhani',sans-serif;color:#e0f0ff;direction:rtl;}
+  .sidebar{width:72px;background:#080f1e;border-left:1px solid #1a2a4a;display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:8px;position:sticky;top:0;height:100vh;z-index:10;}
+  .slogo{width:42px;height:42px;border-radius:50%;border:2px solid #00c8ff;display:flex;align-items:center;justify-content:center;margin-bottom:16px;position:relative;}
+  .slogo::after{content:'';position:absolute;inset:-5px;border-radius:50%;border:1px solid #7b2fbe;border-top-color:transparent;border-bottom-color:transparent;animation:spin 4s linear infinite;}
+  .slogo-inner{width:28px;height:28px;background:linear-gradient(135deg,#1a6fff,#00c8ff);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;color:#fff;}
+  .nbtn{width:48px;height:48px;border-radius:10px;border:none;background:transparent;color:#4a6080;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all .2s;position:relative;}
+  .nbtn i{font-size:20px;}
+  .nbtn:hover{background:#0d1a30;color:#00c8ff;}
+  .nbtn.active{background:linear-gradient(135deg,#0a1f3d,#0d2a50);color:#00c8ff;border:1px solid #1a4a80;}
+  .nbtn.active::before{content:'';position:absolute;right:0;top:50%;transform:translateY(-50%);width:3px;height:20px;background:#00c8ff;border-radius:2px 0 0 2px;}
+  .nlabel{font-size:9px;}
+  .topbar{height:64px;background:linear-gradient(90deg,#050812,#080f22 30%,#0a0820 50%,#080f22 70%,#050812);border-bottom:1px solid #1a2a4a;display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:5;overflow:hidden;}
+  .topbar::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(0,200,255,.03) 60px,rgba(0,200,255,.03) 61px);pointer-events:none;}
+  .brand{display:flex;align-items:center;gap:14px;}
+  .bcircle{width:44px;height:44px;border-radius:50%;background:#080f22;border:1px solid #1a3a60;display:flex;align-items:center;justify-content:center;position:relative;}
+  .bcircle-inner{width:30px;height:30px;border-radius:50%;border:1px solid #1a3a60;background:transparent;}
+  .bring{position:absolute;inset:-3px;border-radius:50%;border:1.5px solid transparent;border-top-color:#00c8ff;border-right-color:#7b2fbe;animation:spin 3s linear infinite;}
+  .bring2{position:absolute;inset:-7px;border-radius:50%;border:1px solid transparent;border-bottom-color:#00c8ff44;border-left-color:#7b2fbe44;animation:spin 6s linear infinite reverse;}
+  .btitle{font-family:'Orbitron',monospace;font-size:14px;font-weight:700;letter-spacing:2px;color:#00c8ff;}
+  .bsub{font-size:10px;color:#4a6080;letter-spacing:1px;margin-top:1px;}
+  .spill{display:flex;align-items:center;gap:6px;background:#040c18;border:1px solid #0a2040;border-radius:20px;padding:5px 12px;font-size:12px;color:#4a9060;}
+  .sdot{width:6px;height:6px;border-radius:50%;background:#00e676;animation:pdot 2s ease-in-out infinite;}
+  .tneon{position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#00c8ff44,#7b2fbe66,#00c8ff44,transparent);}
+  .content{padding:24px;display:flex;flex-direction:column;gap:24px;flex:1;}
+  .sech{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .secline{flex:1;height:1px;background:linear-gradient(90deg,#1a2a4a,transparent);}
+  .sectitle{font-family:'Orbitron',monospace;font-size:13px;letter-spacing:2px;color:#c0d8f0;font-weight:600;white-space:nowrap;}
+  .secdot{width:6px;height:6px;border-radius:50%;background:#00c8ff;flex-shrink:0;}
+  .catalog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;}
+  .prod-card{background:linear-gradient(135deg,#070e1c,#0a1428);border:1px solid #1a2a4a;border-radius:14px;overflow:hidden;transition:border-color .3s;}
+  .prod-card:hover{border-color:#00c8ff44;}
+  .prod-img{width:100%;height:110px;background:linear-gradient(135deg,#0a1428,#0d1f3a);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+  .prod-img img{width:100%;height:100%;object-fit:cover;}
+  .prod-img-emoji{font-size:36px;position:relative;z-index:1;}
+  .prod-body{padding:14px;}
+  .prod-name{font-size:15px;font-weight:700;color:#c0d8f0;margin-bottom:6px;}
+  .prod-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .prod-price{font-family:'Orbitron',monospace;font-size:14px;color:#00c8ff;font-weight:700;}
+  .prod-stock{font-size:11px;color:#3a5070;background:#0a1428;padding:3px 8px;border-radius:6px;border:1px solid #1a2a4a;}
+  .prod-stock.low{color:#ff8c00;border-color:#ff8c0033;}
+  .edit-btn{width:100%;background:transparent;border:1px solid #1a2a4a;color:#4a6080;padding:7px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;gap:6px;}
+  .edit-btn i{font-size:14px;}
+  .edit-btn:hover{border-color:#00c8ff44;color:#00c8ff;background:#0a1428;}
+  .add-prod-btn{background:linear-gradient(135deg,#1a0f02,#281602);border:2px dashed #c8860a66;color:#c8860a;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:pointer;transition:all .2s;min-height:220px;font-family:'Rajdhani',sans-serif;font-weight:600;font-size:14px;letter-spacing:.5px;width:100%;}
+  .add-prod-btn i{font-size:28px;}
+  .add-prod-btn:hover{border-color:#c8860a;background:linear-gradient(135deg,#281602,#3a2003);}
+  .orders-panel{background:#070e1c;border:1px solid #1a2a4a;border-radius:14px;overflow:hidden;}
+  .orders-head{padding:14px 20px;border-bottom:1px solid #1a2a4a;background:#060b18;display:flex;align-items:center;justify-content:space-between;}
+  .orders-head-title{display:flex;align-items:center;gap:8px;font-family:'Orbitron',monospace;font-size:11px;letter-spacing:1.5px;color:#c0d0e0;}
+  .obadge{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500;background:#040a18;color:#00c8ff;border:1px solid #00c8ff33;}
+  .otable{width:100%;border-collapse:collapse;}
+  .otable th{padding:11px 18px;font-size:11px;color:#2a4060;letter-spacing:1px;text-align:right;border-bottom:1px solid #0d1a2e;font-weight:500;background:#060b18;}
+  .otable td{padding:13px 18px;font-size:13px;border-bottom:1px solid #0a1428;vertical-align:middle;}
+  .otable tr:last-child td{border-bottom:none;}
+  .otable tr{transition:background .15s;}
+  .otable tr:hover td{background:#0a1428;}
+  .otable tr.done td{opacity:.4;}
+  .student-name{font-weight:700;color:#c0d8f0;}
+  .group-tag{display:inline-flex;align-items:center;gap:4px;background:#0a1428;border:1px solid #1a2a4a;border-radius:6px;padding:3px 8px;font-size:11px;color:#4a6080;}
+  .product-tag{display:inline-flex;align-items:center;gap:5px;color:#00c8ff;font-weight:600;}
+  .date-tag{font-size:12px;color:#2a4060;}
+  .pack-btn{background:linear-gradient(135deg,#040c1a,#081428);border:1px solid #1a3a6a;color:#6090c0;padding:7px 14px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap;display:flex;align-items:center;gap:6px;}
+  .pack-btn:hover{border-color:#00c8ff66;color:#00c8ff;background:linear-gradient(135deg,#081428,#0a1e38);}
+  .pack-btn.done-btn{background:#040c04;border-color:#00e67644;color:#00e676;cursor:default;pointer-events:none;}
+  /* MODAL */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:100;display:flex;align-items:center;justify-content:center;}
+  .modal{background:#080f1e;border:1px solid #1a2a4a;border-radius:16px;padding:28px;width:380px;position:relative;max-height:90vh;overflow-y:auto;}
+  .modal-title{font-family:'Orbitron',monospace;font-size:13px;letter-spacing:1.5px;color:#00c8ff;margin-bottom:20px;display:flex;align-items:center;gap:8px;}
+  .modal-title i{font-size:18px;}
+  .mfield{margin-bottom:16px;}
+  .mfield label{display:block;font-size:11px;color:#4a6080;letter-spacing:1px;margin-bottom:6px;}
+  .mfield input[type=text],.mfield input[type=number]{width:100%;background:#060b18;border:1px solid #1a2a4a;border-radius:8px;padding:9px 12px;color:#c0d8f0;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;transition:border-color .2s;}
+  .mfield input:focus{border-color:#00c8ff44;}
+  .mrow{display:flex;gap:10px;}
+  .msave{flex:1;background:linear-gradient(135deg,#0a1f3d,#0d2a50);border:1px solid #00c8ff44;color:#00c8ff;padding:10px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:.5px;}
+  .msave:hover{border-color:#00c8ff;background:linear-gradient(135deg,#0d2a50,#103060);}
+  .mcancel{flex:1;background:transparent;border:1px solid #1a2a4a;color:#4a6080;padding:10px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+  .mcancel:hover{border-color:#4a6080;color:#8090a0;}
+
+  /* IMAGE UPLOAD ZONE */
+  .img-upload-zone{width:100%;height:140px;border:2px dashed #1a2a4a;border-radius:10px;background:#060b18;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+  .img-upload-zone:hover{border-color:#00c8ff44;background:#080f22;}
+  .img-upload-zone.has-img{border-color:#00c8ff66;border-style:solid;}
+  .img-upload-zone img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:8px;}
+  .img-upload-zone .overlay{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;opacity:0;transition:opacity .2s;border-radius:8px;}
+  .img-upload-zone:hover .overlay{opacity:1;}
+  .img-upload-zone .upload-hint{font-size:12px;color:#4a6080;text-align:center;line-height:1.4;}
+  .img-upload-zone .upload-icon{font-size:28px;color:#2a4060;}
+  .img-upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+  .img-tabs{display:flex;gap:8px;margin-bottom:8px;}
+  .img-tab{flex:1;padding:7px;border-radius:8px;border:1px solid #1a2a4a;background:transparent;color:#4a6080;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;text-align:center;}
+  .img-tab.active{background:#0a1428;border-color:#00c8ff44;color:#00c8ff;}
+
+  /* TOAST */
+  .tcontainer{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:1000;pointer-events:none;display:flex;flex-direction:column;gap:8px;align-items:center;}
+  .toast{background:#041a08;border:1px solid #00e67666;border-radius:10px;padding:11px 18px;color:#00e676;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;animation:tin .3s ease,tout .3s ease 2.7s forwards;white-space:nowrap;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @keyframes pdot{0%,100%{opacity:1;}50%{opacity:.3;}}
+  @keyframes tin{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes tout{from{opacity:1;}to{opacity:0;}}
+</style>
+
+<div class="tcontainer" id="tc"></div>
+<div id="modalRoot"></div>
+
+<div class="root">
+  <div class="sidebar">
+    <div class="slogo"><div class="slogo-inner">A</div></div>
+    <button class="nbtn"><i class="ti ti-layout-dashboard"></i><span class="nlabel">בית</span></button>
+    <button class="nbtn active"><i class="ti ti-shopping-bag"></i><span class="nlabel">חנות</span></button>
+    <button class="nbtn"><i class="ti ti-sword"></i><span class="nlabel">משימות</span></button>
+    <button class="nbtn"><i class="ti ti-adjustments"></i><span class="nlabel">בקרה</span></button>
+  </div>
+
+  <div style="flex:1;display:flex;flex-direction:column;overflow-y:auto;">
+    <div class="topbar">
+      <div class="brand">
+        <div class="bcircle">
+          <div class="bring"></div><div class="bring2"></div>
+          <div class="bcircle-inner"></div>
+        </div>
+        <div>
+          <div class="btitle">ARAGON HQ</div>
+          <div class="bsub">SHOP &amp; LOGISTICS</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="spill"><div class="sdot"></div>מערכת פעילה</div>
+        <div style="font-size:11px;color:#2a4060;font-family:'Orbitron',monospace;">17.05.26</div>
+      </div>
+      <div class="tneon"></div>
+    </div>
+
+    <div class="content">
+      <div>
+        <div class="sech">
+          <div class="secdot"></div>
+          <div class="sectitle">קטלוג החנות — SHOP CATALOG</div>
+          <div class="secline"></div>
+          <button class="add-prod-btn" style="min-height:auto;padding:8px 18px;border-radius:10px;font-size:13px;flex-direction:row;gap:8px;width:auto;" onclick="openAddModal()">
+            <i class="ti ti-plus" style="font-size:16px;"></i> הוסף מוצר חדש
+          </button>
+        </div>
+        <div class="catalog-grid" id="catalogGrid"></div>
+      </div>
+
+      <div>
+        <div class="sech">
+          <div class="secdot"></div>
+          <div class="sectitle">הזמנות פתוחות — ORDER FULFILLMENT</div>
+          <div class="secline"></div>
+        </div>
+        <div class="orders-panel">
+          <div class="orders-head">
+            <div class="orders-head-title">
+              <i class="ti ti-package" style="color:#00c8ff;"></i>
+              ניהול ואריזת הזמנות
+            </div>
+            <div class="obadge" id="orderBadge">5 הזמנות פתוחות</div>
+          </div>
+          <table class="otable">
+            <thead><tr>
+              <th>שם התלמיד</th><th>קבוצה</th><th>מוצר</th><th>תאריך</th><th>פעולה</th>
+            </tr></thead>
+            <tbody id="ordersBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let pendingImg = null; // base64 of uploaded image for new product
+let editImgData = null; // for edit modal
+
+let products = [
+  { id:1, name:'רחפן מיני',          emoji:'🚁', img:null, price:120, stock:8  },
+  { id:2, name:'עכבר גיימינג',        emoji:'🖱️', img:null, price:65,  stock:3  },
+  { id:3, name:'סט מדבקות אראגון',    emoji:'🎨', img:null, price:15,  stock:30 },
+  { id:4, name:'אוזניות Pro',          emoji:'🎧', img:null, price:90,  stock:5  },
+  { id:5, name:'כובע אראגון',          emoji:'🧢', img:null, price:30,  stock:12 },
+];
+
+let orders = [
+  { id:1, student:'נועם לוי',    group:'בן גוריון ר"ג', product:'עכבר גיימינג',     emoji:'🖱️', date:'12.05.26', done:false },
+  { id:2, student:'מיה כהן',     group:'ויצמן ת"א',     product:'סט מדבקות אראגון', emoji:'🎨', date:'13.05.26', done:false },
+  { id:3, student:'עידן שמיר',   group:'אלון חולון',    product:'אוזניות Pro',        emoji:'🎧', date:'14.05.26', done:false },
+  { id:4, student:'שירה גולן',   group:'קסם פ"ת',       product:'כובע אראגון',        emoji:'🧢', date:'15.05.26', done:false },
+  { id:5, student:'יוסי בן דוד', group:'בן גוריון ר"ג', product:'רחפן מיני',          emoji:'🚁', date:'16.05.26', done:false },
+];
+
+let nextId = 10;
+let editingId = null;
+
+function renderCatalog() {
+  const grid = document.getElementById('catalogGrid');
+  grid.innerHTML = products.map(p => `
+    <div class="prod-card">
+      <div class="prod-img">
+        ${p.img
+          ? `<img src="${p.img}" alt="${p.name}">`
+          : `<span class="prod-img-emoji">${p.emoji}</span>`}
+      </div>
+      <div class="prod-body">
+        <div class="prod-name">${p.name}</div>
+        <div class="prod-meta">
+          <span class="prod-price">${p.price} 🪙</span>
+          <span class="prod-stock ${p.stock<=4?'low':''}">מלאי: ${p.stock}</span>
+        </div>
+        <button class="edit-btn" onclick="openEditModal(${p.id})">
+          <i class="ti ti-edit"></i> ערוך מוצר
+        </button>
+      </div>
+    </div>
+  `).join('') + `
+    <button class="add-prod-btn" onclick="openAddModal()">
+      <i class="ti ti-plus"></i>הוסף מוצר חדש
+    </button>`;
+}
+
+function renderOrders() {
+  const open = orders.filter(o=>!o.done);
+  document.getElementById('orderBadge').textContent = open.length + ' הזמנות פתוחות';
+  document.getElementById('ordersBody').innerHTML = orders.map(o=>`
+    <tr class="${o.done?'done':''}">
+      <td><span class="student-name">${o.student}</span></td>
+      <td><span class="group-tag"><i class="ti ti-users" style="font-size:11px;"></i>${o.group}</span></td>
+      <td><span class="product-tag">${o.emoji} ${o.product}</span></td>
+      <td><span class="date-tag">${o.date}</span></td>
+      <td>
+        <button class="pack-btn ${o.done?'done-btn':''}" onclick="packOrder(${o.id})">
+          ${o.done
+            ? '<i class="ti ti-check"></i> בוצע'
+            : '<i class="ti ti-package"></i> נארז והועבר למדריך'}
+        </button>
+      </td>
+    </tr>`).join('');
+}
+
+/* ── Image upload helper ── */
+function readFile(file, cb) {
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = e => cb(e.target.result);
+  r.readAsDataURL(file);
+}
+
+function setupUploadZone(zoneId, previewId, onLoad) {
+  const zone = document.getElementById(zoneId);
+  if (!zone) return;
+  zone.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    readFile(file, data => {
+      onLoad(data);
+      const preview = document.getElementById(previewId);
+      if (preview) {
+        preview.innerHTML = `
+          <img src="${data}" alt="תצוגה מקדימה">
+          <div class="overlay">
+            <i class="ti ti-camera" style="font-size:22px;color:#fff;"></i>
+            <span style="font-size:11px;color:#ccc;">החלף תמונה</span>
+          </div>
+          <input type="file" accept="image/*" id="${zoneId}">`;
+        preview.classList.add('has-img');
+        // re-bind
+        setupUploadZone(zoneId, previewId, onLoad);
+      }
+    });
+  });
+}
+
+/* ── ADD modal ── */
+function openAddModal() {
+  pendingImg = null;
+  document.getElementById('modalRoot').innerHTML = `
+    <div class="modal-bg" onclick="closeBg(event)">
+      <div class="modal">
+        <div class="modal-title"><i class="ti ti-plus" style="color:#c8860a;"></i>הוספת מוצר חדש</div>
+
+        <div class="mfield">
+          <label>תמונת מוצר</label>
+          <div class="img-upload-zone" id="addZone">
+            <i class="ti ti-photo-plus upload-icon"></i>
+            <span class="upload-hint">לחץ להעלאת תמונה מהמחשב / פלאפון<br><span style="color:#2a4060;font-size:10px;">JPG, PNG, WEBP</span></span>
+            <input type="file" accept="image/*" id="addFileInput">
+          </div>
+        </div>
+
+        <div class="mfield"><label>שם המוצר</label><input type="text" id="mName" placeholder='למשל: ג׳וי-סטיק גיימינג'/></div>
+        <div class="mrow">
+          <div class="mfield" style="flex:1;margin:0;"><label>מחיר (אראגונים)</label><input type="number" id="mPrice" placeholder="50" min="1"/></div>
+          <div class="mfield" style="flex:1;margin:0;"><label>מלאי</label><input type="number" id="mStock" placeholder="10" min="0"/></div>
+        </div>
+        <div class="mfield" style="margin-top:4px;">
+          <label>אמוג'י (גיבוי אם אין תמונה)</label>
+          <input type="text" id="mEmoji" placeholder="🎮" maxlength="2"/>
+        </div>
+        <div class="mrow" style="margin-top:18px;">
+          <button class="msave" onclick="saveNew()">צור מוצר</button>
+          <button class="mcancel" onclick="closeModal()">ביטול</button>
+        </div>
+      </div>
+    </div>`;
+  setupUploadZone('addFileInput', 'addZone', data => { pendingImg = data; });
+}
+
+function saveNew() {
+  const name  = document.getElementById('mName').value.trim();
+  const price = parseInt(document.getElementById('mPrice').value);
+  const stock = parseInt(document.getElementById('mStock').value);
+  const emoji = document.getElementById('mEmoji').value.trim() || '📦';
+  if (!name || isNaN(price) || isNaN(stock)) { toast('נא למלא את כל השדות'); return; }
+  products.push({ id: nextId++, name, emoji, img: pendingImg, price, stock });
+  closeModal();
+  renderCatalog();
+  toast('המוצר "' + name + '" נוסף לחנות בהצלחה');
+}
+
+/* ── EDIT modal ── */
+function openEditModal(id) {
+  editingId = id;
+  editImgData = null;
+  const p = products.find(x => x.id === id);
+  const hasImg = !!p.img;
+  document.getElementById('modalRoot').innerHTML = `
+    <div class="modal-bg" onclick="closeBg(event)">
+      <div class="modal">
+        <div class="modal-title"><i class="ti ti-edit" style="color:#00c8ff;"></i>עריכת מוצר — ${p.name}</div>
+
+        <div class="mfield">
+          <label>תמונת מוצר</label>
+          <div class="img-upload-zone ${hasImg?'has-img':''}" id="editZone">
+            ${hasImg
+              ? `<img src="${p.img}" alt="${p.name}">
+                 <div class="overlay">
+                   <i class="ti ti-camera" style="font-size:22px;color:#fff;"></i>
+                   <span style="font-size:11px;color:#ccc;">החלף תמונה</span>
+                 </div>`
+              : `<i class="ti ti-photo-plus upload-icon"></i>
+                 <span class="upload-hint">לחץ להעלאת תמונה</span>`}
+            <input type="file" accept="image/*" id="editFileInput">
+          </div>
+        </div>
+
+        <div class="mfield"><label>מחיר (באראגונים)</label><input type="number" id="mPrice" value="${p.price}" min="1"/></div>
+        <div class="mfield"><label>מלאי נוכחי</label><input type="number" id="mStock" value="${p.stock}" min="0"/></div>
+        <div class="mrow" style="margin-top:8px;">
+          <button class="msave" onclick="saveEdit()">שמור שינויים</button>
+          <button class="mcancel" onclick="closeModal()">ביטול</button>
+        </div>
+      </div>
+    </div>`;
+  setupUploadZone('editFileInput', 'editZone', data => { editImgData = data; });
+}
+
+function saveEdit() {
+  const p = products.find(x => x.id === editingId);
+  const price = parseInt(document.getElementById('mPrice').value) || p.price;
+  const stock = parseInt(document.getElementById('mStock').value);
+  if (isNaN(stock)) return;
+  p.price = price;
+  p.stock = stock;
+  if (editImgData) p.img = editImgData;
+  closeModal();
+  renderCatalog();
+  toast('המוצר "' + p.name + '" עודכן בהצלחה');
+}
+
+/* ── Orders ── */
+function packOrder(id) {
+  const o = orders.find(x=>x.id===id);
+  if (!o||o.done) return;
+  o.done = true;
+  renderOrders();
+  toast('הסטטוס עודכן: התלמיד והמדריך קיבלו עדכון ✓');
+}
+
+/* ── Modal helpers ── */
+function closeModal() { document.getElementById('modalRoot').innerHTML=''; }
+function closeBg(e)   { if(e.target.classList.contains('modal-bg')) closeModal(); }
+
+/* ── Toast ── */
+function toast(msg) {
+  const c = document.getElementById('tc');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = '<i class="ti ti-check"></i>' + msg;
+  c.appendChild(t);
+  setTimeout(()=>t.remove(), 3000);
+}
+
+renderCatalog();
+renderOrders();
+</script>

@@ -1,0 +1,479 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#050812;}
+.root{min-height:100vh;background:#050812;display:flex;font-family:'Rajdhani',sans-serif;color:#e0f0ff;direction:rtl;}
+.sidebar{width:72px;background:#080f1e;border-left:1px solid #1a2a4a;display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:8px;position:sticky;top:0;height:100vh;z-index:10;flex-shrink:0;}
+.slogo{width:42px;height:42px;border-radius:50%;border:2px solid #00c8ff;display:flex;align-items:center;justify-content:center;margin-bottom:16px;position:relative;}
+.slogo::after{content:'';position:absolute;inset:-5px;border-radius:50%;border:1px solid #7b2fbe;border-top-color:transparent;border-bottom-color:transparent;animation:spin 4s linear infinite;}
+.slogo-inner{width:28px;height:28px;background:linear-gradient(135deg,#1a6fff,#00c8ff);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;color:#fff;}
+.nbtn{width:48px;height:48px;border-radius:10px;border:none;background:transparent;color:#4a6080;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all .2s;position:relative;}
+.nbtn i{font-size:20px;}.nbtn:hover{background:#0d1a30;color:#00c8ff;}
+.nbtn.active{background:linear-gradient(135deg,#0a1f3d,#0d2a50);color:#00c8ff;border:1px solid #1a4a80;}
+.nbtn.active::before{content:'';position:absolute;right:0;top:50%;transform:translateY(-50%);width:3px;height:20px;background:#00c8ff;border-radius:2px 0 0 2px;}
+.nlabel{font-size:9px;}
+.topbar{height:64px;background:linear-gradient(90deg,#050812,#080f22 30%,#0a0820 50%,#080f22 70%,#050812);border-bottom:1px solid #1a2a4a;display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:5;overflow:hidden;flex-shrink:0;}
+.topbar::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(0,200,255,.03) 60px,rgba(0,200,255,.03) 61px);pointer-events:none;}
+.brand{display:flex;align-items:center;gap:14px;}
+.bcircle{width:44px;height:44px;border-radius:50%;background:#080f22;border:1px solid #1a3a60;display:flex;align-items:center;justify-content:center;position:relative;}
+.bcircle-inner{width:30px;height:30px;border-radius:50%;border:1px solid #1a3a60;background:transparent;}
+.bring{position:absolute;inset:-3px;border-radius:50%;border:1.5px solid transparent;border-top-color:#00c8ff;border-right-color:#7b2fbe;animation:spin 3s linear infinite;}
+.bring2{position:absolute;inset:-7px;border-radius:50%;border:1px solid transparent;border-bottom-color:#00c8ff44;border-left-color:#7b2fbe44;animation:spin 6s linear infinite reverse;}
+.btitle{font-family:'Orbitron',monospace;font-size:14px;font-weight:700;letter-spacing:2px;color:#00c8ff;}
+.bsub{font-size:10px;color:#4a6080;letter-spacing:1px;margin-top:1px;}
+.spill{display:flex;align-items:center;gap:6px;background:#040c18;border:1px solid #0a2040;border-radius:20px;padding:5px 12px;font-size:12px;color:#4a9060;}
+.sdot{width:6px;height:6px;border-radius:50%;background:#00e676;animation:pdot 2s ease-in-out infinite;}
+.tneon{position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#00c8ff44,#7b2fbe66,#00c8ff44,transparent);}
+.main-col{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+.content{padding:12px 16px;display:flex;flex-direction:column;gap:10px;flex:1;overflow:hidden;}
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;}
+.tb-btn{display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:8px;border:1px solid #1a2a4a;background:transparent;color:#4a6080;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.tb-btn i{font-size:14px;}.tb-btn:hover{border-color:#00c8ff33;color:#00c8ff;background:#070e1c;}
+.tb-btn.active{background:linear-gradient(135deg,#061828,#0a2040);border-color:#00c8ff55;color:#00c8ff;}
+.tb-select{background:#060b18;border:1px solid #1a2a4a;border-radius:8px;padding:7px 10px;color:#c0d8f0;font-family:'Rajdhani',sans-serif;font-size:12px;outline:none;cursor:pointer;}
+.tb-select option{background:#080f1e;}
+.legend{display:flex;align-items:center;gap:12px;margin-right:auto;}
+.leg-item{display:flex;align-items:center;gap:4px;font-size:11px;color:#4a6080;}
+.leg-dot{width:7px;height:7px;border-radius:50%;}
+.overlay-filters{display:none;align-items:center;gap:8px;padding:7px 12px;background:#060b18;border:1px solid #1a2a4a;border-radius:8px;flex-wrap:wrap;flex-shrink:0;}
+.overlay-filters.show{display:flex;}
+.overlay-label{font-size:11px;color:#4a6080;letter-spacing:1px;}
+.ov-cb{display:flex;align-items:center;gap:5px;cursor:pointer;}
+.ov-cb input{accent-color:#00c8ff;width:14px;height:14px;cursor:pointer;}
+.ov-cb span{font-size:12px;font-weight:600;}
+.grid-outer{flex:1;overflow:auto;border-radius:12px;border:1px solid #1a2a4a;background:#060b18;}
+.sched-wrap{display:grid;grid-template-columns:56px repeat(6,1fr);min-width:720px;}
+.col-header{padding:8px 4px;font-family:'Orbitron',monospace;font-size:10px;letter-spacing:1.5px;color:#2a4a6a;text-align:center;border-bottom:1px solid #0d1a2e;background:#050a14;position:sticky;top:0;z-index:6;white-space:nowrap;}
+.col-header.time-hdr{position:sticky;top:0;left:0;z-index:7;background:#050a14;}
+.time-col-body{background:#050a14;border-left:1px solid #0a1428;position:sticky;right:0;z-index:3;}
+.day-col-body{position:relative;border-left:1px solid #0a1428;}
+.block{position:absolute;border-radius:6px;cursor:pointer;overflow:hidden;padding:3px 5px;display:flex;flex-direction:column;justify-content:space-between;transition:filter .15s,box-shadow .15s;}
+.block:hover{filter:brightness(1.25) saturate(1.2);box-shadow:0 2px 12px rgba(0,0,0,.4);}
+.block-green{background:rgba(0,200,80,.13);border:1px solid rgba(0,200,80,.3);border-top:2px solid #00e676;}
+.block-yellow{background:rgba(200,136,0,.13);border:1px solid rgba(200,136,0,.3);border-top:2px solid #f0a820;}
+.block-red{background:rgba(200,40,40,.13);border:1px solid rgba(200,40,40,.3);border-top:2px solid #ff5555;}
+.bname{font-size:10px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.block-green .bname{color:#00e676;}.block-yellow .bname{color:#f0a820;}.block-red .bname{color:#ff5555;}
+.bmeta{font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.block-green .bmeta{color:#2a9050;}.block-yellow .bmeta{color:#8a6020;}.block-red .bmeta{color:#904040;}
+.btime{font-size:9px;color:#2a4060;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tooltip{position:fixed;z-index:500;background:#080f1e;border:1px solid #1a3a6a;border-radius:10px;padding:10px 14px;pointer-events:none;display:none;min-width:180px;max-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.6);}
+.tooltip.show{display:block;}
+.tt-name{font-family:'Orbitron',monospace;font-size:11px;color:#00c8ff;margin-bottom:6px;letter-spacing:1px;}
+.tt-row{display:flex;align-items:center;gap:6px;font-size:12px;color:#6080a0;margin-bottom:3px;}
+.tt-row i{font-size:13px;color:#2a4a6a;flex-shrink:0;}
+.tt-status{display:inline-block;margin-top:4px;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+.bottom-bar{display:flex;gap:10px;padding:10px 16px;border-top:1px solid #1a2a4a;background:#060b18;flex-shrink:0;flex-wrap:wrap;}
+.bot-btn{display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;font-family:'Orbitron',monospace;font-size:9px;letter-spacing:1px;font-weight:700;cursor:pointer;transition:all .2s;border:none;white-space:nowrap;}
+.bot-btn-cyan{background:linear-gradient(135deg,#061828,#0a2040);border:1px solid #00c8ff44;color:#00c8ff;}
+.bot-btn-cyan:hover{border-color:#00c8ff;box-shadow:0 0 14px #00c8ff22;}
+.bot-btn-purple{background:linear-gradient(135deg,#120820,#1a0d2e);border:1px solid #7b2fbe44;color:#a060e0;}
+.bot-btn-purple:hover{border-color:#7b2fbe;}
+.bot-btn-teal{background:linear-gradient(135deg,#041818,#062828);border:1px solid #00a89044;color:#00d8b0;}
+.bot-btn-teal:hover{border-color:#00d8b0;}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal{background:#080f1e;border:1px solid #1a2a4a;border-radius:16px;width:460px;max-width:100%;max-height:90vh;overflow-y:auto;}
+.mhead{padding:14px 20px 12px;border-bottom:1px solid #1a2a4a;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#080f1e;z-index:2;}
+.mtitle{font-family:'Orbitron',monospace;font-size:11px;letter-spacing:1.5px;color:#00c8ff;display:flex;align-items:center;gap:8px;}
+.mtitle i{font-size:16px;}
+.mclose{background:transparent;border:none;color:#4a6080;cursor:pointer;font-size:18px;display:flex;align-items:center;}
+.mclose:hover{color:#c0d8f0;}
+.mbody{padding:16px 20px;}
+.mfield{margin-bottom:12px;}
+.mfield label{display:block;font-size:11px;color:#4a6080;letter-spacing:1px;margin-bottom:5px;}
+.minput,.mselect,.mtextarea{width:100%;background:#060b18;border:1px solid #1a2a4a;border-radius:8px;padding:8px 11px;color:#c0d8f0;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;transition:border-color .2s;resize:none;}
+.minput:focus,.mselect:focus,.mtextarea:focus{border-color:#00c8ff44;}
+.mselect option{background:#080f1e;}
+.mrow{display:flex;gap:8px;margin-top:6px;}
+.msave{flex:1;background:linear-gradient(135deg,#0a1f3d,#0d2a50);border:1px solid #00c8ff44;color:#00c8ff;padding:9px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer;}
+.msave:hover{border-color:#00c8ff;}
+.mcancel{flex:1;background:transparent;border:1px solid #1a2a4a;color:#4a6080;padding:9px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+.mcancel:hover{border-color:#4a6080;color:#8090a0;}
+.block-info-row{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+.info-chip{display:flex;align-items:center;gap:4px;padding:4px 9px;border-radius:6px;background:#0a1428;border:1px solid #1a2a4a;font-size:11px;color:#6080a0;}
+.info-chip i{font-size:12px;}
+.status-chip{padding:4px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.sc-green{background:#041a08;color:#00e676;border:1px solid #00c84433;}
+.sc-yellow{background:#1a1204;color:#f0a820;border:1px solid #c8880033;}
+.sc-red{background:#1a0404;color:#ff5555;border:1px solid #c8222233;}
+.tab-row{display:flex;gap:0;margin-bottom:14px;border-radius:8px;overflow:hidden;border:1px solid #1a2a4a;}
+.tab-btn{flex:1;padding:8px;background:transparent;border:none;color:#4a6080;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;}
+.tab-btn.active{background:#0a1428;color:#00c8ff;}
+.grade-grid{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;}
+.grade-cb{position:relative;}
+.grade-cb input{position:absolute;opacity:0;width:0;height:0;}
+.grade-cb label{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:6px;border:1px solid #1a2a4a;background:#060b18;color:#4a6080;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;}
+.grade-cb input:checked + label{background:#0a2040;border-color:#00c8ff55;color:#00c8ff;}
+.creds-box{background:#040c04;border:1px solid #00e67633;border-radius:10px;padding:12px 16px;margin-bottom:12px;}
+.creds-row{display:flex;justify-content:space-between;margin-bottom:5px;font-size:13px;}
+.creds-label{color:#2a6040;}.creds-val{font-family:'Orbitron',monospace;font-size:11px;color:#00e676;}
+.copy-btn{width:100%;background:transparent;border:1px solid #00e67644;color:#00e676;border-radius:8px;padding:8px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+.copy-btn:hover{background:#040c04;border-color:#00e676;}
+.approval-banner{background:linear-gradient(135deg,#120820,#1a0d2e);border:1px solid #7b2fbe44;border-radius:10px;padding:12px 16px;margin-top:8px;display:flex;align-items:center;gap:10px;font-size:13px;color:#a060e0;}
+.sim-btn{background:linear-gradient(135deg,#041a08,#062810);border:1px solid #00e67644;color:#00e676;padding:6px 12px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;cursor:pointer;margin-top:8px;width:100%;display:flex;align-items:center;justify-content:center;gap:6px;}
+.sim-btn:hover{border-color:#00e676;}
+.student-row{display:flex;gap:8px;margin-bottom:8px;align-items:center;}
+.student-row .minput{flex:1;}
+.remove-row-btn{background:transparent;border:1px solid #1a2a4a;color:#4a6080;width:30px;height:30px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.remove-row-btn:hover{border-color:#ff444444;color:#ff5555;}
+.add-row-btn{width:100%;background:transparent;border:1px dashed #1a2a4a;color:#4a6080;padding:8px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:14px;}
+.add-row-btn:hover{border-color:#00c8ff44;color:#00c8ff;}
+.group-search-wrap{position:relative;margin-bottom:12px;}
+.search-icon{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:14px;color:#2a4060;}
+.group-select-list{max-height:180px;overflow-y:auto;border:1px solid #1a2a4a;border-radius:8px;background:#060b18;}
+.group-option{padding:9px 12px;cursor:pointer;border-bottom:1px solid #0a1428;display:flex;align-items:center;justify-content:space-between;}
+.group-option:last-child{border-bottom:none;}
+.group-option:hover{background:#0a1428;}
+.group-option.selected{background:#0a2040;}
+.go-name{font-size:13px;font-weight:600;color:#c0d8f0;}
+.go-meta{font-size:11px;color:#3a5070;}
+.go-check{color:#00c8ff;font-size:16px;opacity:0;}
+.group-option.selected .go-check{opacity:1;}
+.tcontainer{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:1000;pointer-events:none;display:flex;flex-direction:column;gap:8px;align-items:center;}
+.toast{background:#041a08;border:1px solid #00e67666;border-radius:10px;padding:10px 16px;color:#00e676;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px;animation:tin .3s ease,tout .3s ease 2.7s forwards;white-space:nowrap;}
+.toast.warn{background:#1a1204;border-color:#c8880066;color:#f0a820;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes pdot{0%,100%{opacity:1;}50%{opacity:.3;}}
+@keyframes tin{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+@keyframes tout{from{opacity:1;}to{opacity:0;}}
+</style>
+
+<div class="tooltip" id="tooltip">
+  <div class="tt-name" id="ttName"></div>
+  <div class="tt-row"><i class="ti ti-map-pin"></i><span id="ttCity"></span></div>
+  <div class="tt-row"><i class="ti ti-building"></i><span id="ttVenue"></span></div>
+  <div class="tt-row"><i class="ti ti-clock"></i><span id="ttTime"></span></div>
+  <div class="tt-row"><i class="ti ti-user"></i><span id="ttInst"></span></div>
+  <div><span class="tt-status" id="ttStatus"></span></div>
+</div>
+<div class="tcontainer" id="tc"></div>
+<div id="modalRoot"></div>
+
+<div class="root">
+<div class="sidebar">
+  <div class="slogo"><div class="slogo-inner">A</div></div>
+  <button class="nbtn"><i class="ti ti-layout-dashboard"></i><span class="nlabel">בית</span></button>
+  <button class="nbtn"><i class="ti ti-shopping-bag"></i><span class="nlabel">חנות</span></button>
+  <button class="nbtn"><i class="ti ti-sword"></i><span class="nlabel">משימות</span></button>
+  <button class="nbtn active"><i class="ti ti-adjustments"></i><span class="nlabel">בקרה</span></button>
+</div>
+<div class="main-col">
+  <div class="topbar">
+    <div class="brand">
+      <div class="bcircle"><div class="bring"></div><div class="bring2"></div><div class="bcircle-inner"></div></div>
+      <div><div class="btitle">ARAGON HQ</div><div class="bsub">MASTER SCHEDULE HUB</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="spill"><div class="sdot"></div>מערכת פעילה</div>
+      <div style="font-size:11px;color:#2a4060;font-family:'Orbitron',monospace;">17.05.26</div>
+    </div>
+    <div class="tneon"></div>
+  </div>
+  <div class="content">
+    <div class="toolbar">
+      <button class="tb-btn active" id="tbAll" onclick="setFilter('all')"><i class="ti ti-layout-grid"></i> הצג הכל</button>
+      <button class="tb-btn" id="tbInst" onclick="setFilter('inst')"><i class="ti ti-user-search"></i> לפי מדריך</button>
+      <select class="tb-select" id="instSelect" onchange="onInstChange()" style="display:none;"></select>
+      <button class="tb-btn" id="tbUnassigned" onclick="setFilter('unassigned')"><i class="ti ti-alert-triangle"></i> ללא שיוך</button>
+      <div class="legend">
+        <div class="leg-item"><div class="leg-dot" style="background:#00e676;box-shadow:0 0 5px #00e676;"></div>אושר</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#f0a820;box-shadow:0 0 5px #f0a820;"></div>ממתין</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#ff5555;box-shadow:0 0 5px #ff5555;"></div>ללא מדריך</div>
+      </div>
+    </div>
+    <div class="overlay-filters" id="overlayFilters">
+      <span class="overlay-label">הצג גם דהוי:</span>
+      <label class="ov-cb"><input type="checkbox" id="ovGreen" onchange="renderGrid()"><span style="color:#00e676;">✅ אושר</span></label>
+      <label class="ov-cb"><input type="checkbox" id="ovYellow" onchange="renderGrid()"><span style="color:#f0a820;">⚠️ ממתין</span></label>
+      <label class="ov-cb"><input type="checkbox" id="ovRed" onchange="renderGrid()"><span style="color:#ff5555;">🔴 ללא מדריך</span></label>
+    </div>
+    <div class="grid-outer"><div id="schedWrap"></div></div>
+  </div>
+  <div class="bottom-bar">
+    <button class="bot-btn bot-btn-cyan" onclick="openNewGroup()"><i class="ti ti-plus"></i> צור קבוצה חדשה</button>
+    <button class="bot-btn bot-btn-purple" onclick="openNewInstructor()"><i class="ti ti-user-plus"></i> צור מדריך חדש</button>
+    <button class="bot-btn bot-btn-teal" onclick="openAddStudents()"><i class="ti ti-user-star"></i> הוסף תלמידים לקבוצה</button>
+    <div style="margin-right:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:#2a4060;"><i class="ti ti-info-circle"></i> לחץ על בלוק לעריכה</div>
+  </div>
+</div>
+</div>
+
+<script>
+const DAYS=['ראשון','שני','שלישי','רביעי','חמישי','שישי'];
+const PX_PER_MIN=1.2, START_HOUR=12, END_HOUR=20, TOTAL_MIN=(END_HOUR-START_HOUR)*60;
+const LINE_MAJOR='#1e3250', LINE_MINOR='#0d1a2c';
+const GAP=2; // px gap between side-by-side blocks
+
+let instructors=['ישראל ישראלי','שירה כהן','ויקטור לוי','רונית אברהם','דני שפירא'];
+function toMin(t){const[h,m]=t.split(':').map(Number);return(h-START_HOUR)*60+m;}
+function minToStr(m){const h=Math.floor(m/60)+START_HOUR,mm=m%60;return`${String(h).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;}
+
+let groups=[
+  {id:1, name:'הייטק ג׳וניור',     city:'ר"ג',    venue:'בי"ס בן גוריון',    instructor:'ישראל ישראלי', day:0, startMin:toMin('16:00'), dur:60, status:'green',  grades:['ד','ה']},
+  {id:2, name:'הנדסה ורובוטיקה',   city:'ת"א',    venue:'בי"ס ויצמן',         instructor:'שירה כהן',     day:1, startMin:toMin('16:30'), dur:60, status:'green',  grades:['ו','ז']},
+  {id:3, name:'הייטק פרו',          city:'חולון',  venue:'בי"ס אלון',          instructor:'ויקטור לוי',   day:2, startMin:toMin('17:00'), dur:90, status:'yellow', grades:['ח','ט']},
+  {id:4, name:'הייטק ג׳וניור',     city:'פ"ת',    venue:'בי"ס קסם',           instructor:'רונית אברהם',  day:3, startMin:toMin('15:30'), dur:60, status:'yellow', grades:['א','ב']},
+  {id:5, name:'הנדסה ורובוטיקה',   city:'ר"ג',    venue:'בי"ס הרצל',          instructor:'',             day:4, startMin:toMin('16:00'), dur:60, status:'red',    grades:['ג','ד']},
+  {id:6, name:'הייטק פרו',          city:'ת"א',    venue:'בי"ס ביאליק',        instructor:'דני שפירא',    day:0, startMin:toMin('17:30'), dur:60, status:'green',  grades:['ז','ח']},
+  {id:7, name:'הייטק ג׳וניור',     city:'חולון',  venue:'בי"ס ז׳בוטינסקי',   instructor:'',             day:5, startMin:toMin('15:00'), dur:60, status:'red',    grades:['ב','ג']},
+  {id:8, name:'הנדסה ורובוטיקה',   city:'פ"ת',    venue:'בי"ס נורדאו',        instructor:'ישראל ישראלי', day:2, startMin:toMin('18:00'), dur:60, status:'yellow', grades:['ה','ו']},
+  {id:9, name:'הייטק פרו',          city:'ר"ג',    venue:'בי"ס מנחם בגין',    instructor:'שירה כהן',     day:1, startMin:toMin('17:00'), dur:60, status:'green',  grades:['ז']},
+  {id:10,name:'הייטק ג׳וניור',     city:'ת"א',    venue:'בי"ס שנקר',          instructor:'',             day:3, startMin:toMin('16:30'), dur:60, status:'red',    grades:['ד','ה']},
+  {id:11,name:'הייטק פרו',          city:'ר"ג',    venue:'בי"ס בגין',          instructor:'ויקטור לוי',   day:0, startMin:toMin('16:10'), dur:60, status:'yellow', grades:['ה']},
+  {id:12,name:'הנדסה ורובוטיקה',   city:'חולון',  venue:'בי"ס רמב"ם',         instructor:'',             day:4, startMin:toMin('16:00'), dur:75, status:'red',    grades:['ג']},
+];
+
+let currentFilter='all', selectedInstructor='', nextGroupId=30;
+const COLOR={green:'#00e676',yellow:'#f0a820',red:'#ff5555'};
+const STATUSLABEL={green:'אושר השבוע',yellow:'ממתין לאישור',red:'ללא מדריך'};
+
+function rebuildInstSelect(){
+  const sel=document.getElementById('instSelect'),cur=sel.value;
+  sel.innerHTML='<option value="">— בחר מדריך —</option>'+
+    instructors.map(i=>`<option value="${i}"${i===cur?' selected':''}>${i}</option>`).join('');
+}
+function onInstChange(){selectedInstructor=document.getElementById('instSelect').value;renderGrid();}
+function setFilter(f){
+  currentFilter=f;
+  const sel=document.getElementById('instSelect'),ov=document.getElementById('overlayFilters');
+  ['tbAll','tbInst','tbUnassigned'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  if(f==='all'){document.getElementById('tbAll').classList.add('active');sel.style.display='none';ov.classList.remove('show');}
+  else if(f==='inst'){document.getElementById('tbInst').classList.add('active');sel.style.display='block';ov.classList.add('show');selectedInstructor=sel.value;}
+  else{document.getElementById('tbUnassigned').classList.add('active');sel.style.display='none';ov.classList.remove('show');}
+  renderGrid();
+}
+
+/* ═══════════════════════════════════════════════
+   OVERLAP LAYOUT  — interval-graph column packing
+   Each block gets:  .col (0-based)  .numCols (width divisor)
+   numCols = size of the largest clique it belongs to.
+   ═══════════════════════════════════════════════ */
+function layoutDay(blocks) {
+  // 1. sort by start time
+  const bs = [...blocks].sort((a,b)=>a.startMin-b.startMin);
+  bs.forEach(b=>{ b.endMin = b.startMin + b.dur; });
+
+  // 2. greedy column assignment (interval scheduling)
+  //    cols[c] = last endMin placed in column c
+  const colEnd = [];
+  bs.forEach(b=>{
+    let placed = false;
+    for(let c=0;c<colEnd.length;c++){
+      if(colEnd[c] <= b.startMin){ // column is free
+        b.col = c;
+        colEnd[c] = b.endMin;
+        placed = true;
+        break;
+      }
+    }
+    if(!placed){ b.col = colEnd.length; colEnd.push(b.endMin); }
+  });
+
+  // 3. for every block, numCols = max number of blocks that overlap simultaneously
+  //    = size of the largest "clique" it participates in
+  bs.forEach(b=>{
+    // find all blocks that overlap with b (including b itself)
+    const overlapping = bs.filter(o => o.startMin < b.endMin && o.endMin > b.startMin);
+    b.numCols = overlapping.length;
+  });
+
+  // 4. second pass: make numCols consistent within each clique
+  //    (if A overlaps B and B overlaps C, all three need numCols = 3)
+  //    use union-find style propagation
+  let changed = true;
+  while(changed){
+    changed = false;
+    bs.forEach(b=>{
+      const overlapping = bs.filter(o => o.startMin < b.endMin && o.endMin > b.startMin);
+      const mx = Math.max(...overlapping.map(o=>o.numCols));
+      overlapping.forEach(o=>{ if(o.numCols < mx){ o.numCols = mx; changed = true; } });
+    });
+  }
+
+  return bs;
+}
+
+function getOpacity(g){
+  if(currentFilter==='all') return 1;
+  if(currentFilter==='unassigned') return g.status==='red'?1:0.08;
+  if(!selectedInstructor) return 0.12;
+  if(g.instructor===selectedInstructor) return 1;
+  const ovG=document.getElementById('ovGreen')?.checked,
+        ovY=document.getElementById('ovYellow')?.checked,
+        ovR=document.getElementById('ovRed')?.checked;
+  if(g.status==='green'  && ovG) return 0.2;
+  if(g.status==='yellow' && ovY) return 0.2;
+  if(g.status==='red'    && ovR) return 0.2;
+  return 0;
+}
+
+function renderGrid(){
+  const totalPx = TOTAL_MIN * PX_PER_MIN;
+
+  // time column
+  let timeHtml='';
+  for(let m=0;m<TOTAL_MIN;m+=30){
+    const major=m%60===0;
+    timeHtml+=`<div style="position:absolute;top:${m*PX_PER_MIN}px;left:0;right:0;height:${30*PX_PER_MIN}px;
+      border-bottom:${major?'1.5px':'1px'} solid ${major?LINE_MAJOR:LINE_MINOR};
+      display:flex;align-items:flex-start;justify-content:center;padding-top:3px;
+      font-family:'Orbitron',monospace;font-size:9px;color:${major?'#2a4a6a':'transparent'};">
+      ${major?minToStr(m):''}</div>`;
+  }
+
+  // day columns
+  let dayCols='';
+  for(let di=0;di<6;di++){
+    const laid = layoutDay(groups.filter(g=>g.day===di));
+
+    // grid lines
+    let lines='';
+    for(let m=0;m<TOTAL_MIN;m+=30){
+      const major=m%60===0;
+      lines+=`<div style="position:absolute;top:${m*PX_PER_MIN}px;left:0;right:0;height:${30*PX_PER_MIN}px;
+        border-bottom:${major?'1.5px':'1px'} solid ${major?LINE_MAJOR:LINE_MINOR};pointer-events:none;"></div>`;
+    }
+
+    let blocks='';
+    laid.forEach(b=>{
+      const op = getOpacity(b);
+      if(op===0) return;
+
+      const topPx   = b.startMin * PX_PER_MIN;
+      const hPx     = Math.max(b.dur * PX_PER_MIN - 2, 18);
+      const n       = b.numCols;
+      const colW    = (100 / n);                    // % width per column
+      // RTL layout: col 0 → rightmost, col n-1 → leftmost
+      const rightPct = (b.col / n) * 100;
+      const widthStr = `calc(${colW}% - ${GAP*(n>1?1:0)}px)`;
+      const startStr = minToStr(b.startMin), endStr = minToStr(b.endMin);
+
+      blocks+=`<div class="block block-${b.status}"
+        style="top:${topPx}px;right:${rightPct}%;width:${widthStr};height:${hPx}px;opacity:${op};"
+        onclick="openBlockModal(${b.id})"
+        onmouseenter="showTT(event,${b.id})"
+        onmouseleave="hideTT()">
+        <div class="bname">${b.name}</div>
+        ${hPx>30?`<div class="bmeta">${b.city}${b.instructor?' · '+b.instructor.split(' ')[0]:' · ⚠'}</div>`:''}
+        ${hPx>20?`<div class="btime">${startStr}–${endStr}</div>`:''}
+      </div>`;
+    });
+
+    dayCols+=`<div class="day-col-body" style="position:relative;height:${totalPx}px;">${lines}${blocks}</div>`;
+  }
+
+  document.getElementById('schedWrap').innerHTML=`
+    <div class="sched-wrap">
+      <div class="col-header time-hdr">שעה</div>
+      ${DAYS.map(d=>`<div class="col-header">${d}</div>`).join('')}
+      <div class="time-col-body" style="position:relative;height:${totalPx}px;">${timeHtml}</div>
+      ${dayCols}
+    </div>`;
+}
+
+/* TOOLTIP */
+function showTT(e,id){
+  const g=groups.find(x=>x.id===id);if(!g)return;
+  document.getElementById('ttName').textContent=g.name;
+  document.getElementById('ttCity').textContent=g.city;
+  document.getElementById('ttVenue').textContent=g.venue;
+  document.getElementById('ttTime').textContent=`${DAYS[g.day]} ${minToStr(g.startMin)}–${minToStr(g.startMin+g.dur)}`;
+  document.getElementById('ttInst').textContent=g.instructor||'ללא מדריך';
+  const ts=document.getElementById('ttStatus');
+  ts.textContent=STATUSLABEL[g.status]; ts.className='tt-status sc-'+g.status;
+  positionTT(e); document.getElementById('tooltip').classList.add('show');
+}
+function positionTT(e){
+  const tt=document.getElementById('tooltip'); tt.style.display='block';
+  const tw=tt.offsetWidth||200, th=tt.offsetHeight||120;
+  let x=e.clientX+14, y=e.clientY+14;
+  if(x+tw>window.innerWidth-10)  x=e.clientX-tw-14;
+  if(y+th>window.innerHeight-10) y=e.clientY-th-14;
+  tt.style.left=x+'px'; tt.style.top=y+'px';
+}
+function hideTT(){document.getElementById('tooltip').classList.remove('show');}
+document.addEventListener('mousemove',e=>{if(document.getElementById('tooltip').classList.contains('show'))positionTT(e);});
+
+/* BLOCK MODAL */
+function openBlockModal(id){
+  hideTT();
+  const g=groups.find(x=>x.id===id); if(!g)return;
+  const instOpts=['',...instructors].map(i=>`<option value="${i}"${i===g.instructor?' selected':''}>${i||'— ללא —'}</option>`).join('');
+  const hasPending=g.status==='yellow'&&g.pendingInstructor;
+  showModal(`<div class="mhead"><div class="mtitle"><i class="ti ti-calendar-event"></i>${g.name} · ${g.city}</div><button class="mclose" onclick="closeModal()"><i class="ti ti-x"></i></button></div>
+    <div class="mbody">
+      <div class="block-info-row">
+        <div class="info-chip"><i class="ti ti-building"></i>${g.venue}</div>
+        <div class="info-chip"><i class="ti ti-clock"></i>${DAYS[g.day]} ${minToStr(g.startMin)}–${minToStr(g.startMin+g.dur)}</div>
+        <div class="status-chip sc-${g.status}">${STATUSLABEL[g.status]}</div>
+      </div>
+      <div class="tab-row">
+        <button class="tab-btn active" id="tab1" onclick="switchTab(1)">✏️ ערוך</button>
+        <button class="tab-btn" id="tab2" onclick="switchTab(2)">👤 מדריך</button>
+        <button class="tab-btn" id="tab3" onclick="switchTab(3)">📢 עדכון</button>
+      </div>
+      <div id="tabContent1">
+        <div class="mfield"><label>שם החוג</label><input class="minput" id="eGroupName" value="${g.name}"/></div>
+        <div style="display:flex;gap:8px;">
+          <div class="mfield" style="flex:1;"><label>עיר</label><input class="minput" id="eCity" value="${g.city}"/></div>
+          <div class="mfield" style="flex:1;"><label>מוקד</label><input class="minput" id="eVenue" value="${g.venue}"/></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <div class="mfield" style="flex:1;"><label>יום</label><select class="mselect" id="eDay">${DAYS.map((d,i)=>`<option value="${i}"${i===g.day?' selected':''}>${d}</option>`).join('')}</select></div>
+          <div class="mfield" style="flex:1;"><label>התחלה</label><input class="minput" id="eStart" value="${minToStr(g.startMin)}"/></div>
+          <div class="mfield" style="flex:1;"><label>סיום</label><input class="minput" id="eEnd" value="${minToStr(g.startMin+g.dur)}"/></div>
+        </div>
+        <div class="mrow"><button class="msave" onclick="saveEdit(${g.id})">שמור</button><button class="mcancel" onclick="closeModal()">ביטול</button></div>
+      </div>
+      <div id="tabContent2" style="display:none;">
+        <div class="mfield"><label>שיוך מדריך</label><select class="mselect" id="eInstructor">${instOpts}</select></div>
+        ${hasPending?`<div class="approval-banner"><i class="ti ti-clock"></i><div>ממתין לאישור ${g.pendingInstructor}<button class="sim-btn" onclick="simulateApproval(${g.id})"><i class="ti ti-check"></i> סמלץ אישור ✓</button></div></div>`:''}
+        <div class="mrow" style="margin-top:10px;"><button class="msave" onclick="saveInstructor(${g.id})">שמור שיוך</button><button class="mcancel" onclick="closeModal()">ביטול</button></div>
+      </div>
+      <div id="tabContent3" style="display:none;">
+        <div class="mfield"><label>הודעה לתלמידי הקבוצה</label><textarea class="mtextarea" id="eMessage" rows="4" placeholder="הודעה מהירה..."></textarea></div>
+        <div class="mrow"><button class="msave" onclick="sendUpdate(${g.id})">📢 שלח</button><button class="mcancel" onclick="closeModal()">ביטול</button></div>
+      </div>
+    </div>`);
+}
+function switchTab(n){[1,2,3].forEach(i=>{document.getElementById('tab'+i).classList.toggle('active',i===n);document.getElementById('tabContent'+i).style.display=i===n?'block':'none';});}
+function ptm(s){const c=s.trim().replace('.',':');const[h,m]=c.split(':').map(Number);if(isNaN(h))return null;return(h-START_HOUR)*60+(isNaN(m)?0:m);}
+function saveEdit(id){const g=groups.find(x=>x.id===id);const s=ptm(document.getElementById('eStart').value),e=ptm(document.getElementById('eEnd').value);if(s===null||e===null||e<=s){toastWarn('שעות לא תקינות');return;}g.name=document.getElementById('eGroupName').value;g.city=document.getElementById('eCity').value;g.venue=document.getElementById('eVenue').value;g.day=parseInt(document.getElementById('eDay').value);g.startMin=s;g.dur=e-s;closeModal();renderGrid();toast('הקבוצה עודכנה ✓');}
+function saveInstructor(id){const g=groups.find(x=>x.id===id);const ni=document.getElementById('eInstructor').value;if(!ni){g.instructor='';g.status='red';g.pendingInstructor=null;}else if(ni!==g.instructor){g.instructor=ni;g.status='yellow';g.pendingInstructor=ni;}closeModal();renderGrid();if(g.pendingInstructor)toast(`בקשת אישור נשלחה ל${g.pendingInstructor} ✓`);else toast('שיוך עודכן ✓');}
+function simulateApproval(id){const g=groups.find(x=>x.id===id);g.status='green';g.pendingInstructor=null;closeModal();renderGrid();toast(`${g.instructor} אישר — הבלוק הפך לירוק ✓`);}
+function sendUpdate(id){const msg=document.getElementById('eMessage').value.trim();if(!msg){toastWarn('נא להזין הודעה');return;}const g=groups.find(x=>x.id===id);closeModal();toast(`ההודעה נשלחה לתלמידי ${g.name} · ${g.city} ✓`);}
+
+/* NEW GROUP */
+function openNewGroup(){showModal(`<div class="mhead"><div class="mtitle"><i class="ti ti-plus"></i>צור קבוצה חדשה</div><button class="mclose" onclick="closeModal()"><i class="ti ti-x"></i></button></div><div class="mbody"><div class="mfield"><label>סוג חוג</label><select class="mselect" id="ngType"><option>הייטק ג׳וניור</option><option>הייטק פרו</option><option>הנדסה ורובוטיקה</option><option>אחר</option></select></div><div style="display:flex;gap:8px;"><div class="mfield" style="flex:1;"><label>עיר</label><input class="minput" id="ngCity" placeholder='ר"ג'/></div><div class="mfield" style="flex:1;"><label>מוקד</label><input class="minput" id="ngVenue" placeholder='בי"ס בן גוריון'/></div></div><div style="display:flex;gap:8px;"><div class="mfield" style="flex:1;"><label>יום</label><select class="mselect" id="ngDay">${DAYS.map((d,i)=>`<option value="${i}">${d}</option>`).join('')}</select></div><div class="mfield" style="flex:1;"><label>התחלה</label><input class="minput" id="ngStart" placeholder="16:00"/></div><div class="mfield" style="flex:1;"><label>סיום</label><input class="minput" id="ngEnd" placeholder="17:00"/></div></div><div class="mfield"><label>כיתות</label><div class="grade-grid">${['א','ב','ג','ד','ה','ו','ז','ח','ט'].map(g=>`<div class="grade-cb"><input type="checkbox" id="ngr${g}" value="${g}"/><label for="ngr${g}">${g}</label></div>`).join('')}</div></div><div class="mfield"><label>שיוך מדריך</label><select class="mselect" id="ngInstructor"><option value="">— ללא כרגע —</option>${instructors.map(i=>`<option>${i}</option>`).join('')}</select></div><div class="mrow"><button class="msave" onclick="saveNewGroup()">צור קבוצה</button><button class="mcancel" onclick="closeModal()">ביטול</button></div></div>`);}
+function saveNewGroup(){const type=document.getElementById('ngType').value,city=document.getElementById('ngCity').value.trim(),venue=document.getElementById('ngVenue').value.trim(),day=parseInt(document.getElementById('ngDay').value),s=ptm(document.getElementById('ngStart').value||'16:00'),e=ptm(document.getElementById('ngEnd').value||'17:00'),inst=document.getElementById('ngInstructor').value,grades=[...document.querySelectorAll('[id^="ngr"]:checked')].map(x=>x.value);if(!city||!venue){toastWarn('נא למלא עיר ומוקד');return;}if(s===null||e===null||e<=s){toastWarn('שעות לא תקינות');return;}groups.push({id:nextGroupId++,name:type,city,venue,instructor:inst,day,startMin:s,dur:e-s,status:inst?'yellow':'red',grades,pendingInstructor:inst||null});closeModal();renderGrid();toast(`קבוצת ${type} · ${city} נוצרה ✓`);}
+
+/* NEW INSTRUCTOR */
+function openNewInstructor(){showModal(`<div class="mhead"><div class="mtitle" style="color:#a060e0;"><i class="ti ti-user-plus"></i>צור מדריך חדש</div><button class="mclose" onclick="closeModal()"><i class="ti ti-x"></i></button></div><div class="mbody"><div style="display:flex;gap:8px;"><div class="mfield" style="flex:2;"><label>שם מלא</label><input class="minput" id="niName" placeholder="ישראל ישראלי"/></div><div class="mfield" style="flex:1;"><label>טלפון</label><input class="minput" id="niPhone" placeholder="050-0000000"/></div></div><div id="niCredsArea" style="display:none;"><div class="creds-box"><div class="creds-row"><span class="creds-label">שם משתמש:</span><span class="creds-val" id="niUsername"></span></div><div class="creds-row"><span class="creds-label">סיסמה:</span><span class="creds-val">12345678</span></div><div class="creds-row"><span class="creds-label">טלפון:</span><span class="creds-val" id="niPhoneDisp"></span></div></div><button class="copy-btn" onclick="copyCredentials()"><i class="ti ti-brand-whatsapp"></i> העתק לוואטסאפ</button></div><div class="mrow" id="niCreateRow"><button class="msave" style="background:linear-gradient(135deg,#120820,#1a0d2e);border-color:#7b2fbe44;color:#a060e0;" onclick="generateInstructor()">⚡ צור אוטומטית</button><button class="mcancel" onclick="closeModal()">ביטול</button></div></div>`);}
+function toEng(n){const m={'א':'a','ב':'b','ג':'g','ד':'d','ה':'h','ו':'v','ז':'z','ח':'ch','ט':'t','י':'y','כ':'k','ל':'l','מ':'m','נ':'n','ס':'s','ע':'a','פ':'p','צ':'tz','ק':'k','ר':'r','ש':'sh','ת':'t','ך':'k','ם':'m','ן':'n','ף':'p','ץ':'tz'};return n.split('').map(c=>m[c]||c).join('').replace(/\s+/g,'.');}
+function generateInstructor(){const name=document.getElementById('niName').value.trim(),phone=document.getElementById('niPhone').value.trim();if(!name){toastWarn('נא להזין שם');return;}const u=toEng(name)+'.'+Math.floor(10+Math.random()*90);document.getElementById('niUsername').textContent=u;document.getElementById('niPhoneDisp').textContent=phone||'—';document.getElementById('niCredsArea').style.display='block';document.getElementById('niCreateRow').style.display='none';instructors.push(name);rebuildInstSelect();toast(`המדריך ${name} נוצר ✓`);}
+function copyCredentials(){const u=document.getElementById('niUsername').textContent,p=document.getElementById('niPhoneDisp').textContent;navigator.clipboard.writeText(`פרטי התחברות אראגון:\nשם משתמש: ${u}\nסיסמה: 12345678\nטלפון: ${p}`).catch(()=>{});toast('הפרטים הועתקו ✓');}
+
+/* ADD STUDENTS */
+let studentRows=1, selectedGroupId=null;
+function openAddStudents(){
+  studentRows=1; selectedGroupId=null;
+  const sorted=[...groups].sort((a,b)=>a.city.localeCompare(b.city,'he'));
+  const ghtml=sorted.map(g=>`<div class="group-option" id="go_${g.id}" onclick="selectGroup(${g.id})"><div><div class="go-name">${g.name}</div><div class="go-meta">${g.city} · ${g.venue} · ${DAYS[g.day]} ${minToStr(g.startMin)}</div></div><i class="ti ti-check go-check"></i></div>`).join('');
+  showModal(`<div class="mhead"><div class="mtitle" style="color:#00d8b0;"><i class="ti ti-user-star"></i>הוספת תלמידים לקבוצה</div><button class="mclose" onclick="closeModal()"><i class="ti ti-x"></i></button></div><div class="mbody"><div class="mfield"><label>שמות התלמידים</label><div id="studentRows"><div class="student-row" id="srow_1"><input class="minput" id="sname_1" placeholder="שם מלא של תלמיד"/><button class="remove-row-btn" onclick="removeRow(1)"><i class="ti ti-x"></i></button></div></div><button class="add-row-btn" onclick="addStudentRow()"><i class="ti ti-plus"></i> הוסף תלמיד נוסף</button></div><div class="mfield"><label>שיוך לקבוצה (ממוין לפי עיר)</label><div class="group-search-wrap"><input class="minput" id="groupSearch" placeholder="חפש קבוצה..." oninput="filterGroups(this.value)"/><i class="ti ti-search search-icon"></i></div><div class="group-select-list" id="groupList">${ghtml}</div></div><div class="mrow"><button class="msave" style="background:linear-gradient(135deg,#041818,#062828);border-color:#00d8b044;color:#00d8b0;" onclick="saveStudents()">הוסף תלמידים</button><button class="mcancel" onclick="closeModal()">ביטול</button></div></div>`);
+}
+function addStudentRow(){studentRows++;const wrap=document.getElementById('studentRows');const div=document.createElement('div');div.className='student-row';div.id=`srow_${studentRows}`;div.innerHTML=`<input class="minput" id="sname_${studentRows}" placeholder="שם מלא"/><button class="remove-row-btn" onclick="removeRow(${studentRows})"><i class="ti ti-x"></i></button>`;wrap.appendChild(div);document.getElementById(`sname_${studentRows}`).focus();}
+function removeRow(n){const el=document.getElementById(`srow_${n}`);if(el)el.remove();}
+function selectGroup(id){if(selectedGroupId){const p=document.getElementById(`go_${selectedGroupId}`);if(p)p.classList.remove('selected');}selectedGroupId=id;const el=document.getElementById(`go_${id}`);if(el)el.classList.add('selected');}
+function filterGroups(q){const sorted=[...groups].sort((a,b)=>a.city.localeCompare(b.city,'he'));document.getElementById('groupList').innerHTML=sorted.filter(g=>!q||g.name.includes(q)||g.city.includes(q)||g.venue.includes(q)).map(g=>`<div class="group-option${g.id===selectedGroupId?' selected':''}" id="go_${g.id}" onclick="selectGroup(${g.id})"><div><div class="go-name">${g.name}</div><div class="go-meta">${g.city} · ${g.venue} · ${DAYS[g.day]} ${minToStr(g.startMin)}</div></div><i class="ti ti-check go-check"></i></div>`).join('');}
+function saveStudents(){if(!selectedGroupId){toastWarn('נא לבחור קבוצה');return;}const names=[...document.querySelectorAll('[id^="sname_"]')].map(i=>i.value.trim()).filter(Boolean);if(!names.length){toastWarn('נא להזין שם לפחות אחד');return;}const g=groups.find(x=>x.id===selectedGroupId);closeModal();toast(`${names.length} תלמידים נוספו ל${g.name} · ${g.city} ✓`);}
+
+function showModal(h){document.getElementById('modalRoot').innerHTML=`<div class="modal-bg" onclick="closeBg(event)"><div class="modal">${h}</div></div>`;}
+function closeModal(){document.getElementById('modalRoot').innerHTML='';}
+function closeBg(e){if(e.target.classList.contains('modal-bg'))closeModal();}
+function toast(msg){addT(msg,'');}function toastWarn(msg){addT(msg,'warn');}
+function addT(msg,cls){const c=document.getElementById('tc');const t=document.createElement('div');t.className='toast'+(cls?' '+cls:'');t.innerHTML='<i class="ti ti-check"></i>'+msg;c.appendChild(t);setTimeout(()=>t.remove(),3000);}
+
+rebuildInstSelect();
+renderGrid();
+</script>

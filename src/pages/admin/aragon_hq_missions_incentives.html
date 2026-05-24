@@ -1,0 +1,490 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+.root{min-height:100vh;background:#050812;display:flex;font-family:'Rajdhani',sans-serif;color:#e0f0ff;direction:rtl;}
+
+/* SIDEBAR */
+.sidebar{width:72px;background:#080f1e;border-left:1px solid #1a2a4a;display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:8px;position:sticky;top:0;height:100vh;z-index:10;}
+.slogo{width:42px;height:42px;border-radius:50%;border:2px solid #00c8ff;display:flex;align-items:center;justify-content:center;margin-bottom:16px;position:relative;}
+.slogo::after{content:'';position:absolute;inset:-5px;border-radius:50%;border:1px solid #7b2fbe;border-top-color:transparent;border-bottom-color:transparent;animation:spin 4s linear infinite;}
+.slogo-inner{width:28px;height:28px;background:linear-gradient(135deg,#1a6fff,#00c8ff);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;color:#fff;}
+.nbtn{width:48px;height:48px;border-radius:10px;border:none;background:transparent;color:#4a6080;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all .2s;position:relative;}
+.nbtn i{font-size:20px;}
+.nbtn:hover{background:#0d1a30;color:#00c8ff;}
+.nbtn.active{background:linear-gradient(135deg,#0a1f3d,#0d2a50);color:#00c8ff;border:1px solid #1a4a80;}
+.nbtn.active::before{content:'';position:absolute;right:0;top:50%;transform:translateY(-50%);width:3px;height:20px;background:#00c8ff;border-radius:2px 0 0 2px;}
+.nlabel{font-size:9px;}
+
+/* TOPBAR */
+.topbar{height:64px;background:linear-gradient(90deg,#050812,#080f22 30%,#0a0820 50%,#080f22 70%,#050812);border-bottom:1px solid #1a2a4a;display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:5;overflow:hidden;}
+.topbar::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(0,200,255,.03) 60px,rgba(0,200,255,.03) 61px);pointer-events:none;}
+.brand{display:flex;align-items:center;gap:14px;}
+.bcircle{width:44px;height:44px;border-radius:50%;background:#080f22;border:1px solid #1a3a60;display:flex;align-items:center;justify-content:center;position:relative;}
+.bcircle-inner{width:30px;height:30px;border-radius:50%;border:1px solid #1a3a60;background:transparent;}
+.bring{position:absolute;inset:-3px;border-radius:50%;border:1.5px solid transparent;border-top-color:#00c8ff;border-right-color:#7b2fbe;animation:spin 3s linear infinite;}
+.bring2{position:absolute;inset:-7px;border-radius:50%;border:1px solid transparent;border-bottom-color:#00c8ff44;border-left-color:#7b2fbe44;animation:spin 6s linear infinite reverse;}
+.btitle{font-family:'Orbitron',monospace;font-size:14px;font-weight:700;letter-spacing:2px;color:#00c8ff;}
+.bsub{font-size:10px;color:#4a6080;letter-spacing:1px;margin-top:1px;}
+.spill{display:flex;align-items:center;gap:6px;background:#040c18;border:1px solid #0a2040;border-radius:20px;padding:5px 12px;font-size:12px;color:#4a9060;}
+.sdot{width:6px;height:6px;border-radius:50%;background:#00e676;animation:pdot 2s ease-in-out infinite;}
+.tneon{position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#00c8ff44,#7b2fbe66,#00c8ff44,transparent);}
+
+/* CONTENT */
+.content{padding:24px;display:flex;flex-direction:column;gap:28px;flex:1;}
+.sech{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+.secline{flex:1;height:1px;background:linear-gradient(90deg,#1a2a4a,transparent);}
+.sectitle{font-family:'Orbitron',monospace;font-size:13px;letter-spacing:2px;color:#c0d8f0;font-weight:600;white-space:nowrap;}
+.secdot-cyan{width:8px;height:8px;border-radius:50%;background:#00c8ff;flex-shrink:0;box-shadow:0 0 8px #00c8ff88;}
+.secdot-gold{width:8px;height:8px;border-radius:50%;background:#c8860a;flex-shrink:0;box-shadow:0 0 8px #c8860a88;}
+
+/* PANELS */
+.panel{border-radius:16px;overflow:hidden;}
+.panel-cyan{background:linear-gradient(135deg,#070e1c,#091422);border:1px solid #1a3050;}
+.panel-gold{background:linear-gradient(135deg,#0c0a04,#120e04);border:1px solid #2a1f08;}
+
+.panel-head{padding:16px 22px;border-bottom:1px solid;display:flex;align-items:center;justify-content:space-between;}
+.panel-head-cyan{border-color:#0d2040;background:#060c18;}
+.panel-head-gold{border-color:#1e1508;background:#090700;}
+.pht{display:flex;align-items:center;gap:10px;font-family:'Orbitron',monospace;font-size:12px;letter-spacing:1.5px;}
+.pht i{font-size:20px;}
+.pht-cyan{color:#00c8ff;}
+.pht-gold{color:#c8860a;}
+.phsub{font-size:11px;color:#2a4060;margin-top:2px;}
+
+.panel-body{padding:22px;}
+
+/* FORM ELEMENTS */
+.frow{display:flex;gap:14px;margin-bottom:14px;}
+.fgroup{display:flex;flex-direction:column;gap:6px;}
+.fgroup.flex1{flex:1;}
+.fgroup.flex2{flex:2;}
+label.flabel{font-size:11px;color:#4a6080;letter-spacing:1px;font-weight:500;}
+label.flabel-gold{font-size:11px;color:#7a5020;letter-spacing:1px;font-weight:500;}
+
+input.finput, textarea.finput, select.finput{
+  background:#060b18;border:1px solid #1a2a4a;border-radius:9px;
+  padding:10px 14px;color:#c0d8f0;font-family:'Rajdhani',sans-serif;
+  font-size:14px;outline:none;transition:border-color .2s;width:100%;resize:none;
+}
+input.finput:focus,textarea.finput:focus,select.finput:focus{border-color:#00c8ff55;}
+input.finput-gold,textarea.finput-gold,select.finput-gold{
+  background:#070600;border:1px solid #2a1f08;border-radius:9px;
+  padding:10px 14px;color:#d0a040;font-family:'Rajdhani',sans-serif;
+  font-size:14px;outline:none;transition:border-color .2s;width:100%;resize:none;
+}
+input.finput-gold:focus,textarea.finput-gold:focus,select.finput-gold:focus{border-color:#c8860a55;}
+select.finput option,select.finput-gold option{background:#080f1e;color:#c0d8f0;}
+
+/* COIN SELECTOR */
+.coin-row{display:flex;align-items:center;gap:10px;}
+.coin-input-wrap{position:relative;flex:1;}
+.coin-input-wrap input{padding-left:36px;}
+.coin-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;}
+.coin-presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.preset-btn{padding:5px 12px;border-radius:20px;border:1px solid #1a2a4a;background:transparent;color:#4a6080;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;}
+.preset-btn:hover,.preset-btn.active{background:#0a1428;border-color:#00c8ff44;color:#00c8ff;}
+
+/* SCOPE */
+.scope-row{display:flex;gap:10px;margin-bottom:14px;}
+.scope-btn{flex:1;padding:10px;border-radius:10px;border:1px solid #1a2a4a;background:transparent;color:#4a6080;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px;}
+.scope-btn i{font-size:16px;}
+.scope-btn.active-cyan{background:linear-gradient(135deg,#061828,#0a2040);border-color:#00c8ff55;color:#00c8ff;}
+.scope-btn.active-gold{background:linear-gradient(135deg,#180e02,#281602);border-color:#c8860a66;color:#c8860a;}
+
+/* DISPATCH BTN */
+.dispatch-btn{width:100%;padding:13px;border-radius:10px;font-family:'Orbitron',monospace;font-size:12px;font-weight:700;letter-spacing:1.5px;cursor:pointer;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:10px;border:none;margin-top:4px;}
+.dispatch-btn i{font-size:18px;}
+.dispatch-cyan{background:linear-gradient(135deg,#0a2040,#0d3060);border:1px solid #00c8ff55;color:#00c8ff;}
+.dispatch-cyan:hover{background:linear-gradient(135deg,#0d3060,#104080);border-color:#00c8ff;box-shadow:0 0 20px #00c8ff22;}
+.dispatch-gold{background:linear-gradient(135deg,#281602,#3d2204);border:1px solid #c8860a66;color:#c8860a;}
+.dispatch-gold:hover{background:linear-gradient(135deg,#3d2204,#542e06);border-color:#c8860a;box-shadow:0 0 20px #c8860a22;}
+.dispatch-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* SUCCESS BANNER */
+.success-banner{border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:14px;margin-top:16px;animation:tin .4s ease;}
+.sb-cyan{background:linear-gradient(135deg,#041a0e,#062818);border:1px solid #00c8ff33;}
+.sb-gold{background:linear-gradient(135deg,#1a0e02,#281602);border:1px solid #c8860a44;}
+.sb-icon{font-size:28px;}
+.sb-title{font-family:'Orbitron',monospace;font-size:12px;letter-spacing:1px;margin-bottom:3px;}
+.sb-title-cyan{color:#00c8ff;}
+.sb-title-gold{color:#c8860a;}
+.sb-sub{font-size:13px;color:#6080a0;}
+.sb-sub-gold{font-size:13px;color:#8a6030;}
+
+/* LOG */
+.log-section{margin-top:20px;}
+.log-title{font-size:11px;color:#2a4060;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.log-title::after{content:'';flex:1;height:1px;background:#0d1a2e;}
+.log-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;margin-bottom:6px;font-size:12px;}
+.li-cyan{background:#040c18;border:1px solid #0a1a30;}
+.li-gold{background:#070500;border:1px solid #1a1000;}
+.li-dot-cyan{width:6px;height:6px;border-radius:50%;background:#00c8ff;flex-shrink:0;}
+.li-dot-gold{width:6px;height:6px;border-radius:50%;background:#c8860a;flex-shrink:0;}
+.li-text{flex:1;color:#6080a0;}
+.li-text-gold{flex:1;color:#7a5020;}
+.li-time{font-size:10px;color:#1a3050;}
+.li-time-gold{font-size:10px;color:#2a1a08;}
+
+/* PANELS ROW */
+.panels-row{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+
+/* TOAST */
+.tcontainer{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:1000;pointer-events:none;display:flex;flex-direction:column;gap:8px;align-items:center;}
+.toast{background:#041a08;border:1px solid #00e67666;border-radius:10px;padding:11px 18px;color:#00e676;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;animation:tin .3s ease,tout .3s ease 2.7s forwards;white-space:nowrap;}
+
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes pdot{0%,100%{opacity:1;}50%{opacity:.3;}}
+@keyframes tin{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+@keyframes tout{from{opacity:1;}to{opacity:0;}}
+@keyframes glow-pulse{0%,100%{box-shadow:0 0 12px #c8860a22;}50%{box-shadow:0 0 28px #c8860a44;}}
+</style>
+
+<div class="tcontainer" id="tc"></div>
+
+<div class="root">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="slogo"><div class="slogo-inner">A</div></div>
+    <button class="nbtn"><i class="ti ti-layout-dashboard"></i><span class="nlabel">בית</span></button>
+    <button class="nbtn"><i class="ti ti-shopping-bag"></i><span class="nlabel">חנות</span></button>
+    <button class="nbtn active"><i class="ti ti-sword"></i><span class="nlabel">משימות</span></button>
+    <button class="nbtn"><i class="ti ti-adjustments"></i><span class="nlabel">בקרה</span></button>
+  </div>
+
+  <div style="flex:1;display:flex;flex-direction:column;overflow-y:auto;">
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="brand">
+        <div class="bcircle">
+          <div class="bring"></div><div class="bring2"></div>
+          <div class="bcircle-inner"></div>
+        </div>
+        <div>
+          <div class="btitle">ARAGON HQ</div>
+          <div class="bsub">MISSIONS &amp; INCENTIVES</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="spill"><div class="sdot"></div>מערכת פעילה</div>
+        <div style="font-size:11px;color:#2a4060;font-family:'Orbitron',monospace;">17.05.26</div>
+      </div>
+      <div class="tneon"></div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <div class="panels-row">
+
+        <!-- ═══ PART A: STUDENT MISSIONS ═══ -->
+        <div>
+          <div class="sech">
+            <div class="secdot-cyan"></div>
+            <div class="sectitle" style="color:#00c8ff;">משימות לתלמידים</div>
+            <div class="secline"></div>
+          </div>
+
+          <div class="panel panel-cyan">
+            <div class="panel-head panel-head-cyan">
+              <div>
+                <div class="pht pht-cyan"><i class="ti ti-map-pin"></i> STUDENT MISSIONS HUB</div>
+                <div class="phsub">יצירת קווסטים לילדים ברחבי הרשת</div>
+              </div>
+              <div id="missionCount" style="font-family:'Orbitron',monospace;font-size:11px;color:#1a4060;background:#040c18;border:1px solid #0a1a30;padding:4px 12px;border-radius:20px;">0 הופצו</div>
+            </div>
+
+            <div class="panel-body">
+              <!-- TITLE -->
+              <div class="frow" style="margin-bottom:14px;">
+                <div class="fgroup flex1">
+                  <label class="flabel">כותרת המשימה</label>
+                  <input class="finput" id="mTitle" type="text" placeholder="למשל: אתגר רובוטיקה לפסח 🤖"/>
+                </div>
+              </div>
+
+              <!-- DESCRIPTION -->
+              <div class="fgroup" style="margin-bottom:14px;">
+                <label class="flabel">תיאור המשימה</label>
+                <textarea class="finput" id="mDesc" rows="3" placeholder="תאר לתלמידים מה עליהם לעשות כדי להשיג את הפרס..."></textarea>
+              </div>
+
+              <!-- COINS -->
+              <div class="fgroup" style="margin-bottom:14px;">
+                <label class="flabel">פרס באראגונים 🪙</label>
+                <div class="coin-input-wrap">
+                  <span class="coin-icon">🪙</span>
+                  <input class="finput" id="mCoins" type="number" min="1" value="10" style="padding-right:14px;padding-left:36px;"/>
+                </div>
+                <div class="coin-presets">
+                  <button class="preset-btn" onclick="setCoins(5)">+5</button>
+                  <button class="preset-btn" onclick="setCoins(10)">+10</button>
+                  <button class="preset-btn" onclick="setCoins(15)">+15</button>
+                  <button class="preset-btn" onclick="setCoins(25)">+25</button>
+                  <button class="preset-btn" onclick="setCoins(50)">+50</button>
+                </div>
+              </div>
+
+              <!-- SCOPE -->
+              <div class="fgroup" style="margin-bottom:14px;">
+                <label class="flabel">שיוך משימה</label>
+                <div class="scope-row">
+                  <button class="scope-btn active-cyan" id="scopeGlobal" onclick="setScope('global')">
+                    <i class="ti ti-world"></i> גלובלית לכל הארץ
+                  </button>
+                  <button class="scope-btn" id="scopeGroup" onclick="setScope('group')">
+                    <i class="ti ti-users"></i> קבוצה ספציפית
+                  </button>
+                </div>
+                <select class="finput" id="mGroup" style="display:none;margin-top:8px;">
+                  <option value="">— בחר קבוצה —</option>
+                  <option>הייטק ג׳וניור | בן גוריון ר"ג</option>
+                  <option>הייטק פרו | ויצמן ת"א</option>
+                  <option>הנדסה ורובוטיקה | אלון חולון</option>
+                  <option>הייטק ג׳וניור | קסם פ"ת</option>
+                  <option>הנדסה ורובוטיקה | בן גוריון ר"ג</option>
+                </select>
+              </div>
+
+              <!-- SUCCESS BANNER -->
+              <div id="missionBanner" style="display:none;" class="success-banner sb-cyan">
+                <span class="sb-icon">🎯</span>
+                <div>
+                  <div class="sb-title sb-title-cyan" id="missionBannerTitle">המשימה הופצה!</div>
+                  <div class="sb-sub" id="missionBannerSub"></div>
+                </div>
+              </div>
+
+              <!-- DISPATCH -->
+              <button class="dispatch-btn dispatch-cyan" onclick="dispatchMission()">
+                <i class="ti ti-send"></i> הפץ משימה לתלמידים
+              </button>
+
+              <!-- LOG -->
+              <div class="log-section">
+                <div class="log-title">היסטוריית הפצות</div>
+                <div id="missionLog"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ PART B: INSTRUCTOR INCENTIVES ═══ -->
+        <div>
+          <div class="sech">
+            <div class="secdot-gold"></div>
+            <div class="sectitle" style="color:#c8860a;">אתגרים למדריכים</div>
+            <div class="secline"></div>
+          </div>
+
+          <div class="panel panel-gold" style="animation:glow-pulse 4s ease-in-out infinite;">
+            <div class="panel-head panel-head-gold">
+              <div>
+                <div class="pht pht-gold"><i class="ti ti-trophy"></i> INSTRUCTOR INCENTIVES</div>
+                <div class="phsub" style="color:#3a2510;">מענקים כספיים ואתגרי ביצועים</div>
+              </div>
+              <div id="incentiveCount" style="font-family:'Orbitron',monospace;font-size:11px;color:#3a2510;background:#070500;border:1px solid #1a1000;padding:4px 12px;border-radius:20px;">0 הופצו</div>
+            </div>
+
+            <div class="panel-body">
+              <!-- CHALLENGE TEXT -->
+              <div class="fgroup" style="margin-bottom:14px;">
+                <label class="flabel-gold">תיאור האתגר הכספי</label>
+                <textarea class="finput-gold" id="iDesc" rows="4" placeholder="למשל: תגיע ל-8 תלמידים בקבוצת בן גוריון ותקבל 200 ₪!&#10;&#10;הזן את פרטי היעד, המועד האחרון וסכום המענק..."></textarea>
+              </div>
+
+              <!-- REWARD -->
+              <div class="frow" style="margin-bottom:14px;">
+                <div class="fgroup flex1">
+                  <label class="flabel-gold">סכום המענק (₪)</label>
+                  <div class="coin-input-wrap">
+                    <span class="coin-icon" style="font-size:13px;color:#c8860a;">₪</span>
+                    <input class="finput-gold" id="iReward" type="number" min="50" value="200" style="padding-right:14px;padding-left:36px;"/>
+                  </div>
+                  <div class="coin-presets" style="margin-top:8px;">
+                    <button class="preset-btn" onclick="setReward(100)" style="border-color:#2a1a08;color:#5a3010;">100 ₪</button>
+                    <button class="preset-btn" onclick="setReward(200)" style="border-color:#2a1a08;color:#5a3010;">200 ₪</button>
+                    <button class="preset-btn" onclick="setReward(350)" style="border-color:#2a1a08;color:#5a3010;">350 ₪</button>
+                    <button class="preset-btn" onclick="setReward(500)" style="border-color:#2a1a08;color:#5a3010;">500 ₪</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- TARGET -->
+              <div class="fgroup" style="margin-bottom:14px;">
+                <label class="flabel-gold">הפצה</label>
+                <div class="scope-row">
+                  <button class="scope-btn" id="iScopeAll" onclick="setIScope('all')" style="border-color:#2a1a08;color:#4a3010;">
+                    <i class="ti ti-broadcast"></i> כל המדריכים
+                  </button>
+                  <button class="scope-btn active-gold" id="iScopeSpec" onclick="setIScope('specific')">
+                    <i class="ti ti-user-check"></i> מדריך ספציפי
+                  </button>
+                </div>
+                <select class="finput-gold" id="iInstructor" style="margin-top:8px;">
+                  <option value="">— בחר מדריך —</option>
+                  <option>ישראל ישראלי</option>
+                  <option>שירה כהן</option>
+                  <option>ויקטור לוי</option>
+                  <option>רונית אברהם</option>
+                  <option>דני שפירא</option>
+                </select>
+              </div>
+
+              <!-- SUCCESS BANNER -->
+              <div id="incentiveBanner" style="display:none;" class="success-banner sb-gold">
+                <span class="sb-icon">🏆</span>
+                <div>
+                  <div class="sb-title sb-title-gold" id="incentiveBannerTitle">האתגר הופץ!</div>
+                  <div class="sb-sub sb-sub-gold" id="incentiveBannerSub"></div>
+                </div>
+              </div>
+
+              <!-- DISPATCH -->
+              <button class="dispatch-btn dispatch-gold" onclick="dispatchIncentive()">
+                <i class="ti ti-coin"></i> הפץ אתגר ומענק כספי
+              </button>
+
+              <!-- LOG -->
+              <div class="log-section">
+                <div class="log-title" style="color:#3a2010;">היסטוריית אתגרים</div>
+                <div id="incentiveLog"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let mScope = 'global';
+let iScope = 'specific';
+let missionCount = 0;
+let incentiveCount = 0;
+
+const groupStudents = {
+  'הייטק ג׳וניור | בן גוריון ר"ג': 14,
+  'הייטק פרו | ויצמן ת"א': 11,
+  'הנדסה ורובוטיקה | אלון חולון': 9,
+  'הייטק ג׳וניור | קסם פ"ת': 13,
+  'הנדסה ורובוטיקה | בן גוריון ר"ג': 12,
+};
+
+function setCoins(v) { document.getElementById('mCoins').value = v; }
+function setReward(v) { document.getElementById('iReward').value = v; }
+
+function setScope(s) {
+  mScope = s;
+  document.getElementById('scopeGlobal').className = 'scope-btn' + (s==='global' ? ' active-cyan' : '');
+  document.getElementById('scopeGroup').className  = 'scope-btn' + (s==='group'  ? ' active-cyan' : '');
+  document.getElementById('mGroup').style.display  = s==='group' ? 'block' : 'none';
+}
+
+function setIScope(s) {
+  iScope = s;
+  document.getElementById('iScopeAll').className  = 'scope-btn' + (s==='all'      ? ' active-gold' : '');
+  document.getElementById('iScopeSpec').className = 'scope-btn' + (s==='specific' ? ' active-gold' : '');
+  document.getElementById('iInstructor').style.display = s==='specific' ? 'block' : 'none';
+}
+// init — hide instructor dropdown since default is 'all' ... wait, default is specific so keep shown
+// actually set initial state correctly
+document.getElementById('iScopeAll').className  = 'scope-btn';
+document.getElementById('iScopeSpec').className = 'scope-btn active-gold';
+
+function dispatchMission() {
+  const title = document.getElementById('mTitle').value.trim();
+  const desc  = document.getElementById('mDesc').value.trim();
+  const coins = parseInt(document.getElementById('mCoins').value) || 0;
+  const group = document.getElementById('mGroup').value;
+
+  if (!title) { toast('נא להזין כותרת למשימה'); return; }
+  if (!desc)  { toast('נא להזין תיאור למשימה'); return; }
+  if (coins < 1){ toast('נא לקבוע פרס של לפחות אראגון אחד'); return; }
+  if (mScope === 'group' && !group) { toast('נא לבחור קבוצה'); return; }
+
+  let count, subText;
+  if (mScope === 'global') {
+    count = 1870;
+    subText = `"${title}" הופצה לכל ${count.toLocaleString()} תלמידי הרשת · פרס: ${coins} 🪙`;
+  } else {
+    count = groupStudents[group] || 12;
+    subText = `"${title}" הופצה לקבוצת ${group} · ${count} תלמידים · פרס: ${coins} 🪙`;
+  }
+
+  missionCount++;
+  document.getElementById('missionCount').textContent = missionCount + ' הופצו';
+
+  const banner = document.getElementById('missionBanner');
+  document.getElementById('missionBannerTitle').textContent = `✅ המשימה הופצה בהצלחה ל-${count.toLocaleString()} תלמידים!`;
+  document.getElementById('missionBannerSub').textContent = subText;
+  banner.style.display = 'flex';
+  setTimeout(() => banner.style.display='none', 5000);
+
+  addLog('missionLog', 'cyan', title, mScope==='global' ? `גלובלי · ${(1870).toLocaleString()} תלמידים · ${coins}🪙` : `${group} · ${count} תלמידים · ${coins}🪙`);
+
+  // reset
+  document.getElementById('mTitle').value = '';
+  document.getElementById('mDesc').value  = '';
+  document.getElementById('mCoins').value = 10;
+  setScope('global');
+}
+
+function dispatchIncentive() {
+  const desc   = document.getElementById('iDesc').value.trim();
+  const reward = parseInt(document.getElementById('iReward').value) || 0;
+  const inst   = document.getElementById('iInstructor').value;
+
+  if (!desc)   { toast('נא לתאר את האתגר'); return; }
+  if (reward < 50){ toast('סכום מענק מינימלי: 50 ₪'); return; }
+  if (iScope === 'specific' && !inst){ toast('נא לבחור מדריך'); return; }
+
+  let target, subText;
+  if (iScope === 'all') {
+    target  = 'כל 12 המדריכים ברשת';
+    subText = `מענק ${reward} ₪ לכל מדריך שיעמוד ביעד`;
+  } else {
+    target  = inst;
+    subText = `מענק ${reward} ₪ ל${inst} בעמידה ביעד`;
+  }
+
+  incentiveCount++;
+  document.getElementById('incentiveCount').textContent = incentiveCount + ' הופצו';
+
+  const banner = document.getElementById('incentiveBanner');
+  document.getElementById('incentiveBannerTitle').textContent = `🏆 האתגר נשלח בהצלחה אל ${target}`;
+  document.getElementById('incentiveBannerSub').textContent = subText;
+  banner.style.display = 'flex';
+  setTimeout(()=> banner.style.display='none', 5000);
+
+  addLog('incentiveLog', 'gold', iScope==='all' ? 'כל המדריכים' : inst, `${reward} ₪ · ${desc.substring(0,40)}${desc.length>40?'...':''}`);
+
+  document.getElementById('iDesc').value   = '';
+  document.getElementById('iReward').value = 200;
+}
+
+function addLog(containerId, color, main, sub) {
+  const now = new Date();
+  const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  const el = document.createElement('div');
+  el.className = `log-item li-${color}`;
+  el.innerHTML = `
+    <div class="li-dot-${color}"></div>
+    <div class="${color==='gold'?'li-text-gold':'li-text'}"><strong style="color:${color==='gold'?'#a06820':'#4a8090'}">${main}</strong> — ${sub}</div>
+    <div class="${color==='gold'?'li-time-gold':'li-time'}">${time}</div>`;
+  const container = document.getElementById(containerId);
+  container.insertBefore(el, container.firstChild);
+}
+
+function toast(msg) {
+  const c = document.getElementById('tc');
+  const t = document.createElement('div');
+  t.className='toast';
+  t.innerHTML='<i class="ti ti-alert-circle"></i>'+msg;
+  t.style.background='#1a0808';t.style.borderColor='#ff444466';t.style.color='#ff6060';
+  c.appendChild(t);
+  setTimeout(()=>t.remove(),3000);
+}
+</script>

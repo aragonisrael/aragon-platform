@@ -1,0 +1,398 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  .app {
+    width: 380px; background: #05010f;
+    font-family: 'Orbitron', sans-serif;
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
+    border-radius: 24px; min-height: 700px;
+  }
+
+  .grid-lines {
+    position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: 0.05;
+    background-image: linear-gradient(rgba(120,80,255,0.6) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(120,80,255,0.6) 1px,transparent 1px);
+    background-size: 40px 40px; animation: gridMove 8s linear infinite;
+  }
+  @keyframes gridMove { from{background-position:0 0;} to{background-position:40px 40px;} }
+
+  .stars { position:absolute; inset:0; pointer-events:none; z-index:0; }
+  .star { position:absolute; border-radius:50%; background:white; animation:twinkle var(--d) ease-in-out infinite alternate; }
+  @keyframes twinkle { from{opacity:0.05;} to{opacity:0.6;} }
+
+  .neon-border { position:absolute; inset:0; border-radius:24px; pointer-events:none; z-index:20; box-shadow:inset 0 0 30px rgba(124,58,237,0.1), 0 0 0 1px rgba(124,58,237,0.3); }
+  .scan-line { position:absolute; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,rgba(124,58,237,0.6),rgba(167,139,250,0.9),rgba(124,58,237,0.6),transparent); animation:scanMove 4s linear infinite; z-index:2; pointer-events:none; }
+  @keyframes scanMove { from{top:0;opacity:0;} 5%{opacity:1;} 95%{opacity:1;} to{top:100%;opacity:0;} }
+
+  /* ===== TOP BANNER (same as home) ===== */
+  .top-banner {
+    position: relative; z-index: 10;
+    background: linear-gradient(135deg,#0a0520,#0d0730,#0a051a,#060218);
+    border-bottom: 1px solid rgba(124,58,237,0.4);
+    padding: 12px 0 14px;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; flex-shrink: 0;
+  }
+
+  .banner-scan {
+    position: absolute; left:0; right:0; height:1px;
+    background: linear-gradient(90deg,transparent 0%,rgba(56,189,248,0) 10%,rgba(124,58,237,0.8) 40%,rgba(56,189,248,1) 50%,rgba(124,58,237,0.8) 60%,rgba(56,189,248,0) 90%,transparent 100%);
+    animation: bannerScan 3s ease-in-out infinite; pointer-events:none; z-index:2;
+  }
+  @keyframes bannerScan { 0%{top:0;opacity:0;} 10%{opacity:1;} 90%{opacity:1;} 100%{top:100%;opacity:0;} }
+
+  .circuit-left, .circuit-right { flex:1; height:70px; position:relative; overflow:hidden; }
+  .circuit-left svg, .circuit-right svg { width:100%; height:100%; }
+
+  /* balance on the right side of circuit */
+  .circuit-right { display:flex; align-items:center; justify-content:flex-start; padding-left:8px; }
+  .circuit-right-inner { flex:1; height:70px; }
+
+  .balance-chip-banner {
+    flex-shrink:0;
+    background:rgba(251,191,36,0.12);
+    border:1px solid rgba(251,191,36,0.4);
+    border-radius:20px;
+    padding:6px 12px;
+    display:flex; align-items:center; gap:5px;
+    margin-right:10px;
+    flex-direction:column;
+  }
+  .balance-chip-banner .bal-num {
+    font-size:18px; font-weight:900; line-height:1;
+    background:linear-gradient(135deg,#fbbf24,#fde68a);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    animation: numGlow 2s ease-in-out infinite;
+  }
+  @keyframes numGlow { 0%,100%{filter:drop-shadow(0 0 4px rgba(251,191,36,0.3));} 50%{filter:drop-shadow(0 0 12px rgba(251,191,36,0.8));} }
+  .balance-chip-banner .bal-label { font-size:7px; color:rgba(251,191,36,0.55); letter-spacing:1px; }
+
+  .banner-logo { width:80px; height:80px; position:relative; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .neon-ring { position:absolute; inset:-10px; border-radius:50%; border:2px solid rgba(99,102,241,0.7); box-shadow:0 0 8px 2px rgba(99,102,241,0.6),0 0 20px 5px rgba(124,58,237,0.4),0 0 40px 8px rgba(56,189,248,0.2),inset 0 0 15px rgba(124,58,237,0.3); animation:ringPulse 2.5s ease-in-out infinite; }
+  @keyframes ringPulse { 0%,100%{box-shadow:0 0 8px 2px rgba(99,102,241,0.6),0 0 20px 5px rgba(124,58,237,0.4),0 0 40px 8px rgba(56,189,248,0.2),inset 0 0 15px rgba(124,58,237,0.3);} 50%{box-shadow:0 0 18px 5px rgba(99,102,241,1),0 0 40px 12px rgba(124,58,237,0.7),0 0 70px 18px rgba(56,189,248,0.4),inset 0 0 30px rgba(124,58,237,0.6);} }
+  .neon-ring2 { position:absolute; inset:-18px; border-radius:50%; border:1px dashed rgba(56,189,248,0.4); animation:ringRotate 10s linear infinite; }
+  @keyframes ringRotate { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+  .ring2-dot { position:absolute; width:6px; height:6px; background:#38bdf8; border-radius:50%; top:-3px; left:50%; transform:translateX(-50%); box-shadow:0 0 8px #38bdf8; }
+  .logo-halo { position:absolute; inset:-25px; border-radius:50%; background:radial-gradient(ellipse,rgba(99,102,241,0.35) 0%,rgba(124,58,237,0.2) 40%,transparent 70%); animation:haloPulse 2.5s ease-in-out infinite; z-index:1; }
+  @keyframes haloPulse { 0%,100%{transform:scale(1);opacity:0.7;} 50%{transform:scale(1.2);opacity:1;} }
+  .logo-img { width:80px; height:80px; border-radius:50%; position:relative; z-index:2; object-fit:cover; }
+
+  /* shop label under banner */
+  .shop-label {
+    position:relative; z-index:10;
+    background:linear-gradient(90deg,rgba(124,58,237,0.15),rgba(124,58,237,0.05));
+    border-bottom:1px solid rgba(124,58,237,0.25);
+    padding:8px 16px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .shop-label-text { font-size:13px; font-weight:700; color:#e0d7ff; letter-spacing:2px; }
+  .shop-label-line { flex:1; height:1px; background:linear-gradient(90deg,rgba(124,58,237,0.5),transparent); }
+
+  /* grid */
+  .shop-scroll {
+    position:relative; z-index:10;
+    overflow-y:auto; flex:1;
+    padding:12px 12px 8px;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:12px;
+    scrollbar-width:none;
+  }
+  .shop-scroll::-webkit-scrollbar { display:none; }
+
+  .item-card {
+    background:rgba(15,5,40,0.85);
+    border:1px solid rgba(124,58,237,0.3);
+    border-radius:16px;
+    display:flex; flex-direction:column;
+    overflow:hidden;
+    transition:border-color 0.2s, box-shadow 0.2s;
+  }
+  .item-card:hover { border-color:rgba(167,139,250,0.7); box-shadow:0 0 16px rgba(124,58,237,0.3); }
+  .item-card.purchased { border-color:rgba(34,197,94,0.5); box-shadow:0 0 12px rgba(34,197,94,0.2); }
+
+  .item-img {
+    width:100%; aspect-ratio:1/1;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,#0f0328,#1a0545);
+    font-size:52px;
+    border-bottom:1px solid rgba(124,58,237,0.2);
+    position:relative; overflow:hidden;
+  }
+  .item-img::after { content:''; position:absolute; inset:0; background:radial-gradient(ellipse at 40% 35%,rgba(124,58,237,0.15),transparent 70%); }
+
+  .item-info { padding:10px 10px 8px; display:flex; flex-direction:column; gap:6px; flex:1; }
+  .item-name { font-size:10.5px; font-weight:700; color:#d4ccff; letter-spacing:0.5px; line-height:1.35; text-align:center; min-height:28px; display:flex; align-items:center; justify-content:center; }
+
+  .item-price {
+    display:flex; align-items:center; justify-content:center; gap:4px;
+    background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.25);
+    border-radius:8px; padding:4px 6px;
+  }
+  .price-num { font-size:13px; font-weight:700; color:#fbbf24; }
+  .price-label { font-size:9px; color:rgba(251,191,36,0.6); letter-spacing:1px; }
+
+  .buy-btn {
+    width:100%; padding:7px 4px;
+    background:linear-gradient(135deg,rgba(124,58,237,0.8),rgba(79,70,229,0.8));
+    border:1px solid rgba(167,139,250,0.5);
+    border-radius:10px; color:#e0d7ff;
+    font-family:'Orbitron',sans-serif; font-size:10px; font-weight:700; letter-spacing:1px;
+    cursor:pointer; transition:all 0.2s;
+  }
+  .buy-btn:hover { background:linear-gradient(135deg,rgba(139,92,246,0.9),rgba(99,102,241,0.9)); box-shadow:0 0 12px rgba(124,58,237,0.5); }
+  .buy-btn:active { transform:scale(0.97); }
+  .buy-btn.bought { background:linear-gradient(135deg,rgba(22,163,74,0.6),rgba(16,185,129,0.6)); border-color:rgba(34,197,94,0.5); color:#86efac; cursor:default; font-size:8px; letter-spacing:0.5px; }
+
+  .nav-bar {
+    position:relative; z-index:10;
+    background:rgba(10,3,28,0.97);
+    border-top:1px solid rgba(124,58,237,0.5);
+    padding:10px 0 18px; flex-shrink:0;
+  }
+  .nav-items { display:flex; justify-content:space-around; align-items:center; }
+  .nav-item { display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; padding:6px 8px; border-radius:14px; transition:all 0.25s; border:1px solid transparent; background:transparent; }
+  .nav-item.active { background:linear-gradient(160deg,rgba(124,58,237,0.25),rgba(79,70,229,0.15)); border:1px solid rgba(167,139,250,0.55); box-shadow:0 0 14px rgba(124,58,237,0.3); }
+  .nav-item:hover { background:rgba(124,58,237,0.15); }
+  .nav-icon-3d { width:30px; height:30px; display:flex; align-items:center; justify-content:center; }
+  .nav-label { font-family:'Orbitron',sans-serif; font-size:7.5px; color:#6b7280; letter-spacing:1px; text-transform:uppercase; }
+  .nav-item.active .nav-label { color:#c4b5fd; }
+
+  .modal-overlay { position:absolute; inset:0; z-index:50; background:rgba(5,1,15,0.88); display:flex; align-items:center; justify-content:center; padding:20px; border-radius:24px; }
+  .modal-box { background:linear-gradient(135deg,#0f0328,#1a0545); border:1px solid rgba(124,58,237,0.6); border-radius:20px; padding:24px 20px 20px; width:100%; box-shadow:0 0 40px rgba(124,58,237,0.4); text-align:center; }
+  .modal-icon { font-size:44px; margin-bottom:10px; }
+  .modal-title { font-size:13px; font-weight:700; color:#e0d7ff; letter-spacing:1px; margin-bottom:8px; }
+  .modal-product { font-size:11px; color:#a78bfa; margin-bottom:6px; letter-spacing:0.5px; }
+  .modal-price { font-size:11px; color:rgba(251,191,36,0.8); margin-bottom:18px; }
+  .modal-deficit { font-size:12px; font-weight:700; color:#ef4444; margin-bottom:16px; text-shadow:0 0 10px rgba(239,68,68,0.5); }
+  .modal-btns { display:flex; gap:10px; }
+  .modal-btn { flex:1; padding:10px; border-radius:12px; font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700; letter-spacing:1px; cursor:pointer; transition:all 0.2s; border:none; }
+  .modal-btn.confirm { background:linear-gradient(135deg,#7c3aed,#4f46e5); color:white; border:1px solid rgba(167,139,250,0.5); }
+  .modal-btn.confirm:hover { box-shadow:0 0 16px rgba(124,58,237,0.6); }
+  .modal-btn.cancel { background:rgba(255,255,255,0.05); color:#6b7280; border:1px solid rgba(107,114,128,0.3); }
+  .modal-btn.cancel:hover { background:rgba(255,255,255,0.1); color:#9ca3af; }
+  .modal-btn.close-btn { background:linear-gradient(135deg,rgba(124,58,237,0.6),rgba(79,70,229,0.6)); color:#e0d7ff; border:1px solid rgba(167,139,250,0.4); }
+  .modal-success { font-size:11px; color:#86efac; margin-bottom:16px; letter-spacing:0.5px; line-height:1.5; }
+</style>
+
+<div class="app" id="shopApp">
+  <div class="scan-line"></div>
+  <div class="neon-border"></div>
+  <div class="grid-lines"></div>
+  <div class="stars" id="stars"></div>
+
+  <!-- TOP BANNER: logo center, balance right -->
+  <div class="top-banner">
+    <div class="banner-scan"></div>
+
+    <!-- Circuit Left -->
+    <div class="circuit-left">
+      <svg viewBox="0 0 110 70" xmlns="http://www.w3.org/2000/svg">
+        <line x1="110" y1="35" x2="75" y2="35" stroke="#7c3aed" strokeWidth="1.5" opacity="0.7"/>
+        <line x1="75" y1="35" x2="55" y2="18" stroke="#7c3aed" strokeWidth="1" opacity="0.5"/>
+        <line x1="75" y1="35" x2="50" y2="35" stroke="#38bdf8" strokeWidth="1" opacity="0.6"/>
+        <line x1="50" y1="35" x2="36" y2="50" stroke="#38bdf8" strokeWidth="1" opacity="0.4"/>
+        <line x1="110" y1="20" x2="65" y2="20" stroke="#4f46e5" strokeWidth="1" opacity="0.4"/>
+        <line x1="65" y1="20" x2="46" y2="8" stroke="#4f46e5" strokeWidth="1" opacity="0.3"/>
+        <line x1="110" y1="52" x2="80" y2="52" stroke="#6d28d9" strokeWidth="1" opacity="0.35"/>
+        <circle cx="75" cy="35" r="3" fill="#7c3aed" opacity="0.9"/>
+        <circle cx="50" cy="35" r="2.5" fill="#38bdf8" opacity="0.8"/>
+        <circle cx="65" cy="20" r="2" fill="#4f46e5" opacity="0.7"/>
+        <circle cx="80" cy="52" r="2" fill="#6d28d9" opacity="0.6"/>
+        <rect x="88" y="31" width="10" height="6" rx="2" fill="none" stroke="#7c3aed" strokeWidth="1" opacity="0.5"/>
+        <rect x="93" y="16" width="8" height="5" rx="1.5" fill="none" stroke="#4f46e5" strokeWidth="1" opacity="0.4"/>
+      </svg>
+    </div>
+
+    <!-- Logo center -->
+    <div class="banner-logo">
+      <div class="logo-halo"></div>
+      <div class="neon-ring"></div>
+      <div class="neon-ring2"><div class="ring2-dot"></div></div>
+      <img class="logo-img" id="logoImg" alt="Aragon"/>
+    </div>
+
+    <!-- Circuit Right + Balance -->
+    <div class="circuit-right">
+      <div class="circuit-right-inner">
+        <svg viewBox="0 0 110 70" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
+          <line x1="0" y1="35" x2="35" y2="35" stroke="#7c3aed" strokeWidth="1.5" opacity="0.7"/>
+          <line x1="35" y1="35" x2="55" y2="18" stroke="#7c3aed" strokeWidth="1" opacity="0.5"/>
+          <line x1="35" y1="35" x2="60" y2="35" stroke="#38bdf8" strokeWidth="1" opacity="0.6"/>
+          <line x1="60" y1="35" x2="74" y2="50" stroke="#38bdf8" strokeWidth="1" opacity="0.4"/>
+          <line x1="0" y1="20" x2="45" y2="20" stroke="#4f46e5" strokeWidth="1" opacity="0.4"/>
+          <line x1="45" y1="20" x2="64" y2="8" stroke="#4f46e5" strokeWidth="1" opacity="0.3"/>
+          <line x1="0" y1="52" x2="30" y2="52" stroke="#6d28d9" strokeWidth="1" opacity="0.35"/>
+          <circle cx="35" cy="35" r="3" fill="#7c3aed" opacity="0.9"/>
+          <circle cx="60" cy="35" r="2.5" fill="#38bdf8" opacity="0.8"/>
+          <circle cx="45" cy="20" r="2" fill="#4f46e5" opacity="0.7"/>
+          <circle cx="30" cy="52" r="2" fill="#6d28d9" opacity="0.6"/>
+          <rect x="10" y="31" width="10" height="6" rx="2" fill="none" stroke="#7c3aed" strokeWidth="1" opacity="0.5"/>
+          <rect x="7" y="16" width="8" height="5" rx="1.5" fill="none" stroke="#4f46e5" strokeWidth="1" opacity="0.4"/>
+        </svg>
+      </div>
+      <!-- Balance chip on the right -->
+      <div class="balance-chip-banner">
+        <span class="bal-num" id="balDisplay">12</span>
+        <span class="bal-label">🪙 COINS</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shop title bar -->
+  <div class="shop-label">
+    <span style="font-size:14px;">🛍️</span>
+    <span class="shop-label-text">חנות אראגון</span>
+    <div class="shop-label-line"></div>
+  </div>
+
+  <!-- Items grid -->
+  <div class="shop-scroll" id="shopGrid"></div>
+
+  <!-- Nav bar -->
+  <div class="nav-bar">
+    <div class="nav-items">
+      <button class="nav-item">
+        <div class="nav-icon-3d"><svg width="30" height="30" viewBox="0 0 30 30"><polygon points="15,3 27,13 3,13" fill="#7c3aed"/><polygon points="3,13 15,3 15,14" fill="#4c1d95" opacity="0.9"/><rect x="6" y="13" width="18" height="13" rx="1" fill="#a78bfa"/><polygon points="24,13 27,10 27,22 24,26" fill="#5b21b6" opacity="0.9"/><rect x="12" y="19" width="6" height="7" rx="1" fill="#4c1d95"/><circle cx="17" cy="23" r="1" fill="#c4b5fd"/></svg></div>
+        <span class="nav-label">בית</span>
+      </button>
+      <button class="nav-item active">
+        <div class="nav-icon-3d"><svg width="30" height="30" viewBox="0 0 30 30"><rect x="5" y="13" width="20" height="14" rx="2" fill="#a78bfa"/><polygon points="25,13 28,11 28,25 25,27" fill="#5b21b6" opacity="0.9"/><polygon points="5,13 8,10 28,10 25,13" fill="#7c3aed"/><path d="M10 13 Q10 7 15 7 Q20 7 20 13" fill="none" stroke="#c4b5fd" strokeWidth="2" stroke-linecap="round"/></svg></div>
+        <span class="nav-label">חנות</span>
+      </button>
+      <button class="nav-item">
+        <div class="nav-icon-3d"><svg width="30" height="30" viewBox="0 0 30 30"><rect x="5" y="8" width="18" height="20" rx="2" fill="#7c3aed"/><polygon points="23,8 26,6 26,26 23,28" fill="#4c1d95" opacity="0.95"/><polygon points="5,8 8,6 26,6 23,8" fill="#a78bfa"/><rect x="11" y="5" width="8" height="5" rx="2" fill="#c4b5fd"/><line x1="8" y1="14" x2="18" y2="14" stroke="#c4b5fd" strokeWidth="1.5" stroke-linecap="round"/><line x1="8" y1="18" x2="16" y2="18" stroke="#c4b5fd" strokeWidth="1.5" stroke-linecap="round"/></svg></div>
+        <span class="nav-label">משימות</span>
+      </button>
+      <button class="nav-item">
+        <div class="nav-icon-3d"><svg width="30" height="30" viewBox="0 0 30 30"><rect x="3" y="9" width="22" height="16" rx="2" fill="#a78bfa"/><polygon points="25,9 28,7 28,23 25,25" fill="#5b21b6" opacity="0.9"/><polygon points="3,9 6,7 28,7 25,9" fill="#7c3aed"/><circle cx="11" cy="17" r="5" fill="#7c3aed"/><circle cx="11" cy="15" r="2.2" fill="#c4b5fd"/><path d="M6.5 22 Q11 19 15.5 22" fill="#c4b5fd"/></svg></div>
+        <span class="nav-label">פרופיל</span>
+      </button>
+      <button class="nav-item">
+        <div class="nav-icon-3d"><svg width="30" height="30" viewBox="0 0 30 30"><path d="M15 4 Q9 4 8 13 L7 20 L23 20 L22 13 Q21 4 15 4Z" fill="#a78bfa"/><path d="M19 4.5 Q22 6 22 13 L21.5 20 L23 20 L22 13 Q21.5 5.5 19 4.5Z" fill="#5b21b6" opacity="0.85"/><rect x="5" y="19" width="20" height="3" rx="1.5" fill="#7c3aed"/><ellipse cx="15" cy="25" rx="3.5" ry="2" fill="#7c3aed"/><circle cx="22" cy="7" r="4" fill="#ef4444"/><text x="22" y="9.5" text-anchor="middle" font-size="5.5" fill="white" font-weight="bold">3</text></svg></div>
+        <span class="nav-label">עדכונים</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay" style="display:none;"></div>
+</div>
+
+<script>
+document.getElementById('logoImg').src = "data:image/jpeg;base64,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";
+
+let balance = 12;
+const purchases = {};
+
+const items = [
+  { id:0, name:"עכבר גיימינג",        price:7,  icon:"🖱️" },
+  { id:1, name:"משקפת מציאות מדומה",  price:9,  icon:"🥽" },
+  { id:2, name:"מקלדת גיימינג",       price:10, icon:"⌨️" },
+  { id:3, name:"אוזניות גיימינג",     price:10, icon:"🎧" },
+  { id:4, name:"יום גיימינג לקבוצה", price:12, icon:"🎮" },
+  { id:5, name:"סט רמקולי גיימינג",  price:15, icon:"🔊" },
+  { id:6, name:"ערכת גיימר מלאה",    price:25, icon:"🏆" },
+];
+
+function updateBalance() {
+  document.getElementById('balDisplay').textContent = balance;
+}
+
+function renderGrid() {
+  const grid = document.getElementById('shopGrid');
+  grid.innerHTML = '';
+  items.forEach(item => {
+    const bought = purchases[item.id];
+    const card = document.createElement('div');
+    card.className = 'item-card' + (bought ? ' purchased' : '');
+    card.innerHTML = `
+      <div class="item-img">${item.icon}</div>
+      <div class="item-info">
+        <div class="item-name">${item.name}</div>
+        <div class="item-price">
+          <span class="price-num">${item.price}</span>
+          <span class="price-label">🪙 COINS</span>
+        </div>
+        <button class="buy-btn${bought?' bought':''}" onclick="handleBuy(${item.id})">${bought ? '✅ נרכש - ממתין שילוח' : 'רכישה'}</button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function handleBuy(id) {
+  if (purchases[id]) return;
+  showConfirmModal(items[id]);
+}
+
+function showConfirmModal(item) {
+  const o = document.getElementById('modalOverlay');
+  o.style.display = 'flex';
+  o.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-icon">${item.icon}</div>
+      <div class="modal-title">אישור רכישה</div>
+      <div class="modal-product">${item.name}</div>
+      <div class="modal-price">🪙 ${item.price} מטבעות אראגון</div>
+      <div class="modal-btns">
+        <button class="modal-btn cancel" onclick="closeModal()">ביטול</button>
+        <button class="modal-btn confirm" onclick="confirmBuy(${item.id})">אישור ✓</button>
+      </div>
+    </div>`;
+}
+
+function confirmBuy(id) {
+  const item = items[id];
+  const o = document.getElementById('modalOverlay');
+  const deficit = item.price - balance;
+  if (deficit > 0) {
+    o.innerHTML = `
+      <div class="modal-box">
+        <div class="modal-icon">❌</div>
+        <div class="modal-title">יתרה לא מספיקה</div>
+        <div class="modal-product">${item.name}</div>
+        <div class="modal-deficit">חסרים לך ${deficit} מטבעות 🪙</div>
+        <div style="font-size:10px;color:rgba(167,139,250,0.6);margin-bottom:16px;letter-spacing:0.5px;">המשך לצבור מטבעות ונסה שוב!</div>
+        <div class="modal-btns">
+          <button class="modal-btn close-btn" style="flex:1;" onclick="closeModal()">אישור</button>
+        </div>
+      </div>`;
+  } else {
+    balance -= item.price;
+    purchases[id] = true;
+    updateBalance();
+    renderGrid();
+    o.innerHTML = `
+      <div class="modal-box">
+        <div class="modal-icon">🎉</div>
+        <div class="modal-title">נרכש בהצלחה!</div>
+        <div class="modal-product">${item.name}</div>
+        <div class="modal-success">הזמנתך התקבלה!<br>סטטוס: נרכש בהצלחה – ממתין לשילוח 📦</div>
+        <div style="font-size:10px;color:rgba(251,191,36,0.6);margin-bottom:16px;">יתרה חדשה: ${balance} 🪙</div>
+        <div class="modal-btns">
+          <button class="modal-btn close-btn" style="flex:1;" onclick="closeModal()">סגור</button>
+        </div>
+      </div>`;
+  }
+}
+
+function closeModal() {
+  const o = document.getElementById('modalOverlay');
+  o.style.display = 'none';
+  o.innerHTML = '';
+}
+
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 40; i++) {
+  const s = document.createElement('div'); s.className = 'star';
+  const sz = Math.random() * 2 + 0.5;
+  s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${(Math.random()*3+1.5).toFixed(1)}s;animation-delay:${(Math.random()*3).toFixed(1)}s;`;
+  starsEl.appendChild(s);
+}
+
+updateBalance();
+renderGrid();
+</script>
