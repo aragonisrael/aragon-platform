@@ -283,7 +283,8 @@ export default function InstructorUpdates() {
         .capsule-wave { display: flex; align-items: flex-end; gap: 1.5px; height: 8px; }
         .capsule-wave-bar { width: 1.5px; height: 2px; background: #2e2e4e; border-radius: 1px; }
         .hero-radio-capsule.playing .capsule-wave-bar { background: #18b090; animation: liveWave 0.6s ease-in-out infinite alternate; }
-        .content-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 84px; scrollbar-width: none; }
+        
+        .content-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 95px; /* 🟢 מרווח ביטחון בתחתית למניעת חיתוך תוכן תחת הבר הצף */ scrollbar-width: none; }
         .content-scroll::-webkit-scrollbar { display: none; }
 
         .tab-bar { display: flex; padding: 12px 16px 0; gap: 8px; direction: rtl; }
@@ -302,6 +303,8 @@ export default function InstructorUpdates() {
         .gift-row { display: flex; align-items: center; gap: 10px; background: #10101e; border: 1px solid #1e1e38; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; transition: border-color .2s; }
         .gift-row.done { opacity: .65; }
         .gift-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#1a1040,#0e1a40); border: 1px solid #2a2a4a; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #8080cc; font-weight: 600; flex-shrink: 0; }
+        .gift-info { flex: 1; min-width: 0; text-align: right; }
+        .gift-row.done { opacity: .65; }
         .gift-info { flex: 1; min-width: 0; text-align: right; }
         .gift-name { font-size: 12px; color: #c0c0d8; font-weight: 500; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .gift-sub { display: flex; gap: 5px; flex-wrap: wrap; flex-direction: row-reverse; justify-content: flex-end; }
@@ -340,11 +343,40 @@ export default function InstructorUpdates() {
         .sent-txt { font-size: 12px; color: #9090b0; line-height: 1.35; }
         .sent-time { font-size: 10px; color: #3a3a5a; margin-top: 2px; }
 
-        .modal-ov { position: absolute; inset: 0; background: rgba(0,0,10,.78); z-index: 30; border-radius: 36px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 0; opacity: 0; pointer-events: none; transition: opacity .25s; }
+        /* 🟢 פתרון הבעיה: הפיכת ה-Overlay לקבוע וצף במרכז המוחלט של ה-Viewport הגלוי */
+        .modal-ov { 
+          position: fixed; 
+          inset: 0; 
+          background: rgba(0,0,10,.85); 
+          z-index: 200; /* גבוה יותר מה-Navbar הצף כדי שלא יוסתר */
+          display: flex; 
+          align-items: center; /* מרכוז אנכי מושלם */
+          justify-content: center; 
+          padding: 20px; 
+          border-radius: 0; 
+          opacity: 0; 
+          pointer-events: none; 
+          transition: opacity .25s; 
+        }
         .modal-ov.open { opacity: 1; pointer-events: all; }
-        .modal-sheet { background: linear-gradient(180deg,#13132a,#0e0e1e); border: 1px solid #2a2a48; border-radius: 24px 24px 0 0; width: 100%; padding: 20px 20px 28px; transform: translateY(36px); transition: transform .28s; direction: rtl; text-align: right; }
-        .modal-ov.open .modal-sheet { transform: translateY(0); }
-        .mhandle { width: 36px; height: 3px; border-radius: 2px; background: #2a2a46; margin: 0 auto 16px; }
+        
+        /* 🟢 שינוי למבנה קובייה צפה ועתידנית מעוגלת היטב שקופצת במרכז המסך */
+        .modal-sheet { 
+          background: linear-gradient(180deg,#13132a,#0e0e1e); 
+          border: 1px solid #2a2a48; 
+          border-radius: 20px; 
+          width: 350px; 
+          max-width: 100%; 
+          padding: 24px 20px; 
+          transform: scale(0.85); 
+          transition: transform .25s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+          direction: rtl; 
+          text-align: right; 
+          box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+        }
+        .modal-ov.open .modal-sheet { transform: scale(1); }
+        .mhandle { display: none; } /* הסתרת ידית המשיכה הישנה */
+        
         .mtitle { font-family: 'Orbitron',monospace; font-size: 12px; color: #c0a0ff; letter-spacing: 1px; margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
         .mtitle i { font-size: 15px; color: #8050ff; }
         .mlabel { font-size: 11px; color: #5a5a8a; letter-spacing: .4px; margin-bottom: 5px; margin-top: 12px; }
@@ -357,14 +389,56 @@ export default function InstructorUpdates() {
         .mbtn-send { flex: 1; padding: 10px; border-radius: 9px; border: 1px solid #5030aa; background: linear-gradient(135deg,rgba(80,48,170,.3),rgba(60,40,140,.2)); color: #c0a0ff; font-family: 'Exo 2', sans-serif; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all .2s; }
         .mbtn-send:hover { border-color: #9060ff; }
 
-        .toast { position: absolute; top: 200px; left: 50%; transform: translateX(-50%) translateY(-14px); background: linear-gradient(135deg,#1a2a18,#102010); border: 1px solid #20a060; border-radius: 12px; padding: 9px 16px; color: #30d090; font-size: 12px; font-family: 'Exo 2', sans-serif; white-space: nowrap; z-index: 50; opacity: 0; pointer-events: none; transition: all .3s; display: flex; align-items: center; gap: 6px; direction: rtl; }
-        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        /* 🟢 פתרון הבעיה: הפיכת ה-Toast לקבוע וצף במרכז המוחלט של ה-Viewport הגלוי */
+        .toast { 
+          position: fixed; 
+          top: 50%; 
+          left: 50%; 
+          transform: translate(-50%, -50%); 
+          background: linear-gradient(135deg,#1a2a18,#102010); 
+          border: 1px solid #20a060; 
+          border-radius: 12px; 
+          padding: 9px 16px; 
+          color: #30d090; 
+          font-size: 12px; 
+          font-family: 'Exo 2', sans-serif; 
+          white-space: nowrap; 
+          z-index: 200; /* גבוה יותר מה-Navbar הצף */
+          opacity: 0; 
+          pointer-events: none; 
+          transition: all .3s; 
+          display: flex; 
+          align-items: center; 
+          gap: 6px; 
+          direction: rtl; 
+          box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        }
+        .toast.show { opacity: 1; transform: translate(-50%, -50%); }
         
         .stars { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
         .star { position: absolute; border-radius: 50%; background: white; animation: tw var(--d) ease-in-out infinite alternate; }
         @keyframes tw { from{opacity:.04} to{opacity:.5} }
 
-        .navbar { position: absolute; bottom: 0; left: 0; right: 0; background: #060610; border-top: 1px solid #14142a; padding: 9px 0 22px; display: flex; justify-content: space-around; align-items: center; z-index: 20; border-radius: 0 0 36px 36px; direction: rtl; }
+        /* 🟢 שדרוג ה-Navbar לבר צף, קבוע וממורכז ברמת מובייל מקצועית */
+        .navbar { 
+          position: fixed; 
+          bottom: 0; 
+          left: 50%; 
+          transform: translateX(-50%); 
+          width: 390px;
+          max-width: 100%;
+          background: #060610; 
+          border-top: 1px solid #14142a; 
+          padding: 9px 0 22px; 
+          display: flex; 
+          justify-content: space-around; 
+          align-items: center; 
+          z-index: 100; 
+          border-radius: 0 0 36px 36px; 
+          direction: rtl; 
+          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
+        }
+        
         .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 5px; border-radius: 9px; transition: all .15s; min-width: 40px; }
         .nav-item.active { background: rgba(80,48,170,.12); }
         .nav-item i { font-size: 19px; color: #2e2e4e; transition: color .15s; }
@@ -477,7 +551,7 @@ export default function InstructorUpdates() {
                         </div>
                       </div>
                       
-                      {/* כפתורי פעולה אינטראקטיביים של מכונת המצבים החכמה */}
+                      {/* כפתורי פעולה אינטראקטיייבים של מכונת המצבים החכמה */}
                       {item.status === 'ordered' && (
                         <span className="gift-btn done-state" style={{ color: '#e09020', borderColor: '#e09020' }}>בדרך אליך 🚚</span>
                       )}
@@ -550,9 +624,9 @@ export default function InstructorUpdates() {
           )}
         </div>
 
-        <div className="modal-ov" onClick={(e) => e.target.className === 'modal-ov open' && handleCloseModal()}>
+        {/* 🟢 שחזור המודאל בצורה מעוצבת ודינמית עם הקישור החכם של הסטייט */}
+        <div className={`modal-ov ${isModalOpen ? 'open' : ''}`} onClick={(e) => e.target.className.includes('open') && handleCloseModal()}>
           <div className="modal-sheet">
-            <div className="mhandle"></div>
             <div className="mtitle">
               {modalType === 'group' ? <><i className="ti ti-users"></i> שלח עדכון לקבוצה</> : <><i className="ti ti-user-bolt"></i> שלח עדכון לתלמיד</>}
             </div>
@@ -569,7 +643,7 @@ export default function InstructorUpdates() {
           </div>
         </div>
 
-        <div className={`toast ${toast.show ? 'show' : ''}`} id="toast">
+        <div className="toast" id="toast">
           <i className="ti ti-check" style={{ color: '#20c080' }}></i>
           <span id="toastMsg">{toast.message}</span>
         </div>

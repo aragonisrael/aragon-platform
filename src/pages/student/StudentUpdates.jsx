@@ -117,7 +117,21 @@ export default function StudentUpdates() {
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         
         .updates-main-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #050a14; width: 100%; }
-        .app { width: 380px; background: #05010f; position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 24px; min-height: 720px; box-shadow: 0 0 60px rgba(124,58,237,0.3); font-family: 'Orbitron', sans-serif; }
+        
+        .app { 
+          width: 380px; 
+          background: #05010f; 
+          position: relative; 
+          overflow: hidden; 
+          display: flex; 
+          flex-direction: column; 
+          border-radius: 24px; 
+          min-height: 720px; 
+          box-shadow: 0 0 60px rgba(124,58,237,0.3); 
+          font-family: 'Orbitron', sans-serif; 
+          padding-bottom: 95px; /* 🟢 מרווח ביטחון בתחתית כדי שהעדכונים לא יתחבאו מתחת לבר הצף */
+        }
+        
         .gl { position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: .05; background-image: linear-gradient(rgba(120,80,255,.6) 1px,transparent 1px), linear-gradient(90deg,rgba(120,80,255,.6) 1px,transparent 1px); background-size: 40px 40px; animation: gm 8s linear infinite; }
         .stars { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
         .star { position: absolute; border-radius: 50%; background: white; animation: tw var(--d) ease-in-out infinite alternate; }
@@ -158,8 +172,22 @@ export default function StudentUpdates() {
         .nda { font-size: 9px; color: rgba(167,139,250,0.5); }
         .nbi { font-size: 11px; color: #b0b0cc; margin-top: 8px; line-height: 1.5; }
 
-        /* 📋 הזרקת הסטייל המקורי והחסין של ה-Navbar מתוך עמוד המשימות/פרופיל */
-        .nav { position:relative; z-index:10; background:rgba(10,3,28,.97); border-top:1px solid rgba(124,58,237,.5); padding:10px 0 18px; flex-shrink:0 }
+        /* 🟢 שדרוג ה-Navbar לבר צף, קבוע וממורכז ברמת אפליקציה מקצועית */
+        .nav { 
+          position: fixed; 
+          bottom: 0; 
+          left: 50%;
+          transform: translateX(-50%);
+          width: 380px;
+          max-width: 100%;
+          z-index: 100; 
+          background: rgba(10,3,28,.98); 
+          border-top: 1px solid rgba(124,58,237,.5); 
+          padding: 10px 0 18px; 
+          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
+          flex-shrink: 0;
+        }
+        
         .ni { display:flex; justify-content:space-around; align-items:center }
         .n { display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; padding:6px 8px; border-radius:14px; transition:all .25s; border:1px solid transparent; background:transparent }
         .n.act { background:linear-gradient(160deg,rgba(124,58,237,.25),rgba(79,70,229,.15)); border:1px solid rgba(167,139,250,.55); box-shadow:0 0 14px rgba(124,58,237,.3) }

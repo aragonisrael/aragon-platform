@@ -22,22 +22,9 @@ export default function InstructorBenefits() {
   // שם המדריך המחובר כרגע במערכת
   const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'guide1';
 
-  // רשימת אתגרים דינמית שתיטען ישירות מהענן
-  const [challenges, setChallenges] = useState([
-    { id: 'ch1', color: 'gold', icon: '🎯', title: 'הגע ל-8 תלמידים פעילים בביה"ס בן גוריון', reward: '200 ₪ בסיום', progressText: '5 / 8 תלמידים', progressWidth: '62.5%', barBg: 'linear-gradient(90deg,#a07010,#f0d040)' },
-    { id: 'ch2', color: 'blue', icon: '📚', title: 'שלח 20 משימות לתלמידים עד סוף החודש', reward: '150 ₪ בסיום', progressText: '12 / 20', progressWidth: '60%', barBg: 'linear-gradient(90deg,#2050cc,#4090ff)' },
-    { id: 'ch3', color: 'purple', icon: '🏅', title: 'הענק מטבעות לפחות ל-10 תלמידים שונים השבוע', reward: '100 ₪ בסיום', progressText: '3 / 10', progressWidth: '30%', barBg: 'linear-gradient(90deg,#5030cc,#9060ff)' },
-    { id: 'ch4', color: 'teal', icon: '🚀', title: 'הצג 3 קבוצות שלמות ב-85%+ נוכחות לאורך חודש', reward: '350 ₪ בסיום', progressText: '1 / 3', progressWidth: '33%', barBg: 'linear-gradient(90deg,#0a8060,#18c0a0)' }
-  ]);
-
-  // Persistent History Logs
-  const historyLogs = [
-    { id: 1, type: 'success', icon: '🎉', title: 'הגע ל-10 תלמידים בביה"ס הרצוג', date: 'אפריל 2025', reward: '+ 200 ₪', tagText: 'הושלם ✓' },
-    { id: 2, type: 'success', icon: '🎉', title: 'שלח 15 משימות תוך שבוע', date: 'אפריל 2025', reward: '+ 130 ₪', tagText: 'הושלם ✓' },
-    { id: 3, type: 'fail', icon: '❌', title: '4 קבוצות פעילות בו-זמנית לחודש', date: 'מרץ 2025', reward: 'לא הושלם', tagText: 'נכשל ✗', customColor: '#5a3030' },
-    { id: 4, type: 'success', icon: '🎉', title: 'הגיע ל-90% נוכחות בכל הקבוצות', date: 'מרץ 2025', reward: '+ 200 ₪', tagText: 'הושלם ✓' },
-    { id: 5, type: 'fail', icon: '❌', title: 'הענק מטבעות ל-15 תלמידים שונים בשבוע', date: 'פברואר 2025', reward: 'לא הושלם', tagText: 'נכשל ✗', customColor: '#5a3030' }
-  ];
+  // רשימות אתגרים והיסטוריה דינמיות שמוזנות ישירות מהענן בריאל-טיים
+  const [challenges, setChallenges] = useState([]);
+  const [historyLogs, setHistoryLogs] = useState([]);
 
   // משיכת יתרת השקלים והאתגרים האמיתיים של המדריך מהענן בריאל-טיים
   useEffect(() => {
@@ -53,7 +40,7 @@ export default function InstructorBenefits() {
         if (userData && !userError) {
           setIlsBalance(userData.ils_balance || 0);
 
-          // 2. שליפת האתגרים המשודרגים שהאדמין הפץ בטבלת admin_tasks
+          // 2. שליפת כל האתגרים המשויכים למדריכים מטבלת המשימות המרכזית
           const { data: tasksData } = await supabase
             .from('admin_tasks')
             .select('*')
@@ -66,7 +53,11 @@ export default function InstructorBenefits() {
               (t.target_type === 'specific' && t.target_name === userData.full_name)
             );
 
-            // הגדרת מערך סטייל קבוע כדי לשמור על הגיוון העיצובי המקורי של 4 הצבעים
+            // 🟢 פיצול רשתי מבוסס string-detect: מזהה אם המילה הושלם או נכשל הוזרקה לכותרת
+            const activeTasks = matchedTasks.filter(t => !t.title?.includes('הושלם') && !t.title?.includes('נכשל'));
+            const completedTasks = matchedTasks.filter(t => t.title?.includes('הושלם') || t.title?.includes('נכשל'));
+
+            // א': מיפוי האתגרים הפעילים עם מערך סטייל קבוע לשמירת 4 צבעי הניאון המקוריים
             const stylePresets = [
               { color: 'gold', icon: '🎯', barBg: 'linear-gradient(90deg,#a07010,#f0d040)' },
               { color: 'blue', icon: '📚', barBg: 'linear-gradient(90deg,#2050cc,#4090ff)' },
@@ -74,22 +65,38 @@ export default function InstructorBenefits() {
               { color: 'teal', icon: '🚀', barBg: 'linear-gradient(90deg,#0a8060,#18c0a0)' }
             ];
 
-            if (matchedTasks.length > 0) {
-              const mappedChallenges = matchedTasks.map((task, idx) => {
-                const style = stylePresets[idx % stylePresets.length];
-                return {
-                  id: task.id.toString(),
-                  color: style.color,
-                  icon: style.icon,
-                  title: task.description || 'אתגר ניהול חדש ברשת',
-                  reward: `${task.reward} ₪ בסיום`,
-                  progressText: '0 / 1', 
-                  progressWidth: '20%',
-                  barBg: style.barBg
-                };
-              });
-              setChallenges(mappedChallenges);
-            }
+            const mappedChallenges = activeTasks.map((task, idx) => {
+              const style = stylePresets[idx % stylePresets.length];
+              return {
+                id: task.id.toString(),
+                color: style.color,
+                icon: style.icon,
+                title: task.description || 'אתגר ניהול חדש ברשת',
+                reward: `${task.reward || 0} ₪ בסיום`,
+                progressText: '0 / 1', 
+                progressWidth: '25%',
+                barBg: style.barBg
+              };
+            });
+            setChallenges(mappedChallenges);
+
+            // ב': מיפוי היסטוריית האתגרים האמיתיים מהדאטה-בייס של האדמין
+            const mappedHistory = completedTasks.map(task => {
+              const isFailed = task.title?.includes('נכשל');
+              const taskDate = task.created_at ? new Date(task.created_at).toLocaleDateString('he-IL', { month: 'long', year: 'numeric' }) : 'הושלם';
+              
+              return {
+                id: task.id,
+                type: isFailed ? 'fail' : 'success',
+                icon: isFailed ? '❌' : '🎉',
+                title: task.description || 'אתגר רשת שהסתיים',
+                date: taskDate,
+                reward: isFailed ? 'לא הושלם' : `+ ${task.reward || 0} ₪`,
+                tagText: isFailed ? 'נכשל ✗' : 'הושלם ✓',
+                customColor: isFailed ? '#5a3030' : undefined
+              };
+            });
+            setHistoryLogs(mappedHistory);
           }
         }
       } catch (err) {
@@ -182,12 +189,11 @@ export default function InstructorBenefits() {
         
         .ring-inner-circle { position: absolute; inset: 22px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(80,100,255,.18); }
         .ring-pulse { position: absolute; inset: 22px; border-radius: 50%; background: radial-gradient(circle,rgba(60,80,255,.15) 0%,transparent 70%); animation: pulse 2.5s ease-in-out infinite; }
-        @keyframes spinRing { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+        @spinRing { from{transform:rotate(0)} to{transform:rotate(360deg)} }
         @keyframes pulse { 0%,100%{opacity:.4;transform:scale(.9)} 50%{opacity:1;transform:scale(1.05)} }
         
         .limg { width: 50px; height: 50px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 2px; box-shadow: 0 0 10px rgba(64,128,255,0.4); }
 
-        /* 🔥 שחזור והחזרת מנועי האנימציה המקוריים של המדריך לעבודה תקינה */
         .cyber-dots-purple, .cyber-dots-blue { position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; }
         .cyber-dots-purple { animation: cyberSpinPurple 3s linear infinite; z-index: 6; }
         .cyber-dots-blue { animation: cyberSpinBlue 5s linear infinite reverse; z-index: 6; }
@@ -219,7 +225,7 @@ export default function InstructorBenefits() {
         .hero-radio-capsule.playing .capsule-wave-bar:nth-child(2) { animation-delay: 0.15s; }
         .hero-radio-capsule.playing .capsule-wave-bar:nth-child(3) { animation-delay: 0.35s; }
 
-        .content-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 82px; scrollbar-width: none; }
+        .content-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 95px; /* מרווח ביטחון בתחתית כדי שהתוכן לא ייבלע מאחורי הבר הצף */ scrollbar-width: none; }
         .content-scroll::-webkit-scrollbar { display: none; }
 
         .bonus-hero { margin: 14px 16px 0; background: linear-gradient(145deg,#100c00,#0c0900); border: 1px solid #3a2e06; border-radius: 20px; padding: 22px 20px 18px; position: relative; overflow: hidden; direction: rtl; text-align: right; }
@@ -290,7 +296,25 @@ export default function InstructorBenefits() {
         .hist-tag.fail { background: rgba(180,40,30,.06); color: #c03030; border: 1px solid rgba(180,40,30,.15); }
         .hist-reward { font-family: 'Orbitron',monospace; font-size: 11px; color: #d0a020; margin-top: 2px; display: block; }
 
-        .navbar { position: absolute; bottom: 0; left: 0; right: 0; background: #060610; border-top: 1px solid #14142a; padding: 9px 0 22px; display: flex; justify-content: space-around; align-items: center; z-index: 20; border-radius: 0 0 36px 36px; direction: rtl; }
+        .navbar { 
+          position: fixed; 
+          bottom: 0; 
+          left: 50%; 
+          transform: translateX(-50%); 
+          width: 390px;
+          max-width: 100%;
+          background: #060610; 
+          border-top: 1px solid #14142a; 
+          padding: 9px 0 22px; 
+          display: flex; 
+          justify-content: space-around; 
+          align-items: center; 
+          z-index: 100; 
+          border-radius: 0 0 36px 36px; 
+          direction: rtl; 
+          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
+        }
+        
         .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 5px; border-radius: 9px; transition: all .15s; min-width: 40px; }
         .nav-item.active { background: rgba(80,48,170,.12); }
         .nav-item i { font-size: 19px; color: #2e2e4e; transition: color .15s; }
@@ -298,8 +322,30 @@ export default function InstructorBenefits() {
         .nav-label { font-size: 9px; color: #2e2e4e; letter-spacing: .4px; transition: color .15s; }
         .nav-item.active .nav-label { color: #8050ff; }
 
-        .toast { position: absolute; top: 200px; left: 50%; transform: translateX(-50%) translateY(-14px); background: linear-gradient(135deg,#1a2a18,#102010); border: 1px solid #20a060; border-radius: 12px; padding: 9px 16px; color: #30d090; font-size: 12px; font-family: 'Exo 2', sans-serif; white-space: nowrap; z-index: 50; opacity: 0; pointer-events: none; transition: all .3s; display: flex; align-items: center; gap: 6px; direction: rtl; }
-        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast { 
+          position: fixed; 
+          top: 50%; 
+          left: 50%; 
+          transform: translate(-50%, -50%); 
+          background: linear-gradient(135deg,#1a2a18,#102010); 
+          border: 1px solid #20a060; 
+          border-radius: 12px; 
+          padding: 9px 16px; 
+          color: #30d090; 
+          font-size: 12px; 
+          font-family: 'Exo 2', sans-serif; 
+          white-space: nowrap; 
+          z-index: 200; 
+          opacity: 0; 
+          pointer-events: none; 
+          transition: all .3s; 
+          display: flex; 
+          align-items: center; 
+          gap: 6px; 
+          direction: rtl; 
+          box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        }
+        .toast.show { opacity: 1; transform: translate(-50%, -50%); }
         @keyframes liveWave { 0% { height: 2px; } 100% { height: 8px; } }
       `}</style>
 
@@ -341,7 +387,6 @@ export default function InstructorBenefits() {
             <circle cx="212" cy="110" r="2.5" fill="#8040ff" opacity=".8"/>
           </svg>
           
-          {/* קפסולת נגן הלהיטים של HQ RADIO */}
           <div className={`hero-radio-capsule ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
             <div className="capsule-left">
               <div className="capsule-play-btn">
@@ -356,7 +401,6 @@ export default function InstructorBenefits() {
             </div>
           </div>
 
-          {/* שילוב סמל המטבע של אראגון בתוך טבעות הניאון המסתובבות */}
           <div className="ring-wrap">
             <div className="ring-outer"></div>
             <div className="ring-mid"></div>
@@ -376,12 +420,10 @@ export default function InstructorBenefits() {
         {/* MAIN CONTAINER CONTENT SCROLL */}
         <div className="content-scroll">
 
-          {/* TOTAL ACCUMULATED MONTHLY BONUS CARD - CONNECTED TO DB */}
           <div className="bonus-hero">
             <div className="bonus-label-small">בונוס מצטבר החודש</div>
             <div className="bonus-subtitle">מאי 2026 · {challenges.length} אתגרים זמינים</div>
             <div className="bonus-amount-row">
-              {/* ערך השקלים נמשך בלייב מהענן */}
               <div className="bonus-amount">{ilsBalance}</div>
               <div className="bonus-shekel">₪</div>
             </div>
@@ -391,7 +433,6 @@ export default function InstructorBenefits() {
                 <span>{progressPercentage}%</span>
               </div>
               <div className="prog-track">
-                {/* רוחב המד משתנה אוטומטית לפי הנתון הדינמי */}
                 <div className="prog-fill-gold" style={{ width: `${progressPercentage}%` }}></div>
               </div>
             </div>
@@ -407,59 +448,65 @@ export default function InstructorBenefits() {
             <span className="sec-badge">{challenges.length} זמינים</span>
           </div>
 
-          {challenges.map(ch => {
-            const isCurrentActive = !!acceptedChallenges[ch.id];
-            return (
-              <div key={ch.id} className={`challenge-card ${ch.color}`}>
-                <div className="ch-top">
-                  <div className={`ch-icon ${ch.color}`}>{ch.icon}</div>
-                  <div className="ch-body">
-                    <div className="ch-title">{ch.title}</div>
-                    <div className="ch-reward">{ch.reward}</div>
+          {challenges.length === 0 ? (
+            <div style={{ padding: '24px', textAlign: 'center', color: '#4a4a6a', fontSize: '12px' }}>אין אתגרים פעילים פתוחים כרגע</div>
+          ) : (
+            challenges.map(ch => {
+              const isCurrentActive = !!acceptedChallenges[ch.id];
+              return (
+                <div key={ch.id} className={`challenge-card ${ch.color}`}>
+                  <div className="ch-top">
+                    <div className={`ch-icon ${ch.color}`}>{ch.icon}</div>
+                    <div className="ch-body">
+                      <div className="ch-title">{ch.title}</div>
+                      <div className="ch-reward">{ch.reward}</div>
+                    </div>
                   </div>
-                </div>
-                <div className="ch-prog-wrap">
-                  <div className="ch-prog-label"><span>התקדמות</span><span>{ch.progressText}</span></div>
-                  <div className="ch-prog-track">
-                    <div className="ch-prog-bar" style={{ width: ch.progressWidth, background: ch.barBg }}></div>
+                  <div className="ch-prog-wrap">
+                    <div className="ch-prog-label"><span>התקדמות</span><span>{ch.progressText}</span></div>
+                    <div className="ch-prog-track">
+                      <div className="ch-prog-bar" style={{ width: ch.progressWidth, background: ch.barBg }}></div>
+                    </div>
                   </div>
+                  {isCurrentActive ? (
+                    <button className="accept-btn active" type="button">⚡ אתגר פעיל — בביצוע</button>
+                  ) : (
+                    <button className="accept-btn idle" type="button" onClick={() => handleAcceptChallenge(ch.id, ch.title)}>⚡ מקבל אתגר</button>
+                  )}
                 </div>
-                {isCurrentActive ? (
-                  <button className="accept-btn active" type="button">⚡ אתגר פעיל — בביצוע</button>
-                ) : (
-                  <button className="accept-btn idle" type="button" onClick={() => handleAcceptChallenge(ch.id, ch.title)}>⚡ מקבל אתגר</button>
-                )}
-              </div>
-            );
-          })}
+              );
+            })
+          )}
 
           {/* SECTION: HISTORICAL PERFORMANCE RECORDS */}
           <div className="sec-header">
             <div className="sec-title">היסטוריית אתגרים</div>
-            <span className="sec-badge">5 הסתיימו</span>
+            <span className="sec-badge">{historyLogs.length} הסתיימו</span>
           </div>
 
-          {historyLogs.map(log => (
-            <div key={log.id} className="hist-card">
-              <div className={`hist-icon ${log.type}`}>{log.icon}</div>
-              <div className="hist-body">
-                <div className="hist-title">{log.title}</div>
-                <div className="hist-date">{log.date}</div>
-                <span className="hist-reward" style={log.customColor ? { color: log.customColor } : {}}>{log.reward}</span>
+          {historyLogs.length === 0 ? (
+            <div style={{ padding: '24px', textAlign: 'center', color: '#4a4a6a', fontSize: '12px', border: '1px dashed #1e1e32', borderRadius: '12px', margin: '0 16px' }}>📋 טרם נרשמו אתגרים קודמים בהיסטוריה</div>
+          ) : (
+            historyLogs.map(log => (
+              <div key={log.id} className="hist-card">
+                <div className={`hist-icon ${log.type}`}>{log.icon}</div>
+                <div className="hist-body">
+                  <div className="hist-title">{log.title}</div>
+                  <div className="hist-date">{log.date}</div>
+                  <span className="hist-reward" style={log.customColor ? { color: log.customColor } : {}}>{log.reward}</span>
+                </div>
+                <span className={`hist-tag ${log.type}`}>{log.tagText}</span>
               </div>
-              <span className={`hist-tag ${log.type}`}>{log.tagText}</span>
-            </div>
-          ))}
+            ))
+          )}
 
         </div>
 
-        {/* FLOATING BANNER APP ACTIONS FEEDBACK TOAST */}
         <div className={`toast ${toast.show ? 'show' : ''}`} id="toast">
           <i className="ti ti-sparkles" style={{ color: '#d0a030' }}></i>
           <span id="toastMsg">{toast.message}</span>
         </div>
 
-        {/* NAVIGATION NAVBAR PANEL CONTROL */}
         <nav className="navbar">
           <div className="nav-item" role="button" onClick={() => navigate('/instructor')}><i className="ti ti-home"></i><span className="nav-label">בית</span></div>
           <div className="nav-item" role="button" onClick={() => navigate('/instructor/tasks')}><i className="ti ti-list-check"></i><span className="nav-label">Missions</span></div>

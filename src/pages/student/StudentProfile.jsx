@@ -47,7 +47,7 @@ export default function StudentProfile() {
           .eq('username', loggedUser)
           .single();
 
-        if (userData && !error) {
+        if (userData && !userErr) { /* 🟢 תוקן מ-!error ל-!userErr למניעת קריסה */
           setBalance(userData.coins || 0);
           setStoredPassword(userData.password || '12345678');
           const currentFullName = userData.full_name || loggedUser;
@@ -254,6 +254,7 @@ export default function StudentProfile() {
           display: flex; flex-direction: column;
           border-radius: 24px; min-height: 700px;
           box-shadow: 0 0 60px rgba(124,58,237,.3);
+          padding-bottom: 95px; /* 🟢 מרווח ביטחון בתחתית כדי שהתוכן לא ייבלע מאחורי הבר הצף */
         }
 
         .gl {
@@ -303,7 +304,7 @@ export default function StudentProfile() {
         }
         .bal-num { font-size:18px; font-weight:900; line-height:1; background:linear-gradient(135deg,#fbbf24,#fde68a); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation:ng 2s ease-in-out infinite }
         @keyframes ng { 0%,100%{filter:drop-shadow(0 0 4px rgba(251,191,36,.3))} 50%{filter:drop-shadow(0 0 12px rgba(251,191,36,.8))} }
-        .bal-label { font-size:7px; color:rgba(251,191,36,.55); letter-spacing:1px }
+        .bal-label { font-size:7px; color:rgba(251,191,36,.55); letter-spacing:1px}
         
         .banner-logo { width:80px; height:80px; position:relative; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
         .neon-ring { position:absolute; inset:-10px; border-radius:50%; border:2px solid rgba(99,102,241,.7); animation:rp 2.5s ease-in-out infinite }
@@ -422,7 +423,7 @@ export default function StudentProfile() {
         .modal-box { background:linear-gradient(160deg,#0c0225,#140535,#0a0118); border:1px solid rgba(124,58,237,.5); border-radius:20px 20px 0 0; padding:0; width:100%; max-height:85%; overflow:hidden; animation:slideup .3s cubic-bezier(.22,1,.36,1) }
         @keyframes slideup{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
         .modal-handle { width:40px; height:4px; background:rgba(124,58,237,.4); border-radius:2px; margin:12px auto 0}
-        .modal-header { padding:16px 18px 12px; border-bottom:1px solid rgba(124,58,237,.2); display:flex; align-items:center; gap:10px; direction: rtl; }
+        .modal-header { padding:166px 18px 12px; border-bottom:1px solid rgba(124,58,237,.2); display:flex; align-items:center; gap:10px; direction: rtl; }
         .modal-title { font-size:13px; font-weight:700; color:#e0d7ff; letter-spacing:1px; flex:1; text-align: right; }
         .modal-close { width:32px; height:32px; border-radius:50%; background:rgba(124,58,237,.15); border:1px solid rgba(124,58,237,.3); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#a78bfa; font-size:16px; transition:all .2s; flex-shrink:0 }
         .modal-close:hover { background:rgba(124,58,237,.3); color:#e0d7ff }
@@ -464,7 +465,22 @@ export default function StudentProfile() {
         .lb-confirm { flex:1; padding:11px; border-radius:12px; background:linear-gradient(135deg,rgba(185,28,28,.7),rgba(153,27,27,.7)); border:1px solid rgba(239,68,68,.4); color:#fca5a5; font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700; cursor:pointer; transition:all .2s }
         .lb-confirm:hover { box-shadow:0 0 18px rgba(239,68,68,.35); color:white }
 
-        .nav { position:relative; z-index:10; background:rgba(10,3,28,.97); border-top:1px solid rgba(124,58,237,.5); padding:10px 0 18px; flex-shrink:0 }
+        /* 🟢 שדרוג ה-Navbar לבר צף, קבוע וממורכז ברמת אפליקציה מקצועית */
+        .nav { 
+          position: fixed; 
+          bottom: 0; 
+          left: 50%;
+          transform: translateX(-50%);
+          width: 380px;
+          max-width: 100%;
+          z-index: 100; 
+          background: rgba(10,3,28,.98); 
+          border-top: 1px solid rgba(124,58,237,.5); 
+          padding: 10px 0 18px; 
+          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
+          flex-shrink: 0;
+        }
+        
         .ni { display:flex; justify-content:space-around; align-items:center }
         .n { display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; padding:6px 8px; border-radius:14px; transition:all .25s; border:1px solid transparent; background:transparent }
         .n.act { background:linear-gradient(160deg,rgba(124,58,237,.25),rgba(79,70,229,.15)); border:1px solid rgba(167,139,250,.55); box-shadow:0 0 14px rgba(124,58,237,.3) }

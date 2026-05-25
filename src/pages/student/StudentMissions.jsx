@@ -150,6 +150,7 @@ export default function StudentMissions() {
           display: flex; flex-direction: column;
           border-radius: 24px; min-height: 700px;
           box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+          padding-bottom: 95px; /* 🟢 מרווח ביטחון בתחתית כדי שהמשימות לא יתחבאו מתחת לבר הצף */
         }
 
         .grid-lines {
@@ -278,7 +279,22 @@ export default function StudentMissions() {
         .reward-num { font-size:16px; font-weight:900; color:#fbbf24; line-height:1; }
         .reward-label { font-size:7px; color:rgba(251,191,36,0.6); letter-spacing:0.5px; }
 
-        .nav-bar { position:relative; z-index:10; background:rgba(10,3,28,0.97); border-top:1px solid rgba(124,58,237,0.5); padding:10px 0 18px; flex-shrink:0; }
+        /* 🟢 שדרוג הבר לבר צף, קבוע וממורכז ברמת מובייל מקצועית */
+        .nav-bar { 
+          position: fixed; 
+          bottom: 0; 
+          left: 50%;
+          transform: translateX(-50%);
+          width: 380px;
+          max-width: 100%;
+          z-index: 100; 
+          background: rgba(10,3,28,0.98); 
+          border-top: 1px solid rgba(124,58,237,0.5); 
+          padding: 10px 0 18px; 
+          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
+          flex-shrink: 0; 
+        }
+        
         .nav-items { display:flex; justify-content:space-around; align-items:center; }
         .nav-item { display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; padding:6px 8px; border-radius:14px; transition:all 0.25s; border:1px solid transparent; background:transparent; }
         .nav-item.active { background:linear-gradient(160deg,rgba(124,58,237,0.25),rgba(79,70,229,0.15)); border:1px solid rgba(167,139,250,0.55); box-shadow:0 0 14px rgba(124,58,237,0.3); }

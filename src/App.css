@@ -182,3 +182,15 @@
     border-right-color: var(--border);
   }
 }
+/* מניעת תזוזות ימינה ושמאלה בכל האתר באופן גורף */
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* הגדרת חישוב מידות תקין לכל האלמנטים */
+*, *::before, *::after {
+  box-sizing: border-box;
+}

@@ -11,7 +11,7 @@ export default function InstructorTasks() {
 
   // Page level states
   const [activeTab, setActiveTab] = useState(1); // 1 = My Missions, 2 = Admin Tasks
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false); /* 🟢 תוקן השם המסונכרן של ה-Setter */
 
   // State למעקב אחרי השמעת הרדיו המרכזי
   const [isPlaying, setIsPlaying] = useState(false);
@@ -58,6 +58,11 @@ export default function InstructorTasks() {
           groupNamesArray = dbGroups.map(g => `${g.venue} — ${g.name}`);
           groupIdsArray = dbGroups.map(g => g.id);
           setGroups(groupNamesArray);
+          
+          // קביעת ברירת מחדל ראשונית לטופס המודאל בבטחה
+          if (!targetSelect) {
+            setTargetSelect(groupNamesArray[0]);
+          }
         }
 
         // 3. שליפת התלמידים שרשומים לקבוצות שלו
@@ -71,11 +76,6 @@ export default function InstructorTasks() {
           if (dbStudents) {
             const studentNames = dbStudents.map(s => s.full_name || s.username);
             setStudents(studentNames);
-            
-            // קביעת ברירת מחדל ראשונית לטופס המודאל
-            if (!targetSelect) {
-              setTargetSelect(groupNamesArray[0] || '');
-            }
           }
         }
 
@@ -106,8 +106,9 @@ export default function InstructorTasks() {
 
           const mappedAdminTasks = rawAdminIncentives.map(task => {
             let iconType = "ti ti-star";
-            if (task.description.includes('צילום')) iconType = "ti ti-photo";
-            if (task.description.includes('דווח') || task.description.includes('טופס')) iconType = "ti ti-file-text";
+            const descSafe = task.description || ''; /* 🟢 הגנה מפני קריסת ערכי null מהענן */
+            if (descSafe.includes('צילום')) iconType = "ti ti-photo";
+            if (descSafe.includes('דווח') || descSafe.includes('טופס')) iconType = "ti ti-file-text";
 
             return {
               id: task.id,
@@ -172,7 +173,7 @@ export default function InstructorTasks() {
       }]);
 
       setTaskText('');
-      setIsModalOpen(false);
+      setIsModalOpen(false); /* 🟢 מתוקן ומאובטח כעת */
       await fetchLiveMissionsContext(); // רענון רשימת המשימות
     } catch (err) {
       console.error(err);
@@ -230,7 +231,6 @@ export default function InstructorTasks() {
         .ring-inner-circle { position: absolute; inset: 22px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(80,100,255,0.2); }
         .ring-pulse { position: absolute; inset: 22px; border-radius: 50%; background: radial-gradient(circle,rgba(60,80,255,0.15) 0%,transparent 70%); animation: pulse 2.5s ease-in-out infinite; }
         
-        /* 🔥 שמירה על פקודות האנימציה האותנטיות של נקודות הניאון למסך המשימות */
         .cyber-dots-purple, .cyber-dots-blue { position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; }
         .cyber-dots-purple { animation: cyberSpinPurple 3s linear infinite; z-index: 6; }
         .cyber-dots-blue { animation: cyberSpinBlue 5s linear infinite reverse; z-index: 6; }
@@ -264,7 +264,7 @@ export default function InstructorTasks() {
         .hero-radio-capsule.playing .capsule-wave-bar:nth-child(2) { animation-delay: 0.15s; }
         .hero-radio-capsule.playing .capsule-wave-bar:nth-child(3) { animation-delay: 0.35s; }
 
-        .content-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 80px; scrollbar-width: none; }
+        .content-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 95px; /* 🟢 מרווח ביטחון בתחתית כדי שהכרטיסיות לא ייעלמו מאחורי הבר הצף */ scrollbar-width: none; }
         .content-scroll::-webkit-scrollbar { display: none; }
 
         .tab-bar { display: flex; padding: 14px 16px 0; gap: 8px; direction: rtl; }
@@ -311,9 +311,40 @@ export default function InstructorTasks() {
         .done-btn.done { background: rgba(30,200,120,.15); border-color: #20b070; color: #20b070; opacity: .7; cursor: default; }
         .done-btn i { font-size: 12px; }
 
-        .modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.75); z-index: 20; border-radius: 36px; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .25s; }
+        /* 🟢 פתרון הבעיה: הפיכת ה-Overlay לקבוע וצף במרכז המוחלט של ה-Viewport הגלוי */
+        .modal-overlay { 
+          position: fixed; 
+          inset: 0; 
+          background: rgba(0,0,0,.8); 
+          z-index: 200; /* גבוה יותר מה-Navbar הצף כדי שלא יוסתר */
+          display: flex; 
+          align-items: center; /* מרכוז אנכי מושלם */
+          justify-content: center; 
+          opacity: 0; 
+          pointer-events: none; 
+          transition: opacity .25s; 
+          border-radius: 0; 
+        }
         .modal-overlay.open { opacity: 1; pointer-events: all; }
-        .modal { background: linear-gradient(145deg,#12122a,#0e0e20); border: 1px solid #2a2a4a; border-radius: 20px; padding: 22px 20px; width: 330px; max-height: 480px; overflow-y: auto; direction: rtl; text-align: right; }
+        
+        /* 🟢 שינוי למבנה קובייה צפה ועתידנית מעוגלת היטב שקופצת במרכז המסך */
+        .modal { 
+          background: linear-gradient(145deg,#12122a,#0e0e20); 
+          border: 1px solid #2a2a4a; 
+          border-radius: 20px; 
+          padding: 22px 20px; 
+          width: 340px; 
+          max-width: 90%; 
+          max-height: 80vh; 
+          overflow-y: auto; 
+          direction: rtl; 
+          text-align: right; 
+          box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+          transform: scale(0.85);
+          transition: transform .25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .modal-overlay.open .modal { transform: scale(1); }
+        
         .modal-title { font-family: 'Orbitron',monospace; font-size: 13px; color: #c0a0ff; letter-spacing: 1px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
         .modal-title i { font-size: 16px; color: #8050ff; }
         .modal-label { font-size: 11px; color: #5a5a8a; letter-spacing: .4px; margin-bottom: 5px; margin-top: 13px; }
@@ -325,7 +356,26 @@ export default function InstructorTasks() {
         .btn-send { flex: 1; padding: 10px; border-radius: 9px; border: 1px solid #5030aa; background: linear-gradient(135deg,rgba(80,48,170,.3),rgba(60,40,140,.2)); color: #c0a0ff; font-family: 'Exo 2', sans-serif; font-size: 13px; cursor: pointer; transition: all .2s; text-align: center; }
         .btn-send:hover { border-color: #9060ff; background: linear-gradient(135deg,rgba(100,60,220,.4),rgba(80,50,180,.3)); }
 
-        .navbar { position: absolute; bottom: 0; left: 0; right: 0; background: #060610; border-top: 1px solid #14142a; padding: 9px 0 22px; display: flex; justify-content: space-around; align-items: center; z-index: 20; border-radius: 0 0 36px 36px; direction: rtl; }
+        /* 🟢 שדרוג ה-Navbar לבר צף, קבוע וממורכז ברמת מובייל מקצועית */
+        .navbar { 
+          position: fixed; 
+          bottom: 0; 
+          left: 50%; 
+          transform: translateX(-50%); 
+          width: 390px;
+          max-width: 100%;
+          background: #060610; 
+          border-top: 1px solid #14142a; 
+          padding: 9px 0 22px; 
+          display: flex; 
+          justify-content: space-around; 
+          align-items: center; 
+          z-index: 100; 
+          border-radius: 0 0 36px 36px; 
+          direction: rtl; 
+          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
+        }
+        
         .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 5px; border-radius: 9px; transition: all .15s; min-width: 40px; }
         .nav-item.active { background: rgba(80,48,170,.12); }
         .nav-item i { font-size: 19px; color: #2e2e4e; transition: color .15s; }

@@ -153,7 +153,6 @@ export default function InstructorHome() {
         .ric { position: absolute; inset: 22px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(80,100,255,.18); }
         .rp { position: absolute; inset: 22px; border-radius: 50%; background: radial-gradient(circle,rgba(60,80,255,.14) 0%,transparent 70%); animation: insPulse 2.5s ease-in-out infinite; }
         
-        /* 🔥 שחזור פקודות האנימציה האותנטיות של נקודות הניאון למסך הבית */
         .cyber-dots-purple, .cyber-dots-blue { position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; }
         .cyber-dots-purple { animation: cyberSpinPurple 3s linear infinite; z-index: 6; }
         .cyber-dots-blue { animation: cyberSpinBlue 5s linear infinite reverse; z-index: 6; }
@@ -185,7 +184,7 @@ export default function InstructorHome() {
         .hero-radio-capsule.playing .capsule-wave-bar:nth-child(2) { animation-delay: 0.15s; }
         .hero-radio-capsule.playing .capsule-wave-bar:nth-child(3) { animation-delay: 0.35s; }
 
-        .content-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 86px; scrollbar-width: none; }
+        .content-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 95px; /* 🟢 מרווח ביטחון בתחתית למניעת בליעת הקבוצות תחת הבר הצף */ scrollbar-width: none; }
         .content-scroll::-webkit-scrollbar { display: none; }
 
         .header-row { padding: 18px 20px 14px; display: flex; align-items: center; justify-content: space-between; }
@@ -238,12 +237,32 @@ export default function InstructorHome() {
         .gdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
         .gdot.on { background: #18b090; }
         .gdot.soon { background: #3070ff; }
+        .gdot.soon { background: #3070ff; }
         .ginfo { flex: 1; text-align: right; }
         .gname { font-size: 13px; font-weight: 500; color: #b0b0cc; margin-bottom: 2px; }
         .gmeta { font-size: 11px; color: #484868; }
         .gcount { font-family: 'Orbitron',monospace; font-size: 11px; color: #8050ff; background: rgba(80,48,170,.1); border: 1px solid rgba(80,48,170,.2); border-radius: 7px; padding: 2px 7px; }
         
-        .navbar { position: absolute; bottom: 0; left: 0; right: 0; background: #060610; border-top: 1px solid #14142a; padding: 9px 0 22px; display: flex; justify-content: space-around; align-items: center; z-index: 20; border-radius: 0 0 36px 36px; direction: rtl; }
+        /* 🟢 שדרוג ה-Navbar לבר צף, קבוע וממורכז ברמת מובייל מקצועית */
+        .navbar { 
+          position: fixed; 
+          bottom: 0; 
+          left: 50%; 
+          transform: translateX(-50%); 
+          width: 390px;
+          max-width: 100%;
+          background: #060610; 
+          border-top: 1px solid #14142a; 
+          padding: 9px 0 22px; 
+          display: flex; 
+          justify-content: space-around; 
+          align-items: center; 
+          z-index: 100; 
+          border-radius: 0 0 36px 36px; 
+          direction: rtl; 
+          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
+        }
+        
         .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 5px; border-radius: 9px; transition: all .15s; min-width: 40px; }
         .nav-item.active { background: rgba(80,48,170,.12); }
         .nav-item i { font-size: 19px; color: #2e2e4e; transition: color .15s; }

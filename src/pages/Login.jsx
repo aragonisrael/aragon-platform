@@ -120,6 +120,19 @@ export default function Login() {
           width: 100%;
         }
 
+        /* ─── הנעילה הדינמית מפני זליגת העתקות במובייל ─── */
+        .card-title, 
+        .card-subtitle, 
+        .form-label, 
+        .remember-row, 
+        .error-banner,
+        .footer {
+          -webkit-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          user-select: none;
+        }
+
         /* ─── Particles ─── */
         .particle {
           position: absolute;
@@ -269,19 +282,20 @@ export default function Login() {
           background: linear-gradient(90deg, transparent, #7c3aed, #3b82f6, #7c3aed, transparent); border-radius: 50%;
         }
 
-        /* כותרת נקייה ומותאמת אישית */
         .card-title { text-align: center; font-family: 'Orbitron', sans-serif; font-size: 1.5rem; font-weight: 900; color: #e2e8f0; margin-bottom: 0.4rem; letter-spacing: 2px; }
         .card-subtitle { text-align: center; font-size: 0.85rem; color: #a78bfa; letter-spacing: 1px; font-weight: 600; margin-bottom: 2rem; direction: rtl; }
 
         /* ─── FORM CENTERED ─── */
         .form-group { margin-bottom: 1.4rem; position: relative; text-align: center; direction: rtl; }
         .form-label { display: block; font-size: 0.8rem; color: #a78bfa; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600; text-align: center; }
-        .form-input { width: 100%; background: rgba(15, 25, 50, 0.8); border: 1px solid rgba(124,58,237,0.3); border-radius: 12px; padding: 0.85rem 1rem; color: #e2e8f0; font-size: 0.95rem; font-family: 'Orbitron', sans-serif; transition: all 0.2s; outline: none; text-align: center; }
+        
+        /* העלאת תיעדוף הלחיצה של השדות */
+        .form-input { width: 100%; background: rgba(15, 25, 50, 0.8); border: 1px solid rgba(124,58,237,0.3); border-radius: 12px; padding: 0.85rem 1rem; color: #e2e8f0; font-size: 0.95rem; font-family: 'Orbitron', sans-serif; transition: all 0.2s; outline: none; text-align: center; position: relative; z-index: 5; }
         .form-input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.15), 0 0 15px rgba(124,58,237,0.1); }
         .form-input::placeholder { color: #334155; font-family: 'Inter', sans-serif; font-size: 0.85rem; }
 
-        .pass-wrapper { position: relative; width: 100%; }
-        .eye-btn { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #475569; font-size: 18px; transition: color 0.2s; padding: 4px; z-index: 5; }
+        .pass-wrapper { position: relative; width: 100%; z-index: 5; }
+        .eye-btn { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #475569; font-size: 18px; transition: color 0.2s; padding: 4px; z-index: 6; }
         .eye-btn:hover { color: #7c3aed; }
         .pass-wrapper .form-input { padding-left: 2.5rem; padding-right: 1rem; }
 
@@ -311,6 +325,7 @@ export default function Login() {
           overflow: hidden;
           animation: pulseBtn 2.5s ease-in-out infinite;
           transition: transform 0.15s, box-shadow 0.2s;
+          z-index: 5;
         }
 
         .login-btn:hover  { transform: scale(1.02); animation-play-state: paused; box-shadow: 0 0 30px rgba(124,58,237,0.8); }
@@ -390,8 +405,9 @@ export default function Login() {
           <div className="card-subtitle">ברוכים הבאים לממלכת אראגון</div>
 
           <form onSubmit={handleLoginSubmit}>
+            {/* 🟢 תגיות ה-label הומרו ל-div מוגן כדי למנוע שידורי פוקוס שבורים במובייל */}
             <div className="form-group">
-              <label className="form-label">מזהה משתמש בממלכה</label>
+              <div className="form-label">מזהה משתמש בממלכה</div>
               <input 
                 className="form-input" 
                 type="text" 
@@ -403,7 +419,7 @@ export default function Login() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">מפתח גישה סודי (Password)</label>
+              <div className="form-label">מפתח גישה סודי (Password)</div>
               <div className="pass-wrapper">
                 <input 
                   className="form-input" 

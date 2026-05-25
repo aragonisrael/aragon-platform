@@ -169,7 +169,21 @@ export default function StudentShop() {
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         
         .shop-main-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #050a14; width: 100%; }
-        .app { width: 380px; background: #05010f; font-family: 'Orbitron', sans-serif; position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 24px; min-height: 700px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
+        
+        .app { 
+          width: 380px; 
+          background: #05010f; 
+          font-family: 'Orbitron', sans-serif; 
+          position: relative; 
+          overflow: hidden; 
+          display: flex; 
+          flex-direction: column; 
+          border-radius: 24px; 
+          min-height: 700px; 
+          box-shadow: 0 20px 50px rgba(0,0,0,0.8); 
+          padding-bottom: 95px; /* 🟢 מרווח ביטחון בתחתית כדי שהמוצרים לא יתחבאו מתחת לבר הצף */
+        }
+        
         .grid-lines { position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: 0.05; background-image: linear-gradient(rgba(120,80,255,0.6) 1px,transparent 1px), linear-gradient(90deg,rgba(120,80,255,0.6) 1px,transparent 1px); background-size: 40px 40px; animation: gridMove 8s linear infinite; }
         @keyframes gridMove { from { background-position:0 0; } to { background-position:40px 40px; } }
         .stars { position:absolute; inset:0; pointer-events:none; z-index:0; }
@@ -218,8 +232,21 @@ export default function StudentShop() {
         .buy-btn { width:100%; padding:7px 4px; background:linear-gradient(135deg,rgba(124,58,237,0.8),rgba(79,70,229,0.8)); border:1px solid rgba(167,139,250,0.5); border-radius:10px; color:#e0d7ff; font-family:'Exo 2',sans-serif; font-size:11px; font-weight:700; letter-spacing:1px; cursor:pointer; }
         .buy-btn.bought { background:linear-gradient(135deg,rgba(22,163,74,0.6),rgba(16,185,129,0.6)); border-color:rgba(34,197,94,0.5); color:#86efac; cursor:default; font-size:9px; }
 
-        /* 📋 הזרקת הסטייל המקורי והחסין של ה-Navbar מתוך עמוד המשימות/פרופיל */
-        .nav { position:relative; z-index:10; background:rgba(10,3,28,.97); border-top:1px solid rgba(124,58,237,.5); padding:10px 0 18px; flex-shrink:0 }
+        .nav { 
+          position: fixed; 
+          bottom: 0; 
+          left: 50%;
+          transform: translateX(-50%);
+          width: 380px;
+          max-width: 100%;
+          z-index: 100; 
+          background: rgba(10,3,28,.98); 
+          border-top: 1px solid rgba(124,58,237,.5); 
+          padding: 10px 0 18px; 
+          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
+          flex-shrink: 0;
+        }
+        
         .ni { display:flex; justify-content:space-around; align-items:center }
         .n { display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; padding:6px 8px; border-radius:14px; transition:all .25s; border:1px solid transparent; background:transparent }
         .n.act { background:linear-gradient(160deg,rgba(124,58,237,.25),rgba(79,70,229,.15)); border:1px solid rgba(167,139,250,.55); box-shadow:0 0 14px rgba(124,58,237,.3) }
@@ -227,8 +254,32 @@ export default function StudentShop() {
         .nl { font-family:'Orbitron',sans-serif; font-size:7.5px; color:#6b7280; letter-spacing:1px; text-transform:uppercase }
         .n.act .nl { color:#c4b5fd }
 
-        .modal-overlay { position:absolute; inset:0; z-index:50; background:rgba(5,1,15,0.88); display:flex; align-items:center; justify-content:center; padding:20px; border-radius:24px; }
-        .modal-box { background:linear-gradient(135deg,#0f0328,#1a0545); border:1px solid rgba(124,58,237,0.6); border-radius:20px; padding:24px 20px 20px; width:100%; box-shadow:0 0 40px rgba(124,58,237,0.4); text-align:center; direction: rtl; font-family:'Exo 2',sans-serif; }
+        /* 🟢 פתרון הבעיה: הפיכת ה-Overlay לקבוע וצף במרכז המוחלט של ה-Viewport */
+        .modal-overlay { 
+          position: fixed; 
+          inset: 0; 
+          z-index: 200; /* 🟢 גבוה יותר מה-Navbar הצף כדי שלא יוסתר */
+          background: rgba(5,1,15,0.92); 
+          display: flex; 
+          align-items: center; /* 🟢 מרכוז אנכי מושלם */
+          justify-content: center; 
+          padding: 20px; 
+        }
+
+        /* 🟢 הגדרת רוחב קבוע וחסין לתיבת הדיאלוג שלא תתפשט על פני כל המסך במחשב */
+        .modal-box { 
+          background: linear-gradient(135deg,#0f0328,#1a0545); 
+          border: 1px solid rgba(124,58,237,0.6); 
+          border-radius: 20px; 
+          padding: 24px 20px 20px; 
+          width: 340px; 
+          max-width: 90%; 
+          box-shadow: 0 0 50px rgba(124,58,237,0.5); 
+          text-align: center; 
+          direction: rtl; 
+          font-family: 'Exo 2',sans-serif; 
+        }
+
         .modal-icon { font-size:44px; margin-bottom:10px; display:flex; align-items:center; justify-content:center; }
         .modal-icon img { width:64px; height:64px; border-radius:10px; object-fit:cover; }
         .modal-title { font-size:14px; font-weight:700; color:#e0d7ff; margin-bottom:8px; }

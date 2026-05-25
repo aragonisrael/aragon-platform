@@ -25,7 +25,6 @@ export default function AdminMissionsIncentives() {
   // Instructor Incentives States
   const [iDesc, setIDesc] = useState('');
   const [iReward, setIReward] = useState(200);
-  const [iScope, setIScope] = useState('specific'); 
   const [iInstructor, setIInstructor] = useState('');
   const [dispatchedIncentivesCount, setDispatchedIncentivesCount] = useState(0);
   const [incentiveBanner, setIncentiveBanner] = useState({ show: false, title: '', sub: '' });
@@ -43,7 +42,7 @@ export default function AdminMissionsIncentives() {
       if (dbGroups) {
         const mappedGroups = dbGroups.map(g => `${g.name} | ${g.venue} ${g.city}`);
         setGroupsOptions(mappedGroups);
-        if (mappedGroups.length > 0) setMGroup(mappedGroups[0]);
+        if (mappedGroups.length > 0 && !mGroup) setMGroup(mappedGroups[0]);
       }
 
       // 2. משיכת מדריכים אמיתיים ליצירת רשימת הבחירה באתגרי מדריך
@@ -51,7 +50,7 @@ export default function AdminMissionsIncentives() {
       if (dbUsers) {
         const mappedInstructors = dbUsers.map(u => u.full_name);
         setInstructorsOptions(mappedInstructors);
-        if (mappedInstructors.length > 0) setIInstructor(mappedInstructors[0]);
+        if (mappedInstructors.length > 0 && !iInstructor) setIInstructor(mappedInstructors[0]);
       }
 
       // 3. משיכת היסטוריית המשימות והאתגרים שהופצו מהאדמין
@@ -71,25 +70,37 @@ export default function AdminMissionsIncentives() {
           time: new Date(q.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
         })));
 
-        // עיבוד לוגים לאתגרי מדריכים
-        setIncentiveLogs(instructorQuests.map(i => ({
-          id: i.id,
-          main: i.target_type === 'all' ? 'כל המדריכים' : i.target_name,
-          sub: `${i.reward} ₪ · ${i.description.substring(0, 30)}...`,
-          time: new Date(i.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
-        })));
+        // 🟢 פענוח חכם וטקסטואלי של הסטטוס מתוך כותרת האתגר בענן לשליטה דינמית בכפתורים
+        setIncentiveLogs(instructorQuests.map(i => {
+          let computedStatus = 'pending';
+          if (i.title?.includes('הושלם')) computedStatus = 'completed';
+          if (i.title?.includes('נכשל')) computedStatus = 'failed';
+
+          // ניקוי מחרוזת הסטטוס מהכותרת הראשית לטובת תצוגה נקייה בלוג
+          const cleanTitle = (i.title || 'אתגר למדריך').split(' | ')[0];
+
+          return {
+            id: i.id,
+            main: i.target_name,
+            sub: `${i.reward} ₪ · ${(i.description || '').substring(0, 30)}...`,
+            time: new Date(i.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
+            status: computedStatus,
+            reward: i.reward,
+            description: i.description,
+            target_name: i.target_name,
+            rawTitle: cleanTitle
+          };
+        }));
       }
     } catch (err) {
       console.error("Error syncing missions hub:", err);
     }
   };
 
-  // טעינת המטריצה מהענן בהפעלת המסך
   useEffect(() => {
     fetchLiveMissionsAndEntities();
   }, []);
 
-  // מסנכרן את מצב כפתור הנגן מול האודיו הגלובלי ב-App.jsx
   useEffect(() => {
     const globalAudio = document.getElementById('hq-cyber-radio');
     if (globalAudio) {
@@ -105,16 +116,11 @@ export default function AdminMissionsIncentives() {
   const toggleRadioPlay = () => {
     const globalAudio = document.getElementById('hq-cyber-radio');
     if (!globalAudio) return;
-
-    if (globalAudio.paused) {
-      globalAudio.play().catch(err => console.log("Audio play blocked", err));
-    } else {
-      globalAudio.pause();
-    }
+    globalAudio.paused ? globalAudio.play() : globalAudio.pause();
     setIsPlaying(!globalAudio.paused);
   };
 
-  // 🔥 הפצת משימה לתלמידים ורישומה בלייב בבסיס הנתונים בענן
+  // הפצת משימה לתלמידים
   const handleDispatchMission = async () => {
     if (!mTitle.trim() || !mDesc.trim()) { triggerToast('⚠️ נא למלא כותרת ותיאור משימה'); return; }
     if (mScope === 'group' && !mGroup) { triggerToast('⚠️ נא לבחור קבוצת יעד'); return; }
@@ -133,35 +139,76 @@ export default function AdminMissionsIncentives() {
       setTimeout(() => setMissionBanner(p => ({ ...p, show: false })), 5000);
 
       setMTitle(''); setMDesc('');
-      await fetchLiveMissionsAndEntities(); // רענון הלוגים והמונים מהשרת
+      await fetchLiveMissionsAndEntities();
     } catch (err) {
       console.error(err);
     }
   };
 
-  // 🔥 הפצת אתגר למדריכים ורישומו בלייב בבסיס הנתונים בענן
+  // 🔥 הפצת אתגר למדריך - מוגדר ומאולץ כעת אך ורק למדריך ספציפי
   const handleDispatchIncentive = async () => {
     if (!iDesc.trim()) { triggerToast('⚠️ נא לתאר את יעד האתגר'); return; }
-    if (iScope === 'specific' && !iInstructor) { triggerToast('⚠️ נא לבחור מדריך'); return; }
+    if (!iInstructor) { triggerToast('⚠️ נא לבחור מדריך יעד'); return; }
 
     try {
       await supabase.from('admin_tasks').insert([{
         title: `אתגר כספי אדמין`,
         description: iDesc.trim(),
         reward: iReward,
-        target_type: iScope,
-        target_name: iScope === 'all' ? 'כל המדריכים' : iInstructor,
+        target_type: 'specific',
+        target_name: iInstructor,
         category: 'instructor_incentive'
       }]);
 
-      let target = iScope === 'all' ? 'כל המדריכים' : iInstructor;
-      setIncentiveBanner({ show: true, title: `🏆 האתגר נשלח אל ${target}`, sub: `בונוס: ${iReward} ₪` });
+      setIncentiveBanner({ show: true, title: `🏆 האתגר נשלח אל המדריך ${iInstructor}`, sub: `בונוס מותנה: ${iReward} ₪` });
       setTimeout(() => setIncentiveBanner(p => ({ ...p, show: false })), 5000);
 
       setIDesc('');
-      await fetchLiveMissionsAndEntities(); // רענון הלוגים והמונים מהשרת
+      await fetchLiveMissionsAndEntities();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // 🔥 מנוע ההכרעה הרשתי - מעביר שקלים בלייב לארנק ומעדכן מחרוזת כותרת חסינת שגיאות
+  const handleIncentiveDecision = async (task, decision) => {
+    try {
+      if (decision === 'success') {
+        // 1. שליפת היתרה הנוכחית של המדריך הספציפי והזרקת המענק החודשי
+        const { data: instProfile } = await supabase
+          .from('users')
+          .select('ils_balance')
+          .eq('full_name', task.main)
+          .single();
+        
+        if (instProfile) {
+          const currentIls = instProfile.ils_balance || 0;
+          await supabase
+            .from('users')
+            .update({ ils_balance: currentIls + Number(task.reward) })
+            .eq('full_name', task.main);
+        }
+
+        // 2. נעילת האתגר ע"י הזרקת סטטוס הושלם למחרוזת הכותרת (מונע קריסות 400 לתמיד)
+        await supabase
+          .from('admin_tasks')
+          .update({ title: `${task.rawTitle} | הושלם` })
+          .eq('id', Number(task.id));
+
+        triggerToast(`🎉 האתגר אושר! המענק כספי בסך ${task.reward} ₪ הועבר למדריך.`);
+      } else {
+        // חתימת האתגר כנכשל ללא שינוי בארנק הדיגיטלי
+        await supabase
+          .from('admin_tasks')
+          .update({ title: `${task.rawTitle} | נכשל` })
+          .eq('id', Number(task.id));
+
+        triggerToast('❌ האתגר סומן כנכשל והועבר להיסטוריה האדומה.');
+      }
+
+      await fetchLiveMissionsAndEntities(); // רענון מהיר ומיידי של הלוח
+    } catch (err) {
+      console.error("Incentive decision workflow failure:", err);
     }
   };
 
@@ -187,7 +234,6 @@ export default function AdminMissionsIncentives() {
         .main-area { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; overflow-x: hidden; }
         
         .top-bar { height: 64px; background: linear-gradient(90deg, #050812 0%, #080f22 30%, #0a0820 50%, #080f22 70%, #050812 100%); border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 5; flex-shrink: 0; overflow: visible; }
-        .top-bar::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(0,200,255,0.03) 60px, rgba(0,200,255,0.03) 61px); pointer-events: none; }
         .top-bar-brand { display: flex; align-items: center; gap: 14px; }
 
         .ring-wrap { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; z-index: 4; }
@@ -197,14 +243,7 @@ export default function AdminMissionsIncentives() {
         .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
         .limg { width: 28px; height: 28px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 1px; box-shadow: 0 0 8px rgba(0,200,255,0.4); }
         
-        /* 🔥 תיקון הלוויינים המסתובבים בתוך קוד המקור המקורי שלך ללא שינוי עיצובי מסביב */
-        .cyber-dots-purple, .cyber-dots-blue { 
-          position: absolute; 
-          inset: -3px; 
-          border-radius: 50%; 
-          pointer-events: none; 
-          transform-origin: center center; 
-        }
+        .cyber-dots-purple, .cyber-dots-blue { position: absolute; inset: -3px; border-radius: 50%; pointer-events: none; transform-origin: center center; }
         .cyber-dots-purple { animation: hqSpin 3s linear infinite; z-index: 6; }
         .cyber-dots-blue { animation: hqSpin 5s linear infinite reverse; z-index: 6; }
         .cyber-dots-purple::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; background: #8050ff; border-radius: 50%; box-shadow: 0 0 10px #8050ff, 0 0 20px #8050ff; }
@@ -212,8 +251,6 @@ export default function AdminMissionsIncentives() {
         
         .brand-title { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: #00c8ff; }
         .brand-sub { font-size: 10px; color: #4a6080; letter-spacing: 1px; margin-top: 1px; font-family: 'Rajdhani', sans-serif; }
-        
-        .top-bar-right { display: flex; align-items: center; gap: 12px; }
         .status-pill { display: flex; align-items: center; gap: 6px; background: #040c18; border: 1px solid #0a2040; border-radius: 20px; padding: 5px 12px; font-size: 12px; color: #4a9060; }
         .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #00e676; animation: hqPulse 2s ease-in-out infinite; }
         .top-bar-neon { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #00c8ff44, #7b2fbe66, #00c8ff44, transparent); }
@@ -227,9 +264,6 @@ export default function AdminMissionsIncentives() {
         .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
         .visualizer-bar { width: 2px; height: 3px; background: #00e676; }
         .cyber-music-player.playing .visualizer-bar { animation: liveWave 0.6s ease-in-out infinite alternate; }
-        .cyber-music-player.playing .visualizer-bar:nth-child(2) { animation-delay: 0.15s; }
-        .cyber-music-player.playing .visualizer-bar:nth-child(3) { animation-delay: 0.35s; }
-        @keyframes liveWave { 0% { height: 2px; } 100% { height: 10px; } }
 
         .content { padding: 24px; display: flex; flex-direction: column; gap: 28px; }
         .sech { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
@@ -294,6 +328,19 @@ export default function AdminMissionsIncentives() {
         .li-text { flex: 1; color: #6080a0; text-align: right; }
         .li-text-gold { flex: 1; color: #e0a040; text-align: right; }
         .li-time, .li-time-gold { font-size: 10px; color: #1a3050; font-family: 'Orbitron', monospace; }
+
+        .action-status-btn { padding: 4px 10px; border-radius: 6px; font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+        .action-status-btn.approve { background: rgba(0, 230, 118, 0.12); border: 1px solid #00e676; color: #00e676; margin-left: 5px; }
+        .action-status-btn.approve:hover { background: rgba(0, 230, 118, 0.25); box-shadow: 0 0 8px rgba(0, 230, 118, 0.4); }
+        .action-status-btn.reject { background: rgba(248, 113, 113, 0.12); border: 1px solid #f87171; color: #f87171; }
+        .action-status-btn.reject:hover { background: rgba(248, 113, 113, 0.25); box-shadow: 0 0 8px rgba(248, 113, 113, 0.4); }
+        
+        .status-badge-log { font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
+        .status-badge-log.completed { background: rgba(0, 230, 118, 0.1); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.2); }
+        .status-badge-log.failed { background: rgba(248, 113, 113, 0.1); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.2); }
+        
+        .toast-container { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; animation: toastIn 0.3s ease; }
+        .toast { background: linear-gradient(135deg, #0b1528, #040814); border: 1px solid #00c8ff; border-radius: 10px; padding: 12px 24px; color: #00c8ff; font-size: 14px; font-weight: bold; display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         
         @keyframes hqSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
         @keyframes hqPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
@@ -302,7 +349,7 @@ export default function AdminMissionsIncentives() {
 
       {/* FLOATING ACTION NOTIFICATION TOAST CONTAINER */}
       {toast.show && (
-        <div className="toast-container"><div className="toast"><i className="ti ti-check"></i><span>{toast.message}</span></div></div>
+        <div className="toast-container"><div className="toast"><i className="ti ti-sparkles"></i><span>{toast.message}</span></div></div>
       )}
 
       {/* סיידבר הניווט */}
@@ -310,7 +357,7 @@ export default function AdminMissionsIncentives() {
         <div className="sidebar-logo"><div className="sidebar-logo-inner">A</div></div>
         <button className="nav-btn" type="button" onClick={() => navigate('/admin')}><i className="ti ti-layout-dashboard"></i><span className="nav-label">בית</span></button>
         <button className="nav-btn" type="button" onClick={() => navigate('/admin/shop')}><i className="ti ti-shopping-bag"></i><span className="nav-label">חנות</span></button>
-        <button className="nav-btn active" type="button"><i className="ti ti-sword"></i><span className="nav-label">משימות</span></button>
+        <button className="nav-btn active" type="button"><i className="ti ti-sword"></i><span className="nav-label">Missions</span></button>
         <button className="nav-btn" type="button" onClick={() => navigate('/admin/control')}><i className="ti ti-calendar"></i><span className="nav-label">לו"ז</span></button>
         <button className="nav-btn" type="button" onClick={() => navigate('/admin/groups')}><i className="ti ti-table"></i><span className="nav-label">קבוצות</span></button>
         <button className="nav-btn" type="button" onClick={() => navigate('/admin/team')}><i className="ti ti-users"></i><span className="nav-label">צוות</span></button>
@@ -376,10 +423,48 @@ export default function AdminMissionsIncentives() {
                 <div className="panel-body">
                   <div className="fgroup" style={{ marginBottom: '14px' }}><label className="flabel-gold">תיאור האתגר</label><textarea className="finput-gold" rows="4" placeholder="תאר את האתגר..." value={iDesc} onChange={(e) => setIDesc(e.target.value)}></textarea></div>
                   <div className="frow"><div className="fgroup flex1"><label className="flabel-gold">סכום המענק (₪)</label><div className="coin-input-wrap"><span className="coin-icon" style={{ color: '#c8860a' }}>₪</span><input className="finput-gold" type="number" min="50" value={iReward} onChange={(e) => setIReward(parseInt(e.target.value, 10) || 0)} style={{ paddingLeft: '36px' }} /></div><div className="coin-presets">{[100, 200, 350, 500].map(v => <button key={v} className={`preset-btn ${iReward === v ? 'active' : ''}`} style={{ borderColor: '#2a1a08', color: '#8a6030' }} type="button" onClick={() => setIReward(v)}>{v} ₪</button>)}</div></div></div>
-                  <div className="fgroup" style={{ marginBottom: '14px' }}><label className="flabel-gold">הפצה</label><div className="scope-row"><button className={`scope-btn ${iScope === 'all' ? 'active-gold' : ''}`} style={{ borderColor: '#2a1a08', color: '#8a6030' }} type="button" onClick={() => setIScope('all')}><i className="ti ti-broadcast"></i> כל המדריכים</button><button className={`scope-btn ${iScope === 'specific' ? 'active-gold' : ''}`} style={{ borderColor: '#2a1a08', color: '#8a6030' }} type="button" onClick={() => setIScope('specific')}><i className="ti ti-user-check"></i> מדריך ספציפי</button></div>{iScope === 'specific' && <select className="finput-gold" style={{ marginTop: '8px' }} value={iInstructor} onChange={(e) => setIInstructor(e.target.value)}><option value="">— בחר מדריך —</option>{instructorsOptions.map((inst, idx) => <option key={idx} value={inst}>{inst}</option>)}</select>}</div>
+                  
+                  {/* 🟢 הסרת כפתורי "לכל המדריכים" - ההפצה מעתה מאולצת ישירות למדריך ספציפי בלבד */}
+                  <div className="fgroup" style={{ marginBottom: '14px', marginTop: '14px' }}>
+                    <label className="flabel-gold">בחר מדריך יעד לאתגר</label>
+                    <select className="finput-gold" style={{ marginTop: '8px' }} value={iInstructor} onChange={(e) => setIInstructor(e.target.value)}>
+                      <option value="">— בחר מדריך —</option>
+                      {instructorsOptions.map((inst, idx) => <option key={idx} value={inst}>{inst}</option>)}
+                    </select>
+                  </div>
+
                   {incentiveBanner.show && <div className="success-banner sb-gold"><span className="sb-icon">🏆</span><div><div className="sb-title sb-title-gold">{incentiveBanner.title}</div><div className="sb-sub sb-sub-gold">{incentiveBanner.sub}</div></div></div>}
                   <button className="dispatch-btn dispatch-gold" type="button" onClick={handleDispatchIncentive}><i className="ti ti-coin"></i> הפץ אתגר</button>
-                  <div className="log-section"><div className="log-title" style={{ color: '#5a3010' }}>היסטוריית אתגרים</div><div id="incentiveLog">{incentiveLogs.map(log => <div className="log-item li-gold" key={log.id}><div className="li-dot-gold"></div><div className="li-text-gold"><strong>{log.main}</strong> — {log.sub}</div><div className="li-time-gold">{log.time}</div></div>)}</div></div>
+                  
+                  {/* ניהול והכרעת אתגרים חיוורים */}
+                  <div className="log-section">
+                    <div className="log-title" style={{ color: '#5a3010' }}>ניהול והכרעת אתגרים ברשת</div>
+                    <div id="incentiveLog">
+                      {incentiveLogs.map(log => (
+                        <div className="log-item li-gold" key={log.id} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexDirection: 'row-reverse' }}>
+                            <div className="li-dot-gold"></div>
+                            <div className="li-text-gold"><strong>{log.main}</strong> — {log.sub}</div>
+                          </div>
+                          
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div className="li-time-gold" style={{ marginLeft: '4px' }}>{log.time}</div>
+                            
+                            {/* 🟢 נעילה והחלפה חלקה של הכפתורים בבאג'ים צבעוניים ברגע הלחיצה */}
+                            {log.status === 'completed' && <span className="status-badge-log completed">בוצע בהצלחה ✓</span>}
+                            {log.status === 'failed' && <span className="status-badge-log failed">נכשל ✗</span>}
+                            {log.status !== 'completed' && log.status !== 'failed' && (
+                              <div style={{ display: 'flex', gap: '5px' }}>
+                                <button className="action-status-btn approve" type="button" onClick={() => handleIncentiveDecision(log, 'success')}>בוצע</button>
+                                <button className="action-status-btn reject" type="button" onClick={() => handleIncentiveDecision(log, 'fail')}>נכשל</button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                 </div>
               </div>
             </div>

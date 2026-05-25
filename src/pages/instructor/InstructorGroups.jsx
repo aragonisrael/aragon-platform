@@ -380,7 +380,7 @@ export default function InstructorGroups() {
         .capsule-wave-bar { width: 1.5px; height: 2px; background: #2e2e4e; border-radius: 1px; }
         .hero-radio-capsule.playing .capsule-wave-bar { background: #18b090; animation: liveWave 0.6s ease-in-out infinite alternate; }
 
-        .content-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 82px; scrollbar-width: none; }
+        .content-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 95px; scrollbar-width: none; }
         .content-scroll::-webkit-scrollbar { display: none; }
 
         .search-wrap { padding: 12px 16px 8px; position: relative; direction: rtl; }
@@ -425,11 +425,38 @@ export default function InstructorGroups() {
         .student-coins i { font-size: 11px; }
         .student-arrow { font-size: 14px; color: #3a3a5a; transform: scaleX(-1); }
 
-        .modal-overlay { position: absolute; inset: 0; background: rgba(0,0,10,.8); z-index: 30; border-radius: 36px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 0; opacity: 0; pointer-events: none; transition: opacity .25s; }
+        /* 🟢 פתרון הבעיה: הפיכת ה-Overlay לקבוע במרכז ה-Viewport הפיזי של הדפדפן */
+        .modal-overlay { 
+          position: fixed; 
+          inset: 0; 
+          background: rgba(0,0,10,.85); 
+          z-index: 200; /* 🟢 גבוה יותר מה-Navbar כדי למנוע הסתרה */
+          display: flex; 
+          align-items: center; /* 🟢 מרכוז אנכי מוחלט */
+          justify-content: center; 
+          padding: 20px; 
+          opacity: 0; 
+          pointer-events: none; 
+          transition: opacity .25s; 
+        }
         .modal-overlay.open { opacity: 1; pointer-events: all; }
-        .modal-sheet { background: linear-gradient(180deg,#13132a,#0e0e1e); border: 1px solid #2a2a48; border-radius: 24px 24px 0 0; width: 100%; padding: 20px 20px 28px; transform: translateY(40px); transition: transform .3s; direction: rtl; }
-        .modal-overlay.open .modal-sheet { transform: translateY(0); }
-        .modal-handle { width: 36px; height: 3px; border-radius: 2px; background: #2a2a48; margin: 0 auto 18px; }
+        
+        /* 🟢 שינוי למבנה קובייה צפה ועתידנית מעוגלת היטב שקופצת במרכז */
+        .modal-sheet { 
+          background: linear-gradient(180deg,#13132a,#0e0e1e); 
+          border: 1px solid #2a2a48; 
+          border-radius: 20px; 
+          width: 350px; 
+          max-width: 100%; 
+          padding: 24px 20px; 
+          transform: scale(0.85); 
+          transition: transform .25s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+          direction: rtl; 
+          box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+        }
+        .modal-overlay.open .modal-sheet { transform: scale(1); }
+        .modal-handle { display: none; } /* 🟢 הסתרת ידית המשיכה הישנה */
+        
         .modal-student-name { font-family: 'Orbitron',monospace; font-size: 13px; color: #c0a0ff; letter-spacing: 1px; text-align: center; margin-bottom: 18px; }
         .modal-actions-row { display: flex; gap: 10px; margin-bottom: 0; }
 
@@ -472,7 +499,25 @@ export default function InstructorGroups() {
 
         .empty-search { padding: 32px 20px; text-align: center; color: #3a3a5a; font-size: 13px; direction: rtl; }
 
-        .navbar { position: absolute; bottom: 0; left: 0; right: 0; background: #060610; border-top: 1px solid #14142a; padding: 9px 0 22px; display: flex; justify-content: space-around; align-items: center; z-index: 20; border-radius: 0 0 36px 36px; direction: rtl; }
+        .navbar { 
+          position: fixed; 
+          bottom: 0; 
+          left: 50%; 
+          transform: translateX(-50%); 
+          width: 390px;
+          max-width: 100%;
+          background: #060610; 
+          border-top: 1px solid #14142a; 
+          padding: 9px 0 22px; 
+          display: flex; 
+          justify-content: space-around; 
+          align-items: center; 
+          z-index: 100; 
+          border-radius: 0 0 36px 36px; 
+          direction: rtl; 
+          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
+        }
+        
         .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 5px; border-radius: 9px; transition: all .15s; min-width: 40px; }
         .nav-item.active { background: rgba(80,48,170,.12); }
         .nav-item i { font-size: 19px; color: #2e2e4e; transition: color .15s; }
@@ -619,9 +664,7 @@ export default function InstructorGroups() {
 
         {/* MODAL 1: חלונית יצירה מרובה של תלמידים (BULK CREATION) */}
         <div className={`modal-overlay ${isBulkModalOpen ? 'open' : ''}`} onClick={(e) => e.target.className === 'modal-overlay open' && setIsBulkModalOpen(false)}>
-          <div className="modal-sheet" style={{ borderRadius: '24px 24px 0 0' }}>
-            <div className="modal-handle"></div>
-            
+          <div className="modal-sheet">
             <div className="modal-student-name" style={{ marginBottom: '6px' }}>
               🎯 הקמת תלמידים מרובה
             </div>
@@ -686,7 +729,6 @@ export default function InstructorGroups() {
         {/* MODAL 2: חלונית פעולות תלמיד בודד (מטבעות / משימות) */}
         <div className={`modal-overlay ${isModalOpen ? 'open' : ''}`} onClick={(e) => e.target.className === 'modal-overlay open' && handleCloseModal()}>
           <div className="modal-sheet">
-            <div className="modal-handle"></div>
             <div className="modal-student-name" id="modalStudentName">{selectedStudent?.name}</div>
             
             <div className="modal-actions-row">

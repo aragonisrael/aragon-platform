@@ -253,6 +253,7 @@ export default function InstructorSchedule() {
 
   return (
     <div className="schedule-main-container">
+      {/* Precision Scoped Stylesheet Embedding */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Exo+2:wght@300;400;500;600&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
@@ -305,7 +306,14 @@ export default function InstructorSchedule() {
         .capsule-wave { display: flex; align-items: flex-end; gap: 1.5px; height: 8px; }
         .capsule-wave-bar { width: 1.5px; height: 2px; background: #2e2e4e; border-radius: 1px; }
         .hero-radio-capsule.playing .capsule-wave-bar { background: #18b090; animation: liveWave 0.6s ease-in-out infinite alternate; }
-        .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 84px; scrollbar-width: none; }
+        
+        .scroll { 
+          flex: 1; 
+          overflow-y: auto; 
+          overflow-x: hidden; 
+          padding-bottom: 95px; /* 🟢 מרווח ביטחון בתחתית למניעת בליעת הלו"ז תחת הבר הצף */ 
+          scrollbar-width: none; 
+        }
         .scroll::-webkit-scrollbar { display: none; }
         .week-nav { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 8px; direction: rtl; }
         .week-lbl { font-family: 'Orbitron',monospace; font-size: 10px; letter-spacing: 2px; color: #7060aa; }
@@ -367,9 +375,53 @@ export default function InstructorSchedule() {
         .sub-no { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid rgba(160,40,30,.25); background: rgba(160,40,30,.07); color: #c04040; font-family: 'Exo 2',sans-serif; font-size: 13px; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
         .sub-no:hover { border-color: rgba(160,40,30,.4); background: rgba(160,40,30,.12); }
         .no-subs { padding: 20px; text-align: center; color: #3a3a5a; font-size: 13px; border: 1px dashed #1e1e38; border-radius: 12px; line-height: 1.6; }
-        .toast { position: absolute; top: 200px; left: 50%; transform: translateX(-50%) translateY(-14px); background: linear-gradient(135deg,#1a2a18,#102010); border: 1px solid #20a060; border-radius: 12px; padding: 9px 16px; color: #30d090; font-size: 12px; font-family: 'Exo 2',sans-serif; white-space: nowrap; z-index: 50; opacity: 0; pointer-events: none; transition: all .3s; display: flex; align-items: center; gap: 6px; direction: rtl; }
-        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-        .navbar { position: absolute; bottom: 0; left: 0; right: 0; background: #060610; border-top: 1px solid #14142a; padding: 9px 0 22px; display: flex; justify-content: space-around; align-items: center; z-index: 20; border-radius: 0 0 36px 36px; direction: rtl; }
+
+        /* 🟢 פתרון הבעיה: הפיכת ה-Toast לקבוע וצף במרכז המוחלט של ה-Viewport הגלוי */
+        .toast { 
+          position: fixed; 
+          top: 50%; 
+          left: 50%; 
+          transform: translate(-50%, -50%); 
+          background: linear-gradient(135deg,#1a2a18,#102010); 
+          border: 1px solid #20a060; 
+          border-radius: 12px; 
+          padding: 9px 16px; 
+          color: #30d090; 
+          font-size: 12px; 
+          font-family: 'Exo 2',sans-serif; 
+          white-space: nowrap; 
+          z-index: 200; /* 🟢 גבוה יותר מה-Navbar הצף כדי שלא יוסתר */
+          opacity: 0; 
+          pointer-events: none; 
+          transition: all .3s; 
+          display: flex; 
+          align-items: center; 
+          gap: 6px; 
+          direction: rtl; 
+          box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        }
+        .toast.show { opacity: 1; transform: translate(-50%, -50%); }
+
+        /* 🟢 שדרוג ה-Navbar לבר צף, קבוע וממורכז ברמת מובייל מקצועית */
+        .navbar { 
+          position: fixed; 
+          bottom: 0; 
+          left: 50%; 
+          transform: translateX(-50%); 
+          width: 390px;
+          max-width: 100%;
+          background: #060610; 
+          border-top: 1px solid #14142a; 
+          padding: 9px 0 22px; 
+          display: flex; 
+          justify-content: space-around; 
+          align-items: center; 
+          z-index: 100; 
+          border-radius: 0 0 36px 36px; 
+          direction: rtl; 
+          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
+        }
+        
         .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 5px; border-radius: 9px; transition: all .15s; min-width: 40px; }
         .nav-item.active { background: rgba(80,48,170,.12); }
         .nav-item i { font-size: 19px; color: #2e2e4e; transition: color .15s; }
@@ -563,7 +615,7 @@ export default function InstructorSchedule() {
 
         </div>
 
-        <div className={`toast ${toast.show ? 'show' : ''}`} id="toast">
+        <div className="toast" id="toast">
           <i className="ti ti-check" style={{ color: '#20c080' }}></i>
           <span id="toastTxt">{toast.message}</span>
         </div>

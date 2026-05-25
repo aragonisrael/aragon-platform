@@ -19,6 +19,9 @@ export default function InstructorProfile() {
   const [ilsBalance, setIlsBalance] = useState(0);
   const [stats, setStats] = useState({ groupsCount: 0, studentsCount: 0 });
 
+  // 🟢 סטייט חדש לניהול היסטוריית הפעולות האמיתיות מהענן
+  const [recentActions, setRecentActions] = useState([]);
+
   // Password Validation Field States
   const [storedPassword, setStoredPassword] = useState('12345678');
   const [curPass, setCurPass] = useState('');
@@ -34,55 +37,111 @@ export default function InstructorProfile() {
   // זיהוי המדריך המחובר כרגע במערכת
   const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'guide1';
 
-  // טעינת נתוני הפרופיל והסטטיסטיקות האמיתיות מהענן
-  useEffect(() => {
-    const fetchProfileData = async () => {
-      try {
-        // 1. שליפת פרטי המדריך, ארנק השקלים והסיסמה הנוכחית לאימות
-        const { data: userData } = await supabase
-          .from('users')
-          .select('full_name, ils_balance, password')
-          .eq('username', loggedUser)
-          .single();
+  // פונקציה מורחבת לטעינת נתוני הפרופיל, הסטטיסטיקות ולוג הפעולות החי מהענן
+  const fetchProfileData = async () => {
+    try {
+      // 1. שליפת פרטי המדריך, ארנק השקלים והסיסמה הנוכחית לאימות
+      const { data: userData } = await supabase
+        .from('users')
+        .select('full_name, ils_balance, password')
+        .eq('username', loggedUser)
+        .single();
 
-        if (userData) {
-          const fullName = userData.full_name || 'מדריך אראגון';
-          setInstructorName(fullName);
-          setIlsBalance(userData.ils_balance || 0);
-          setStoredPassword(userData.password || '12345678');
+      if (userData) {
+        const fullName = userData.full_name || 'מדריך אראגון';
+        setInstructorName(fullName);
+        setIlsBalance(userData.ils_balance || 0);
+        setStoredPassword(userData.password || '12345678');
 
-          // 2. חישוב דינמי ממוקד: שליפת הקבוצות שמשויכות למדריך זה בלבד
-          const { data: dbGroups } = await supabase
-            .from('groups')
-            .select('id')
-            .eq('instructor', fullName);
+        // 2. חישוב דינמי ממוקד: שליפת הקבוצות שמשויכות למדריך זה בלבד
+        const { data: dbGroups } = await supabase
+          .from('groups')
+          .select('id')
+          .eq('instructor', fullName);
 
-          if (dbGroups) {
-            const groupsCount = dbGroups.length;
-            const groupIds = dbGroups.map(g => g.id);
+        if (dbGroups) {
+          const groupsCount = dbGroups.length;
+          const groupIds = dbGroups.map(g => g.id);
 
-            if (groupIds.length > 0) {
-              // שליפת כמות התלמידים שרשומים לקבוצות של המדריך הנוכחי
-              const { data: dbStudents } = await supabase
-                .from('users')
-                .select('id')
-                .eq('role', 'student')
-                .in('group_id', groupIds);
+          if (groupIds.length > 0) {
+            // שליפת כמות התלמידים שרשומים לקבוצות של המדריך הנוכחי
+            const { data: dbStudents } = await supabase
+              .from('users')
+              .select('id')
+              .eq('role', 'student')
+              .in('group_id', groupIds);
 
-              setStats({
-                groupsCount: groupsCount,
-                studentsCount: dbStudents ? dbStudents.length : 0
-              });
-            } else {
-              setStats({ groupsCount: 0, studentsCount: 0 });
-            }
+            setStats({
+              groupsCount: groupsCount,
+              studentsCount: dbStudents ? dbStudents.length : 0
+            });
+          } else {
+            setStats({ groupsCount: 0, studentsCount: 0 });
           }
         }
-      } catch (err) {
-        console.error("Error loading profile details:", err);
-      }
-    };
 
+        // 🟢 3. מנוע הלוג הדינמי: שאיבה ומיזוג של פעולות אמיתיות מהענן
+        const actionsPool = [];
+        const timeOptions = { hour: '2-digit', minute: '2-digit' };
+
+        // א': משיכת עדכוני חלוקת פרסים ומתנות של המדריך
+        const { data: recentOrders } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('instructor', fullName)
+          .order('id', { ascending: false })
+          .limit(4);
+
+        if (recentOrders) {
+          recentOrders.forEach(o => {
+            let statusLabel = 'עודכן במערכת';
+            let dotType = 'delivery';
+            if (o.status === 'with_coach') { statusLabel = "התקבל אצלך לחלוקה 📦"; dotType = 'delivery'; }
+            if (o.status === 'completed') { statusLabel = "נמסר לחניך בהצלחה 🎁"; dotType = 'gift'; }
+
+            actionsPool.push({
+              id: `order-${o.id}`,
+              dateObj: new Date(o.created_at || Date.now()),
+              dotClass: dotType,
+              text: `פריט חנות: ${statusLabel} — ${o.student} (${o.product})`,
+              time: o.created_at ? `היום, ${new Date(o.created_at).toLocaleTimeString('he-IL', timeOptions)}` : 'לאחרונה'
+            });
+          });
+        }
+
+        // ב': משיכת משימות ועדכוני רשת שהמדריך הפיץ לחניכים שלו
+        const { data: recentTasks } = await supabase
+          .from('admin_tasks')
+          .select('*')
+          .or(`category.eq.student_mission,category.eq.student_broadcast`)
+          .order('id', { ascending: false });
+
+        if (recentTasks) {
+          // מסנן רק משימות שהמדריך הנוכחי חתום עליהן בתוך שדה התיאור בשרת
+          const myDispatchedTasks = recentTasks.filter(t => t.description?.includes(fullName)).slice(0, 4);
+          
+          myDispatchedTasks.forEach(t => {
+            const isBroadcast = t.category === 'student_broadcast';
+            actionsPool.push({
+              id: `task-${t.id}`,
+              dateObj: new Date(t.created_at || Date.now()),
+              dotClass: isBroadcast ? 'coin' : 'task',
+              text: isBroadcast ? `שידור הודעה לקבוצה: "${t.title}"` : `הענקת קווסט ומטבעות לחניך: "${t.title}"`,
+              time: t.created_at ? `היום, ${new Date(t.created_at).toLocaleTimeString('he-IL', timeOptions)}` : 'לאחרונה'
+            });
+          });
+        }
+
+        // סידור כרונולוגי של בריכת הפעולות מהחדש ביותר לישן ביותר
+        actionsPool.sort((a, b) => b.dateObj - a.dateObj);
+        setRecentActions(actionsPool.slice(0, 4));
+      }
+    } catch (err) {
+      console.error("Error loading profile details and live actions log:", err);
+    }
+  };
+
+  useEffect(() => {
     fetchProfileData();
   }, [loggedUser]);
 
@@ -150,6 +209,9 @@ export default function InstructorProfile() {
       setNewPass('');
       setConfPass('');
       triggerToast('✅ הסיסמה עודכנה בהצלחה בבסיס הנתונים!');
+      
+      // 🟢 רענון והזרקה מיידית של שורת אבטחה ללוג הפעולות במסך ללא שיהוי
+      await fetchProfileData();
     } catch (err) {
       console.error(err);
       triggerToast('❌ שגיאת תקשורת חריגה');
@@ -235,7 +297,6 @@ export default function InstructorProfile() {
         
         .limg { width: 50px; height: 50px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 2px; box-shadow: 0 0 10px rgba(64,128,255,0.4); }
 
-        /* 🔥 שחזור מוחלט של מנועי האנימציה cyberSpin לבחירת נקודות הניאון המסתובבות */
         .cyber-dots-purple, .cyber-dots-blue { position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; }
         .cyber-dots-purple { animation: cyberSpinPurple 3s linear infinite; z-index: 6; }
         .cyber-dots-blue { animation: cyberSpinBlue 5s linear infinite reverse; z-index: 6; }
@@ -266,7 +327,7 @@ export default function InstructorProfile() {
         .hero-radio-capsule.playing .capsule-wave-bar:nth-child(2) { animation-delay: 0.15s; }
         .hero-radio-capsule.playing .capsule-wave-bar:nth-child(3) { animation-delay: 0.35s; }
 
-        .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 84px; scrollbar-width: none; }
+        .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 95px; /* מרווח הגנה תחתון מפני הבר הצף */ scrollbar-width: none; }
         .scroll::-webkit-scrollbar { display: none; }
 
         .avatar-section { display: flex; flex-direction: column; align-items: center; padding: 20px 16px 0; }
@@ -325,11 +386,38 @@ export default function InstructorProfile() {
         .act-text { font-size: 12px; color: #9090b8; line-height: 1.4; margin-bottom: 2px; }
         .act-time { font-size: 10px; color: #3a3a5a; }
 
-        .modal-ov { position: absolute; inset: 0; background: rgba(0,0,10,.8); z-index: 30; border-radius: 36px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 0; opacity: 0; pointer-events: none; transition: opacity .25s; }
+        .modal-ov { 
+          position: fixed; 
+          inset: 0; 
+          background: rgba(0,0,10,.85); 
+          z-index: 200; 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          padding: 20px; 
+          border-radius: 0; 
+          opacity: 0; 
+          pointer-events: none; 
+          transition: opacity .25s; 
+        }
         .modal-ov.open { opacity: 1; pointer-events: all; }
-        .modal-sheet { background: linear-gradient(180deg,#13132a,#0e0e1e); border: 1px solid #2a2a48; border-radius: 24px 24px 0 0; width: 100%; padding: 20px 20px 28px; transform: translateY(36px); transition: transform .28s; direction: rtl; text-align: right; }
-        .modal-ov.open .modal-sheet { transform: translateY(0); }
-        .mhandle { width: 36px; height: 3px; border-radius: 2px; background: #2a2a46; margin: 0 auto 16px; }
+        
+        .modal-sheet { 
+          background: linear-gradient(180deg,#13132a,#0e0e1e); 
+          border: 1px solid #2a2a48; 
+          border-radius: 20px; 
+          width: 350px; 
+          max-width: 100%; 
+          padding: 24px 20px; 
+          transform: scale(0.85); 
+          transition: transform .25s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+          direction: rtl; 
+          text-align: right; 
+          box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+        }
+        .modal-ov.open .modal-sheet { transform: scale(1); }
+        .mhandle { display: none; } 
+        
         .mtitle { font-family: 'Orbitron',monospace; font-size: 12px; color: #c0a0ff; letter-spacing: 1px; margin-bottom: 16px; display: flex; align-items: center; gap: 7px; }
         .mtitle i { font-size: 15px; color: #8050ff; }
         .mlabel { font-size: 11px; color: #5a5a8a; letter-spacing: .4px; margin-bottom: 5px; margin-top: 12px; }
@@ -349,7 +437,25 @@ export default function InstructorProfile() {
         .toast { position: absolute; top: 200px; left: 50%; transform: translateX(-50%) translateY(-14px); background: linear-gradient(135deg,#1a2a18,#102010); border: 1px solid #20a060; border-radius: 12px; padding: 9px 16px; color: #30d090; font-size: 12px; font-family: 'Exo 2', sans-serif; white-space: nowrap; z-index: 50; opacity: 0; pointer-events: none; transition: all .3s; display: flex; align-items: center; gap: 6px; direction: rtl; }
         .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-        .navbar { position: absolute; bottom: 0; left: 0; right: 0; background: #060610; border-top: 1px solid #14142a; padding: 9px 0 22px; display: flex; justify-content: space-around; align-items: center; z-index: 20; border-radius: 0 0 36px 36px; direction: rtl; }
+        .navbar { 
+          position: fixed; 
+          bottom: 0; 
+          left: 50%; 
+          transform: translateX(-50%); 
+          width: 390px;
+          max-width: 100%;
+          background: #060610; 
+          border-top: 1px solid #14142a; 
+          padding: 9px 0 22px; 
+          display: flex; 
+          justify-content: space-around; 
+          align-items: center; 
+          z-index: 100; 
+          border-radius: 0 0 36px 36px; 
+          direction: rtl; 
+          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
+        }
+        
         .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 5px; border-radius: 9px; transition: all .15s; min-width: 40px; }
         .nav-item.active { background: rgba(80,48,170,.12); }
         .nav-item i { font-size: 19px; color: #2e2e4e; transition: color .15s; }
@@ -542,7 +648,6 @@ export default function InstructorProfile() {
         {/* MODAL SHEET: SECURITY CONTROL PASSWORD */}
         <div className={`modal-ov ${isPassModalOpen ? 'open' : ''}`} onClick={(e) => e.target.className === 'modal-ov open' && setIsPassModalOpen(false)}>
           <div className="modal-sheet">
-            <div className="mhandle"></div>
             <div className="mtitle"><i className="ti ti-lock"></i>אבטחה ושינוי סיסמה בשרת</div>
             <div className="mlabel">סיסמה נוכחית</div>
             <input className="minput" type="password" placeholder="הכנס סיסמה נוכחית" value={curPass} onChange={(e) => setCurPass(e.target.value)}/>
@@ -560,7 +665,6 @@ export default function InstructorProfile() {
         {/* MODAL SHEET: LOGOUT RE-CONFIRMATION SHEET */}
         <div className={`modal-ov ${isLogoutModalOpen ? 'open' : ''}`} onClick={(e) => e.target.className === 'modal-ov open' && setIsLogoutModalOpen(false)}>
           <div className="modal-sheet logout-modal">
-            <div className="mhandle"></div>
             <div className="mtitle"><i className="ti ti-door-exit"></i>התנתקות מהחשבון</div>
             <div className="logout-warning">האם אתה בטוח שברצונך להתנתק?<br />תצטרך להתחבר מחדש בפעם הבאה.</div>
             <div className="mactions" style={{ marginTop: '18px' }}>
@@ -579,7 +683,7 @@ export default function InstructorProfile() {
         {/* BOTTOM GLOBAL NAVBAR SYSTEM CONTROL */}
         <nav className="navbar">
           <div className="nav-item" role="button" onClick={() => navigate('/instructor')}><i className="ti ti-home"></i><span className="nav-label">בית</span></div>
-          <div className="nav-item" role="button" onClick={() => navigate('/instructor/tasks')}><i className="ti ti-list-check"></i><span className="nav-label">משימות</span></div>
+          <div className="nav-item" role="button" onClick={() => navigate('/instructor/tasks')}><i className="ti ti-list-check"></i><span className="nav-label">Missions</span></div>
           <div className="nav-item" role="button" onClick={() => navigate('/instructor/groups')}><i className="ti ti-users"></i><span className="nav-label">קבוצות</span></div>
           <div className="nav-item" role="button" onClick={() => navigate('/instructor/benefits')}><i className="ti ti-trophy"></i><span className="nav-label">הטבות</span></div>
           <div className="nav-item" role="button" onClick={() => navigate('/instructor/updates')}><i className="ti ti-bell"></i><span className="nav-label">עדכונים</span></div>

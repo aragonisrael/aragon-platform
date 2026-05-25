@@ -158,6 +158,7 @@ export default function StudentHome() {
           flex-direction: column;
           border-radius: 24px;
           box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+          padding-bottom: 95px; /* 🟢 הוספת מרווח בתחתית כדי שהתוכן לא ייבלע תחת הבר הצף */
         }
 
         .stars { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
@@ -280,10 +281,25 @@ export default function StudentHome() {
 
         .mini-stats { position: relative; z-index: 10; display: flex; gap: 8px; margin: 0 16px 8px; direction: rtl; }
         .stat-pill { flex: 1; background: rgba(124,58,237,0.12); border: 1px solid rgba(124,58,237,0.25); border-radius: 10px; padding: 6px 8px; text-align: center; }
+        .stat-pill var { font-style: normal; }
         .stat-val { font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 700; color: #fbbf24; }
         .stat-lbl { font-family: 'Orbitron', sans-serif; font-size: 8px; color: #6b7280; letter-spacing: 1px; margin-top: 2px; }
 
-        .nav-bar { position: relative; z-index: 10; background: rgba(10,3,28,0.97); border-top: 1px solid rgba(124,58,237,0.5); padding: 10px 0 18px; }
+        /* 🟢 שדרוג הבר לבר צף, קבוע וממורכז ברמת מובייל מקצועית */
+        .nav-bar { 
+          position: fixed; 
+          bottom: 0; 
+          left: 50%;
+          transform: translateX(-50%);
+          width: 380px;
+          max-width: 100%;
+          z-index: 100; 
+          background: rgba(10,3,28,0.98); 
+          border-top: 1px solid rgba(124,58,237,0.5); 
+          padding: 10px 0 18px; 
+          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
+        }
+        
         .nav-items { display: flex; justify-content: space-around; align-items: center; }
         .nav-item { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; padding: 6px 8px; border-radius: 14px; transition: all 0.25s; border: 1px solid transparent; background: transparent; }
         .nav-item.active { background: linear-gradient(160deg, rgba(124,58,237,0.25), rgba(79,70,229,0.15)); border: 1px solid rgba(167,139,250,0.55); box-shadow: 0 0 14px rgba(124,58,237,0.3); }
@@ -373,7 +389,7 @@ export default function StudentHome() {
           <div className="circuit-right-wrap">
             <div className="circuit-right-svg">
               <svg viewBox="0 0 110 70" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-                <line x1="0" y1="35" x2="35" x2="35" y2="35" stroke="#7c3aed" strokeWidth="1.5" opacity="0.7"/>
+                <line x1="0" y1="35" x2="35" y2="35" stroke="#7c3aed" strokeWidth="1.5" opacity="0.7"/>
                 <line x1="35" y1="35" x2="55" y2="18" stroke="#7c3aed" strokeWidth="1" opacity="0.5"/>
                 <line x1="35" y1="35" x2="60" y2="35" stroke="#38bdf8" strokeWidth="1" opacity="0.6"/>
                 <circle cx="35" cy="35" r="3" fill="#7c3aed" opacity="0.9"/>
@@ -471,7 +487,7 @@ export default function StudentHome() {
               <span className="nav-label">חנות</span>
             </button>
             <button className="nav-item" type="button" onClick={() => navigate('/student/missions')}>
-              <div className="nav-icon-3d"><svg width="30" height="30" viewBox="0 0 30 30"><rect x="5" y="8" width="18" height="20" rx="2" fill="#7c3aed"/><polygon points="23,8 26,6 26,26 23,28" fill="#4c1d95" opacity="0.95"/><polygon points="5,8 8,6 26,6 23,8" fill="#a78bfa"/><rect x="11" y="5" width="8" height="5" rx="2" fill="#c4b5fd"/><line x1="8" y1="14" x2="18" y2="14" stroke="#c4b5fd" strokeWidth="1.5" strokeLinecap="round"/><line x1="8" y1="18" x2="16" y2="18" stroke="#c4b5fd" strokeWidth="1.5" strokeLinecap="round"/><polyline points="8,14 9.2,15.5 11.5,12.5" fill="none" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round"/></svg></div>
+              <div className="nav-icon-3d"><svg width="30" height="30" viewBox="0 0 30 30"><rect x="5" y="8" width="18" height="20" rx="2" fill="#7c3aed"/><polygon points="23,8 26,6 26,26 23,28" fill="#4c1d95" opacity="0.95"/><polygon points="5,8 8,6 26,6 23,8" fill="#a78bfa"/><rect x="11" y="5" width="8" height="5" rx="2" fill="#c4b5fd"/><line x1="8" y1="14" x2="18" y2="14" stroke="#c4b5fd" strokeWidth="1.5" strokeLinecap="round"/><line x1="8" y1="18" x2="16" height="18" stroke="#c4b5fd" strokeWidth="1.5" strokeLinecap="round"/><polyline points="8,14 9.2,15.5 11.5,12.5" fill="none" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round"/></svg></div>
               <span className="nav-label">משימות</span>
             </button>
             <button className="nav-item" type="button" onClick={() => navigate('/student/profile')}>
