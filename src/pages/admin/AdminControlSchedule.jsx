@@ -28,7 +28,7 @@ export default function AdminControlSchedule() {
   const [dimmedFilters, setDimmedFilters] = useState({ green: true, yellow: true, red: true });
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // 🔔 הלוח מתחיל ריק לחלוטין ונטען דינמית רק מהענן!
+  // הלוח מתחיל ריק לחלוטין ונטען דינמית רק מהענן
   const [instructors, setInstructors] = useState([]);
   const [groups, setGroups] = useState([]);
 
@@ -101,26 +101,22 @@ export default function AdminControlSchedule() {
     }
   }, []);
 
+  // 🟢 תיקון פונקציית פענוח הזמן: הפיכה לאבסולוטית ללא תוספות מיותרות
   const minToStr = (m) => {
-    const h = Math.floor(m / 60) + START_HOUR, mm = m % 60;
+    const h = Math.floor(m / 60), mm = m % 60;
     return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   };
 
   const triggerToast = (msg, isWarn = false) => {
     setToast({ show: true, message: msg, isWarn });
-    setTimeout(() => setToast({ show: false, message: '', isWarn: false }), 3000);
+    setTimeout(() => setToast({ show: false, message: '' }), 3000);
   };
 
   // שליטה בנגן הרדיו הגלובלי
   const toggleRadioPlay = () => {
     const globalAudio = document.getElementById('hq-cyber-radio');
     if (!globalAudio) return;
-
-    if (globalAudio.paused) {
-      globalAudio.play().catch(err => console.log("Audio play blocked", err));
-    } else {
-      globalAudio.pause();
-    }
+    globalAudio.paused ? globalAudio.play() : globalAudio.pause();
     setIsPlaying(!globalAudio.paused);
   };
 
@@ -151,7 +147,7 @@ export default function AdminControlSchedule() {
     return bs;
   };
 
-  // 🔥 מנוע הסינון המשודרג והמדויק לפי הבקשה החדשה שלך לקצוות הארציים
+  // מנוע הסינון המדויק לפי הבקשה החדשה שלך לקצוות הארציים
   const getOpacity = (g) => {
     if (currentFilter === 'unassigned') return g.status === 'red' ? 1 : 0;
     if (currentFilter === 'city') {
@@ -161,15 +157,8 @@ export default function AdminControlSchedule() {
     
     // פילטר "לפי מדריך" חכם ומסונכרן
     if (currentFilter === 'inst' && selectedInstructor) {
-      // 1. מציג אך ורק את הקבוצות של המדריך הנבחר
-      if (g.instructor === selectedInstructor) {
-        return dimmedFilters[g.status] ? 1 : 0;
-      }
-      // 2. אם מסומן ב-V "ללא מדריך" (dimmedFilters.red) - מציג בנוסף את כל הקבוצות ללא מדריך (אדום)
-      if (g.status === 'red' && dimmedFilters.red) {
-        return 1;
-      }
-      // הסתרת כל שאר הקבוצות האחרות
+      if (g.instructor === selectedInstructor) { return dimmedFilters[g.status] ? 1 : 0; }
+      if (g.status === 'red' && dimmedFilters.red) { return 1; }
       return 0;
     }
     return dimmedFilters[g.status] ? 1 : 0;
@@ -189,9 +178,10 @@ export default function AdminControlSchedule() {
   };
 
   const handleSaveGroupEdit = async () => {
+    // 🟢 תיקון: המרה לשעה אבסולוטית נקייה מחצות ללא החסרת שעות
     const parseTimeToMin = (s) => {
       const parts = s.trim().replace('.', ':').split(':').map(Number);
-      return (parts[0] - START_HOUR) * 60 + (parts[1] || 0);
+      return parts[0] * 60 + (parts[1] || 0);
     };
     const sMin = parseTimeToMin(formGroup.startStr);
     const eMin = parseTimeToMin(formGroup.endStr);
@@ -263,7 +253,8 @@ export default function AdminControlSchedule() {
 
   const handleSaveNewGroup = async () => {
     if (!formGroup.city || !formGroup.venue) { triggerToast('נא למלא עיר ומוקד', true); return; }
-    const parseTimeToMin = (s) => { const parts = s.trim().replace('.', ':').split(':').map(Number); return (parts[0] - START_HOUR) * 60 + (parts[1] || 0); };
+    // 🟢 תיקון: המרה לשעה אבסולוטית נקייה מחצות
+    const parseTimeToMin = (s) => { const parts = s.trim().replace('.', ':').split(':').map(Number); return parts[0] * 60 + (parts[1] || 0); };
     const s = parseTimeToMin(formGroup.startStr || '16:00'); const e = parseTimeToMin(formGroup.endStr || '17:00');
 
     try {
@@ -362,8 +353,9 @@ export default function AdminControlSchedule() {
   for (let m = 0; m < TOTAL_MIN; m += 30) {
     const isMajor = m % 60 === 0;
     timeColumnElements.push(
+      // 🟢 תיקון: הזרקת השעה האבסולוטית הנכונה לסרגל הצד השמאלי
       <div key={m} style={{ position: 'absolute', top: `${m * PX_PER_MIN}px`, left: 0, right: 0, height: `${30 * PX_PER_MIN}px`, borderBottom: `${isMajor ? '1.5px' : '1px'} solid ${isMajor ? '#1e3250' : '#0d1a2c'}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '3px', fontFamily: 'Orbitron, monospace', fontSize: '9px', color: isMajor ? '#2a4a6a' : 'transparent' }}>
-        {isMajor ? minToStr(m) : ''}
+        {isMajor ? minToStr(m + START_HOUR * 60) : ''}
       </div>
     );
   }
@@ -389,7 +381,6 @@ export default function AdminControlSchedule() {
         
         .main-col { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
         
-        /* 🔥 שדרוג ה-z-index ל-20 כדי למנוע מכותרות הלו"ז המקוריות לדרוס את העיצוב */
         .top-bar { height: 64px; background: linear-gradient(90deg, #050812 0%, #080f22 30%, #0a0820 50%, #080f22 70%, #050812 100%); border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 20; flex-shrink: 0; overflow: visible; }
         .top-bar::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(0,200,255,0.03) 60px, rgba(0,200,255,0.03) 61px); pointer-events: none; }
         .top-bar-brand { display: flex; align-items: center; gap: 14px; }
@@ -401,14 +392,7 @@ export default function AdminControlSchedule() {
         .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
         .limg { width: 28px; height: 28px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 1px; box-shadow: 0 0 8px rgba(0,200,255,0.4); }
         
-        /* 🔥 תיקון הלוויינים המסתובבים בסינכרון מושלם ומרכוז אבסולוטי סביב הלוגו */
-        .cyber-dots-purple, .cyber-dots-blue { 
-          position: absolute; 
-          inset: -3px; 
-          border-radius: 50%; 
-          pointer-events: none; 
-          transform-origin: center center; 
-        }
+        .cyber-dots-purple, .cyber-dots-blue { position: absolute; inset: -3px; border-radius: 50%; pointer-events: none; transform-origin: center center; }
         .cyber-dots-purple { animation: hqSpin 3s linear infinite; z-index: 6; }
         .cyber-dots-blue { animation: hqSpin 5s linear infinite reverse; z-index: 6; }
         .cyber-dots-purple::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; background: #8050ff; border-radius: 50%; box-shadow: 0 0 10px #8050ff, 0 0 20px #8050ff; }
@@ -431,13 +415,10 @@ export default function AdminControlSchedule() {
         .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
         .visualizer-bar { width: 2px; height: 3px; background: #00e676; }
         .cyber-music-player.playing .visualizer-bar { animation: liveWave 0.6s ease-in-out infinite alternate; }
-        .cyber-music-player.playing .visualizer-bar:nth-child(2) { animation-delay: 0.15s; }
-        .cyber-music-player.playing .visualizer-bar:nth-child(3) { animation-delay: 0.35s; }
 
         .content { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; overflow: hidden; }
         .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
         .tb-btn { display: flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 8px; border: 1px solid #1a2a4a; background: transparent; color: #4a6080; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-        .tb-btn i { font-size: 14px; }
         .tb-btn:hover { border-color: #00c8ff33; color: #00c8ff; background: #070e1c; }
         .tb-btn.active { background: linear-gradient(135deg, #061828, #0a2040); border-color: #00c8ff55; color: #00c8ff; }
         .tb-select { background: #060b18; border: 1px solid #1a2a4a; border-radius: 8px; padding: 7px 10px; color: #c0d8f0; font-family: 'Rajdhani', sans-serif; font-size: 12px; outline: none; cursor: pointer; }
@@ -519,7 +500,6 @@ export default function AdminControlSchedule() {
         .toast-container { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; pointer-events: none; }
         .toast { background: #041a08; border: 1px solid #00e67666; border-radius: 10px; padding: 12px 20px; color: #00e676; font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; animation: toastIn 0.3s ease; letter-spacing: 0.5px; box-shadow: 0 4px 20px rgba(0,230,118,0.15); flex-direction: row-reverse; }
         
-        /* 🔥 הוספת הסטייל הצף של הבלון המרחף בלבד בסוף תגית ה-CSS ללא פגיעה בעיצוב הקיים */
         .tooltip {
           position: absolute;
           z-index: 9999;
@@ -529,7 +509,7 @@ export default function AdminControlSchedule() {
           padding: 12px 16px;
           min-width: 210px;
           box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(0, 200, 255, 0.25);
-          pointer-events: none; /* מונע לולאת הבהובים והזזת אלמנטים בדף */
+          pointer-events: none; 
           direction: rtl;
           text-align: right;
           font-family: 'Rajdhani', sans-serif;
@@ -625,8 +605,12 @@ export default function AdminControlSchedule() {
                     {laidBlocks.map(b => {
                       const op = getOpacity(b); if (op === 0) return null;
                       const hPx = Math.max(b.dur * PX_PER_MIN - 2, 18); const colW = (100 / b.numCols);
+                      
+                      // 🟢 תיקון: חישוב המיקום היחסי על הגריד מבוסס על שעות אבסולוטיות
+                      const relativeStartMin = b.startMin - (START_HOUR * 60);
+
                       return (
-                        <div key={b.id} className={`block block-${b.status}`} style={{ top: `${b.startMin * PX_PER_MIN}px`, right: `${((b.col || 0) / b.numCols) * 100}%`, width: `calc(${colW}% - ${GAP * (b.numCols > 1 ? 1 : 0)}px)`, height: `${hPx}px`, opacity: op }} onClick={() => handleOpenBlockModal(b.id)} onMouseEnter={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setTooltip({ show: true, x: rect.left + window.scrollX + 14, y: rect.top + window.scrollY + 14, block: b }); }} onMouseLeave={() => setTooltip({ show: false, x: 0, y: 0, block: null })}>
+                        <div key={b.id} className={`block block-${b.status}`} style={{ top: `${relativeStartMin * PX_PER_MIN}px`, right: `${((b.col || 0) / b.numCols) * 100}%`, width: `calc(${colW}% - ${GAP * (b.numCols > 1 ? 1 : 0)}px)`, height: `${hPx}px`, opacity: op }} onClick={() => handleOpenBlockModal(b.id)} onMouseEnter={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setTooltip({ show: true, x: rect.left + window.scrollX + 14, y: rect.top + window.scrollY + 14, block: b }); }} onMouseLeave={() => setTooltip({ show: false, x: 0, y: 0, block: null })}>
                           <div className="bname">{b.name}</div>
                           {hPx > 30 && <div className="bmeta">{b.city}{b.instructor ? ` · ${b.instructor.split(' ')[0]}` : ' · ⚠'}</div>}
                           {hPx > 20 && <div className="btime">{minToStr(b.startMin)}–{minToStr(b.startMin + b.dur)}</div>}
