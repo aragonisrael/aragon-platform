@@ -57,7 +57,8 @@ export default function AdminGroupsList() {
           venue: g.venue,
           instructor: g.instructor || '',
           day: Number(g.day),
-          startMin: Number(g.start_min || 240),
+          // 🟢 תיקון: עדכון ברירת מחדל אבסולוטית ל-16:00 (960 דקות מחצות)
+          startMin: Number(g.start_min || 960),
           dur: Number(g.dur || 60),
           status: g.status,
           grades: g.grades ? g.grades.split(',') : []
@@ -111,8 +112,9 @@ export default function AdminGroupsList() {
     setTimeout(() => setToast({ show: false, message: '', isWarn: false }), 3000);
   };
 
+  // 🟢 תיקון פונקציית פענוח הזמן: הסרת START_HOUR לטובת חישוב אבסולוטי נקי מחצות
   const minToStr = (m) => {
-    const h = Math.floor(m / 60) + START_HOUR, mm = m % 60;
+    const h = Math.floor(m / 60), mm = m % 60;
     return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   };
 
@@ -148,7 +150,7 @@ export default function AdminGroupsList() {
     return true;
   });
 
-  // 🔥 פונקציית ייבוא קובץ CSV חכמה - מייצרת קבוצות אמיתיות ישירות בענן!
+  // פונקציית ייבוא קובץ CSV חכמה
   const handleCSVImport = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -177,7 +179,8 @@ export default function AdminGroupsList() {
           venue: venue,
           instructor: inst,
           day: day,
-          start_min: 240, 
+          // 🟢 תיקון: שינוי ערך ברירת מחדל אבסולוטי ל-16:00
+          start_min: 960, 
           dur: 60,
           status: inst ? 'green' : 'red',
           grades: gradesStr
@@ -199,7 +202,7 @@ export default function AdminGroupsList() {
     reader.readAsText(file, 'UTF-8');
   };
 
-  // 🔥 שמירת קבוצה חדשה מהטופס ישירות בענן
+  // שמירת קבוצה חדשה מהטופס ישירות בענן
   const handleSaveNewGroup = async () => {
     if (!formCity.trim() || !formVenue.trim()) {
       triggerToast('⚠️ נא למלא עיר ושם מוקד', true);
@@ -213,7 +216,8 @@ export default function AdminGroupsList() {
         venue: formVenue.trim(),
         instructor: formInstructor,
         day: parseInt(formDay, 10),
-        start_min: 240, 
+        // 🟢 תיקון: שינוי ערך ברירת מחדל אבסולוטי ל-16:00
+        start_min: 960, 
         dur: 60,
         status: formInstructor ? 'green' : 'red',
         grades: formGrades.length > 0 ? formGrades.join(',') : 'ד'
@@ -239,7 +243,7 @@ export default function AdminGroupsList() {
     setIsStudentModalOpen(true);
   };
 
-  // 🔥 הוספת תלמיד בודד - מייצרת עבורו חשבון משתמש אמיתי ומקשרת אותו לקבוצה בענן
+  // הוספת תלמיד בודד
   const handleAddStudentToGroup = async () => {
     if (!newStudentName.trim()) {
       triggerToast('נא להזין שם מלא של תלמיד', true);
@@ -301,14 +305,7 @@ export default function AdminGroupsList() {
         .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
         .limg { width: 28px; height: 28px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 1px; box-shadow: 0 0 8px rgba(0,200,255,0.4); }
 
-        /* 🔥 תיקון הלוויינים המסתובבים בתוך קוד המקור המקורי שלך ללא שינוי עיצובי מסביב */
-        .cyber-dots-purple, .cyber-dots-blue { 
-          position: absolute; 
-          inset: -3px; 
-          border-radius: 50%; 
-          pointer-events: none; 
-          transform-origin: center center; 
-        }
+        .cyber-dots-purple, .cyber-dots-blue { position: absolute; inset: -3px; border-radius: 50%; pointer-events: none; transform-origin: center center; }
         .cyber-dots-purple { animation: hqSpin 3s linear infinite; z-index: 6; }
         .cyber-dots-blue { animation: hqSpin 5s linear infinite reverse; z-index: 6; }
         .cyber-dots-purple::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; background: #8050ff; border-radius: 50%; box-shadow: 0 0 10px #8050ff, 0 0 20px #8050ff; }
@@ -331,8 +328,6 @@ export default function AdminGroupsList() {
         .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
         .visualizer-bar { width: 2px; height: 3px; background: #00e676; }
         .cyber-music-player.playing .visualizer-bar { animation: liveWave 0.6s ease-in-out infinite alternate; }
-        .cyber-music-player.playing .visualizer-bar:nth-child(2) { animation-delay: 0.15s; }
-        .cyber-music-player.playing .visualizer-bar:nth-child(3) { animation-delay: 0.35s; }
 
         .content { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
         .filter-bar { display: flex; gap: 12px; flex-wrap: wrap; background: #070e1c; padding: 14px 18px; border-radius: 12px; border: 1px solid #1a2a4a; margin-bottom: 6px; }
@@ -384,7 +379,6 @@ export default function AdminGroupsList() {
 
         .student-modal-list { max-height: 200px; overflow-y: auto; border: 1px solid #1a2a4a; background: #060b18; border-radius: 8px; padding: 8px; margin-bottom: 14px; }
         .student-modal-row { padding: 8px 12px; font-size: 13px; color: #cbd5e1; border-bottom: 1px solid #0d1a2e; display: flex; justify-content: space-between; align-items: center; flex-direction: row-reverse; }
-        .student-modal-row:last-child { border-bottom: none; }
         .no-students-placeholder { font-size: 12px; color: #4a6080; text-align: center; padding: 20px 0; }
 
         .bottom-bar { display: flex; gap: 10px; padding: 12px 16px; border-top: 1px solid #1a2a4a; background: #060b18; flex-shrink: 0; flex-wrap: wrap; direction: rtl; }
@@ -578,7 +572,7 @@ export default function AdminGroupsList() {
           <div className="modal">
             <div className="mhead">
               <div className="mtitle"><i className="ti ti-users"></i> ניהול תלמידים — {currentGroupObj.name} ({currentGroupObj.city})</div>
-              <button className="mclose" type="button" onClick={() => setIsStudentModalOpen(false)}><i className="ti ti-x"></i></button>
+              <div className="mclose" onClick={() => setIsStudentModalOpen(false)}><i className="ti ti-x"></i></div>
             </div>
             <div className="mbody">
               <div style={{ fontSize: '12px', color: '#6080a0', marginBottom: '12px', textAlign: 'right' }}>מוקד: {currentGroupObj.venue} · מדריך: {currentGroupObj.instructor || 'טרם שובץ'}</div>
