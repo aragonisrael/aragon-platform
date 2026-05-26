@@ -304,7 +304,7 @@ export default function StudentProfile() {
         .sr { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; direction: rtl; }
         .sc { border-radius:14px; padding:14px 12px; text-align:center; position:relative; overflow:hidden }
         .sc.bal { background:rgba(15,5,40,.9); border:1px solid rgba(251,191,36,.35) }
-        .sc.tot { background:rgba(15,5,40,.9); border:1px solid rgba(124,58,237,.35) }
+        .sc.tot { background:rgba(15,5,40,.9); border:1px solid rgba(124,58,237,.45) }
         .sc::before { content:''; position:absolute; top:-20px; right:-20px; width:60px; height:60px; border-radius:50%; pointer-events:none }
         .sc.bal::before { background:radial-gradient(ellipse,rgba(251,191,36,.14),transparent 70%) }
         .sc.tot::before { background:radial-gradient(ellipse,rgba(124,58,237,.16),transparent 70%) }
@@ -364,18 +364,15 @@ export default function StudentProfile() {
         .ha.e { color:#4ade80 }
         .ha.s { color:#fbbf24 }
 
-        /* 🟢 תיקון: מרכוז מוחלט ופרימיום של ה-Overlay במרכז ה-Viewport */
-        .modal-ov { position:absolute; inset:0; z-index:35; background:rgba(5,1,15,.88); border-radius:24px; display:flex; align-items:center; justify-content:center; padding:16px; animation:fadein .25s ease }
+        /* 🟢 פרימיום: מרכוז מוחלט וקבוע של מודאל קופץ במרכז המדויק של החלונית הדיגיטלית */
+        .modal-ov { position:absolute; inset:0; z-index:150; background:rgba(5,1,15,.88); border-radius:24px; display:flex; align-items:center; justify-content:center; padding:16px; animation:fadein .25s ease }
         @keyframes fadein{from{opacity:0}to{opacity:1}}
         
-        /* 🟢 תיקון: עיצוב מחדש של התיבה הציפויה ככרטיס ריבועי מעוגל היטב במרכז */
-        .modal-box { background:linear-gradient(160deg,#0c0225,#140535,#0a0118); border:1px solid rgba(124,58,237,.5); border-radius:20px; padding:0; width:340px; max-width:100%; max-height:80%; overflow:hidden; animation:popin .3s cubic-bezier(.175, .885, .32, 1.275) }
+        .modal-box { background:linear-gradient(160deg,#0c0225,#140535,#0a0118); border:1px solid rgba(124,58,237,.5); border-radius:20px; padding:0; width:340px; max-width:100%; max-height:80%; overflow:hidden; animation:popin .3s cubic-bezier(.175, .885, .32, 1.275); box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
         @keyframes popin{from{transform:scale(0.88);opacity:0}to{transform:scale(1);opacity:1}}
         
-        /* 🟢 תיקון: הסרת ידית המשיכה הישנה של ה-Bottom Sheet */
         .modal-handle { display:none; }
         
-        /* 🟢 תיקון: תיקון הבאג של ה-166 פיקסלים פדינג ל-16 פיקסלים נקיים! */
         .modal-header { padding:16px 18px 12px; border-bottom:1px solid rgba(124,58,237,.2); display:flex; align-items:center; gap:10px; direction: rtl; }
         .modal-title { font-size:13px; font-weight:700; color:#e0d7ff; letter-spacing:1px; flex:1; text-align: right; }
         .modal-close { width:32px; height:32px; border-radius:50%; background:rgba(124,58,237,.15); border:1px solid rgba(124,58,237,.3); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#a78bfa; font-size:16px; transition:all .2s; flex-shrink:0 }
@@ -659,10 +656,8 @@ export default function StudentProfile() {
 
         {/* MODAL: DYNAMIC ROBOTICS GROUP DETAILS FROM CLOUD */}
         {showGroupModal && (
-          // 🟢 תיקון: הוספת סגירת חלונית בלחיצה על הרקע הכהה מסביב
           <div className="modal-ov" onClick={(e) => e.target.className === 'modal-ov' && setShowGroupModal(false)}>
             <div className="modal-box">
-              <div className="modal-handle"></div>
               <div className="modal-header">
                 <div style={{ fontSize: '22px' }}>🤖</div>
                 <div className="modal-title">פרטי הקבוצה שלך</div>
