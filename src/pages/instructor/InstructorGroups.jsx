@@ -59,8 +59,9 @@ export default function InstructorGroups() {
         const colorPresets = ['green', 'blue', 'purple', 'amber'];
         const DAYS_MAP = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי'];
         
+        // 🟢 תיקון: הסרת ה-12 שעות הקבועות כדי לקרוא דקות אבסולוטיות ישירות מחצות
         const minToHourStr = (m) => {
-          const h = Math.floor(m / 60) + 12, mm = m % 60;
+          const h = Math.floor(m / 60), mm = m % 60;
           return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
         };
 
@@ -72,7 +73,8 @@ export default function InstructorGroups() {
           school: g.venue,
           city: g.city,
           day: DAYS_MAP[g.day] || 'ראשון',
-          time: `${minToHourStr(g.start_min || 240)}–${minToHourStr((g.start_min || 240) + (g.dur || 60))}`,
+          // 🟢 תיקון: עדכון ערך ברירת המחדל האבסולוטי מ-240 ל-960 (השעה 16:00)
+          time: `${minToHourStr(g.start_min || 960)}–${minToHourStr((g.start_min || 960) + (g.dur || 60))}`,
           grades: g.grades || "ד'",
           count: 0,
           students: []
@@ -178,7 +180,7 @@ export default function InstructorGroups() {
     setIsBulkModalOpen(true);
   };
 
-  // 🔥 יצירת תלמידים מרובה והזרקתם ישירות לבסיס הנתונים בענן!
+  // יצירת תלמידים מרובה והזרקתם ישירות לבסיס הנתונים בענן
   const handleCreateBulkStudents = async () => {
     if (!bulkInputText.trim()) return;
 
@@ -187,7 +189,7 @@ export default function InstructorGroups() {
     const { data: allUsers } = await supabase.from('users').select('username');
     const allExistingUsernames = allUsers?.map(u => u.username) || [];
 
-    const newStudentsPoolForDB = [];
+    const newStudentsPool ForDB = [];
     const localResultsToShow = [];
 
     lines.forEach(fullName => {
@@ -250,7 +252,7 @@ export default function InstructorGroups() {
     setActivePanel(activePanel === panelType ? '' : panelType);
   };
 
-  // 🔥 מענק מטבעות אמיתי ומאובטח המעדכן את ארנק התלמיד בענן ברגע זה!
+  // מענק מטבעות אמיתי ומאובטח המעדכן את ארנק התלמיד בענן ברגע זה
   const handleGiveCoins = async (amount, emoji) => {
     const newCoinsTotal = selectedStudent.coins + amount;
 
@@ -275,7 +277,7 @@ export default function InstructorGroups() {
     }
   };
 
-  // 🔥 שלח משימה אישית לתלמיד המזריקה שורה אמיתית לענן בטבלת admin_tasks!
+  // שלח משימה אישית לתלמיד המזריקה שורה אמיתית לענן בטבלת admin_tasks
   const handleSendTask = async () => {
     if (!taskInputText.trim() || !selectedStudent) return;
 
@@ -359,11 +361,6 @@ export default function InstructorGroups() {
         .cyber-dots-blue { animation: cyberSpinBlue 5s linear infinite reverse; z-index: 6; }
         .cyber-dots-purple::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #8050ff; border-radius: 50%; box-shadow: 0 0 15px #8050ff, 0 0 30px #8050ff; }
         .cyber-dots-blue::before { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #4080ff; border-radius: 50%; box-shadow: 0 0 15px #4080ff, 0 0 30px #4080ff; }
-
-        @keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
-        @keyframes pulse { 0%,100%{opacity:.4;transform:scale(.9)} 50%{opacity:1;transform:scale(1.05)} }
-        @keyframes cyberSpinPurple { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes cyberSpinBlue { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         
         .limg { width: 50px; height: 50px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 2px; box-shadow: 0 0 10px rgba(64,128,255,0.4); }
         .page-label { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; font-family: 'Orbitron',monospace; font-size: 11px; letter-spacing: 3px; color: #5060aa; }
@@ -425,37 +422,12 @@ export default function InstructorGroups() {
         .student-coins i { font-size: 11px; }
         .student-arrow { font-size: 14px; color: #3a3a5a; transform: scaleX(-1); }
 
-        /* 🟢 פתרון הבעיה: הפיכת ה-Overlay לקבוע במרכז ה-Viewport הפיזי של הדפדפן */
-        .modal-overlay { 
-          position: fixed; 
-          inset: 0; 
-          background: rgba(0,0,10,.85); 
-          z-index: 200; /* 🟢 גבוה יותר מה-Navbar כדי למנוע הסתרה */
-          display: flex; 
-          align-items: center; /* 🟢 מרכוז אנכי מוחלט */
-          justify-content: center; 
-          padding: 20px; 
-          opacity: 0; 
-          pointer-events: none; 
-          transition: opacity .25s; 
-        }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,10,.85); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity .25s; }
         .modal-overlay.open { opacity: 1; pointer-events: all; }
         
-        /* 🟢 שינוי למבנה קובייה צפה ועתידנית מעוגלת היטב שקופצת במרכז */
-        .modal-sheet { 
-          background: linear-gradient(180deg,#13132a,#0e0e1e); 
-          border: 1px solid #2a2a48; 
-          border-radius: 20px; 
-          width: 350px; 
-          max-width: 100%; 
-          padding: 24px 20px; 
-          transform: scale(0.85); 
-          transition: transform .25s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-          direction: rtl; 
-          box-shadow: 0 20px 60px rgba(0,0,0,0.7);
-        }
+        .modal-sheet { background: linear-gradient(180deg,#13132a,#0e0e1e); border: 1px solid #2a2a48; border-radius: 20px; width: 350px; max-width: 100%; padding: 24px 20px; transform: scale(0.85); transition: transform .25s cubic-bezier(0.175, 0.885, 0.32, 1.275); direction: rtl; box-shadow: 0 20px 60px rgba(0,0,0,0.7); }
         .modal-overlay.open .modal-sheet { transform: scale(1); }
-        .modal-handle { display: none; } /* 🟢 הסתרת ידית המשיכה הישנה */
+        .modal-handle { display: none; } 
         
         .modal-student-name { font-family: 'Orbitron',monospace; font-size: 13px; color: #c0a0ff; letter-spacing: 1px; text-align: center; margin-bottom: 18px; }
         .modal-actions-row { display: flex; gap: 10px; margin-bottom: 0; }
@@ -499,25 +471,7 @@ export default function InstructorGroups() {
 
         .empty-search { padding: 32px 20px; text-align: center; color: #3a3a5a; font-size: 13px; direction: rtl; }
 
-        .navbar { 
-          position: fixed; 
-          bottom: 0; 
-          left: 50%; 
-          transform: translateX(-50%); 
-          width: 390px;
-          max-width: 100%;
-          background: #060610; 
-          border-top: 1px solid #14142a; 
-          padding: 9px 0 22px; 
-          display: flex; 
-          justify-content: space-around; 
-          align-items: center; 
-          z-index: 100; 
-          border-radius: 0 0 36px 36px; 
-          direction: rtl; 
-          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
-        }
-        
+        .navbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 390px; max-width: 100%; background: #060610; border-top: 1px solid #14142a; padding: 9px 0 22px; display: flex; justify-content: space-around; align-items: center; z-index: 100; border-radius: 0 0 36px 36px; direction: rtl; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7); }
         .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 5px; border-radius: 9px; transition: all .15s; min-width: 40px; }
         .nav-item.active { background: rgba(80,48,170,.12); }
         .nav-item i { font-size: 19px; color: #2e2e4e; transition: color .15s; }
@@ -665,7 +619,7 @@ export default function InstructorGroups() {
         {/* MODAL 1: חלונית יצירה מרובה של תלמידים (BULK CREATION) */}
         <div className={`modal-overlay ${isBulkModalOpen ? 'open' : ''}`} onClick={(e) => e.target.className === 'modal-overlay open' && setIsBulkModalOpen(false)}>
           <div className="modal-sheet">
-            <div className="modal-student-name" style={{ marginBottom: '6px' }}>
+            <div className="modal-student-name" style={{ margin Bottom: '6px' }}>
               🎯 הקמת תלמידים מרובה
             </div>
             <div style={{ textAlign: 'center', fontSize: '11px', color: '#8050ff', fontFamily: 'Orbitron', marginBottom: '16px', letterSpacing: '0.5px' }}>

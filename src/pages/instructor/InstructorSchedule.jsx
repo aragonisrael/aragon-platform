@@ -61,8 +61,9 @@ export default function InstructorSchedule() {
         if (dbGroups) {
           const matrix = [[], [], [], [], [], []];
           
+          // 🟢 תיקון: הסרת ה-12 שעות הקבועות כדי לפענח דקות אבסולוטיות נקיות ישירות מחצות
           const minToHourStr = (m) => {
-            const h = Math.floor(m / 60) + 12; 
+            const h = Math.floor(m / 60); 
             const mm = m % 60;
             return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
           };
@@ -73,8 +74,9 @@ export default function InstructorSchedule() {
           dbGroups.forEach(g => {
             const dayIdx = Number(g.day);
             if (dayIdx >= 0 && dayIdx <= 5) {
-              const startTime = minToHourStr(g.start_min || 240);
-              const endTime = minToHourStr((g.start_min || 240) + (g.dur || 60));
+              // 🟢 תיקון: עדכון ברירת המחדל האבסולוטית מ-240 ל-960 (השעה 16:00)
+              const startTime = minToHourStr(g.start_min || 960);
+              const endTime = minToHourStr((g.start_min || 960) + (g.dur || 60));
               
               matrix[dayIdx].push({
                 time: `${startTime}–${endTime}`,
@@ -183,10 +185,8 @@ export default function InstructorSchedule() {
     }
   };
 
-  // 🔥 מנגנון אישור החלפה מאובטח וחד-פעמי חסין כפילויות (מכונת המצבים הרשתית)
   const handleAcceptSub = async (sub) => {
     try {
-      // הגנה חכמה ראשונית: בדיקה שההחלפה עדיין פתוחה ולא נחטפה ע"י מדריך אחר בחלקיק השנייה הזה
       const { data: currentTaskCheck } = await supabase
         .from('admin_tasks')
         .select('category, reward, target_name')
@@ -203,7 +203,6 @@ export default function InstructorSchedule() {
       const bonusValue = currentTaskCheck.reward || 5;
       const updatedCoinsBalance = currentCoins + bonusValue;
 
-      // 1. העברת בעלות קבועה: שינוי שם המדריך בשורת הקבוצה בטבלת groups לשם שלך
       const { error: groupError } = await supabase
         .from('groups')
         .update({ instructor: instructorName })
@@ -214,13 +213,11 @@ export default function InstructorSchedule() {
         return;
       }
 
-      // 2. הענקת מענק המטבעות החד-פעמי ישירות לארנק הדיגיטלי שלך
       await supabase
         .from('users')
         .update({ coins: updatedCoinsBalance })
         .eq('username', loggedUser);
 
-      // 3. עדכון הסטטוס ל-'sub_approved' וחתימת שמך כמחליף (מונע לחיצות כפולות ומדווח בלייב לאדמין בלוח)
       await supabase
         .from('admin_tasks')
         .update({ 
@@ -229,11 +226,9 @@ export default function InstructorSchedule() {
         })
         .eq('id', sub.id);
 
-      // עדכון הסטייט המקומי ותצוגה נעימה על המסך
       setCurrentCoins(updatedCoinsBalance);
       triggerToast(`💰 הרווחת ${bonusValue} 🪙! הקבוצה שויכה אליך קבוע והלו"ז התעדכן בלייב!`);
       
-      // רענון קומפלט של הנתונים והלו"ז מהענן
       await fetchLiveInstructorSchedule();
 
     } catch (err) {
@@ -248,12 +243,10 @@ export default function InstructorSchedule() {
 
   const daysToShowIndices = activeDay === 0 ? [0, 1, 2, 3, 4, 5] : [activeDay - 1];
   
-  // סינון הבקשות לפי מה שלא נדחה מקומית בסשן הנוכחי
   const visibleSubRequests = subRequests.filter(s => !dismissedSubs[s.id]);
 
   return (
     <div className="schedule-main-container">
-      {/* Precision Scoped Stylesheet Embedding */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Exo+2:wght@300;400;500;600&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
@@ -291,8 +284,6 @@ export default function InstructorSchedule() {
         .cyber-dots-blue { animation: cyberSpinBlue 5s linear infinite reverse; z-index: 6; }
         .cyber-dots-purple::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #8050ff; border-radius: 50%; box-shadow: 0 0 15px #8050ff, 0 0 30px #8050ff; }
         .cyber-dots-blue::before { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #4080ff; border-radius: 50%; box-shadow: 0 0 15px #4080ff, 0 0 30px #4080ff; }
-        @keyframes cyberSpinPurple { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes cyberSpinBlue { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         
         .page-label { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; font-family: 'Orbitron',monospace; font-size: 11px; letter-spacing: 3px; color: #5060aa; }
         .hero-radio-capsule { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; align-items: center; justify-content: space-between; width: 115px; background: rgba(8, 8, 20, 0.6); border: 1px solid rgba(80, 100, 255, 0.2); border-radius: 20px; padding: 4px 10px; cursor: pointer; user-select: none; transition: all 0.2s ease; }
@@ -307,13 +298,7 @@ export default function InstructorSchedule() {
         .capsule-wave-bar { width: 1.5px; height: 2px; background: #2e2e4e; border-radius: 1px; }
         .hero-radio-capsule.playing .capsule-wave-bar { background: #18b090; animation: liveWave 0.6s ease-in-out infinite alternate; }
         
-        .scroll { 
-          flex: 1; 
-          overflow-y: auto; 
-          overflow-x: hidden; 
-          padding-bottom: 95px; /* 🟢 מרווח ביטחון בתחתית למניעת בליעת הלו"ז תחת הבר הצף */ 
-          scrollbar-width: none; 
-        }
+        .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 95px; scrollbar-width: none; }
         .scroll::-webkit-scrollbar { display: none; }
         .week-nav { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 8px; direction: rtl; }
         .week-lbl { font-family: 'Orbitron',monospace; font-size: 10px; letter-spacing: 2px; color: #7060aa; }
@@ -353,7 +338,6 @@ export default function InstructorSchedule() {
         .slot-tag { font-size: 9px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
         .slot.sub .slot-tag { background: rgba(130,70,220,.15); color: #a070e0; border: 1px solid rgba(130,70,220,.2); }
         .empty-day { font-size: 11px; color: #2a2a4a; padding: 6px 2px; font-style: italic; text-align: right; }
-        @keyframes fadeSlideIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
         .sub-section { margin: 6px 16px 0; direction: rtl; }
         .sub-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
         .sub-title { font-family: 'Orbitron',monospace; font-size: 10px; letter-spacing: 2px; color: #8060aa; }
@@ -376,52 +360,10 @@ export default function InstructorSchedule() {
         .sub-no:hover { border-color: rgba(160,40,30,.4); background: rgba(160,40,30,.12); }
         .no-subs { padding: 20px; text-align: center; color: #3a3a5a; font-size: 13px; border: 1px dashed #1e1e38; border-radius: 12px; line-height: 1.6; }
 
-        /* 🟢 פתרון הבעיה: הפיכת ה-Toast לקבוע וצף במרכז המוחלט של ה-Viewport הגלוי */
-        .toast { 
-          position: fixed; 
-          top: 50%; 
-          left: 50%; 
-          transform: translate(-50%, -50%); 
-          background: linear-gradient(135deg,#1a2a18,#102010); 
-          border: 1px solid #20a060; 
-          border-radius: 12px; 
-          padding: 9px 16px; 
-          color: #30d090; 
-          font-size: 12px; 
-          font-family: 'Exo 2',sans-serif; 
-          white-space: nowrap; 
-          z-index: 200; /* 🟢 גבוה יותר מה-Navbar הצף כדי שלא יוסתר */
-          opacity: 0; 
-          pointer-events: none; 
-          transition: all .3s; 
-          display: flex; 
-          align-items: center; 
-          gap: 6px; 
-          direction: rtl; 
-          box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-        }
+        .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg,#1a2a18,#102010); border: 1px solid #20a060; border-radius: 12px; padding: 9px 16px; color: #30d090; font-size: 12px; font-family: 'Exo 2',sans-serif; white-space: nowrap; z-index: 200; opacity: 0; pointer-events: none; transition: all .3s; display: flex; align-items: center; gap: 6px; direction: rtl; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
         .toast.show { opacity: 1; transform: translate(-50%, -50%); }
 
-        /* 🟢 שדרוג ה-Navbar לבר צף, קבוע וממורכז ברמת מובייל מקצועית */
-        .navbar { 
-          position: fixed; 
-          bottom: 0; 
-          left: 50%; 
-          transform: translateX(-50%); 
-          width: 390px;
-          max-width: 100%;
-          background: #060610; 
-          border-top: 1px solid #14142a; 
-          padding: 9px 0 22px; 
-          display: flex; 
-          justify-content: space-around; 
-          align-items: center; 
-          z-index: 100; 
-          border-radius: 0 0 36px 36px; 
-          direction: rtl; 
-          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
-        }
-        
+        .navbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 390px; max-width: 100%; background: #060610; border-top: 1px solid #14142a; padding: 9px 0 22px; display: flex; justify-content: space-around; align-items: center; z-index: 100; border-radius: 0 0 36px 36px; direction: rtl; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7); }
         .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 5px; border-radius: 9px; transition: all .15s; min-width: 40px; }
         .nav-item.active { background: rgba(80,48,170,.12); }
         .nav-item i { font-size: 19px; color: #2e2e4e; transition: color .15s; }

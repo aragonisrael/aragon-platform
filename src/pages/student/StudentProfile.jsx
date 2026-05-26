@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import aragonLogo from '../../assets/aragonlogo.png';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
+
+// מייבאים את הלוגו של אראגון לעיצוב העליון המשותף
+import aragonLogo from '../../assets/aragonlogo.png';
 
 export default function StudentProfile() {
   const navigate = useNavigate();
@@ -47,7 +49,7 @@ export default function StudentProfile() {
           .eq('username', loggedUser)
           .single();
 
-        if (userData && !userErr) { /* 🟢 תוקן מ-!error ל-!userErr למניעת קריסה */
+        if (userData && !userErr) {
           setBalance(userData.coins || 0);
           setStoredPassword(userData.password || '12345678');
           const currentFullName = userData.full_name || loggedUser;
@@ -62,10 +64,15 @@ export default function StudentProfile() {
 
             if (dbGroup) {
               const DAYS_MAP = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי'];
-              const startH = Math.floor((dbGroup.start_min || 240) / 60) + 12;
-              const startM = (dbGroup.start_min || 240) % 60;
-              const endTotalMin = (dbGroup.start_min || 240) + (dbGroup.dur || 60);
-              const endH = Math.floor(endTotalMin / 60) + 12;
+              
+              // 🟢 תיקון: הסרת ה-12 שעות הקבועות ועדכון ברירת המחדל האבסולוטית ל-16:00 (960 דקות)
+              const currentStartMin = dbGroup.start_min || 960;
+              const currentDur = dbGroup.dur || 60;
+              
+              const startH = Math.floor(currentStartMin / 60);
+              const startM = currentStartMin % 60;
+              const endTotalMin = currentStartMin + currentDur;
+              const endH = Math.floor(endTotalMin / 60);
               const endM = endTotalMin % 60;
 
               setGroupInfo({
@@ -101,7 +108,7 @@ export default function StudentProfile() {
             });
           }
 
-          // הוספת שורות בונוס סימולטיביות הרשומות על שמו של החניך הנוכחי למראה עשיר ואותנטי
+          // הוספת שורות בונוס למראה עשיר
           dynamicHistory.push({ title: '🏆 מענק התמדה בלמידה', date: 'השבוע', amount: '+3', type: 'e', icon: '🏆' });
           dynamicHistory.push({ title: '🤝 בונוס עזרה לחבר קבוצה', date: 'השבוע', amount: '+1', type: 'e', icon: '🤝' });
 
@@ -160,7 +167,7 @@ export default function StudentProfile() {
     setFormMsg({ text: '', type: '' });
   };
 
-  // 🔥 עדכון סיסמה אמיתי בלייב בתוך ה-Database בענן!
+  // עדכון סיסמה אמיתי בלייב בתוך ה-Database בענן
   const handleSavePwd = async () => {
     if (!oldInput || !newPassword || !confirmPassword) {
       setFormMsg({ text: '⚠️ יש למלא את כל השדות', type: 'err' });
@@ -233,79 +240,32 @@ export default function StudentProfile() {
 
   return (
     <div className="profile-main-container">
-      {/* Original Preserved Cyber Profile Styles */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         
-        .profile-main-container {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          min-height: 100vh;
-          background: #050a14;
-          width: 100%;
-        }
-
-        .app {
-          width: 380px; background: #05010f;
-          font-family: 'Orbitron', sans-serif;
-          position: relative; overflow: hidden;
-          display: flex; flex-direction: column;
-          border-radius: 24px; min-height: 700px;
-          box-shadow: 0 0 60px rgba(124,58,237,.3);
-          padding-bottom: 95px; /* 🟢 מרווח ביטחון בתחתית כדי שהתוכן לא ייבלע מאחורי הבר הצף */
-        }
-
-        .gl {
-          position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: .05;
-          background-image: linear-gradient(rgba(120,80,255,.6) 1px,transparent 1px), linear-gradient(90deg,rgba(120,80,255,.6) 1px,transparent 1px);
-          background-size: 40px 40px; animation: gm 8s linear infinite;
-        }
-        @keyframes gm { from{background-position:0 0} to{background-position:40px 40px} }
-
+        .profile-main-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #050a14; width: 100%; }
+        .app { width: 380px; background: #05010f; font-family: 'Orbitron', sans-serif; position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 24px; min-height: 700px; box-shadow: 0 0 60px rgba(124,58,237,.3); padding-bottom: 95px; }
+        .gl { position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: .05; background-image: linear-gradient(rgba(120,80,255,.6) 1px,transparent 1px), linear-gradient(90deg,rgba(120,80,255,.6) 1px,transparent 1px); background-size: 40px 40px; animation: gm 8s linear infinite; }
+        @bookmark gm { from{background-position:0 0} to{background-position:40px 40px} }
         .stars { position:absolute; inset:0; pointer-events:none; z-index:0; }
         .star { position:absolute; border-radius:50%; background:white; animation:tw var(--d) ease-in-out infinite alternate; }
         @keyframes tw { from{opacity:.04} to{opacity:.5} }
-
         .nb { position:absolute; inset:0; border-radius:24px; pointer-events:none; z-index:20; box-shadow:inset 0 0 30px rgba(124,58,237,.1),0 0 0 1px rgba(124,58,237,.3); }
         .sl { position:absolute; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,rgba(124,58,237,.6),rgba(167,139,250,.9),rgba(124,58,237,.6),transparent); animation:sc 4s linear infinite; z-index:2; pointer-events:none; }
         @keyframes sc { from{top:0;opacity:0} 5%{opacity:1} 95%{opacity:1} to{top:100%;opacity:0}}
-
-        .top-banner {
-          position:relative; z-index:10;
-          background:linear-gradient(135deg,#0a0520,#0d0730,#0a051a,#060218);
-          border-bottom:1px solid rgba(124,58,237,0.4); padding:12px 0 14px;
-          display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;
-        }
-        .banner-scan {
-          position:absolute; left:0; right:0; height:1px;
-          background:linear-gradient(90deg,transparent,rgba(124,58,237,0.8) 40%,rgba(56,189,248,1) 50%,rgba(124,58,237,0.8) 60%,transparent);
-          animation:bannerScan 3s ease-in-out infinite; pointer-events:none; z-index:2;
-        }
+        .top-banner { position:relative; z-index:10; background:linear-gradient(135deg,#0a0520,#0d0730,#0a051a,#060218); border-bottom:1px solid rgba(124,58,237,0.4); padding:12px 0 14px; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; }
+        .banner-scan { position:absolute; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,rgba(124,58,237,0.8) 40%,rgba(56,189,248,1) 50%,rgba(124,58,237,0.8) 60%,transparent); animation:bannerScan 3s ease-in-out infinite; pointer-events:none; z-index:2; }
         @keyframes bannerScan { 0%{top:0;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:100%;opacity:0} }
-        
         .circuit-left-wrap, .circuit-right-wrap { flex:1; display:flex; align-items:center; }
         .circuit-left-svg, .circuit-right-svg { flex:1; height:70px; }
-        
-        .radio-chip-banner {
-          flex-shrink:0; margin-left:10px; width: 34px; height: 34px; border-radius: 50%;
-          background:rgba(124, 58, 237, 0.12); border: 1px solid rgba(124, 58, 237, 0.4);
-          display:flex; align-items:center; justify-content:center; cursor:pointer; color:#a78bfa;
-          transition: all 0.2s ease; font-size:12px; z-index:15;
-        }
+        .radio-chip-banner { flex-shrink:0; margin-left:10px; width: 34px; height: 34px; border-radius: 50%; background:rgba(124, 58, 237, 0.12); border: 1px solid rgba(124, 58, 237, 0.4); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#a78bfa; transition: all 0.2s ease; font-size:12px; z-index:15; }
         .radio-chip-banner:hover { border-color: rgba(167,139,250,0.7); background: rgba(124,58,237,0.2); }
         .radio-chip-banner.playing { border-color: #38bdf8; color:#38bdf8; box-shadow: 0 0 10px rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.1); }
-
-        .balance-chip-banner {
-          flex-shrink:0; margin-right:10px; background:rgba(251,191,36,.12);
-          border:1px solid rgba(251,191,36,.4); border-radius:20px; padding:6px 12px;
-          display:flex; flex-direction:column; align-items:center; gap:2px;
-        }
+        .balance-chip-banner { flex-shrink:0; margin-right:10px; background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.4); border-radius:20px; padding:6px 12px; display:flex; flex-direction:column; align-items:center; gap:2px; }
         .bal-num { font-size:18px; font-weight:900; line-height:1; background:linear-gradient(135deg,#fbbf24,#fde68a); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation:ng 2s ease-in-out infinite }
         @keyframes ng { 0%,100%{filter:drop-shadow(0 0 4px rgba(251,191,36,.3))} 50%{filter:drop-shadow(0 0 12px rgba(251,191,36,.8))} }
         .bal-label { font-size:7px; color:rgba(251,191,36,.55); letter-spacing:1px}
-        
         .banner-logo { width:80px; height:80px; position:relative; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
         .neon-ring { position:absolute; inset:-10px; border-radius:50%; border:2px solid rgba(99,102,241,.7); animation:rp 2.5s ease-in-out infinite }
         @keyframes rp { 0%,100%{box-shadow:0 0 8px 2px rgba(99,102,241,.6),0 0 20px 5px rgba(124,58,237,.4),0 0 40px 8px rgba(56,189,248,.2)} 50%{box-shadow:0 0 18px 5px rgba(99,102,241,1),0 0 40px 12px rgba(124,58,237,.7),0 0 70px 18px rgba(56,189,248,.4)} }
@@ -315,42 +275,33 @@ export default function StudentProfile() {
         .logo-halo { position:absolute; inset:-25px; border-radius:50%; background:radial-gradient(ellipse,rgba(99,102,241,.35) 0%,rgba(124,58,237,.2) 40%,transparent 70%); animation:hp 2.5s ease-in-out infinite; z-index:1 }
         @keyframes hp { 0%,100%{transform:scale(1);opacity:.7} 50%{transform:scale(1.2);opacity:1} }
         .logo-img { width:80px; height:80px; border-radius:50%; position:relative; z-index:2; object-fit:cover; background: rgba(255,255,255,0.9); padding:4px; }
-
         .cyber-dots-purple, .cyber-dots-blue { position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; }
         .cyber-dots-purple { animation: cyberSpinPurple 3s linear infinite; z-index: 6; }
         .cyber-dots-blue { animation: cyberSpinBlue 5s linear infinite reverse; z-index: 6; }
         .cyber-dots-purple::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #8050ff; border-radius: 50%; box-shadow: 0 0 15px #8050ff, 0 0 30px #8050ff; }
         .cyber-dots-blue::before { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #4080ff; border-radius: 50%; box-shadow: 0 0 15px #4080ff, 0 0 30px #4080ff; }
-        
         @keyframes cyberSpinPurple { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes cyberSpinBlue { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
         .ps { position:relative; z-index:10; overflow-y:auto; flex:1; padding:16px 14px 10px; scrollbar-width:none }
         .ps::-webkit-scrollbar { display:none }
-
         @keyframes fu { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
         .fu { animation:fu .45s ease forwards; opacity:0 }
         .fu:nth-child(1){animation-delay:.04s}.fu:nth-child(2){animation-delay:.11s}.fu:nth-child(3){animation-delay:.18s}
         .fu:nth-child(4){animation-delay:.25s}.fu:nth-child(5){animation-delay:.32s}.fu:nth-child(6){animation-delay:.39s}
-
         .avs { display:flex; flex-direction:column; align-items:center; margin-bottom:18px }
         .avw { position:relative; width:90px; height:90px; margin-bottom:12px }
         .avi { width:90px; height:90px; border-radius:50%; border:3px solid rgba(124,58,237,.6); box-shadow:0 0 22px rgba(124,58,237,.45),0 0 44px rgba(56,189,248,.15); font-size:42px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#1a0545,#0f0328); cursor:pointer; transition:box-shadow .25s; user-select:none }
         .avi:hover { box-shadow:0 0 30px rgba(124,58,237,.75),0 0 55px rgba(56,189,248,.28) }
-        
         .aeb { position:absolute; bottom:0; right:0; width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,#7c3aed,#4f46e5); border:2px solid #05010f; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:transform .15s; box-shadow:0 0 10px rgba(124,58,237,.5) }
         .aeb:hover { transform:scale(1.12) }
         .aeb svg { width:14px; height:14px; stroke:white; strokeWidth:2; fill:none; stroke-linecap:round; stroke-linejoin:round }
-        
         .sname { font-size:20px; font-weight:900; color:#e0d7ff; text-shadow:0 0 22px rgba(124,58,237,.65); letter-spacing:1px; margin-bottom:4px }
         .utag { font-size:10px; color:rgba(167,139,250,.6); letter-spacing:2px; margin-bottom:8px; direction: ltr; }
-
         .gpill { display:flex; align-items:center; gap:6px; background:rgba(124,58,237,.12); border:1px solid rgba(124,58,237,.3); border-radius:20px; padding:6px 14px; cursor:pointer; transition:all .2s; direction: rtl; }
         .gpill:hover { background:rgba(124,58,237,.22); border-color:rgba(167,139,250,.6); box-shadow:0 0 12px rgba(124,58,237,.3) }
         .gpill svg { width:14px; height:14px; stroke:#a78bfa; strokeWidth:1.8; fill:none; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0 }
         .gpill span { font-size:10px; color:#a78bfa; letter-spacing:1px }
         .gpill-arrow { font-size:10px; color:rgba(167,139,250,.5); margin-right:4px }
-
         .sr { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; direction: rtl; }
         .sc { border-radius:14px; padding:14px 12px; text-align:center; position:relative; overflow:hidden }
         .sc.bal { background:rgba(15,5,40,.9); border:1px solid rgba(251,191,36,.35) }
@@ -363,7 +314,6 @@ export default function StudentProfile() {
         .sc.bal .sval { background:linear-gradient(135deg,#fbbf24,#fde68a); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text }
         .sc.tot .sval { background:linear-gradient(135deg,#a78bfa,#7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text }
         .slbl { font-size:8.5px; color:rgba(167,139,250,.6); letter-spacing:1.5px }
-
         .ab { width:100%; padding:12px; border-radius:14px; display:flex; align-items:center; gap:10px; border:1px solid rgba(124,58,237,.35); background:rgba(15,5,40,.9); cursor:pointer; transition:all .2s; margin-bottom:10px; direction: rtl; text-align: right; }
         .ab:hover { border-color:rgba(167,139,250,.6); box-shadow:0 0 14px rgba(124,58,237,.28) }
         .ab.danger { border-color:rgba(239,68,68,.3); background:rgba(20,3,5,.9) }
@@ -382,9 +332,8 @@ export default function StudentProfile() {
         .aba svg { stroke:rgba(124,58,237,.6) }
         .ab.danger .aba svg { stroke:rgba(239,68,68,.5) }
         .ab.danger:hover .aba svg { stroke:rgba(248,113,113,.9); transform:translateX(-3px) }
-
         .pf { background:rgba(15,5,40,.95); border:1px solid rgba(124,58,237,.4); border-radius:14px; padding:16px; margin-bottom:10px; display:none; direction: rtl; }
-        .pf.open { display:block; animation:fu .3s ease forwards "הייטק ג'וניור א'" }
+        .pf.open { display:block; animation:fu .3s ease forwards }
         .pfti { font-size:10px; color:#a78bfa; letter-spacing:2px; margin-bottom:12px }
         .pflb { font-size:9px; color:rgba(167,139,250,.6); letter-spacing:1px; margin-bottom:5px; display:block }
         .pfd { margin-bottom:10px }
@@ -398,13 +347,11 @@ export default function StudentProfile() {
         .pmsg { font-size:10px; margin-top:8px; text-align:center; letter-spacing:.5px; min-height:16px }
         .pmsg.ok { color:#4ade80; text-shadow:0 0 8px rgba(74,222,128,.4) }
         .pmsg.err { color:#f87171; text-shadow:0 0 8px rgba(248,113,113,.4) }
-
         .sh { display:flex; align-items:center; gap:8px; margin-bottom:10px; margin-top:4px; direction: rtl; }
         .shl { flex:1; height:1px }
         .shl.l { background:linear-gradient(90deg,transparent,rgba(124,58,237,.55)) }
         .shl.r { background:linear-gradient(270deg,transparent,rgba(124,58,237,.55)) }
         .sbg { font-size:9px; font-weight:700; letter-spacing:2px; padding:4px 12px; border-radius:20px; white-space:nowrap; background:rgba(124,58,237,.15); border:1px solid rgba(124,58,237,.4); color:#a78bfa }
-
         .hi { display:flex; align-items:center; gap:10px; padding:10px 12px; background:rgba(15,5,40,.8); border:1px solid rgba(124,58,237,.2); border-radius:12px; margin-bottom:8px; transition:border-color .2s; direction: rtl; }
         .hi:hover { border-color:rgba(124,58,237,.4) }
         .hic { width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex-shrink:0 }
@@ -417,13 +364,12 @@ export default function StudentProfile() {
         .ha { font-size:14px; font-weight:900 }
         .ha.e { color:#4ade80 }
         .ha.s { color:#fbbf24 }
-
         .modal-ov { position:absolute; inset:0; z-index:35; background:rgba(5,1,15,.9); border-radius:24px; display:flex; align-items:flex-end; justify-content:center; padding-bottom:0; animation:fadein .25s ease }
         @keyframes fadein{from{opacity:0}to{opacity:1}}
         .modal-box { background:linear-gradient(160deg,#0c0225,#140535,#0a0118); border:1px solid rgba(124,58,237,.5); border-radius:20px 20px 0 0; padding:0; width:100%; max-height:85%; overflow:hidden; animation:slideup .3s cubic-bezier(.22,1,.36,1) }
         @keyframes slideup{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
         .modal-handle { width:40px; height:4px; background:rgba(124,58,237,.4); border-radius:2px; margin:12px auto 0}
-        .modal-header { padding:166px 18px 12px; border-bottom:1px solid rgba(124,58,237,.2); display:flex; align-items:center; gap:10px; direction: rtl; }
+        .modal-header { padding:16px 18px 12px; border-bottom:1px solid rgba(124,58,237,.2); display:flex; align-items:center; gap:10px; direction: rtl; }
         .modal-title { font-size:13px; font-weight:700; color:#e0d7ff; letter-spacing:1px; flex:1; text-align: right; }
         .modal-close { width:32px; height:32px; border-radius:50%; background:rgba(124,58,237,.15); border:1px solid rgba(124,58,237,.3); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#a78bfa; font-size:16px; transition:all .2s; flex-shrink:0 }
         .modal-close:hover { background:rgba(124,58,237,.3); color:#e0d7ff }
@@ -442,7 +388,6 @@ export default function StudentProfile() {
         .info-sub { font-size:9.5px; color:rgba(196,181,253,.6); margin-top:2px }
         .age-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px }
         .age-chip { background:rgba(124,58,237,.15); border:1px solid rgba(124,58,237,.3); border-radius:20px; padding:3px 10px; font-size:9px; color:#a78bfa; letter-spacing:.5px }
-
         .apo { position:absolute; inset:0; z-index:30; background:rgba(5,1,15,.92); border-radius:24px; display:flex; align-items:center; justify-content:center; padding:20px }
         .apb { background:linear-gradient(135deg,#0f0328,#1a0545); border:1px solid rgba(124,58,237,.55); border-radius:20px; padding:22px; width:100%; box-shadow:0 0 40px rgba(124,58,237,.3) }
         .apti { font-size:12px; font-weight:700; color:#e0d7ff; letter-spacing:1px; margin-bottom:4px; text-align:center }
@@ -453,7 +398,6 @@ export default function StudentProfile() {
         .apoi.sel { border-color:#fbbf24; box-shadow:0 0 18px rgba(251,191,36,.5); background:rgba(251,191,36,.08) }
         .apc { width:100%; padding:11px; border-radius:12px; background:linear-gradient(135deg,rgba(124,58,237,.75),rgba(79,70,229,.75)); border:1px solid rgba(167,139,250,.4); color:#e0d7ff; font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700; cursor:pointer; transition:all .2s }
         .apc:hover { box-shadow:0 0 16px rgba(124,58,237,.5) }
-
         .logout-ov { position:absolute; inset:0; z-index:40; background:rgba(5,1,15,.9); border-radius:24px; display:flex; align-items:center; justify-content:center; padding:24px }
         .logout-box { background:linear-gradient(135deg,#12020a,#1a0510); border:1px solid rgba(239,68,68,.4); border-radius:20px; padding:28px 22px; width:100%; box-shadow:0 0 40px rgba(239,68,68,.15); text-align:center }
         .logout-icon { font-size:44px; margin-bottom:12px }
@@ -464,23 +408,7 @@ export default function StudentProfile() {
         .lb-cancel:hover { background:rgba(255,255,255,.1); color:#9ca3af }
         .lb-confirm { flex:1; padding:11px; border-radius:12px; background:linear-gradient(135deg,rgba(185,28,28,.7),rgba(153,27,27,.7)); border:1px solid rgba(239,68,68,.4); color:#fca5a5; font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700; cursor:pointer; transition:all .2s }
         .lb-confirm:hover { box-shadow:0 0 18px rgba(239,68,68,.35); color:white }
-
-        /* 🟢 שדרוג ה-Navbar לבר צף, קבוע וממורכז ברמת אפליקציה מקצועית */
-        .nav { 
-          position: fixed; 
-          bottom: 0; 
-          left: 50%;
-          transform: translateX(-50%);
-          width: 380px;
-          max-width: 100%;
-          z-index: 100; 
-          background: rgba(10,3,28,.98); 
-          border-top: 1px solid rgba(124,58,237,.5); 
-          padding: 10px 0 18px; 
-          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
-          flex-shrink: 0;
-        }
-        
+        .nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 380px; max-width: 100%; z-index: 100; background: rgba(10,3,28,.98); border-top: 1px solid rgba(124,58,237,.5); padding: 10px 0 18px; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7); flex-shrink: 0; }
         .ni { display:flex; justify-content:space-around; align-items:center }
         .n { display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; padding:6px 8px; border-radius:14px; transition:all .25s; border:1px solid transparent; background:transparent }
         .n.act { background:linear-gradient(160deg,rgba(124,58,237,.25),rgba(79,70,229,.15)); border:1px solid rgba(167,139,250,.55); box-shadow:0 0 14px rgba(124,58,237,.3) }
@@ -626,7 +554,7 @@ export default function StudentProfile() {
             </div>
             {formMsg.text && <div className={`pmsg ${formMsg.type}`}>{formMsg.text}</div>}
             <div className="pbs">
-              <button className="pcb" type="button" onClick={handleTogglePwd}>ביטול</button>
+              <button className="pcb" type="button" onClick={handleTogglePwd}>ביול</button>
               <button className="psb" type="button" onClick={handleSavePwd}>שמור סיסמה ✓</button>
             </div>
           </div>
