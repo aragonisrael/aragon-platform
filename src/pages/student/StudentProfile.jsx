@@ -65,7 +65,6 @@ export default function StudentProfile() {
             if (dbGroup) {
               const DAYS_MAP = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי'];
               
-              // 🟢 תיקון: הסרת ה-12 שעות הקבועות ועדכון ברירת המחדל האבסולוטית ל-16:00 (960 דקות)
               const currentStartMin = dbGroup.start_min || 960;
               const currentDur = dbGroup.dur || 60;
               
@@ -364,11 +363,19 @@ export default function StudentProfile() {
         .ha { font-size:14px; font-weight:900 }
         .ha.e { color:#4ade80 }
         .ha.s { color:#fbbf24 }
-        .modal-ov { position:absolute; inset:0; z-index:35; background:rgba(5,1,15,.9); border-radius:24px; display:flex; align-items:flex-end; justify-content:center; padding-bottom:0; animation:fadein .25s ease }
+
+        /* 🟢 תיקון: מרכוז מוחלט ופרימיום של ה-Overlay במרכז ה-Viewport */
+        .modal-ov { position:absolute; inset:0; z-index:35; background:rgba(5,1,15,.88); border-radius:24px; display:flex; align-items:center; justify-content:center; padding:16px; animation:fadein .25s ease }
         @keyframes fadein{from{opacity:0}to{opacity:1}}
-        .modal-box { background:linear-gradient(160deg,#0c0225,#140535,#0a0118); border:1px solid rgba(124,58,237,.5); border-radius:20px 20px 0 0; padding:0; width:100%; max-height:85%; overflow:hidden; animation:slideup .3s cubic-bezier(.22,1,.36,1) }
-        @keyframes slideup{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
-        .modal-handle { width:40px; height:4px; background:rgba(124,58,237,.4); border-radius:2px; margin:12px auto 0}
+        
+        /* 🟢 תיקון: עיצוב מחדש של התיבה הציפויה ככרטיס ריבועי מעוגל היטב במרכז */
+        .modal-box { background:linear-gradient(160deg,#0c0225,#140535,#0a0118); border:1px solid rgba(124,58,237,.5); border-radius:20px; padding:0; width:340px; max-width:100%; max-height:80%; overflow:hidden; animation:popin .3s cubic-bezier(.175, .885, .32, 1.275) }
+        @keyframes popin{from{transform:scale(0.88);opacity:0}to{transform:scale(1);opacity:1}}
+        
+        /* 🟢 תיקון: הסרת ידית המשיכה הישנה של ה-Bottom Sheet */
+        .modal-handle { display:none; }
+        
+        /* 🟢 תיקון: תיקון הבאג של ה-166 פיקסלים פדינג ל-16 פיקסלים נקיים! */
         .modal-header { padding:16px 18px 12px; border-bottom:1px solid rgba(124,58,237,.2); display:flex; align-items:center; gap:10px; direction: rtl; }
         .modal-title { font-size:13px; font-weight:700; color:#e0d7ff; letter-spacing:1px; flex:1; text-align: right; }
         .modal-close { width:32px; height:32px; border-radius:50%; background:rgba(124,58,237,.15); border:1px solid rgba(124,58,237,.3); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#a78bfa; font-size:16px; transition:all .2s; flex-shrink:0 }
@@ -554,7 +561,7 @@ export default function StudentProfile() {
             </div>
             {formMsg.text && <div className={`pmsg ${formMsg.type}`}>{formMsg.text}</div>}
             <div className="pbs">
-              <button className="pcb" type="button" onClick={handleTogglePwd}>ביול</button>
+              <button className="pcb" type="button" onClick={handleTogglePwd}>ביטול</button>
               <button className="psb" type="button" onClick={handleSavePwd}>שמור סיסמה ✓</button>
             </div>
           </div>
@@ -652,7 +659,8 @@ export default function StudentProfile() {
 
         {/* MODAL: DYNAMIC ROBOTICS GROUP DETAILS FROM CLOUD */}
         {showGroupModal && (
-          <div className="modal-ov">
+          // 🟢 תיקון: הוספת סגירת חלונית בלחיצה על הרקע הכהה מסביב
+          <div className="modal-ov" onClick={(e) => e.target.className === 'modal-ov' && setShowGroupModal(false)}>
             <div className="modal-box">
               <div className="modal-handle"></div>
               <div className="modal-header">
