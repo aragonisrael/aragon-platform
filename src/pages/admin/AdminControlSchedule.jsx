@@ -101,7 +101,7 @@ export default function AdminControlSchedule() {
     }
   }, []);
 
-  // 🟢 תיקון פונקציית פענוח הזמן: הפיכה לאבסולוטית ללא תוספות מיותרות
+  // תיקון פונקציית פענוח הזמן: הפיכה לאבסולוטית ללא תוספות מיותרות
   const minToStr = (m) => {
     const h = Math.floor(m / 60), mm = m % 60;
     return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
@@ -120,11 +120,10 @@ export default function AdminControlSchedule() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // 🟢 תיקון: מנוע פריסה מקומי חכם שובר שרשראות ומאפשר לכל קבוצה לתפוס 100% רוחב בשעות פנויות
+  // 🟢 תיקון קריטי 1: פירוק אסטרטגיית השרשרת הישנה. מעכשיו, חישוב העמודות (numCols) נעשה בצורה מקומית ונקודתית לחלוטין ללא דחיסת שאר שעות היום הפנויות!
   const layoutDay = (dayBlocks) => {
     const bs = dayBlocks.map(b => ({ ...b, endMin: b.startMin + b.dur }));
     bs.sort((a, b) => a.startMin - b.startMin);
-    
     const colEnd = [];
     bs.forEach(b => {
       let placed = false;
@@ -133,16 +132,12 @@ export default function AdminControlSchedule() {
       }
       if (!placed) { b.col = colEnd.length; colEnd.push(b.endMin); }
     });
-
+    
     bs.forEach(b => {
       const overlapping = bs.filter(o => o.startMin < b.endMin && o.endMin > b.startMin);
-      // חישוב עומס נקודתי בזמן אמת ללא הדבקה של שאר שעות היום
-      const maxConcurrent = Math.max(...overlapping.map(o => {
-        return bs.filter(so => so.startMin < o.endMin && so.endMin > o.startMin).length;
-      }));
-      b.numCols = maxConcurrent;
+      const maxColIdx = Math.max(...overlapping.map(o => o.col || 0));
+      b.numCols = maxColIdx + 1;
     });
-
     return bs;
   };
 
@@ -177,7 +172,6 @@ export default function AdminControlSchedule() {
   };
 
   const handleSaveGroupEdit = async () => {
-    // 🟢 תיקון: המרה לשעה אבסולוטית נקייה מחצות ללא החסרת שעות
     const parseTimeToMin = (s) => {
       const parts = s.trim().replace('.', ':').split(':').map(Number);
       return parts[0] * 60 + (parts[1] || 0);
@@ -252,7 +246,6 @@ export default function AdminControlSchedule() {
 
   const handleSaveNewGroup = async () => {
     if (!formGroup.city || !formGroup.venue) { triggerToast('נא למלא עיר ומוקד', true); return; }
-    // 🟢 תיקון: המרה לשעה אבסולוטית נקייה מחצות
     const parseTimeToMin = (s) => { const parts = s.trim().replace('.', ':').split(':').map(Number); return parts[0] * 60 + (parts[1] || 0); };
     const s = parseTimeToMin(formGroup.startStr || '16:00'); const e = parseTimeToMin(formGroup.endStr || '17:00');
 
@@ -352,7 +345,6 @@ export default function AdminControlSchedule() {
   for (let m = 0; m < TOTAL_MIN; m += 30) {
     const isMajor = m % 60 === 0;
     timeColumnElements.push(
-      // 🟢 תיקון: הזרקת השעה האבסולוטית הנכונה לסרגל הצד השמאלי
       <div key={m} style={{ position: 'absolute', top: `${m * PX_PER_MIN}px`, left: 0, right: 0, height: `${30 * PX_PER_MIN}px`, borderBottom: `${isMajor ? '1.5px' : '1px'} solid ${isMajor ? '#1e3250' : '#0d1a2c'}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '3px', fontFamily: 'Orbitron, monospace', fontSize: '9px', color: isMajor ? '#2a4a6a' : 'transparent' }}>
         {isMajor ? minToStr(m + START_HOUR * 60) : ''}
       </div>
@@ -474,9 +466,9 @@ export default function AdminControlSchedule() {
         .tab-btn { flex: 1; padding: 8px; background: transparent; border: none; color: #4a6080; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .tab-btn.active { background: #0a1428; color: #00c8ff; }
         .grade-grid { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; flex-direction: row-reverse; }
+        .grade-grid input { opacity: 0; position: absolute; width: 0; height: 0; }
         .grade-cb { position: relative; }
         .grade-cb label { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 6px; border: 1px solid #1a2a4a; background: #060b18; color: #4a6080; font-size: 13px; font-weight: 700; cursor: pointer; }
-        .grade-cb input { position: absolute; opacity: 0; width: 0; height: 0; }
         .grade-cb input:checked + label { background: #0a2040; border-color: #00c8ff55; color: #00c8ff; }
         .creds-box { background: #040c04; border: 1px solid #00e67633; border-radius: 10px; padding: 12px 16px; margin-bottom: 12px; direction: rtl; }
         .creds-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; flex-direction: row-reverse; }
@@ -591,7 +583,7 @@ export default function AdminControlSchedule() {
               </div>
 
               {DAYS.map((_, di) => {
-                // 🟢 תיקון קריטי 1: סינון הקבוצות המקדים מבוסס פילטר אקטיבי *לפני* שליחה למנוע הפריסה הגרפי
+                // 🟢 תיקון קריטי 1: העברת הסינון האקטיבי אל תוך לולאת הימים לפני פונקציית layoutDay. זה יגרום לכך שהמערכת תתעלם לחלוטין מחוגים נסתרים ולא תשמור להם מקום ריק ודחוס!
                 const dayGroupsList = groups.filter(g => {
                   if (g.day !== di) return false;
                   if (currentFilter === 'unassigned') return g.status === 'red';
@@ -620,7 +612,7 @@ export default function AdminControlSchedule() {
                       const op = getOpacity(b); if (op === 0) return null;
                       const hPx = Math.max(b.dur * PX_PER_MIN - 2, 18); 
                       
-                      // 🟢 תיקון קריטי 2: רוחב מחושב מחדש התופס 100% במידה והשטח פנוי לחלוטין ללא קבוצות מקבילות באותה שעה
+                      // 🟢 תיקון קריטי 2: רוחב מחושב מחדש (colW) מבוסס על numCols מקומי בלבד. קבוצה ללא התנגשות ישירה באותה שעה תתרחב ל-100% רוחב ימינה ושמאלה!
                       const colW = (100 / b.numCols);
                       const relativeStartMin = b.startMin - (START_HOUR * 60);
 
@@ -680,7 +672,7 @@ export default function AdminControlSchedule() {
               {modalTab === 1 && (
                 <div>
                   <div className="mfield"><label>שם החוג</label><input className="minput" type="text" value={formGroup.name} onChange={(e) => setFormGroup({ ...formGroup, name: e.target.value })} /></div>
-                  <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 1 }}><label>עיר</label><input className="minput" type="text" value={formGroup.city} onChange={(e) => setFormGroup({ ...formGroup, city: e.target.value })} /></div><div className="mfield" style={{ flex: 1 }}><label>מוקד</label><input className="minput" type="text" value={formGroup.venue} onChange={(e) => setFormGroup({ ...formGroup, venue: e.target.value })} /></div></div>
+                  <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 1 }}><label>עיר</label><input className="minput" type="text" value={formGroup.city} onChange={(e) => setFormGroup({ ...formGroup, city: e.target.value })} /></div><div className="mfield" style={{ flex: 1 }}><label>מוקד</label><input className="minput" type="text" placeholder="מוקד רשת" value={formGroup.venue} onChange={(e) => setFormGroup({ ...formGroup, venue: e.target.value })} /></div></div>
                   <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 1 }}><label>יום</label><select className="mselect" value={formGroup.day} onChange={(e) => setFormGroup({ ...formGroup, day: e.target.value })}>{DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}</select></div><div className="mfield" style={{ flex: 1 }}><label>התחלה</label><input className="minput" type="text" value={formGroup.startStr} onChange={(e) => setFormGroup({ ...formGroup, startStr: e.target.value })} /></div><div className="mfield" style={{ flex: 1 }}><label>סיום</label><input className="minput" type="text" value={formGroup.endStr} onChange={(e) => setFormGroup({ ...formGroup, endStr: e.target.value })} /></div></div>
                   <div className="mrow"><button className="msave" type="button" onClick={handleSaveGroupEdit}>שמור קבוצה</button><button className="mcancel" type="button" onClick={() => setActiveModal(null)}>ביטול</button></div>
                 </div>
