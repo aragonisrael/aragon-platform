@@ -20,6 +20,9 @@ export default function StudentGame() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [stars, setStars] = useState([]);
   const [isNewRecord, setIsNewRecord] = useState(false);
+  
+  // 🟢 מד חיים חי בתצוגת ה-UI של React
+  const [liveHearts, setLiveHearts] = useState(10);
 
   // מנוע המשחק המרכזי שמנוהל ב-Ref למניעת לאגים ברינדור
   const gameVars = useRef({
@@ -30,22 +33,23 @@ export default function StudentGame() {
     collectibles: [],
     particles: [],
     powerUpTimer: 0, 
+    lives: 10, // 🟢 10 פסילות מקסימום על פספוס וירוסים
+    flashRedFrames: 0, // אפקט הבזק אדום כשהמערכת נפגעת
     
     // משתני רקע עמוק (Parallax)
     bgLayers: {
-      layer1X: 0, // רשת דיגיטלית רחוקה
-      layer2X: 0, // כוכבים בינוניים
-      layer3X: 0  // כוכבים קרובים ומהירים
+      layer1X: 0, 
+      layer2X: 0, 
+      layer3X: 0  
     },
     
     frameId: null,
     score: 0,
-    speedModifier: 3.5,
+    speedModifier: 4.0, // מהירות התחלתית מעט גבוהה יותר לאתגר
     shootCooldown: 0,
     gameActive: false
   });
 
-  // טעינה מראש של תמונות הלוגו האמיתיות (Image Preloading)
   const imagesRef = useRef({
     aragon: new Image(),
     cybot: new Image()
@@ -81,12 +85,9 @@ export default function StudentGame() {
 
   useEffect(() => {
     fetchLeaderboardAndHighScore();
-    
-    // השמת מקורות לתמונות הלוגו
     imagesRef.current.aragon.src = aragonLogo;
     imagesRef.current.cybot.src = cybotLogo;
 
-    // יצירת רקע כוכבים אסתטי סטטי (עבור מחוץ לקנבס)
     const generatedStars = Array.from({ length: 30 }).map((_, i) => ({
       id: i, left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, size: `${Math.random() * 2 + 0.5}px`, duration: `${Math.random() * 2 + 1}s`
     }));
@@ -95,15 +96,12 @@ export default function StudentGame() {
     return () => cancelAnimationFrame(gameVars.current.frameId);
   }, []);
 
-  // עקיבה מובנית ואופטימלית אחרי תנועת העכבר או האצבע
   const handleMouseMove = (e) => {
     if (gameState !== 'PLAYING') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const relativeY = e.clientY - rect.top;
-    // חסימת גבולות כדי שהדמות לא תצא מהמסך
-    gameVars.current.targetY = Math.max(20, Math.min(canvas.height - 40, relativeY));
+    gameVars.current.targetY = Math.max(20, Math.min(canvas.height - 40, e.clientY - rect.top));
   };
 
   const handleTouchMove = (e) => {
@@ -111,16 +109,15 @@ export default function StudentGame() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const relativeY = e.touches[0].clientY - rect.top;
-    gameVars.current.targetY = Math.max(20, Math.min(canvas.height - 40, relativeY));
+    gameVars.current.targetY = Math.max(20, Math.min(canvas.height - 40, e.touches[0].clientY - rect.top));
   };
 
   // מנוע הלוּפ הראשי של הארקייד (Active Game Loop)
   const startArcadeGame = () => {
     setGameState('PLAYING');
     setIsNewRecord(false);
+    setLiveHearts(10);
     
-    // איפוס משתני מנוע
     gameVars.current = {
       playerY: 150,
       targetY: 150,
@@ -129,10 +126,12 @@ export default function StudentGame() {
       collectibles: [],
       particles: [],
       powerUpTimer: 0,
+      lives: 10,
+      flashRedFrames: 0,
       bgLayers: { layer1X: 0, layer2X: 0, layer3X: 0 },
       frameId: null,
       score: 0,
-      speedModifier: 3.8,
+      speedModifier: 4.2, 
       shootCooldown: 0,
       gameActive: true
     };
@@ -144,69 +143,58 @@ export default function StudentGame() {
     const renderFrame = () => {
       if (!gameVars.current.gameActive) return;
 
-      // 🖼️ ניקוי ה-Canvas (צביעת רקע חלל עמוק במקום שחור)
       ctx.fillStyle = '#010103';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // --- 🌌 שכבת רקע 1: ערפילית ורשת כחולה (הכי רחוקה - זזה הכי לאט) ---
-      gameVars.current.bgLayers.layer1X -= 0.5;
+      // --- 🌌 שכבות רקע (Parallax) ---
+      gameVars.current.bgLayers.layer1X -= 0.6;
       if (gameVars.current.bgLayers.layer1X <= -80) gameVars.current.bgLayers.layer1X = 0;
-      ctx.strokeStyle = 'rgba(0, 200, 255, 0.05)'; ctx.lineWidth = 1; ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(0, 200, 255, 0.04)'; ctx.lineWidth = 1;
       for (let x = gameVars.current.bgLayers.layer1X; x < canvas.width; x += 80) {
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
       }
 
-      // --- 🌌 שכבת רקע 2: כוכבים רחוקים (מהירות בינונית) ---
-      gameVars.current.bgLayers.layer2X -= 1.2;
+      gameVars.current.bgLayers.layer2X -= 1.5;
       if (gameVars.current.bgLayers.layer2X <= -200) gameVars.current.bgLayers.layer2X = 0;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; ctx.shadowBlur = 0;
-      // ציור כוכבים קטנים כריבועים מהירים
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
       for (let i = 0; i < 6; i++) {
         const x = (gameVars.current.bgLayers.layer2X + (i * 80)) % canvas.width;
         ctx.fillRect(x < 0 ? x + canvas.width : x, (i * 45) % canvas.height, 1.5, 1.5);
       }
 
-      // --- 🌌 שכבת רקע 3: כוכבים קרובים (הכי מהירים - נראה כמו גלישה) ---
-      gameVars.current.bgLayers.layer3X -= 3.5;
+      gameVars.current.bgLayers.layer3X -= 4.5; // 🟢 מהירות מוגברת לתחושת טיסה קינטית
       if (gameVars.current.bgLayers.layer3X <= -250) gameVars.current.bgLayers.layer3X = 0;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
       for (let i = 0; i < 4; i++) {
         const x = (gameVars.current.bgLayers.layer3X + (i * 120)) % canvas.width;
-        // ציור פסים דקים שנותנים תחושת מהירות מטורפת
-        ctx.fillRect(x < 0 ? x + canvas.width : x, (i * 70) % canvas.height, 15, 1);
+        ctx.fillRect(x < 0 ? x + canvas.width : x, (i * 70) % canvas.height, 18, 1);
       }
 
-      // --- 🚀 שחקן: דמות חללית זוהרת (Interpolation Smooth) ---
+      // --- 🚀 שחקן: חללית ---
       gameVars.current.playerY += (gameVars.current.targetY - gameVars.current.playerY) * 0.16;
-
-      // ציור החללית - שימוש באימוג'י 🚀 עם הילה זוהרת
       ctx.shadowBlur = 18; ctx.shadowColor = '#00c8ff';
-      ctx.fillStyle = '#ffffff'; // צבע למקרה שהאימוג'י לא נטען טוב
       ctx.font = '30px Orbitron'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
       
-      // מצב כוח מיוחד: צביעת הילת החללית בירוק
       if (gameVars.current.powerUpTimer > 0) {
         gameVars.current.powerUpTimer--;
         ctx.shadowColor = '#00e676';
         ctx.fillText('🚀', 35, gameVars.current.playerY + 18);
-        ctx.shadowBlur = 10; ctx.strokeStyle = 'rgba(0, 230, 118, 0.4)'; ctx.lineWidth = 1;
+        ctx.shadowBlur = 10; ctx.strokeStyle = 'rgba(0, 230, 118, 0.4)';
         ctx.beginPath(); ctx.arc(35, gameVars.current.playerY + 18, 22, 0, Math.PI * 2); ctx.stroke();
       } else {
         ctx.fillText('🚀', 35, gameVars.current.playerY + 18);
       }
 
-      // --- ⚡ מערכת נשק: ירי לייזר ---
+      // --- ⚡ ירי לייזר ---
       if (gameVars.current.shootCooldown <= 0) {
         if (gameVars.current.powerUpTimer > 0) {
-          // ירי לייזר משולש ירוק (כוח מיוחד)
           gameVars.current.lasers.push({ x: 55, y: gameVars.current.playerY + 18, vy: 0 });
           gameVars.current.lasers.push({ x: 50, y: gameVars.current.playerY + 6, vy: -1.3 });
           gameVars.current.lasers.push({ x: 50, y: gameVars.current.playerY + 30, vy: 1.3 });
-          gameVars.current.shootCooldown = 13;
+          gameVars.current.shootCooldown = 11; 
         } else {
-          // ירי לייזר כחול בודד (רגיל)
           gameVars.current.lasers.push({ x: 55, y: gameVars.current.playerY + 18, vy: 0 });
-          gameVars.current.shootCooldown = 19;
+          gameVars.current.shootCooldown = 17;
         }
       } else {
         gameVars.current.shootCooldown--;
@@ -215,58 +203,65 @@ export default function StudentGame() {
       ctx.shadowBlur = 6; ctx.shadowColor = gameVars.current.powerUpTimer > 0 ? '#00e676' : '#00c8ff';
       ctx.fillStyle = gameVars.current.powerUpTimer > 0 ? '#00e676' : '#00c8ff';
       gameVars.current.lasers.forEach(laser => {
-        laser.x += 7;
+        laser.x += 7.5;
         laser.y += laser.vy;
         ctx.fillRect(laser.x, laser.y - 2, 12, 4);
       });
       gameVars.current.lasers = gameVars.current.lasers.filter(l => l.x < canvas.width);
 
       // --- 👾 אויבים: וירוסים ובאגים קטלניים ---
-      gameVars.current.speedModifier += 0.0005; // עליית קושי
-      if (Math.random() < 0.025 && gameVars.current.obstacles.length < 5) {
+      gameVars.current.speedModifier += 0.0022; // 🟢 עליית מהירות אגרסיבית ומהירה פי 4!
+      if (Math.random() < 0.028 && gameVars.current.obstacles.length < 5) {
         gameVars.current.obstacles.push({
           x: canvas.width + 30,
           y: Math.random() * (canvas.height - 60) + 30,
-          // חלוקת סוגי אויבים: ג'וק ארקייד או חיפושית סייבר
-          type: Math.random() > 0.4 ? '👾' : '🪲',
+          type: Math.random() > 0.45 ? '👾' : '🪲',
           size: 26,
-          speed: Math.random() * 1.5 + gameVars.current.speedModifier,
-          pulse: 0
+          speed: Math.random() * 1.6 + gameVars.current.speedModifier,
+          pulse: 0,
+          passedCheck: false
         });
       }
 
-      ctx.shadowBlur = 10; ctx.shadowColor = '#ff2a2a'; ctx.fillStyle = '#ffffff';
-      ctx.font = '26px Orbitron';
-      gameVars.current.obstacles.forEach((obs, oIdx) => {
+      ctx.shadowBlur = 10; ctx.shadowColor = '#ff2a2a'; ctx.font = '26px Orbitron';
+      gameVars.current.obstacles.forEach((obs) => {
         obs.x -= obs.speed;
         obs.pulse += 0.1;
-        const currentPulse = Math.sin(obs.pulse) * 4;
-        
-        // ציור האימוג'י של האויב
+        const currentPulse = Math.sin(obs.pulse) * 3;
         ctx.shadowBlur = 12 + currentPulse;
         ctx.fillText(obs.type, obs.x, obs.y);
 
-        // 💥 התנגשות 1: חללית פוגעת בוירוס
+        // 💥 התנגשות פיזית: חללית פוגעת בוירוס -> פוסל מיד!
         const distToPlayer = Math.hypot(obs.x - 35, obs.y - (gameVars.current.playerY + 18));
         if (distToPlayer < 24) {
           terminateGameSession();
         }
 
-        // 💥 התנגשות 2: לייזר פוגע בוירוס
-        gameVars.current.lasers.forEach((laser, lIdx) => {
+        // 🟢 מנגנון פספוס וירוסים (המכניקה החדשה שלך!):
+        if (obs.x <= -15 && !obs.passedCheck && !obs.destroyed) {
+          obs.passedCheck = true;
+          gameVars.current.lives--; // הורדת נקודת חיים אחת
+          gameVars.current.flashRedFrames = 10; // הפעלת הבזק אדום לחצי שנייה
+          setLiveHearts(gameVars.current.lives);
+
+          // אם השחקן פספס 10 וירוסים -> השרת קורס!
+          if (gameVars.current.lives <= 0) {
+            terminateGameSession();
+          }
+        }
+
+        // לייזר פוגע בוירוס -> פיצוץ
+        gameVars.current.lasers.forEach((laser) => {
           const distToLaser = Math.hypot(obs.x - laser.x, obs.y - laser.y);
           if (distToLaser < 20) {
-            // אפקט פיצוץ חלקיקים אדום
             for (let p = 0; p < 8; p++) {
               gameVars.current.particles.push({
-                x: obs.x, y: obs.y,
-                vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6,
-                alpha: 1, color: '#ff3b30'
+                x: obs.x, y: obs.y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, alpha: 1, color: '#ff3b30'
               });
             }
-            gameVars.current.score += 20;
+            gameVars.current.score += 25; // תגמול XP על השמדה
             obs.destroyed = true;
-            laser.x = canvas.width + 100; // העלמת הלייזר
+            laser.x = canvas.width + 100; 
           }
         });
       });
@@ -277,43 +272,34 @@ export default function StudentGame() {
         gameVars.current.collectibles.push({
           x: canvas.width + 30,
           y: Math.random() * (canvas.height - 60) + 30,
-          type: Math.random() > 0.3 ? 'aragon' : 'cybot',
-          size: 28,
+          type: Math.random() > 0.35 ? 'aragon' : 'cybot',
           pulse: 0
         });
       }
 
       gameVars.current.collectibles.forEach((coll) => {
-        coll.x -= 2.8;
+        coll.x -= 3.0;
         coll.pulse += 0.05;
-        const currentPulse = Math.sin(coll.pulse) * 2;
-        ctx.shadowBlur = 15 + currentPulse;
+        ctx.shadowBlur = 15 + Math.sin(coll.pulse) * 2;
 
-        // ציור הלוגואים המקוריים
         if (coll.type === 'aragon') {
           ctx.shadowColor = '#00c8ff';
-          try {
-            ctx.drawImage(imagesRef.current.aragon, coll.x - 14, coll.y - 14, 28, 28);
-          } catch(e) { /* גיבוי */ ctx.fillStyle = '#8050ff'; ctx.beginPath(); ctx.arc(coll.x, coll.y, 14, 0, Math.PI * 2); ctx.fill(); }
+          try { ctx.drawImage(imagesRef.current.aragon, coll.x - 14, coll.y - 14, 28, 28); } 
+          catch(e) { ctx.fillStyle = '#8050ff'; ctx.beginPath(); ctx.arc(coll.x, coll.y, 14, 0, Math.PI * 2); ctx.fill(); }
         } else {
           ctx.shadowColor = '#00e676';
-          try {
-            ctx.drawImage(imagesRef.current.cybot, coll.x - 15, coll.y - 15, 30, 30);
-          } catch(e) { ctx.fillStyle = '#00e676'; ctx.fillRect(coll.x - 15, coll.y - 15, 30, 30); }
+          try { ctx.drawImage(imagesRef.current.cybot, coll.x - 15, coll.y - 15, 30, 30); } 
+          catch(e) { ctx.fillStyle = '#00e676'; ctx.fillRect(coll.x - 15, coll.y - 15, 30, 30); }
         }
 
-        // ✨ איסוף מוצלח של לוגו: קבלת XP גבוה + הפעלת ירי משולש!
         const distToPlayer = Math.hypot(coll.x - 35, coll.y - (gameVars.current.playerY + 18));
         if (distToPlayer < 28) {
           coll.collected = true;
-          const bonusXp = coll.type === 'aragon' ? 80 : 200; 
-          gameVars.current.score += bonusXp;
-          // הטענת הטיימר של הנשק
+          gameVars.current.score += coll.type === 'aragon' ? 80 : 200; 
           gameVars.current.powerUpTimer = coll.type === 'aragon' ? 240 : 400; 
 
-          // אפקט חלקיקים בצבע הלוגו
           const pColor = coll.type === 'aragon' ? '#00c8ff' : '#00e676';
-          for (let p = 0; p < 15; p++) {
+          for (let p = 0; p < 12; p++) {
             gameVars.current.particles.push({
               x: coll.x, y: coll.y, vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8, alpha: 1, color: pColor
             });
@@ -322,7 +308,7 @@ export default function StudentGame() {
       });
       gameVars.current.collectibles = gameVars.current.collectibles.filter(c => !c.collected && c.x > -40);
 
-      // --- 💥 אפקטים: מנוע חלקיקים ---
+      // --- 💥 מנוע חלקיקים ---
       gameVars.current.particles.forEach((p) => {
         p.x += p.vx; p.y += p.vy; p.alpha -= 0.03;
         if (p.alpha > 0) {
@@ -331,10 +317,18 @@ export default function StudentGame() {
           ctx.fillRect(p.x, p.y, 3.5, 3.5);
         }
       });
-      ctx.globalAlpha = 1.0; ctx.shadowBlur = 0; // איפוס
+      ctx.globalAlpha = 1.0; ctx.shadowBlur = 0; 
       gameVars.current.particles = gameVars.current.particles.filter(p => p.alpha > 0);
 
-      // ד)- ציור הציון החי ב-React
+      // 🔴 אפקט נזק: צביעת המסך באדום דהוי למספר פריימים בעת פספוס וירוס
+      if (gameVars.current.flashRedFrames > 0) {
+        gameVars.current.flashRedFrames--;
+        ctx.fillStyle = 'rgba(255, 59, 48, 0.15)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // עדכון הניקוד
+      gameVars.current.score += 0.08; // נקודות הישרדות פאסיביות
       setCurrentScore(Math.floor(gameVars.current.score));
 
       gameVars.current.frameId = requestAnimationFrame(renderFrame);
@@ -343,7 +337,7 @@ export default function StudentGame() {
     gameVars.current.frameId = requestAnimationFrame(renderFrame);
   };
 
-  // 4. סיום המשחק ובדיקת התנאי: עדכון ה-XP אך ורק במידה והשחקן שבר את שיאו האישי החודשי!
+  // סיום המשחק ובדיקת שבירת שיא אישי
   const terminateGameSession = async () => {
     gameVars.current.gameActive = false;
     cancelAnimationFrame(gameVars.current.frameId);
@@ -353,7 +347,6 @@ export default function StudentGame() {
     if (scoreAchieved <= 0) return;
 
     try {
-      // א) שליפת ה-XP הנוכחי השמור בבסיס הנתונים (השיא הישן)
       const { data: serverStats } = await supabase
         .from('users')
         .select('xp')
@@ -362,21 +355,18 @@ export default function StudentGame() {
 
       const previousRecord = serverStats ? (serverStats.xp || 0) : 0;
 
-      // ב) בדיקת התנאי: עדכון אך ורק אם בוצע שבר של השיא!
       if (scoreAchieved > previousRecord) {
         setIsNewRecord(true);
         setPlayerHighScore(scoreAchieved);
 
-        // עדכון מאובטח של הענן
         await supabase
           .from('users')
           .update({ xp: scoreAchieved })
           .eq('username', loggedUser);
 
-        // רענון מיידי של הלוח המובילים הארצי
         await fetchLeaderboardAndHighScore();
       } else {
-        setIsNewRecord(false); // הציון לא עבר את השיא הקודם, נשמר הערך הישן
+        setIsNewRecord(false); 
       }
     } catch (err) {
       console.error("Critical error auditing user record score:", err);
@@ -395,21 +385,22 @@ export default function StudentGame() {
         .star { position: absolute; border-radius: 50%; background: white; animation: hqPulse var(--d) ease-in-out infinite alternate; opacity: 0.3; }
         @keyframes hqPulse { from{opacity:0.1} to{opacity:0.6} }
         
-        /* הגדלת שטח מסך המשחק הגרפי */
         .game-screen-wrapper { position: relative; width: 100%; height: 260px; background: #010103; border: 2px solid rgba(0,200,255,0.4); border-radius: 16px; overflow: hidden; margin-bottom: 12px; cursor: none; box-shadow: inset 0 0 30px rgba(0,0,0,0.95); }
         .canvas-element { width: 100%; height: 100%; display: block; }
         
-        .screen-overlay { position: absolute; inset: 0; background: rgba(3, 1, 10, 0.92); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 14px; z-index: 10; cursor: default; }
+        .screen-overlay { position: absolute; inset: 0; background: rgba(3, 1, 10, 0.94); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 14px; z-index: 10; cursor: default; }
         .game-title { font-size: 16px; font-weight: 900; background: linear-gradient(135deg, #00c8ff, #00e676); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 2px; margin-bottom: 4px; }
         .game-subtitle { font-size: 8.5px; color: rgba(167,139,250,0.6); letter-spacing: 1px; margin-bottom: 18px; line-height: 1.6; }
         
         .game-btn { background: linear-gradient(135deg, #00c8ff, #4f46e5); border: 1px solid rgba(0,200,255,0.4); padding: 10px 26px; border-radius: 10px; color: #ffffff; font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 15px rgba(0,200,255,0.3); }
         .game-btn:hover { transform: scale(1.04); box-shadow: 0 0 22px rgba(0,200,255,0.6); }
         
-        /* שורת הסבר חכמה מתחת למשחק */
         .game-info-caption { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px 14px; direction: rtl; text-align: center; }
-        .gic-ico { font-size: 14px; color: #fbbf24; text-shadow: 0 0 8px rgba(251,191,36,0.4); }
+        .gic-ico { font-size: 14px; color: #fbbf24; }
         .gic-text { font-size: 8.5px; color: rgba(167,139,250,0.5); letter-spacing: .5px; line-height: 1.4; }
+
+        /* 🟢 מד לבבות מנצנץ לחיים */
+        .hearts-status-bar { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #ff3b30; font-weight: bold; margin-bottom: 8px; direction: rtl; }
 
         .live-score-badge { display: flex; justify-content: space-between; align-items: center; background: rgba(0,200,255,0.04); border: 1px solid rgba(0,200,255,0.2); border-radius: 12px; padding: 8px 14px; margin-bottom: 16px; direction: rtl; }
         .sb-lbl { font-size: 9px; color: rgba(167,139,250,0.55); letter-spacing: 1px; }
@@ -419,7 +410,7 @@ export default function StudentGame() {
         .ld-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(124,58,237,0.4)); }
         .ld-text { font-size: 9.5px; font-weight: 700; color: #a78bfa; letter-spacing: 1.5px; white-space: nowrap; }
         
-        .leaderboard-container { flex: 1; overflow-y: auto; background: rgba(10, 5, 28, 0.6); border: 1px solid rgba(124,58,237,0.15); border-radius: 14px; padding: 6px; display: flex; flex-direction: column; gap: 5px; direction: rtl; }
+        .leaderboard-container { flex: 1; overflow-y: auto; background: rgba(10, 5, 28, 0.6); border: 1px solid rgba(124,58,237,0.15); border-radius: 14px; padding: 6px; display: flex; flex-column; gap: 5px; direction: rtl; }
         .leaderboard-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,0.02); border: 1px solid transparent; }
         .leaderboard-row.is-me { background: rgba(251,191,36,0.06); border-color: rgba(251,191,36,0.25); }
         
@@ -439,12 +430,20 @@ export default function StudentGame() {
       `}</style>
 
       <div className="app" id="matrixGameApp">
-        {/* כוכבי רקע זזים מחוץ לקנבס (אסתטי) */}
         <div className="stars">
           {stars.map(s => (
             <div key={s.id} className="star" style={{ width: s.size, height: s.size, left: s.left, top: s.top, '--d': s.duration }} />
           ))}
         </div>
+
+        {/* 🟢 מד הלבבות החי מעל מסך הריצה */}
+        {gameState === 'PLAYING' && (
+          <div className="hearts-status-bar">
+            <span>🖥️ חוסן השרת: </span>
+            <span>{Array.from({ length: liveHearts }).map(() => '❤️').join('')}</span>
+            <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', marginRight: '6px' }}>({liveHearts}/10)</span>
+          </div>
+        )}
 
         {/* חלונית ה-CANVAS הגרפית - כוללת את כל הגרפיקה והרקע */}
         <div 
@@ -458,7 +457,7 @@ export default function StudentGame() {
           {gameState === 'START' && (
             <div className="screen-overlay">
               <div className="game-title">CYBER SHIELD: ACTIVE DEFENSE</div>
-              <div className="game-subtitle">עקוב עם האצבע/עכבר כדי לכוון ולהשמיד וירוסים!<br />אסוף לוגואים של <span style={{color:'#00c8ff'}}>אראגון</span> או <span style={{color:'#00e676'}}>סייבוט</span> להפעלת ירי לייזר משולש!</div>
+              <div className="game-subtitle">עקוב עם האצבע/עכבר כדי לכוון ולהשמיד וירוסים!<br />אל תיתן לוירוסים לחמוק לצד שמאל — פספוס של 10 וירוסים יפיל את השרת!</div>
               <button className="game-btn" type="button" onClick={startArcadeGame}>הפעל הגנת מערכת 🚀</button>
             </div>
           )}
@@ -473,8 +472,8 @@ export default function StudentGame() {
                 </>
               ) : (
                 <>
-                  <div className="game-title" style={{ color: '#f87171' }}>הגנת השרת נכשלה</div>
-                  <div className="game-subtitle">התוצאה הנוכחית נמוכה משיאך האישי החודשי.<br />הערך המוגן בטבלה נשאר על כנו.</div>
+                  <div className="game-title" style={{ color: '#f87171' }}>השרת קרס!</div>
+                  <div className="game-subtitle">הוירוסים הצליחו לחדור למערכת המרכזית.<br />התוצאה הנוכחית לא עקפה את שיאך האישי החודשי.</div>
                 </>
               )}
               <div className="game-subtitle" style={{ marginBottom: '12px' }}> צברת בסיבוב זה: <span style={{ color: '#00c8ff', fontWeight: 'bold' }}>{currentScore} נקודות</span></div>
@@ -484,7 +483,7 @@ export default function StudentGame() {
         </div>
 
         {/* שורת כיתוב והסבר חכמה מתחת למשחק */}
-        <div className="game-info-caption fu">
+        <div className="game-info-caption">
           <div className="gic-ico">💡</div>
           <div className="gic-text">אסוף את הלוגואים של <span style={{color:'#00c8ff', fontWeight:'bold'}}>Aragon</span> או <span style={{color:'#00e676', fontWeight:'bold'}}>Cybot</span> כדי לטעון נשק לייזר משולש ועוצמתי!</div>
         </div>
