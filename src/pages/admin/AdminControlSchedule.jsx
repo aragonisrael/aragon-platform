@@ -16,7 +16,6 @@ const STATUSLABEL = {
 export default function AdminControlSchedule() {
   const navigate = useNavigate();
 
-  // 🟢 שינוי קריטי 1: צמצום המערך לימי ראשון עד חמישי בלבד (הורדת יום שישי)
   const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי'];
   const START_HOUR = 12, END_HOUR = 20, PX_PER_MIN = 1.2, TOTAL_MIN = (END_HOUR - START_HOUR) * 60;
   const GAP = 2;
@@ -333,7 +332,6 @@ export default function AdminControlSchedule() {
   const totalPxHeight = TOTAL_MIN * PX_PER_MIN;
   const timeColumnElements = [];
   for (let m = 0; m < TOTAL_MIN; m += 30) {
-    // 🟢 שינוי קריטי 3 א': תיקון האופסט האנכי של השעות בציר הזמן
     const borderIsFullHour = (m + 30) % 60 === 0;
     const textIsFullHour = m % 60 === 0;
     
@@ -349,7 +347,8 @@ export default function AdminControlSchedule() {
           borderBottom: `${borderIsFullHour ? '1.5px' : '1px'} solid ${borderIsFullHour ? '#1e3250' : '#0d1a2c'}`, 
           display: 'flex', 
           alignItems: 'flex-start', 
-          justify-content: 'center', 
+          // 🟢 התיקון הקריטי כאן: המרת justify-content לפורמט camelCase תקין עבור React inline style
+          justifyContent: 'center', 
           paddingTop: '3px', 
           fontFamily: 'Orbitron, monospace', 
           fontSize: '9px', 
@@ -422,7 +421,6 @@ export default function AdminControlSchedule() {
         
         .grid-outer { flex: 1; overflow: auto; border-radius: 12px; border: 1px solid #1a2a4a; background: #060b18; position: relative; }
         
-        /* 🟢 שינוי קריטי 1 ב': התאמת שדות ה-Grid הארציים ל-5 עמודות בלבד ללא יום שישי */
         .sched-wrap { display: grid; grid-template-columns: 56px repeat(5, 1fr); min-width: 720px; position: relative; }
         .col-header { padding: 8px 4px; font-family: 'Orbitron', monospace; font-size: 10px; letter-spacing: 1.5px; color: #2a4a6a; text-align: center; border-bottom: 1px solid #0d1a2e; background: #050a14; position: sticky; top: 0; z-index: 6; white-space: nowrap; }
         .col-header.time-hdr { position: sticky; top: 0; left: 0; z-index: 7; background: #050a14; }
@@ -437,7 +435,6 @@ export default function AdminControlSchedule() {
         .block-turquoise { background: rgba(0, 206, 209, 0.12); border: 1px solid rgba(0, 206, 209, 0.35); border-top: 2px solid #00ced1; }
         .block-turquoise .bname { color: #00ced1; font-weight: 800; }
 
-        /* 🟢 שינוי קריטי 5: הגדלה קלה, נקייה ולא מוגזמת של הפונטים בתוך הבלוקים */
         .bname { font-size: 11.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .block-green .bname { color: #00e676; }
         .block-yellow .bname { color: #f0a820; }
@@ -654,7 +651,6 @@ export default function AdminControlSchedule() {
                   <div className="day-col-body" key={di} style={{ position: 'relative', height: `${totalPxHeight}px` }}>
                     {Array.from({ length: (END_HOUR - START_HOUR) * 2 }).map((_, i) => {
                       const m = i * 30;
-                      // 🟢 שינוי קריטי 3 ב': קווים עבים בשעה עגולה, קווים דקים בחצי שעה
                       const borderIsFullHour = (m + 30) % 60 === 0;
                       return <div style={{ position: 'absolute', top: `${m * PX_PER_MIN}px`, left: 0, right: 0, height: `${30 * PX_PER_MIN}px`, borderBottom: `${borderIsFullHour ? '1.5px' : '1px'} solid ${borderIsFullHour ? '#1e3250' : '#0d1a2c'}`, pointerEvents: 'none' }} key={i}></div>;
                     })}
@@ -672,13 +668,10 @@ export default function AdminControlSchedule() {
                       return (
                         <div key={b.id} className={`block block-${b.status}`} style={{ top: `${relativeStartMin * PX_PER_MIN}px`, right: `${((b.col || 0) / b.numCols) * 100}%`, width: `calc(${colW}% - ${GAP * (b.numCols > 1 ? 1 : 0)}px)`, height: `${hPx}px` }} onClick={() => handleOpenBlockModal(b.id)} onMouseEnter={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setTooltip({ show: true, x: rect.left + window.scrollX + 14, y: rect.top + window.scrollY + 14, block: b }); }} onMouseLeave={() => setTooltip({ show: false, x: 0, y: 0, block: null })}>
                           {isHelperBlock ? (
-                            // 🟢 שינוי קריטי 1 ג': מחיקת הטקסט מחוץ לבלוק ההתארגנות/פירוק למניעת כיווץ (יופיע רק בטולטיפ)
                             null
                           ) : isTravelBlock ? (
-                            // 🟢 שינוי קריטי 2: בלוק מעבר יציג רק אימוג'י מכונית וכותרת קבועה נקייה
                             <div className="bname">🚗 מעבר בין מוקדים</div>
                           ) : (
-                            // חוג רגיל (פונטים מוגדלים קצת לפי דרישה 5)
                             <>
                               <div className="bname">{b.name}</div>
                               {hPx > 30 && <div className="bmeta">{b.city}{b.instructor ? ` · ${b.instructor.split(' ')[0]}` : ''}</div>}
