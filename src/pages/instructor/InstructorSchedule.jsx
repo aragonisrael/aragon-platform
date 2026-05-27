@@ -15,7 +15,7 @@ export default function InstructorSchedule() {
   const [dismissedSubs, setDismissedSubs] = useState({});
   const [subSlots, setSubSlots] = useState({}); 
   
-  // מאגר בקשות ההחלפה הדינמי מהענן (מחליף את המערך הסטטי שהיה בראש הקובץ)
+  // מאגר בקשות ההחלפה הדינמי מהענן
   const [subRequests, setSubRequests] = useState([]);
 
   // מערכת אישור לו"ז שבועי מול האדמין
@@ -61,7 +61,6 @@ export default function InstructorSchedule() {
         if (dbGroups) {
           const matrix = [[], [], [], [], [], []];
           
-          // 🟢 תיקון: הסרת ה-12 שעות הקבועות כדי לפענח דקות אבסולוטיות נקיות ישירות מחצות
           const minToHourStr = (m) => {
             const h = Math.floor(m / 60); 
             const mm = m % 60;
@@ -71,27 +70,111 @@ export default function InstructorSchedule() {
           const allGreen = dbGroups.length > 0 && dbGroups.every(g => g.status === 'green');
           setIsWeekApproved(allGreen);
 
-          dbGroups.forEach(g => {
-            const dayIdx = Number(g.day);
-            if (dayIdx >= 0 && dayIdx <= 5) {
-              // 🟢 תיקון: עדכון ברירת המחדל האבסולוטית מ-240 ל-960 (השעה 16:00)
-              const startTime = minToHourStr(g.start_min || 960);
-              const endTime = minToHourStr((g.start_min || 960) + (g.dur || 60));
-              
-              matrix[dayIdx].push({
-                time: `${startTime}–${endTime}`,
-                name: g.name,
-                school: g.venue,
-                city: g.city,
-                status: g.status 
-              });
+          // 🟢 חישוב והזרקת בלוקי הקמה, פירוק ונסיעה לתוך הלו"ז של המדריך בדומה לאדמין
+          for (let dayIdx = 0; dayIdx <= 5; dayIdx++) {
+            const dayGroups = dbGroups
+              .filter(g => Number(g.day) === dayIdx)
+              .sort((a, b) => Number(a.start_min) - Number(b.start_min));
+
+            if (dayGroups.length === 0) continue;
+
+            // חלוקת הקבוצות של אותו היום לפי מוקדים פיזיים (Venues)
+            const sessions = [];
+            let currentSession = {
+              venue: dayGroups[0].venue,
+              city: dayGroups[0].city,
+              status: dayGroups[0].status,
+              classes: [dayGroups[0]]
+            };
+
+            for (let i = 1; i < dayGroups.length; i++) {
+              const g = dayGroups[i];
+              if (g.venue === currentSession.venue) {
+                currentSession.classes.push(g);
+              } else {
+                sessions.push(currentSession);
+                currentSession = { venue: g.venue, city: g.city, status: g.status, classes: [g] };
+              }
             }
-          });
+            sessions.push(currentSession);
+
+            const computedSessions = sessions.map(sess => {
+              const startMin = Math.min(...sess.classes.map(c => Number(c.start_min)));
+              const endMin = Math.max(...sess.classes.map(c => Number(c.start_min) + Number(c.dur)));
+              return { ...sess, startMin, endMin };
+            });
+
+            const dayTimelineBlocks = [];
+
+            // אופטימיזציה ורישום הבלוקים למטריצה הכרונולוגית
+            computedSessions.forEach(sess => {
+              // א׳. בלוק התארגנות והקמה (15 דקות לפני) -> סוג: setup
+              dayTimelineBlocks.push({
+                startMin: sess.startMin - 15,
+                time: `${minToHourStr(sess.startMin - 15)}–${minToHourStr(sess.startMin)}`,
+                name: '⚙️ התארגנות והקמה',
+                school: sess.venue,
+                city: sess.city,
+                status: sess.status,
+                type: 'setup'
+              });
+
+              // ב׳. החוגים עצמם באותו המוקד
+              sess.classes.forEach(g => {
+                dayTimelineBlocks.push({
+                  startMin: Number(g.start_min),
+                  time: `${minToHourStr(g.start_min)}–${minToHourStr(Number(g.start_min) + Number(g.dur))}`,
+                  name: g.name,
+                  school: g.venue,
+                  city: g.city,
+                  status: g.status,
+                  type: 'class'
+                });
+              });
+
+              // ג׳. בלוק פירוק כיתה (15 דקות אחרי) -> סוג: cleanup
+              dayTimelineBlocks.push({
+                startMin: sess.endMin,
+                time: `${minToHourStr(sess.endMin)}–${minToHourStr(sess.endMin + 15)}`,
+                name: '📦 פירוק כיתה',
+                school: sess.venue,
+                city: sess.city,
+                status: sess.status,
+                type: 'cleanup'
+              });
+            });
+
+            // ד׳. חישוב והזרקת בלוק המעבר הטורקיז (עד 40 דקות)
+            for (let i = 0; i < computedSessions.length - 1; i++) {
+              const currSess = computedSessions[i];
+              const nextSess = computedSessions[i + 1];
+              const endOfCleanup = currSess.endMin + 15;
+              const startOfSetup = nextSess.startMin - 15;
+              const travelGap = startOfSetup - endOfCleanup;
+
+              if (travelGap > 0) {
+                const travelDuration = Math.min(travelGap, 40);
+                dayTimelineBlocks.push({
+                  startMin: endOfCleanup,
+                  time: `${minToHourStr(endOfCleanup)}–${minToHourStr(endOfCleanup + travelDuration)}`,
+                  name: '🚗 מעבר בין מוקדים',
+                  school: `${currSess.venue} ➔ ${nextSess.venue}`,
+                  city: `${currSess.city} ➔ ${nextSess.city}`,
+                  status: 'turquoise',
+                  type: 'travel'
+                });
+              }
+            }
+
+            // סידור כרונולוגי סופי לכל היום
+            dayTimelineBlocks.sort((a, b) => a.startMin - b.startMin);
+            matrix[dayIdx] = dayTimelineBlocks;
+          }
 
           setLiveSchedule(matrix);
         }
 
-        // 2. שליפת בקשות החלפה חיות ופתוחות בלבד ישירות מטבלת המשימות בענן
+        // 2. שליפת בקשות החלפה חיות
         const { data: dbSubs } = await supabase
           .from('admin_tasks')
           .select('*')
@@ -228,7 +311,6 @@ export default function InstructorSchedule() {
 
       setCurrentCoins(updatedCoinsBalance);
       triggerToast(`💰 הרווחת ${bonusValue} 🪙! הקבוצה שויכה אליך קבוע והלו"ז התעדכן בלייב!`);
-      
       await fetchLiveInstructorSchedule();
 
     } catch (err) {
@@ -242,7 +324,6 @@ export default function InstructorSchedule() {
   };
 
   const daysToShowIndices = activeDay === 0 ? [0, 1, 2, 3, 4, 5] : [activeDay - 1];
-  
   const visibleSubRequests = subRequests.filter(s => !dismissedSubs[s.id]);
 
   return (
@@ -269,7 +350,7 @@ export default function InstructorSchedule() {
         .dbars.r { right: 16px; }
         .dbar { height: 3px; border-radius: 2px; background: rgba(80,120,255,.27); }
         .hdot { position: absolute; width: 6px; height: 6px; border-radius: 50%; }
-        .rw { position: relative; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center; z-index: 4; }
+        .rw { relative; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center; z-index: 4; }
         .ro { position: absolute; inset: 0; border-radius: 50%; border: 2px dashed rgba(80,120,255,.2); animation: spin 14s linear infinite; }
         .rm { position: absolute; inset: 8px; border-radius: 50%; border: 1.5px solid transparent; border-top-color: #6040ff; border-right-color: #4080ff; animation: spin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,.4); }
         .rm2 { position: absolute; inset: 14px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #4060ff; animation: spin 7s linear infinite reverse; box-shadow: inset 0 0 10px rgba(64,128,255,.3); }
@@ -305,28 +386,48 @@ export default function InstructorSchedule() {
         .week-arrows { display: flex; gap: 6px; }
         .warrow { width: 28px; height: 28px; border-radius: 7px; border: 1px solid #2a2a42; background: #0d0d1a; color: #5a5a8a; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .18s; }
         .warrow:hover { border-color: #4030aa; color: #9070ee; }
+        
         .approve-week-btn { margin: 0 16px 12px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; padding: 11px 16px; font-family: 'Exo 2', sans-serif; font-size: 12.5px; font-weight: 600; cursor: pointer; width: calc(100% - 32px); transition: all .25s ease; direction: rtl; border: none; }
         .approve-week-btn.pending { background: linear-gradient(135deg, rgba(224,144,32,0.15), rgba(160,100,5,0.08)); border: 1px dashed #e09020; color: #f0b040; box-shadow: 0 0 10px rgba(224,144,32,0.05); }
         .approve-week-btn.pending:hover { border-style: solid; border-color: #ffe060; color: #ffe060; box-shadow: 0 0 15px rgba(224,144,32,0.2); }
         .approve-week-btn.approved { background: linear-gradient(135deg, rgba(24,192,160,0.15), rgba(10,128,96,0.08)); border: 1px solid #18c0a0; color: #20c070; cursor: default; }
+        
         .day-pills { display: flex; gap: 5px; padding: 0 16px 8px; overflow-x: auto; scrollbar-width: none; direction: rtl; }
         .day-pills::-webkit-scrollbar { display: none; }
         .dpill { padding: 5px 10px; border-radius: 8px; border: 1px solid #1e1e38; background: #0d0d1a; font-size: 11px; color: #5a5a8a; cursor: pointer; white-space: nowrap; transition: all .18s; flex-shrink: 0; }
         .dpill.active { border-color: #4030aa; background: rgba(80,48,170,.15); color: #c0a0ff; }
         .dpill.today { border-color: #2a4a2a; color: #40a060; }
+        
         .sched-grid { padding: 0 16px 4px; direction: rtl; }
         .sched-day { margin-bottom: 8px; }
         .sday-hdr { font-size: 10px; color: #4a4a7a; letter-spacing: 1.5px; text-transform: uppercase; padding: 0 2px 5px; display: flex; align-items: center; gap: 6px; flex-direction: row-reverse; justify-content: flex-end; }
         .sday-hdr .sday-line { flex: 1; height: 1px; background: #14142a; }
         .sday-slots { display: flex; flex-direction: column; gap: 5px; }
-        .slot { border-radius: 10px; padding: 9px 12px; display: flex; align-items: center; gap: 10px; position: relative; overflow: hidden; flex-direction: row-reverse; transition: all 0.3s ease; }
+        
+        .slot { border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; position: relative; overflow: hidden; flex-direction: row-reverse; transition: all 0.3s ease; }
+        
+        /* ─── 🟢 מחלקות עיצוב ייעודיות ויחסי גבהים קשיחים לשלושת סוגי הבלוקים ─── */
+        .slot.type-class { min-height: 54px; }
+        
+        /* 1. בלוקי התארגנות ופירוק: בדיוק שליש גובה (Compact View) */
+        .slot.type-setup, .slot.type-cleanup { min-height: 24px; padding: 4px 12px; border-style: dashed; }
+        .slot.type-setup .slot-name, .slot.type-cleanup .slot-name { font-size: 11px; opacity: 0.8; font-weight: 500; }
+        .slot.type-setup .slot-meta, .slot.type-cleanup .slot-meta { display: none; } /* העלמת כפל טקסט לפי דרישה */
+        
+        /* 2. בלוקי מעברים ונסיעות: בדיוק שני שליש גובה בצבע טורקיז זוהר וממותג */
+        .slot.type-travel { min-height: 38px; padding: 6px 12px; background: linear-gradient(135deg, rgba(0, 206, 209, 0.12), rgba(0, 180, 185, 0.06)); border: 1px solid rgba(0, 206, 209, 0.35); }
+        .slot.type-travel .slot-dot { background: #00ced1; box-shadow: 0 0 6px #00ced1; }
+        .slot.type-travel .slot-name { color: #00ced1; font-weight: 700; font-size: 11.5px; }
+        .slot.type-travel .slot-time { color: #00ced1; }
+        .slot.type-travel .slot-tag { background: rgba(0, 206, 209, 0.12); color: #00ced1; border: 1px solid rgba(0, 206, 209, 0.2); }
+
         .slot.regular.pending { background: linear-gradient(135deg,rgba(224,144,32,.14),rgba(160,100,5,.08)); border: 1px solid rgba(224,144,32,.25); }
         .slot.regular.pending .slot-dot { background: #e09020; box-shadow: 0 0 6px rgba(224,144,32,.6); }
         .slot.regular.pending .slot-tag { background: rgba(224,144,32,.1); color: #e09020; border: 1px solid rgba(224,144,32,.18); }
         .slot.regular.approved { background: linear-gradient(135deg,rgba(24,192,160,.16),rgba(10,128,96,.1)); border: 1px solid rgba(24,192,160,.32); }
         .slot.regular.approved .slot-dot { background: #18c0a0; box-shadow: 0 0 6px rgba(24,192,160,.6); }
         .slot.regular.approved .slot-tag { background: rgba(24,192,160,.12); color: #18c0a0; border: 1px solid rgba(24,192,160,.2); }
-        .slot.sub { background: linear-gradient(135deg,rgba(100,40,200,.16),rgba(70,20,160,.1)); border: 1px solid rgba(130,70,220,.3); animation: fadeSlideIn .4s ease; }
+        
         .slot-time { font-family: 'Orbitron',monospace; font-size: 10px; color: #8a9fc4; white-space: nowrap; flex-shrink: 0; }
         .slot.regular.pending .slot-time { color: #f0b040; }
         .slot.regular.approved .slot-time { color: #30c8a8; }
@@ -334,15 +435,14 @@ export default function InstructorSchedule() {
         .slot-name { font-size: 12px; color: #b0c0e8; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .slot-meta { font-size: 10px; color: #4a5a8a; margin-top: 1px; }
         .slot-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-        .slot.sub .slot-dot { background: #8050f0; box-shadow: 0 0 6px rgba(128,80,240,.6); }
         .slot-tag { font-size: 9px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
-        .slot.sub .slot-tag { background: rgba(130,70,220,.15); color: #a070e0; border: 1px solid rgba(130,70,220,.2); }
+        
         .empty-day { font-size: 11px; color: #2a2a4a; padding: 6px 2px; font-style: italic; text-align: right; }
         .sub-section { margin: 6px 16px 0; direction: rtl; }
         .sub-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
         .sub-title { font-family: 'Orbitron',monospace; font-size: 10px; letter-spacing: 2px; color: #8060aa; }
         .sub-ping { width: 8px; height: 8px; border-radius: 50%; background: #9060ff; box-shadow: 0 0 8px rgba(144,96,255,.6); animation: ping 1.5s ease-in-out infinite; }
-        .sub-card { background: linear-gradient(145deg,#111128,#0d0d1e); border: 1px solid #2a2a48; border-radius: 14px; padding: 14px; margin-bottom: 10px; transition: all .2s; text-align: right; }
+        .sub-card { background: linear-gradient(145deg,#111128,#0d0d1e); border: 1px solid #2a2a48; border-radius: 14px; padding: 14px; margin-bottom: 10px; text-align: right; }
         .sub-card-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
         .sub-badge-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
         .sub-day-badge { background: linear-gradient(135deg,rgba(80,48,170,.3),rgba(60,30,140,.2)); border: 1px solid #5030aa; border-radius: 10px; padding: 5px 9px; text-align: center; }
@@ -350,25 +450,22 @@ export default function InstructorSchedule() {
         .sub-day-name { font-size: 9px; color: #7060aa; letter-spacing: 1px; }
         .sub-info { flex: 1; }
         .sub-school { font-size: 13px; font-weight: 500; color: #c0c0d8; margin-bottom: 3px; }
-        .sub-detail { font-size: 11px; color: #5a5a8a; line-height: 1.6; display: flex; align-items: center; gap: 4px; flex-direction: row-reverse; justify-content: flex-end; }
-        .sub-detail i { font-size: 12px; margin-left: 3px; }
-        .sub-bonus { font-size: 11px; color: #d0a030; font-weight: 500; margin-top: 3px; display: flex; align-items: center; gap: 4px; flex-direction: row-reverse; justify-content: flex-end; }
+        .sub-detail { display: flex; align-items: center; gap: 4px; flex-direction: row-reverse; justify-content: flex-end; font-size: 11px; color: #5a5a8a; }
+        .sub-bonus { display: flex; align-items: center; gap: 4px; flex-direction: row-reverse; justify-content: flex-end; font-size: 11px; color: #d0a030; font-weight: 500; }
         .sub-actions { display: flex; gap: 8px; }
-        .sub-yes { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid rgba(30,180,100,.4); background: rgba(30,180,100,.1); color: #20c070; font-family: 'Exo 2',sans-serif; font-size: 13px; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; }
-        .sub-yes:hover { border-color: #20c070; background: rgba(30,180,100,.18); }
-        .sub-no { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid rgba(160,40,30,.25); background: rgba(160,40,30,.07); color: #c04040; font-family: 'Exo 2',sans-serif; font-size: 13px; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
-        .sub-no:hover { border-color: rgba(160,40,30,.4); background: rgba(160,40,30,.12); }
-        .no-subs { padding: 20px; text-align: center; color: #3a3a5a; font-size: 13px; border: 1px dashed #1e1e38; border-radius: 12px; line-height: 1.6; }
+        .sub-yes { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid rgba(30,180,100,.4); background: rgba(30,180,100,.1); color: #20c070; font-family: 'Exo 2',sans-serif; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; }
+        .sub-no { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid rgba(160,40,30,.25); background: rgba(160,40,30,.07); color: #c04040; font-family: 'Exo 2',sans-serif; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .no-subs { padding: 20px; text-align: center; color: #3a3a5a; font-size: 13px; border: 1px dashed #1e1e38; border-radius: 12px; }
 
         .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg,#1a2a18,#102010); border: 1px solid #20a060; border-radius: 12px; padding: 9px 16px; color: #30d090; font-size: 12px; font-family: 'Exo 2',sans-serif; white-space: nowrap; z-index: 200; opacity: 0; pointer-events: none; transition: all .3s; display: flex; align-items: center; gap: 6px; direction: rtl; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
         .toast.show { opacity: 1; transform: translate(-50%, -50%); }
 
         .navbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 390px; max-width: 100%; background: #060610; border-top: 1px solid #14142a; padding: 9px 0 22px; display: flex; justify-content: space-around; align-items: center; z-index: 100; border-radius: 0 0 36px 36px; direction: rtl; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7); }
-        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 5px; border-radius: 9px; transition: all .15s; min-width: 40px; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 5px; border-radius: 9px; min-width: 40px; }
         .nav-item.active { background: rgba(80,48,170,.12); }
-        .nav-item i { font-size: 19px; color: #2e2e4e; transition: color .15s; }
+        .nav-item i { font-size: 19px; color: #2e2e4e; }
         .nav-item.active i { color: #8050ff; }
-        .nav-label { font-size: 9px; color: #2e2e4e; letter-spacing: .4px; transition: color .15s; }
+        .nav-label { font-size: 9px; color: #2e2e4e; }
         .nav-item.active .nav-label { color: #8050ff; }
         @keyframes liveWave { 0% { height: 2px; } 100% { height: 8px; } }
       `}</style>
@@ -381,54 +478,24 @@ export default function InstructorSchedule() {
           <div className="hg"></div><div className="hs"></div>
           <div className="hgl"></div><div className="hgr"></div>
           <div className="tc tl"></div><div className="tc tr"></div><div className="tc bl"></div><div className="tc br"></div>
-          <div className="dbars l">
-            <div className="dbar" style={{ width: '24px', opacity: .58 }}></div>
-            <div className="dbar" style={{ width: '16px', opacity: .38 }}></div>
-            <div className="dbar" style={{ width: '20px', opacity: .48 }}></div>
-            <div className="dbar" style={{ width: '13px', opacity: .3 }}></div>
-            <div className="dbar" style={{ width: '18px', opacity: .44 }}></div>
-          </div>
-          <div className="dbars r">
-            <div className="dbar" style={{ width: '18px', opacity: .44 }}></div>
-            <div className="dbar" style={{ width: '26px', opacity: .58 }}></div>
-            <div className="dbar" style={{ width: '14px', opacity: .34 }}></div>
-            <div className="dbar" style={{ width: '22px', opacity: .5 }}></div>
-            <div className="dbar" style={{ width: '11px', opacity: .28 }}></div>
-          </div>
-          <div className="hdot" style={{ top: '22px', left: '60px', background: 'rgba(80,120,255,.5)' }}></div>
-          <div className="hdot" style={{ top: '36px', right: '64px', background: 'rgba(120,60,255,.4)' }}></div>
-          <div className="hdot" style={{ bottom: '30px', left: '78px', background: 'rgba(60,100,255,.34)' }}></div>
-          <div className="hdot" style={{ bottom: '22px', right: '82px', background: 'rgba(100,60,220,.38)' }}></div>
           
           <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: .16 }} viewBox="0 0 390 190">
             <path d="M58 90 L108 90 L128 70 L165 70" stroke="#4060ff" strokeWidth="1" fill="none"/>
             <path d="M322 90 L272 90 L252 110 L215 110" stroke="#8040ff" strokeWidth="1" fill="none"/>
-            <circle cx="165" cy="70" r="2.5" fill="#4060ff" opacity=".8"/>
-            <circle cx="215" cy="110" r="2.5" fill="#8040ff" opacity=".8"/>
           </svg>
           
           <div className={`hero-radio-capsule ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
             <div className="capsule-left">
-              <div className="capsule-play-btn">
-                <i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i>
-              </div>
+              <div className="capsule-play-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i></div>
               <div className="capsule-text">HQ RADIO</div>
             </div>
-            <div className="capsule-wave">
-              <div className="capsule-wave-bar"></div>
-              <div className="capsule-wave-bar"></div>
-              <div className="capsule-wave-bar"></div>
-            </div>
+            <div className="capsule-wave"><div className="capsule-wave-bar"></div><div className="capsule-wave-bar"></div><div className="capsule-wave-bar"></div></div>
           </div>
 
           <div className="rw">
-            <div className="ro"></div><div className="rm"></div><div className="rm2"></div>
-            <div className="ric"></div><div className="rp"></div>
-            
-            <div className="cyber-dots-purple"></div>
-            <div className="cyber-dots-blue"></div>
-            
-            <img className="limg" src={aragonLogo} alt="Aragon Coin" />
+            <div className="ro"></div><div className="rm"></div><div className="rm2"></div><div className="ric"></div><div className="rp"></div>
+            <div className="cyber-dots-purple"></div><div className="cyber-dots-blue"></div>
+            <img className="limg" src={aragonLogo} alt="Aragon" />
           </div>
           <div className="page-label">SCHEDULE · לו"ז ובקשות מחליפים</div>
           <div className="hbot"></div>
@@ -436,7 +503,6 @@ export default function InstructorSchedule() {
 
         {/* SCROLL AREA */}
         <div className="scroll">
-          
           <div className="week-nav">
             <div className="week-lbl" id="weekLbl">
               שבוע {firstDayOfWeek.getDate()}–{lastDayOfWeek.getDate()} {monthsHe[firstDayOfWeek.getMonth()]} {firstDayOfWeek.getFullYear()}
@@ -447,11 +513,7 @@ export default function InstructorSchedule() {
             </div>
           </div>
 
-          <button 
-            className={`approve-week-btn ${isWeekApproved ? 'approved' : 'pending'}`} 
-            type="button"
-            onClick={handleApproveWeeklySchedule}
-          >
+          <button className={`approve-week-btn ${isWeekApproved ? 'approved' : 'pending'}`} type="button" onClick={handleApproveWeeklySchedule}>
             <i className={isWeekApproved ? "ti ti-circle-check" : "ti ti-alert-triangle"}></i>
             {isWeekApproved ? '✓ הלו"ז השבועי מאושר ומסונכרן' : 'לחץ כאן לאישור הלו"ז השבועי'}
           </button>
@@ -461,11 +523,7 @@ export default function InstructorSchedule() {
             {datesList.map((d, i) => {
               const isToday = (weekOffset === 0 && i === 0);
               return (
-                <div
-                  key={i}
-                  className={`dpill ${activeDay === i + 1 ? 'active' : ''} ${isToday ? 'today' : ''}`}
-                  onClick={() => setActiveDay(i + 1)}
-                >
+                <div key={i} className={`dpill ${activeDay === i + 1 ? 'active' : ''} ${isToday ? 'today' : ''}`} onClick={() => setActiveDay(i + 1)}>
                   {daysShort[i]} {d.getDate()}
                 </div>
               );
@@ -495,10 +553,15 @@ export default function InstructorSchedule() {
                   <div className="sday-slots">
                     {slots.map((s, idx) => {
                       const isApprovedSlot = s.status === 'green' || isWeekApproved;
+                      
+                      // 🟢 זיהוי סוגי הבלוקים למניעת רינדור שגוי של תגיות
+                      const isHelper = s.type === 'setup' || s.type === 'cleanup';
+                      const isTravel = s.type === 'travel';
+
                       return (
                         <div 
                           key={idx} 
-                          className={`slot ${s._sub ? 'sub' : `regular ${isApprovedSlot ? 'approved' : 'pending'}`}`}
+                          className={`slot type-${s.type} ${isTravel ? 'travel-block' : (isHelper ? 'helper-block' : `regular ${isApprovedSlot ? 'approved' : 'pending'}`)}`}
                         >
                           <div className="slot-dot"></div>
                           <div className="slot-time">{s.time}</div>
@@ -506,8 +569,10 @@ export default function InstructorSchedule() {
                             <div className="slot-name">{s.name}</div>
                             <div className="slot-meta">{s.school} · {s.city}</div>
                           </div>
+                          
+                          {/* 🟢 שיוך חכם של התגית הימנית לפי סוג הבלוק והגובה */}
                           <span className="slot-tag">
-                            {s._sub ? 'מחליף' : (isApprovedSlot ? 'מאושר' : 'ממתין')}
+                            {isTravel ? 'מעבר' : (isHelper ? 'עזר' : (isApprovedSlot ? 'מאושר' : 'ממתין'))}
                           </span>
                         </div>
                       );
@@ -539,9 +604,7 @@ export default function InstructorSchedule() {
                       </div>
                       <div className="sub-info">
                         <div className="sub-school">יום {s.dayName} | {s.school} {s.city}</div>
-                        <div className="sub-detail">
-                          <i className="ti ti-clock"></i>{s.time}
-                        </div>
+                        <div className="sub-detail"><i className="ti ti-clock"></i>{s.time}</div>
                         <div className="sub-bonus">✦ {s.bonus}</div>
                       </div>
                     </div>
