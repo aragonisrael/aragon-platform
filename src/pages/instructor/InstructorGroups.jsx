@@ -59,7 +59,7 @@ export default function InstructorGroups() {
         const colorPresets = ['green', 'blue', 'purple', 'amber'];
         const DAYS_MAP = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי'];
         
-        // 🟢 תיקון: הסרת ה-12 שעות הקבועות כדי לקרוא דקות אבסולוטיות ישירות מחצות
+        // תיקון: הסרת ה-12 שעות הקבועות כדי לקרוא דקות אבסולוטיות ישירות מחצות
         const minToHourStr = (m) => {
           const h = Math.floor(m / 60), mm = m % 60;
           return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
@@ -73,7 +73,7 @@ export default function InstructorGroups() {
           school: g.venue,
           city: g.city,
           day: DAYS_MAP[g.day] || 'ראשון',
-          // 🟢 תיקון: עדכון ערך ברירת המחדל האבסולוטי מ-240 ל-960 (השעה 16:00)
+          // תיקון: עדכון ערך ברירת המחדל האבסולוטי מ-240 ל-960 (השעה 16:00)
           time: `${minToHourStr(g.start_min || 960)}–${minToHourStr((g.start_min || 960) + (g.dur || 60))}`,
           grades: g.grades || "ד'",
           count: 0,
@@ -85,7 +85,7 @@ export default function InstructorGroups() {
           const groupIds = liveGroups.map(lg => lg.id);
           const { data: dbStudents } = await supabase
             .from('users')
-            .select('id, username, full_name, coins, group_id')
+            .select('id, username, password, full_name, coins, group_id') // 🟢 עדכון: הוספת ה-password לשליפה מסופאבייס
             .eq('role', 'student')
             .in('group_id', groupIds);
 
@@ -101,7 +101,8 @@ export default function InstructorGroups() {
                   name: st.full_name || st.username,
                   coins: st.coins || 0,
                   initials: initials,
-                  username: st.username
+                  username: st.username,
+                  password: st.password || '12345678' // 🟢 עדכון: מיפוי הסיסמה אל תוך הסטייט של התלמיד
                 });
               }
             });
@@ -287,10 +288,10 @@ export default function InstructorGroups() {
         .insert([{
           title: taskInputText.trim(),
           description: `נשלח ע"י המדריך ${instructorName || 'שלך'}`,
-          category: 'student_mission', // הגדרת חובה כדי שיופיע במסך המשימות של הילד
-          target_type: 'student',      // שיוך אישי חכם לפי שם מלא
+          category: 'student_mission', 
+          target_type: 'student',      
           target_name: selectedStudent.name,
-          reward: 1                    // ברירת מחדל של מטבע אחד לביצוע הקווסט האישי
+          reward: 1                    
         }]);
 
       if (error) {
@@ -364,7 +365,6 @@ export default function InstructorGroups() {
         
         .limg { width: 50px; height: 50px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 2px; box-shadow: 0 0 10px rgba(64,128,255,0.4); }
         .page-label { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; font-family: 'Orbitron',monospace; font-size: 11px; letter-spacing: 3px; color: #5060aa; }
-
         .hero-radio-capsule { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; align-items: center; justify-content: space-between; width: 115px; background: rgba(8, 8, 20, 0.6); border: 1px solid rgba(80, 100, 255, 0.2); border-radius: 20px; padding: 4px 10px; cursor: pointer; user-select: none; transition: all 0.2s ease; }
         .hero-radio-capsule:hover { border-color: rgba(80, 120, 255, 0.5); background: rgba(8, 8, 20, 0.85); }
         .hero-radio-capsule.playing { border-color: #18b090; background: rgba(5, 20, 16, 0.6); }
@@ -379,7 +379,6 @@ export default function InstructorGroups() {
 
         .content-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 95px; scrollbar-width: none; }
         .content-scroll::-webkit-scrollbar { display: none; }
-
         .search-wrap { padding: 12px 16px 8px; position: relative; direction: rtl; }
         .search-input { width: 100%; background: #0d0d1c; border: 1px solid #1e1e3a; border-radius: 12px; padding: 10px 14px 10px 38px; color: #c0c0d8; font-family: 'Exo 2', sans-serif; font-size: 13px; outline: none; transition: border-color .2s; text-align: right; }
         .search-input::placeholder { color: #3a3a5a; }
@@ -392,28 +391,23 @@ export default function InstructorGroups() {
         .group-card:hover { border-color: #3a2a6a; }
         .group-card.open { border-color: #4030aa; }
         .gc-header { padding: 13px 14px; display: flex; align-items: center; gap: 10px; }
-        
         .gc-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
         .gc-dot.green { background: #18c0a0; box-shadow: 0 0 6px rgba(24,192,160,.5); }
         .gc-dot.blue { background: #3080ff; box-shadow: 0 0 6px rgba(48,128,255,.5); }
         .gc-dot.purple { background: #8050ff; box-shadow: 0 0 6px rgba(128,80,240,.5); }
         .gc-dot.amber { background: #e09020; box-shadow: 0 0 6px rgba(224,144,32,.4); }
-        
         .gc-info { flex: 1; min-width: 0; text-align: right; }
         .gc-name { font-size: 13px; font-weight: 600; color: #d0c8f0; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .gc-meta { display: flex; flex-wrap: wrap; gap: 4px; flex-direction: row-reverse; }
         .gc-meta .gc-tag { font-size: 10px; color: #5a5a8a; background: rgba(255,255,255,.03); border: 1px solid #1e1e32; border-radius: 5px; padding: 2px 6px; white-space: nowrap; }
-        
         .gc-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
         .gc-count { font-family: 'Orbitron',monospace; font-size: 11px; color: #6040cc; background: rgba(96,64,204,.12); border: 1px solid rgba(96,64,204,.2); border-radius: 7px; padding: 3px 8px; white-space: nowrap; }
         .gc-arrow { font-size: 16px; color: #3a3a5a; transition: transform .25s,color .2s; }
         .group-card.open .gc-arrow { transform: rotate(180deg); color: #7050cc; }
 
         .students-list { border-top: 1px solid #1a1a30; padding: 8px 12px 10px; }
-        
         .bulk-create-trigger-btn { width: 100%; background: linear-gradient(135deg, rgba(64,128,255,0.1), rgba(128,64,255,0.05)); border: 1px dashed #5030aa; color: #c0b0ff; padding: 10px; border-radius: 10px; font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 12px; transition: all 0.2s; }
         .bulk-create-trigger-btn:hover { background: linear-gradient(135deg, rgba(64,128,255,0.2), rgba(128,64,255,0.12)); border-color: #8050ff; box-shadow: 0 0 10px rgba(128,80,255,0.25); }
-
         .student-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-radius: 9px; cursor: pointer; transition: background .15s; flex-direction: row-reverse; }
         .student-row:hover { background: rgba(96,64,204,.08); }
         .student-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg,#1a1040,#0e1a40); border: 1px solid #2a2a4a; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #8080cc; font-weight: 600; flex-shrink: 0; }
@@ -424,12 +418,10 @@ export default function InstructorGroups() {
 
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,10,.85); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity .25s; }
         .modal-overlay.open { opacity: 1; pointer-events: all; }
-        
         .modal-sheet { background: linear-gradient(180deg,#13132a,#0e0e1e); border: 1px solid #2a2a48; border-radius: 20px; width: 350px; max-width: 100%; padding: 24px 20px; transform: scale(0.85); transition: transform .25s cubic-bezier(0.175, 0.885, 0.32, 1.275); direction: rtl; box-shadow: 0 20px 60px rgba(0,0,0,0.7); }
         .modal-overlay.open .modal-sheet { transform: scale(1); }
         .modal-handle { display: none; } 
-        
-        .modal-student-name { font-family: 'Orbitron',monospace; font-size: 13px; color: #c0a0ff; letter-spacing: 1px; text-align: center; margin-bottom: 18px; }
+        .modal-student-name { font-family: 'Orbitron',monospace; font-size: 13px; color: #c0a0ff; letter-spacing: 1px; text-align: center; margin-bottom: 4px; }
         .modal-actions-row { display: flex; gap: 10px; margin-bottom: 0; }
 
         .btn-cancel { background: transparent; border: 1px solid #2a2a48; color: #6a6a9a; padding: 10px; border-radius: 9px; font-family: 'Exo 2', sans-serif; font-size: 13px; cursor: pointer; flex: 1; transition: all 0.2s; text-align: center; }
@@ -440,8 +432,6 @@ export default function InstructorGroups() {
         .results-scroll-pane { background: #05050f; border: 1px solid #1e1e35; border-radius: 12px; max-height: 220px; overflow-y: auto; padding: 8px; margin-top: 12px; }
         .result-user-row { display: flex; justify-content: space-between; padding: 6px 8px; border-bottom: 1px solid #141425; font-size: 12px; direction: ltr; }
         .result-user-name-he { color: #b0b0cc; font-family: 'Exo 2', sans-serif; direction: rtl; text-align: right; }
-        
-        /* 🟢 תיקון: שינוי פונט ל-Exo 2 הנקי והקריא, הדגשת הטקסט ומרווח אותיות נוח לקריאה מהירה */
         .result-user-credentials { color: #38bdf8; font-family: 'Exo 2', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; text-align: left; }
 
         .coins-panel { display: none; margin-top: 14px; }
@@ -686,6 +676,11 @@ export default function InstructorGroups() {
         <div className={`modal-overlay ${isModalOpen ? 'open' : ''}`} onClick={(e) => e.target.className === 'modal-overlay open' && handleCloseModal()}>
           <div className="modal-sheet">
             <div className="modal-student-name" id="modalStudentName">{selectedStudent?.name}</div>
+            
+            {/* 🟢 תיקון: הזרקת שורת פרטי גישה (שם משתמש + סיסמה) ישירות מתחת לשם התלמיד בפונט Exo 2 קריא */}
+            <div style={{ fontSize: '12px', color: '#38bdf8', fontFamily: 'Exo 2, sans-serif', fontWeight: '700', textAlign: 'center', marginBottom: '16px', letterSpacing: '0.5px', direction: 'ltr' }}>
+              u: {selectedStudent?.username} | p: {selectedStudent?.password || '12345678'}
+            </div>
             
             <div className="modal-actions-row">
               <button className={`modal-big-btn coins-trigger ${activePanel === 'coins' ? 'active' : ''}`} id="coinsBtn" type="button" onClick={() => handleTogglePanel('coins')}>
