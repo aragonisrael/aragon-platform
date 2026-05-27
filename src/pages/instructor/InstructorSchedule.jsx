@@ -6,6 +6,13 @@ import { supabase } from '../../supabaseClient';
 // מייבאים את הלוגו של אראגון לעיצוב העליון המשותף
 import aragonLogo from '../../assets/aragonlogo.png';
 
+const STATUSLABEL = {
+  green: 'אושר השבוע',
+  yellow: 'ממתין לאישור',
+  red: 'ללא מדריך',
+  turquoise: 'מעבר ונסיעה'
+};
+
 export default function InstructorSchedule() {
   const navigate = useNavigate();
 
@@ -70,7 +77,7 @@ export default function InstructorSchedule() {
           const allGreen = dbGroups.length > 0 && dbGroups.every(g => g.status === 'green');
           setIsWeekApproved(allGreen);
 
-          // 🟢 חישוב והזרקת בלוקי הקמה, פירוק ונסיעה לתוך הלו"ז של המדריך בדומה לאדמין
+          // חישוב והזרקת בלוקי הקמה, פירוק ונסיעה לתוך הלו"ז של המדריך
           for (let dayIdx = 0; dayIdx <= 5; dayIdx++) {
             const dayGroups = dbGroups
               .filter(g => Number(g.day) === dayIdx)
@@ -78,7 +85,6 @@ export default function InstructorSchedule() {
 
             if (dayGroups.length === 0) continue;
 
-            // חלוקת הקבוצות של אותו היום לפי מוקדים פיזיים (Venues)
             const sessions = [];
             let currentSession = {
               venue: dayGroups[0].venue,
@@ -106,9 +112,8 @@ export default function InstructorSchedule() {
 
             const dayTimelineBlocks = [];
 
-            // אופטימיזציה ורישום הבלוקים למטריצה הכרונולוגית
             computedSessions.forEach(sess => {
-              // א׳. בלוק התארגנות והקמה (15 דקות לפני) -> סוג: setup
+              // א׳. בלוק התארגנות והקמה (15 דקות לפני)
               dayTimelineBlocks.push({
                 startMin: sess.startMin - 15,
                 time: `${minToHourStr(sess.startMin - 15)}–${minToHourStr(sess.startMin)}`,
@@ -132,7 +137,7 @@ export default function InstructorSchedule() {
                 });
               });
 
-              // ג׳. בלוק פירוק כיתה (15 דקות אחרי) -> סוג: cleanup
+              // ג׳. בלוק פירוק כיתה (15 דקות אחרי)
               dayTimelineBlocks.push({
                 startMin: sess.endMin,
                 time: `${minToHourStr(sess.endMin)}–${minToHourStr(sess.endMin + 15)}`,
@@ -166,7 +171,6 @@ export default function InstructorSchedule() {
               }
             }
 
-            // סידור כרונולוגי סופי לכל היום
             dayTimelineBlocks.sort((a, b) => a.startMin - b.startMin);
             matrix[dayIdx] = dayTimelineBlocks;
           }
@@ -174,7 +178,6 @@ export default function InstructorSchedule() {
           setLiveSchedule(matrix);
         }
 
-        // 2. שליפת בקשות החלפה חיות
         const { data: dbSubs } = await supabase
           .from('admin_tasks')
           .select('*')
@@ -278,7 +281,7 @@ export default function InstructorSchedule() {
 
       if (!currentTaskCheck || currentTaskCheck.category !== 'sub_request') {
         alert("⚠️ בקשת ההחלפה הזו כבר אושרה על ידי מדריך אחר ברשת!");
-        await fetchLiveInstructorSchedule();
+        await fetchLiveScheduleData();
         return;
       }
 
@@ -350,7 +353,7 @@ export default function InstructorSchedule() {
         .dbars.r { right: 16px; }
         .dbar { height: 3px; border-radius: 2px; background: rgba(80,120,255,.27); }
         .hdot { position: absolute; width: 6px; height: 6px; border-radius: 50%; }
-        .rw { relative; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center; z-index: 4; }
+        .rw { position: relative; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center; z-index: 4; }
         .ro { position: absolute; inset: 0; border-radius: 50%; border: 2px dashed rgba(80,120,255,.2); animation: spin 14s linear infinite; }
         .rm { position: absolute; inset: 8px; border-radius: 50%; border: 1.5px solid transparent; border-top-color: #6040ff; border-right-color: #4080ff; animation: spin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,.4); }
         .rm2 { position: absolute; inset: 14px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #4060ff; animation: spin 7s linear infinite reverse; box-shadow: inset 0 0 10px rgba(64,128,255,.3); }
@@ -406,31 +409,34 @@ export default function InstructorSchedule() {
         
         .slot { border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; position: relative; overflow: hidden; flex-direction: row-reverse; transition: all 0.3s ease; }
         
-        /* ─── 🟢 מחלקות עיצוב ייעודיות ויחסי גבהים קשיחים לשלושת סוגי הבלוקים ─── */
+        /* ─── 🟢 חיווט קשיח ומוצלח של צבעי הרקע והגבהים לשלושת סוגי הבלוקים החדשים ─── */
         .slot.type-class { min-height: 54px; }
         
-        /* 1. בלוקי התארגנות ופירוק: בדיוק שליש גובה (Compact View) */
-        .slot.type-setup, .slot.type-cleanup { min-height: 24px; padding: 4px 12px; border-style: dashed; }
-        .slot.type-setup .slot-name, .slot.type-cleanup .slot-name { font-size: 11px; opacity: 0.8; font-weight: 500; }
-        .slot.type-setup .slot-meta, .slot.type-cleanup .slot-meta { display: none; } /* העלמת כפל טקסט לפי דרישה */
-        
-        /* 2. בלוקי מעברים ונסיעות: בדיוק שני שליש גובה בצבע טורקיז זוהר וממותג */
+        /* 1. חוג רגיל - לפי סטטוס אישור (ירוק/צהוב) */
+        .slot.type-class.is-pending { background: linear-gradient(135deg,rgba(224,144,32,.14),rgba(160,100,5,.08)); border: 1px solid rgba(224,144,32,.25); }
+        .slot.type-class.is-pending .slot-dot { background: #e09020; box-shadow: 0 0 6px rgba(224,144,32,.6); }
+        .slot.type-class.is-pending .slot-tag { background: rgba(224,144,32,.1); color: #e09020; border: 1px solid rgba(224,144,32,.18); }
+        .slot.type-class.is-approved { background: linear-gradient(135deg,rgba(24,192,160,.16),rgba(10,128,96,.1)); border: 1px solid rgba(24,192,160,.32); }
+        .slot.type-class.is-approved .slot-dot { background: #18c0a0; box-shadow: 0 0 6px rgba(24,192,160,.6); }
+        .slot.type-class.is-approved .slot-tag { background: rgba(24,192,160,.12); color: #18c0a0; border: 1px solid rgba(24,192,160,.2); }
+
+        /* 2. בלוקי עזר (הקמה ופירוק) - בדיוק שליש גובה (28px), מקווקו ונקי מטקסט כפול */
+        .slot.type-setup, .slot.type-cleanup { min-height: 28px; padding: 4px 12px; background: rgba(255,255,255,0.02); }
+        .slot.type-setup.is-pending, .slot.type-cleanup.is-pending { border: 1px dashed rgba(224,144,32,.35); }
+        .slot.type-setup.is-pending .slot-dot, .slot.type-cleanup.is-pending .slot-dot { background: #e09020; opacity: 0.6; }
+        .slot.type-setup.is-approved, .slot.type-cleanup.is-approved { border: 1px dashed rgba(24,192,160,.4); }
+        .slot.type-setup.is-approved .slot-dot, .slot.type-cleanup.is-approved .slot-dot { background: #18c0a0; opacity: 0.6; }
+        .slot.type-setup .slot-name, .slot.type-cleanup .slot-name { font-size: 11px; opacity: 0.75; font-weight: 500; color: #b0c0e8; }
+        .slot.type-setup .slot-tag, .slot.type-cleanup .slot-tag { background: rgba(255,255,255,0.03); color: #6a6a9a; border: 1px solid #1a1a30; }
+
+        /* 3. בלוק מעבר (נסיעה) - בדיוק שני שליש גובה (38px) בצבע טורקיז זוהר מרהיב */
         .slot.type-travel { min-height: 38px; padding: 6px 12px; background: linear-gradient(135deg, rgba(0, 206, 209, 0.12), rgba(0, 180, 185, 0.06)); border: 1px solid rgba(0, 206, 209, 0.35); }
         .slot.type-travel .slot-dot { background: #00ced1; box-shadow: 0 0 6px #00ced1; }
         .slot.type-travel .slot-name { color: #00ced1; font-weight: 700; font-size: 11.5px; }
         .slot.type-travel .slot-time { color: #00ced1; }
         .slot.type-travel .slot-tag { background: rgba(0, 206, 209, 0.12); color: #00ced1; border: 1px solid rgba(0, 206, 209, 0.2); }
-
-        .slot.regular.pending { background: linear-gradient(135deg,rgba(224,144,32,.14),rgba(160,100,5,.08)); border: 1px solid rgba(224,144,32,.25); }
-        .slot.regular.pending .slot-dot { background: #e09020; box-shadow: 0 0 6px rgba(224,144,32,.6); }
-        .slot.regular.pending .slot-tag { background: rgba(224,144,32,.1); color: #e09020; border: 1px solid rgba(224,144,32,.18); }
-        .slot.regular.approved { background: linear-gradient(135deg,rgba(24,192,160,.16),rgba(10,128,96,.1)); border: 1px solid rgba(24,192,160,.32); }
-        .slot.regular.approved .slot-dot { background: #18c0a0; box-shadow: 0 0 6px rgba(24,192,160,.6); }
-        .slot.regular.approved .slot-tag { background: rgba(24,192,160,.12); color: #18c0a0; border: 1px solid rgba(24,192,160,.2); }
         
         .slot-time { font-family: 'Orbitron',monospace; font-size: 10px; color: #8a9fc4; white-space: nowrap; flex-shrink: 0; }
-        .slot.regular.pending .slot-time { color: #f0b040; }
-        .slot.regular.approved .slot-time { color: #30c8a8; }
         .slot-info { flex: 1; min-width: 0; text-align: right; }
         .slot-name { font-size: 12px; color: #b0c0e8; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .slot-meta { font-size: 10px; color: #4a5a8a; margin-top: 1px; }
@@ -461,7 +467,7 @@ export default function InstructorSchedule() {
         .toast.show { opacity: 1; transform: translate(-50%, -50%); }
 
         .navbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 390px; max-width: 100%; background: #060610; border-top: 1px solid #14142a; padding: 9px 0 22px; display: flex; justify-content: space-around; align-items: center; z-index: 100; border-radius: 0 0 36px 36px; direction: rtl; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7); }
-        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 5px; border-radius: 9px; min-width: 40px; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 5px; border-radius: 9px; transition: all .15s; min-width: 40px; }
         .nav-item.active { background: rgba(80,48,170,.12); }
         .nav-item i { font-size: 19px; color: #2e2e4e; }
         .nav-item.active i { color: #8050ff; }
@@ -553,24 +559,22 @@ export default function InstructorSchedule() {
                   <div className="sday-slots">
                     {slots.map((s, idx) => {
                       const isApprovedSlot = s.status === 'green' || isWeekApproved;
-                      
-                      // 🟢 זיהוי סוגי הבלוקים למניעת רינדור שגוי של תגיות
                       const isHelper = s.type === 'setup' || s.type === 'cleanup';
                       const isTravel = s.type === 'travel';
 
                       return (
                         <div 
                           key={idx} 
-                          className={`slot type-${s.type} ${isTravel ? 'travel-block' : (isHelper ? 'helper-block' : `regular ${isApprovedSlot ? 'approved' : 'pending'}`)}`}
+                          className={`slot type-${s.type} status-${s.status} ${isApprovedSlot ? 'is-approved' : 'is-pending'}`}
                         >
                           <div className="slot-dot"></div>
                           <div className="slot-time">{s.time}</div>
                           <div className="slot-info">
                             <div className="slot-name">{s.name}</div>
-                            <div className="slot-meta">{s.school} · {s.city}</div>
+                            {/* הסרת כפל טקסט לפי דרישת מובייל נקייה — מטא דאטה מופיעה אך ורק בחוגים רגילים */}
+                            {!isHelper && !isTravel && <div className="slot-meta">{s.school} · {s.city}</div>}
                           </div>
                           
-                          {/* 🟢 שיוך חכם של התגית הימנית לפי סוג הבלוק והגובה */}
                           <span className="slot-tag">
                             {isTravel ? 'מעבר' : (isHelper ? 'עזר' : (isApprovedSlot ? 'מאושר' : 'ממתין'))}
                           </span>
