@@ -3,37 +3,50 @@ import { useNavigate } from 'react-router-dom';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
 
+// ייבוא הלוגואים הרשמיים לעולם הגרפי של ה-Canvas
+import aragonLogo from '../../assets/aragonlogo.png';
+import cybotLogo from '../../assets/cybotlogo.png';
+
 export default function StudentGame() {
   const navigate = useNavigate();
   const canvasRef = useRef(null);
 
-  // שם המשתמש הנוכחי שגולש באפליקציה
   const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'student1';
 
-  // State עבור ניהול מצבי המשחק ולוח התוצאות
+  // ניהול מצבי אפליקציה ולוחות מובילים
   const [gameState, setGameState] = useState('START'); // START | PLAYING | GAMEOVER
-  const [currentXpGained, setCurrentXpGained] = useState(0);
-  const [playerTotalXp, setPlayerTotalXp] = useState(0);
+  const [currentScore, setCurrentScore] = useState(0);
+  const [playerHighScore, setPlayerHighScore] = useState(0);
   const [leaderboard, setLeaderboard] = useState([]);
   const [stars, setStars] = useState([]);
+  const [isNewRecord, setIsNewRecord] = useState(false);
 
-  // משתני עזר ללוגיקת המשחק (נשמרים ב-Ref כדי למנוע stale closures בלולאת ה-canvas)
+  // מנוע המשחק המרכזי שמנוהל ב-Ref למניעת לאגים ברינדור
   const gameVars = useRef({
-    playerY: 140,
-    playerVelocity: 0,
-    isJumping: false,
+    playerY: 100,
+    targetY: 100,
+    lasers: [],
     obstacles: [],
     collectibles: [],
+    particles: [],
+    powerUpTimer: 0, // טיימר למצב ירי משולש
+    bgX: 0,
     frameId: null,
     score: 0,
-    speedModifier: 1,
+    speedModifier: 3,
+    shootCooldown: 0,
     gameActive: false
   });
 
-  // 1. משיכת ה-XP הנוכחי של התלמיד ולוח התוצאות הארצי מהענן
-  const fetchLeaderboardAndUserStats = async () => {
+  // טעינה מראש של תמונות הלוגו האמיתיות (Image Preloading)
+  const imagesRef = useRef({
+    aragon: new Image(),
+    cybot: new Image()
+  });
+
+  // שליפת השיא הנוכחי ולוח התוצאות הארצי בלייב
+  const fetchLeaderboardAndHighScore = async () => {
     try {
-      // שליפת הנתונים של השחקן הנוכחי
       const { data: userData } = await supabase
         .from('users')
         .select('xp')
@@ -41,10 +54,9 @@ export default function StudentGame() {
         .single();
       
       if (userData) {
-        setPlayerTotalXp(userData.xp || 0);
+        setPlayerHighScore(userData.xp || 0);
       }
 
-      // שליפת טופ 10 מובילי הרשת בלייב
       const { data: dbLeaderboard } = await supabase
         .from('users')
         .select('full_name, username, xp')
@@ -56,49 +68,64 @@ export default function StudentGame() {
         setLeaderboard(dbLeaderboard);
       }
     } catch (err) {
-      console.error("Error syncing leaderboard data:", err);
+      console.error("Error fetching live leaderboard:", err);
     }
   };
 
   useEffect(() => {
-    fetchLeaderboardAndUserStats();
+    fetchLeaderboardAndHighScore();
     
-    // יצירת רקע כוכבים דקורטיבי קבוע
-    const generatedStars = Array.from({ length: 30 }).map((_, i) => ({
-      id: i,
-      left: `${Math.random() * 100}%`,
-      top: `${Math.random() * 100}%`,
-      size: `${Math.random() * 2 + 0.5}px`,
-      duration: `${Math.random() * 2 + 1}s`
+    // השמת מקורות לתמונות הלוגו
+    imagesRef.current.aragon.src = aragonLogo;
+    imagesRef.current.cybot.src = cybotLogo;
+
+    // יצירת רקע כוכבים אסתטי
+    const generatedStars = Array.from({ length: 35 }).map((_, i) => ({
+      id: i, left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, size: `${Math.random() * 2 + 0.5}px`, duration: `${Math.random() * 2 + 1}s`
     }));
     setStars(generatedStars);
 
     return () => cancelAnimationFrame(gameVars.current.frameId);
   }, []);
 
-  // 2. פונקציית הקפיצה של החללית (מיועדת למקלדת או לטאפ במסך הנייד)
-  const handleJump = () => {
+  // עקיבה מובנית ואופטימלית אחרי תנועת העכבר או האצבע של החניך
+  const handleMouseMove = (e) => {
     if (gameState !== 'PLAYING') return;
-    if (!gameVars.current.isJumping) {
-      gameVars.current.playerVelocity = -9.5; // עוצמת הזינוק למעלה
-      gameVars.current.isJumping = true;
-    }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const relativeY = e.clientY - rect.top;
+    // חסימת גבולות עליונים ותחתונים כדי שהחללית לא תצא מהמסך
+    gameVars.current.targetY = Math.max(15, Math.min(canvas.height - 35, relativeY));
   };
 
-  // 3. מנוע הלולאה המרכזי של המשחק (Game Loop Engine)
-  const startGameLoop = () => {
+  const handleTouchMove = (e) => {
+    if (gameState !== 'PLAYING' || e.touches.length === 0) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const relativeY = e.touches[0].clientY - rect.top;
+    gameVars.current.targetY = Math.max(15, Math.min(canvas.height - 35, relativeY));
+  };
+
+  // מנוע הלוּפ הראשי של הארקייד (Active Game Loop)
+  const startArcadeGame = () => {
     setGameState('PLAYING');
+    setIsNewRecord(false);
     
-    // איפוס משתני ריצה
     gameVars.current = {
-      playerY: 140,
-      playerVelocity: 0,
-      isJumping: false,
-      obstacles: [{ x: 400, width: 15, height: 25, type: 'bug' }],
-      collectibles: [{ x: 550, y: 100, type: 'aragon' }],
+      playerY: 100,
+      targetY: 100,
+      lasers: [],
+      obstacles: [],
+      collectibles: [],
+      particles: [],
+      powerUpTimer: 0,
+      bgX: 0,
       frameId: null,
       score: 0,
-      speedModifier: 3,
+      speedModifier: 3.5,
+      shootCooldown: 0,
       gameActive: true
     };
 
@@ -106,178 +133,232 @@ export default function StudentGame() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    const updateAndDraw = () => {
+    const renderFrame = () => {
       if (!gameVars.current.gameActive) return;
 
-      // ניקוי המסך והכנה לפריים הבא
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // א) קידום נקודות הזמן והמהירות של המסלול
-      gameVars.current.score += 0.1; // נקודות זמן פאסיביות
-      gameVars.current.speedModifier += 0.0005; // הגברת קושי הדרגתית
-
-      // ב) לוגיקת הפיזיקה של השחקן (חללית אראגון)
-      gameVars.current.playerVelocity += 0.45; // כוח כבידה (Gravity)
-      gameVars.current.playerY += gameVars.current.playerVelocity;
-
-      // חסימת רצפת מסלול השרת
-      if (gameVars.current.playerY >= 140) {
-        gameVars.current.playerY = 140;
-        gameVars.current.playerVelocity = 0;
-        gameVars.current.isJumping = false;
+      // א) פריסת רקע נע דינמי (Parallax Cyber Grid Overlay)
+      gameVars.current.bgX -= 0.6;
+      if (gameVars.current.bgX <= -40) gameVars.current.bgX = 0;
+      ctx.strokeStyle = 'rgba(124, 58, 237, 0.06)';
+      ctx.lineWidth = 1;
+      for (let x = gameVars.current.bgX; x < canvas.width; x += 40) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
       }
 
-      // ציור החללית הווקטורית המוארת של אראגון
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = '#00c8ff';
-      ctx.fillStyle = '#1e6fff';
+      // ב) תנועה חלקה (Interpolation) של החללית לעבר יעד האצבע
+      gameVars.current.playerY += (gameVars.current.targetY - gameVars.current.playerY) * 0.14;
+
+      // ציור החללית הווקטורית המוארת
+      ctx.shadowBlur = 12; ctx.shadowColor = '#00c8ff'; ctx.fillStyle = '#1e6fff';
       ctx.beginPath();
-      ctx.moveTo(35, gameVars.current.playerY);
+      ctx.moveTo(40, gameVars.current.playerY + 12);
+      ctx.lineTo(15, gameVars.current.playerY);
+      ctx.lineTo(22, gameVars.current.playerY + 12);
       ctx.lineTo(15, gameVars.current.playerY + 24);
-      ctx.lineTo(45, gameVars.current.playerY + 24);
-      ctx.closePath();
-      ctx.fill();
+      ctx.closePath(); ctx.fill();
 
-      // ציור קו האש האחורי של חללית המטריקס
-      ctx.fillStyle = '#00c8ff';
-      ctx.fillRect(15, gameVars.current.playerY + 25, 30, 2);
-
-      // ג) ניהול ויצירת מכשולים דינמיים (באגים ווירוסים)
-      if (Math.random() < 0.015 && gameVars.current.obstacles.length < 3) {
-        const lastObstacle = gameVars.current.obstacles[gameVars.current.obstacles.length - 1];
-        if (!lastObstacle || lastObstacle.x < 240) {
-          gameVars.current.obstacles.push({
-            x: 400,
-            width: Math.random() * 12 + 12,
-            height: Math.random() * 15 + 20,
-            type: Math.random() > 0.35 ? 'bug' : 'virus'
-          });
-        }
+      // אם התלמיד טעון בכוח מיוחד – ציור הילה מנצנצת סביב החללית
+      if (gameVars.current.powerUpTimer > 0) {
+        gameVars.current.powerUpTimer--;
+        ctx.strokeStyle = '#00e676'; ctx.lineWidth = 1.5; ctx.shadowColor = '#00e676';
+        ctx.beginPath(); ctx.arc(26, gameVars.current.playerY + 12, 18, 0, Math.PI * 2); ctx.stroke();
       }
 
-      // ריצה וציור של המכשולים באדום סייבר
-      gameVars.current.obstacles.forEach((obs, idx) => {
-        obs.x -= gameVars.current.speedModifier;
-        
-        ctx.shadowColor = '#ff2a2a';
-        ctx.fillStyle = obs.type === 'virus' ? '#ff5555' : '#cc1111';
-        ctx.fillRect(obs.x, 165 - obs.height, obs.width, obs.height);
-
-        // בדיקת התנגשות (Collision Detection)
-        if (obs.x < 45 && obs.x + obs.width > 20 && gameVars.current.playerY + 24 > 165 - obs.height) {
-          handleGameOver();
+      // ג) מנגנון ירי לייזרים אוטומטי (Auto-Fire Weapon System)
+      if (gameVars.current.shootCooldown <= 0) {
+        if (gameVars.current.powerUpTimer > 0) {
+          // מצב משודרג: ירי לייזר משולש (Triple Shot Matrix)
+          gameVars.current.lasers.push({ x: 42, y: gameVars.current.playerY + 12, vy: 0 });
+          gameVars.current.lasers.push({ x: 40, y: gameVars.current.playerY + 4, vy: -1.2 });
+          gameVars.current.lasers.push({ x: 40, y: gameVars.current.playerY + 20, vy: 1.2 });
+          gameVars.current.shootCooldown = 12; // ירי מהיר יותר
+        } else {
+          // מצב רגיל: לייזר בודד במרכז
+          gameVars.current.lasers.push({ x: 42, y: gameVars.current.playerY + 12, vy: 0 });
+          gameVars.current.shootCooldown = 18;
         }
+      } else {
+        gameVars.current.shootCooldown--;
+      }
+
+      // עדכון וציור קליעי הלייזר על המסך
+      ctx.shadowColor = gameVars.current.powerUpTimer > 0 ? '#00e676' : '#00c8ff';
+      ctx.fillStyle = gameVars.current.powerUpTimer > 0 ? '#00e676' : '#00c8ff';
+      gameVars.current.lasers.forEach(laser => {
+        laser.x += 6.5;
+        laser.y += laser.vy;
+        ctx.fillRect(laser.x, laser.y - 1.5, 10, 3);
       });
-      // ניקוי מכשולים שיצאו מהמסך
-      gameVars.current.obstacles = gameVars.current.obstacles.filter(o => o.x > -30);
+      gameVars.current.lasers = gameVars.current.lasers.filter(l => l.x < canvas.width);
 
-      // ד) ניהול חפצי האיסוף הממותגים (Power-ups)
-      if (Math.random() < 0.01 && gameVars.current.collectibles.length < 2) {
-        const lastColl = gameVars.current.collectibles[gameVars.current.collectibles.length - 1];
-        if (!lastColl || lastColl.x < 260) {
-          gameVars.current.collectibles.push({
-            x: 400,
-            y: Math.random() * 60 + 50,
-            type: Math.random() > 0.25 ? 'aragon' : 'cybot',
-            pulse: 0
-          });
-        }
+      // ד) יצירה וניהול של וירוסים ובאגים (Enemy Matrix)
+      gameVars.current.speedModifier += 0.0004; // עליית קושי הדרגתית
+      if (Math.random() < 0.022 && gameVars.current.obstacles.length < 4) {
+        gameVars.current.obstacles.push({
+          x: canvas.width + 20,
+          y: Math.random() * (canvas.height - 40) + 20,
+          size: Math.random() * 8 + 12,
+          speed: Math.random() * 1.2 + gameVars.current.speedModifier,
+          pulse: 0
+        });
       }
 
-      // הזזה וציור חפצי האיסוף על ה-Canvas
+      // ריצה על האויבים ובדיקת פגיעות
+      gameVars.current.obstacles.forEach((obs, oIdx) => {
+        obs.x -= obs.speed;
+        obs.pulse += 0.15;
+        const currentPulseSize = Math.sin(obs.pulse) * 2;
+
+        // ציור הוירוס האדום והאימתני
+        ctx.shadowColor = '#ff2a2a'; ctx.fillStyle = '#ff3b30';
+        ctx.beginPath();
+        ctx.arc(obs.x, obs.y, (obs.size / 2) + currentPulseSize, 0, Math.PI * 2);
+        ctx.fill();
+        // ציור "קרניים" קטנות של וירוס מחשבים
+        ctx.lineWidth = 2; ctx.strokeStyle = '#ff2a2a';
+        ctx.beginPath(); ctx.moveTo(obs.x - 10, obs.y); ctx.lineTo(obs.x + 10, obs.y); ctx.moveTo(obs.x, obs.y - 10); ctx.lineTo(obs.x, obs.y + 10); ctx.stroke();
+
+        // 💥 התנגשות 1: חללית פוגעת בוירוס -> סיום משחק מיידי
+        const distToPlayer = Math.hypot(obs.x - 26, obs.y - (gameVars.current.playerY + 12));
+        if (distToPlayer < (obs.size / 2) + 12) {
+          triggerGameTermination();
+        }
+
+        // 💥 התנגשות 2: לייזר פוגע בוירוס -> השמדה ואפקט פיצוץ!
+        gameVars.current.lasers.forEach((laser, lIdx) => {
+          const distToLaser = Math.hypot(obs.x - laser.x, obs.y - laser.y);
+          if (distToLaser < (obs.size / 2) + 4) {
+            // יצירת חלקיקי פיצוץ זוהרים (Particle Burst Effect)
+            for (let p = 0; p < 8; p++) {
+              gameVars.current.particles.push({
+                x: obs.x, y: obs.y,
+                vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
+                alpha: 1, color: '#ff3b30'
+              });
+            }
+            // זיכוי נקודות בונוס
+            gameVars.current.score += 15;
+            obs.destroyed = true;
+            laser.x = canvas.width + 100; // העלמת הלייזר
+          }
+        });
+      });
+      gameVars.current.obstacles = gameVars.current.obstacles.filter(o => !o.destroyed && o.x > -30);
+
+      // ה) ניהול והזרקת לוגואים של החברה למסך (Collectibles & Power-Ups)
+      if (Math.random() < 0.008 && gameVars.current.collectibles.length < 1) {
+        gameVars.current.collectibles.push({
+          x: canvas.width + 20,
+          y: Math.random() * (canvas.height - 50) + 25,
+          type: Math.random() > 0.35 ? 'aragon' : 'cybot', // חלוקת נדירות
+          size: 24
+        });
+      }
+
+      // תנועה וציור של הלוגואים המקוריים
       gameVars.current.collectibles.forEach((coll) => {
-        coll.x -= (gameVars.current.speedModifier - 0.5);
-        coll.pulse += 0.1;
-        const pulseSize = Math.sin(coll.pulse) * 2;
+        coll.x -= 2.2;
 
         if (coll.type === 'aragon') {
-          // ציור אסימון הכוח הממותג של אראגון (עיגול סגול זוהר)
-          ctx.shadowColor = '#8050ff';
-          ctx.fillStyle = '#8050ff';
-          ctx.beginPath();
-          ctx.arc(coll.x, coll.y, 9 + pulseSize, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 9px monospace';
-          ctx.fillText('A', coll.x - 3, coll.y + 3);
+          // ציור הלוגו העגול של אראגון
+          ctx.shadowColor = '#00c8ff';
+          try {
+            ctx.drawImage(imagesRef.current.aragon, coll.x - 12, coll.y - 12, 24, 24);
+          } catch(e) {
+            // גיבוי במידה והתמונה לא נטענה פיזית
+            ctx.fillStyle = '#8050ff'; ctx.beginPath(); ctx.arc(coll.x, coll.y, 11, 0, Math.PI * 2); ctx.fill();
+          }
         } else {
-          // ציור בובת האספנות של הסייבוט הרובוט (ריבוע ירוק מואר)
+          // ציור הלוגו הרשמי של הסייבוט הרובוט
           ctx.shadowColor = '#00e676';
-          ctx.fillStyle = '#00e676';
-          ctx.fillRect(coll.x - 9, coll.y - 9, 18, 18);
-          // אנטנה קטנה למעלה
-          ctx.fillRect(coll.x - 1, coll.y - 14, 2, 5);
-          ctx.fillStyle = '#041a08';
-          ctx.font = '7px monospace';
-          ctx.fillText('🤖', coll.x - 5, coll.y + 3);
+          try {
+            ctx.drawImage(imagesRef.current.cybot, coll.x - 13, coll.y - 13, 26, 26);
+          } catch(e) {
+            ctx.fillStyle = '#00e676'; ctx.fillRect(coll.x - 11, coll.y - 11, 22, 22);
+          }
         }
 
-        // בדיקת איסוף מוצלח על ידי החללית
-        const dist = Math.hypot(coll.x - 30, coll.y - (gameVars.current.playerY + 12));
-        if (dist < 26) {
-          // זיכוי ב-XP לפי סוג החפץ שנאסף
-          const xpBonus = coll.type === 'aragon' ? 20 : 50;
-          gameVars.current.score += xpBonus;
+        // ✨ איסוף מוצלח של לוגו: קבלת XP גבוה + הפעלת מטח ירי משולש!
+        const distToPlayer = Math.hypot(coll.x - 26, coll.y - (gameVars.current.playerY + 12));
+        if (distToPlayer < 24) {
           coll.collected = true;
-          
-          // אפקט הבזק לבן קטן על המסך
-          ctx.fillStyle = 'rgba(255,255,255,0.3)';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          const bonusXp = coll.type === 'aragon' ? 50 : 120; // הסייבוט שווה המון נקודות!
+          gameVars.current.score += bonusXp;
+          gameVars.current.powerUpTimer = coll.type === 'aragon' ? 180 : 320; // משך זמן האפקט בפריימים
+
+          // יצירת אפקט חלקיקים חגיגי בצבע הלוגו שנאסף
+          const pColor = coll.type === 'aragon' ? '#00c8ff' : '#00e676';
+          for (let p = 0; p < 12; p++) {
+            gameVars.current.particles.push({
+              x: coll.x, y: coll.y,
+              vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5,
+              alpha: 1, color: pColor
+            });
+          }
         }
       });
       gameVars.current.collectibles = gameVars.current.collectibles.filter(c => !c.collected && c.x > -30);
 
-      // ה) ציור רצפת המערכת (Server Grid Floor)
-      ctx.shadowBlur = 5;
-      ctx.shadowColor = '#1e3250';
-      ctx.strokeStyle = '#1e3250';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, 165);
-      ctx.lineTo(400, 165);
-      ctx.stroke();
+      // ו) רינדור וציור של כל החלקיקים הדינמיים (Particle Engine System)
+      gameVars.current.particles.forEach((p) => {
+        p.x += p.vx; p.y += p.vy; p.alpha -= 0.025;
+        if (p.alpha > 0) {
+          ctx.shadowBlur = 4; ctx.shadowColor = p.color;
+          ctx.fillStyle = p.color; ctx.globalAlpha = p.alpha;
+          ctx.fillRect(p.x, p.y, 3, 3);
+        }
+      });
+      ctx.globalAlpha = 1.0; // איפוס השקיפות הכללית של הקנבס
+      gameVars.current.particles = gameVars.current.particles.filter(p => p.alpha > 0);
 
-      // ו) תצוגת מד ה-XP הנוכחי בצד של מסך הריצה
-      setCurrentXpGained(Math.floor(gameVars.current.score));
+      // ז) עדכון הציון החי בחלונית הטקסט של React
+      setCurrentScore(Math.floor(gameVars.current.score));
 
-      // זימון הפריים הבא בריצה רציפה
-      gameVars.current.frameId = requestAnimationFrame(updateAndDraw);
+      gameVars.current.frameId = requestAnimationFrame(renderFrame);
     };
 
-    gameVars.current.frameId = requestAnimationFrame(updateAndDraw);
+    gameVars.current.frameId = requestAnimationFrame(renderFrame);
   };
 
-  // 4. סיום משחק ועדכון מאובטח של ה-XP ישירות לתוך השרת בענן
-  const handleGameOver = async () => {
+  // 4. סיום המשחק ובדיקת התנאי: עדכון ה-XP אך ורק במידה והשחקן שבר את שיאו האישי!
+  const triggerGameTermination = async () => {
     gameVars.current.gameActive = false;
     cancelAnimationFrame(gameVars.current.frameId);
     setGameState('GAMEOVER');
 
-    const totalEarnedInRun = Math.floor(gameVars.current.score);
-    if (totalEarnedInRun <= 0) return;
+    const scoreAchieved = Math.floor(gameVars.current.score);
+    if (scoreAchieved <= 0) return;
 
     try {
-      // שליפת הנתונים הנוכחיים מהשרת לצורך חישוב בטוח של המאזן החדש
-      const { data: currentStats } = await supabase
+      // א) שליפת ה-XP הנוכחי השמור בבסיס הנתונים (השיא הישן)
+      const { data: serverStats } = await supabase
         .from('users')
         .select('xp')
         .eq('username', loggedUser)
         .single();
 
-      const existingXp = currentStats ? (currentStats.xp || 0) : 0;
-      const calculatedNewXpTotal = Number(existingXp) + totalEarnedInRun;
+      const previousRecord = serverStats ? (serverStats.xp || 0) : 0;
 
-      // עדכון השרת הארצי בריאל-טיים
-      await supabase
-        .from('users')
-        .update({ xp: calculatedNewXpTotal })
-        .eq('username', loggedUser);
+      // ב) בדיקת התנאי שביקשת: עדכון אך ורק אם בוצע שבר של השיא!
+      if (scoreAchieved > previousRecord) {
+        setIsNewRecord(true);
+        setPlayerHighScore(scoreAchieved);
 
-      // רענון מיידי של טבלת השיאים הארצית לסינכרון מלא
-      await fetchLeaderboardAndUserStats();
+        // עדכון מאובטח של הענן בערך השיא החדש
+        await supabase
+          .from('users')
+          .update({ xp: scoreAchieved })
+          .eq('username', loggedUser);
 
+        // רענון מיידי של הלוח המובילים הארצי
+        await fetchLeaderboardAndHighScore();
+      } else {
+        setIsNewRecord(false); // הציון לא עבר את השיא הקודם, נשמר הערך הישן
+      }
     } catch (err) {
-      console.error("Critical error saving score to Supabase session:", err);
+      console.error("Critical error auditing user record score:", err);
     }
   };
 
@@ -289,40 +370,34 @@ export default function StudentGame() {
         .game-main-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #050a14; width: 100%; }
         .app { width: 380px; background: #05010f; font-family: 'Orbitron', sans-serif; position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 24px; min-height: 740px; box-shadow: 0 0 60px rgba(124,58,237,.25); padding: 16px 14px 20px; }
         
-        /* רקע כוכבים ורשת סייבר */
         .stars { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
         .star { position: absolute; border-radius: 50%; background: white; animation: hqPulse var(--d) ease-in-out infinite alternate; opacity: 0.3; }
         @keyframes hqPulse { from{opacity:0.1} to{opacity:0.6} }
         
-        /* מסגרת מסך המשחק הגרפי */
-        .game-screen-wrapper { position: relative; width: 100%; height: 180px; background: #020208; border: 1.5px solid rgba(124,58,237,0.4); border-radius: 16px; overflow: hidden; margin-bottom: 16px; cursor: pointer; box-shadow: inset 0 0 20px rgba(0,0,0,0.9); }
+        .game-screen-wrapper { position: relative; width: 100%; height: 210px; background: #010105; border: 1.5px solid rgba(0,200,255,0.4); border-radius: 16px; overflow: hidden; margin-bottom: 16px; cursor: none; box-shadow: inset 0 0 25px rgba(0,0,0,0.95); }
         .canvas-element { width: 100%; height: 100%; display: block; }
         
-        /* מסכי פתיחה וסיום צפים על המשחק */
-        .screen-overlay { position: absolute; inset: 0; background: rgba(5, 1, 15, 0.88); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 12px; z-index: 10; }
-        .game-title { font-size: 15px; font-weight: 900; background: linear-gradient(135deg, #00c8ff, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 2px; margin-bottom: 4px; }
-        .game-subtitle { font-size: 8.5px; color: rgba(167,139,250,0.6); letter-spacing: 1px; margin-bottom: 14px; line-height: 1.4; }
+        .screen-overlay { position: absolute; inset: 0; background: rgba(4, 2, 12, 0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 14px; z-index: 10; cursor: default; }
+        .game-title { font-size: 16px; font-weight: 900; background: linear-gradient(135deg, #00c8ff, #00e676); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 2px; margin-bottom: 4px; }
+        .game-subtitle { font-size: 8.5px; color: rgba(167,139,250,0.6); letter-spacing: 1px; margin-bottom: 16px; line-height: 1.5; }
         
-        .game-btn { background: linear-gradient(135deg, #7c3aed, #4f46e5); border: 1px solid rgba(167,139,250,0.5); padding: 8px 22px; border-radius: 10px; color: #ffffff; font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 15px rgba(124,58,237,0.4); }
-        .game-btn:hover { transform: scale(1.05); box-shadow: 0 0 22px rgba(124,58,237,0.7); }
+        .game-btn { background: linear-gradient(135deg, #00c8ff, #4f46e5); border: 1px solid rgba(0,200,255,0.4); padding: 9px 24px; border-radius: 10px; color: #ffffff; font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 15px rgba(0,200,255,0.3); }
+        .game-btn:hover { transform: scale(1.04); box-shadow: 0 0 22px rgba(0,200,255,0.6); }
         
-        /* תצוגת פאנל הציון בלייב */
-        .live-score-badge { display: flex; justify-content: space-between; align-items: center; background: rgba(124,58,237,0.08); border: 1px solid rgba(124,58,237,0.25); border-radius: 12px; padding: 8px 14px; margin-bottom: 16px; direction: rtl; }
-        .sb-lbl { font-size: 9px; color: rgba(167,139,250,0.6); letter-spacing: 1px; }
-        .sb-val { font-size: 14px; font-weight: 900; color: #fbbf24; text-shadow: 0 0 8px rgba(251,191,36,0.3); }
+        .live-score-badge { display: flex; justify-content: space-between; align-items: center; background: rgba(0,200,255,0.04); border: 1px solid rgba(0,200,255,0.2); border-radius: 12px; padding: 8px 14px; margin-bottom: 16px; direction: rtl; }
+        .sb-lbl { font-size: 9px; color: rgba(167,139,250,0.55); letter-spacing: 1px; }
+        .sb-val { font-size: 14px; font-weight: 900; color: #00c8ff; }
 
-        /* לוח השיאים החודשי של אראגון */
         .leaderboard-title-divider { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; direction: rtl; }
         .ld-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(124,58,237,0.4)); }
         .ld-text { font-size: 9.5px; font-weight: 700; color: #a78bfa; letter-spacing: 1.5px; white-space: nowrap; }
         
         .leaderboard-container { flex: 1; overflow-y: auto; background: rgba(10, 5, 28, 0.6); border: 1px solid rgba(124,58,237,0.15); border-radius: 14px; padding: 6px; display: flex; flex-direction: column; gap: 5px; direction: rtl; }
-        .leaderboard-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,0.02); border: 1px solid transparent; transition: background 0.2s; }
-        .leaderboard-row:hover { background: rgba(124,58,237,0.05); }
+        .leaderboard-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,0.02); border: 1px solid transparent; }
         .leaderboard-row.is-me { background: rgba(251,191,36,0.06); border-color: rgba(251,191,36,0.25); }
         
         .rank-name-box { display: flex; align-items: center; gap: 8px; }
-        .rank-num { font-size: 11px; font-weight: 900; color: rgba(167,139,250,0.5); width: 16px; text-align: center; }
+        .rank-num { font-size: 11px; font-weight: 900; color: rgba(167,139,250,0.4); width: 16px; text-align: center; }
         .leaderboard-row:nth-child(1) .rank-num { color: #fbbf24; font-size: 13px; }
         .leaderboard-row:nth-child(2) .rank-num { color: #cbd5e1; font-size: 12px; }
         .leaderboard-row:nth-child(3) .rank-num { color: #b45309; font-size: 11.5px; }
@@ -332,65 +407,74 @@ export default function StudentGame() {
         .player-xp-score { font-family: monospace; font-size: 12px; font-weight: 700; color: #a78bfa; }
         .leaderboard-row.is-me .player-xp-score { color: #fbbf24; }
 
-        /* כפתור חזרה מהיר לפרופיל */
-        .back-to-profile-btn { margin-top: 12px; width: 100%; padding: 10px; background: transparent; border: 1px solid rgba(124,58,237,0.2); border-radius: 12px; color: rgba(167,139,250,0.6); font-family: 'Orbitron',sans-serif; font-size: 10px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .back-to-profile-btn { margin-top: 12px; width: 100%; padding: 10px; background: transparent; border: 1px solid rgba(124,58,237,0.2); border-radius: 12px; color: rgba(167,139,250,0.6); font-family: 'Orbitron',sans-serif; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
         .back-to-profile-btn:hover { background: rgba(124,58,237,0.05); color: #a78bfa; border-color: rgba(124,58,237,0.4); }
       `}</style>
 
       <div className="app" id="matrixGameApp">
-        {/* Render Floating Stars */}
+        {/* כוכבי רקע זזים */}
         <div className="stars">
           {stars.map(s => (
             <div key={s.id} className="star" style={{ width: s.size, height: s.size, left: s.left, top: s.top, '--d': s.duration }} />
           ))}
         </div>
 
-        {/* INTERACTIVE GRAPHIC CANVAS GAME ENGINE */}
-        <div className="game-screen-wrapper" onClick={handleJump}>
-          <canvas className="canvas-element" ref={canvasRef} width="400" height="180" />
+        {/* חלונית ה-CANVAS הגרפית */}
+        <div 
+          className="game-screen-wrapper" 
+          onMouseMove={handleMouseMove}
+          onTouchMove={handleTouchMove}
+        >
+          <canvas className="canvas-element" ref={canvasRef} width="400" height="210" />
 
-          {/* START SCREEN OVERLAY */}
+          {/* מסך פתיחה */}
           {gameState === 'START' && (
             <div className="screen-overlay">
-              <div className="game-title">MATRIX RUNNER</div>
-              <div className="game-subtitle">התחמק מוירוסים ובאגים קטלניים<br />ואסוף סמלי אראגון כדי לצבור XP לטבלה החודשית!</div>
-              <button className="game-btn" type="button" onClick={startGameLoop}>שגר חללית ⚡</button>
+              <div className="game-title">CYBER SHIELD: ACTIVE DEFENSE</div>
+              <div className="game-subtitle">הזז את החללית למעלה/למטה כדי לכוון ולהשמיד וירוסים!<br />אסוף לוגואים של <span style={{color:'#00c8ff'}}>אראגון</span> ו<span style={{color:'#00e676'}}>סייבוט</span> להפעלת ירי לייזר משולש!</div>
+              <button className="game-btn" type="button" onClick={startArcadeGame}>הפעל הגנת מערכת 🚀</button>
             </div>
           )}
 
-          {/* GAME OVER FEEDBACK OVERLAY */}
+          {/* מסך סיום מבוסס שיא אישי */}
           {gameState === 'GAMEOVER' && (
             <div className="screen-overlay">
-              <div className="game-title" style={{ color: '#f87171', textShadow: '0 0 10px rgba(248,113,113,0.4)' }}>GAME OVER</div>
-              <div className="game-subtitle" style={{ marginBottom: '10px' }}>
-                הסייבר חללית קרסה בגלל באג בשרת!<br />
-                צברת בריצה זו: <span style={{ color: '#4ade80', fontWeight: 'bold' }}>+{currentXpGained} XP</span>
-              </div>
-              <button className="game-btn" type="button" onClick={startGameLoop}>נסה שוב 🔄</button>
+              {isNewRecord ? (
+                <>
+                  <div className="game-title" style={{ color: '#00e676', textShadow: '0 0 12px #00e676' }}>🏆 שיא ארצי חדש!</div>
+                  <div className="game-subtitle">מטורף! שברת את שיא המיומנות של עצמך!<br />ה-High Score החדש שלך עודכן ללוח המובילים!</div>
+                </>
+              ) : (
+                <>
+                  <div className="game-title" style={{ color: '#f87171' }}>הגנת השרת נכשלה</div>
+                  <div className="game-subtitle">התוצאה הנוכחית נמוכה משיאך האישי החודשי.<br />הערך המוגן בטבלה נשאר על כנו.</div>
+                </>
+              )}
+              <div className="game-subtitle" style={{ marginBottom: '12px' }}> צברת בסיבוב זה: <span style={{ color: '#00c8ff', fontWeight: 'bold' }}>{currentScore} נקודות</span></div>
+              <button className="game-btn" type="button" onClick={startArcadeGame}>אתחל סימולציה 🔄</button>
             </div>
           )}
         </div>
 
-        {/* LIVE SCORE STATS BADGES */}
+        {/* תצוגת הניקוד המאובטחת */}
         <div className="live-score-badge">
           <div>
-            <span className="sb-lbl">XP שנצבר כעת: </span>
-            <span className="sb-val" style={{ color: '#00c8ff' }}>{currentXpGained}</span>
+            <span className="sb-lbl">תוצאה נוכחית: </span>
+            <span className="sb-val" style={{ color: '#00c8ff' }}>{currentScore}</span>
           </div>
           <div>
-            <span className="sb-lbl">הסכום הכולל שלך: </span>
-            <span className="sb-val">{playerTotalXp} XP</span>
+            <span className="sb-lbl">שיא אישי (High Score): </span>
+            <span className="sb-val" style={{ color: '#00e676' }}>{playerHighScore} XP</span>
           </div>
         </div>
 
-        {/* MONTHLY ARAGON LEADERBOARD SEPARATOR */}
+        {/* טבלת ה-LEADERBOARD החודשית */}
         <div className="leaderboard-title-divider">
           <div className="ld-line"></div>
-          <span className="ld-text">🏆 טבלת ה-TOP 10 של אראגון בלייב</span>
+          <span className="ld-text">🏆 טבלת אלופי ה-XP של אראגון</span>
           <div className="ld-line" style={{ transform: 'scaleX(-1)' }}></div>
         </div>
 
-        {/* LIVE RENDER LEADERBOARD LIST */}
         <div className="leaderboard-container">
           {leaderboard.map((student, idx) => {
             const isMe = student.username === loggedUser;
@@ -411,7 +495,6 @@ export default function StudentGame() {
           })}
         </div>
 
-        {/* NAVIGATION QUICK BACK ROUTE */}
         <button className="back-to-profile-btn" type="button" onClick={() => navigate('/student/profile')}>
           ← חזרה לפרופיל התלמיד
         </button>
