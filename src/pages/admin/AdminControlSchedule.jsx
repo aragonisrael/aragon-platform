@@ -120,9 +120,11 @@ export default function AdminControlSchedule() {
     setIsPlaying(!globalAudio.paused);
   };
 
+  // 🟢 תיקון: מנוע פריסה מקומי חכם שובר שרשראות ומאפשר לכל קבוצה לתפוס 100% רוחב בשעות פנויות
   const layoutDay = (dayBlocks) => {
     const bs = dayBlocks.map(b => ({ ...b, endMin: b.startMin + b.dur }));
     bs.sort((a, b) => a.startMin - b.startMin);
+    
     const colEnd = [];
     bs.forEach(b => {
       let placed = false;
@@ -131,19 +133,16 @@ export default function AdminControlSchedule() {
       }
       if (!placed) { b.col = colEnd.length; colEnd.push(b.endMin); }
     });
+
     bs.forEach(b => {
       const overlapping = bs.filter(o => o.startMin < b.endMin && o.endMin > b.startMin);
-      b.numCols = overlapping.length;
+      // חישוב עומס נקודתי בזמן אמת ללא הדבקה של שאר שעות היום
+      const maxConcurrent = Math.max(...overlapping.map(o => {
+        return bs.filter(so => so.startMin < o.endMin && so.endMin > o.startMin).length;
+      }));
+      b.numCols = maxConcurrent;
     });
-    let changed = true;
-    while (changed) {
-      changed = false;
-      bs.forEach(b => {
-        const overlapping = bs.filter(o => o.startMin < b.endMin && o.endMin > b.startMin);
-        const mx = Math.max(...overlapping.map(o => o.numCols));
-        overlapping.forEach(o => { if (o.numCols < mx) { o.numCols = mx; changed = true; } });
-      });
-    }
+
     return bs;
   };
 
@@ -592,7 +591,22 @@ export default function AdminControlSchedule() {
               </div>
 
               {DAYS.map((_, di) => {
-                const dayGroupsList = groups.filter(g => g.day === di);
+                // 🟢 תיקון קריטי 1: סינון הקבוצות המקדים מבוסס פילטר אקטיבי *לפני* שליחה למנוע הפריסה הגרפי
+                const dayGroupsList = groups.filter(g => {
+                  if (g.day !== di) return false;
+                  if (currentFilter === 'unassigned') return g.status === 'red';
+                  if (currentFilter === 'city') {
+                    if (selectedCity && g.city !== selectedCity) return false;
+                    return dimmedFilters[g.status];
+                  }
+                  if (currentFilter === 'inst' && selectedInstructor) {
+                    if (g.instructor === selectedInstructor) return dimmedFilters[g.status];
+                    if (g.status === 'red' && dimmedFilters.red) return true;
+                    return false;
+                  }
+                  return dimmedFilters[g.status];
+                });
+
                 const laidBlocks = layoutDay(dayGroupsList);
 
                 return (
@@ -604,9 +618,10 @@ export default function AdminControlSchedule() {
 
                     {laidBlocks.map(b => {
                       const op = getOpacity(b); if (op === 0) return null;
-                      const hPx = Math.max(b.dur * PX_PER_MIN - 2, 18); const colW = (100 / b.numCols);
+                      const hPx = Math.max(b.dur * PX_PER_MIN - 2, 18); 
                       
-                      // 🟢 תיקון: חישוב המיקום היחסי על הגריד מבוסס על שעות אבסולוטיות
+                      // 🟢 תיקון קריטי 2: רוחב מחושב מחדש התופס 100% במידה והשטח פנוי לחלוטין ללא קבוצות מקבילות באותה שעה
+                      const colW = (100 / b.numCols);
                       const relativeStartMin = b.startMin - (START_HOUR * 60);
 
                       return (
