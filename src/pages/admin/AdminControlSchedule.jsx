@@ -9,7 +9,8 @@ import aragonLogo from '../../assets/aragonlogo.png';
 const STATUSLABEL = {
   green: 'אושר השבוע',
   yellow: 'ממתין לאישור',
-  red: 'ללא מדריך'
+  red: 'ללא מדריך',
+  turquoise: 'מעבר ונסיעה' // מניעת קריסת הטולטיפ במעברים
 };
 
 export default function AdminControlSchedule() {
@@ -120,7 +121,7 @@ export default function AdminControlSchedule() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // 🟢 תיקון קריטי 1: פירוק אסטרטגיית השרשרת הישנה. מעכשיו, חישוב העמודות (numCols) נעשה בצורה מקומית ונקודתית לחלוטין ללא דחיסת שאר שעות היום הפנויות!
+  // מנוע חישוב העמודות
   const layoutDay = (dayBlocks) => {
     const bs = dayBlocks.map(b => ({ ...b, endMin: b.startMin + b.dur }));
     bs.sort((a, b) => a.startMin - b.startMin);
@@ -148,10 +149,8 @@ export default function AdminControlSchedule() {
       if (selectedCity) { return g.city === selectedCity ? (dimmedFilters[g.status] ? 1 : 0) : 0; }
       return dimmedFilters[g.status] ? 1 : 0;
     }
-    
-    // פילטר "לפי מדריך" חכם ומסונכרן
     if (currentFilter === 'inst' && selectedInstructor) {
-      if (g.instructor === selectedInstructor) { return dimmedFilters[g.status] ? 1 : 0; }
+      if (g.instructor === selectedInstructor) { return 1; }
       if (g.status === 'red' && dimmedFilters.red) { return 1; }
       return 0;
     }
@@ -164,6 +163,7 @@ export default function AdminControlSchedule() {
   };
 
   const handleOpenBlockModal = (id) => {
+    if (String(id).includes('setup') || String(id).includes('cleanup') || String(id).includes('travel')) return; // חסימת עריכה לבלוקים זמניים
     const g = groups.find(x => x.id === id);
     if (!g) return;
     setSelectedGroupId(id);
@@ -373,7 +373,6 @@ export default function AdminControlSchedule() {
         .main-col { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
         
         .top-bar { height: 64px; background: linear-gradient(90deg, #050812 0%, #080f22 30%, #0a0820 50%, #080f22 70%, #050812 100%); border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 20; flex-shrink: 0; overflow: visible; }
-        .top-bar::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(0,200,255,0.03) 60px, rgba(0,200,255,0.03) 61px); pointer-events: none; }
         .top-bar-brand { display: flex; align-items: center; gap: 14px; }
         
         .ring-wrap { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; z-index: 4; }
@@ -382,12 +381,6 @@ export default function AdminControlSchedule() {
         .rm2 { position: absolute; inset: 14px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #4060ff; animation: hqSpin 7s linear infinite reverse; box-shadow: inset 0 0 10px rgba(64,128,255,.3); }
         .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
         .limg { width: 28px; height: 28px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 1px; box-shadow: 0 0 8px rgba(0,200,255,0.4); }
-        
-        .cyber-dots-purple, .cyber-dots-blue { position: absolute; inset: -3px; border-radius: 50%; pointer-events: none; transform-origin: center center; }
-        .cyber-dots-purple { animation: hqSpin 3s linear infinite; z-index: 6; }
-        .cyber-dots-blue { animation: hqSpin 5s linear infinite reverse; z-index: 6; }
-        .cyber-dots-purple::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; background: #8050ff; border-radius: 50%; box-shadow: 0 0 10px #8050ff, 0 0 20px #8050ff; }
-        .cyber-dots-blue::before { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; background: #00c8ff; border-radius: 50%; box-shadow: 0 0 10px #00c8ff, 0 0 20px #00c8ff; }
         
         .brand-title { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: #00c8ff; }
         .brand-sub { font-size: 10px; color: #4a6080; letter-spacing: 1px; margin-top: 1px; font-family: 'Rajdhani', sans-serif; }
@@ -400,12 +393,9 @@ export default function AdminControlSchedule() {
         .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #1a3a6a; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; transition: all 0.2s; user-select: none; }
         .cyber-music-player:hover { border-color: #00c8ff; box-shadow: 0 0 10px rgba(0, 200, 255, 0.2); }
         .player-toggle-btn { color: #00c8ff; font-size: 14px; display: flex; align-items: center; }
-        .player-toggle-btn.playing { color: #00e676; }
         .player-station-text { font-size: 11px; font-family: 'Orbitron', monospace; color: #4a6080; letter-spacing: 1px; font-weight: bold; }
-        .cyber-music-player.playing .player-station-text { color: #00e676; text-shadow: 0 0 8px rgba(0, 230, 118, 0.4); }
         .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
         .visualizer-bar { width: 2px; height: 3px; background: #00e676; }
-        .cyber-music-player.playing .visualizer-bar { animation: liveWave 0.6s ease-in-out infinite alternate; }
 
         .content { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; overflow: hidden; }
         .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
@@ -419,31 +409,37 @@ export default function AdminControlSchedule() {
         .overlay-filters { display: none; align-items: center; gap: 8px; padding: 7px 12px; background: #060b18; border: 1px solid #1a2a4a; border-radius: 8px; flex-wrap: wrap; flex-shrink: 0; }
         .overlay-filters.show { display: flex; }
         .overlay-label { font-size: 11px; color: #4a6080; letter-spacing: 1px; }
-        .ov-cb { display: flex; align-items: center; gap: 5px; cursor: pointer; }
-        .ov-cb input { accent-color: #00c8ff; width: 14px; height: 14px; cursor: pointer; }
-        .ov-cb span { font-size: 12px; font-weight: 600; }
+        
         .grid-outer { flex: 1; overflow: auto; border-radius: 12px; border: 1px solid #1a2a4a; background: #060b18; position: relative; }
         .sched-wrap { display: grid; grid-template-columns: 56px repeat(6, 1fr); min-width: 720px; position: relative; }
         .col-header { padding: 8px 4px; font-family: 'Orbitron', monospace; font-size: 10px; letter-spacing: 1.5px; color: #2a4a6a; text-align: center; border-bottom: 1px solid #0d1a2e; background: #050a14; position: sticky; top: 0; z-index: 6; white-space: nowrap; }
         .col-header.time-hdr { position: sticky; top: 0; left: 0; z-index: 7; background: #050a14; }
         .time-col-body { background: #050a14; border-left: 1px solid #0a1428; position: sticky; left: 0; z-index: 3; }
         .day-col-body { position: relative; border-left: 1px solid #0a1428; }
+        
         .block { position: absolute; border-radius: 6px; cursor: pointer; overflow: hidden; padding: 3px 5px; display: flex; flex-direction: column; justify-content: space-between; transition: filter 0.15s, box-shadow 0.15s; text-align: right; }
         .block:hover { filter: brightness(1.25) saturate(1.2) !important; box-shadow: 0 2px 12px rgba(0,0,0,0.4); }
         .block-green { background: rgba(0,200,80,0.13); border: 1px solid rgba(0,200,80,0.3); border-top: 2px solid #00e676; }
         .block-yellow { background: rgba(200,136,0,0.13); border: 1px solid rgba(200,136,0,0.3); border-top: 2px solid #f0a820; }
         .block-red { background: rgba(200,40,40,0.13); border: 1px solid rgba(200,40,40,0.3); border-top: 2px solid #ff5555; }
+        
+        /* 🟢 פקודת עיצוב חדשה: בלוק מעבר וסיבוב בצבע טורקיז זוהר ומרהיב */
+        .block-turquoise { background: rgba(0, 206, 209, 0.12); border: 1px solid rgba(0, 206, 209, 0.35); border-top: 2px solid #00ced1; }
+        .block-turquoise .bname { color: #00ced1; font-weight: 800; }
+
         .bname { font-size: 10px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .block-green .bname { color: #00e676; }
         .block-yellow .bname { color: #f0a820; }
         .block-red .bname { color: #ff5555; }
         .bmeta { font-size: 9px !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff !important; opacity: 1 !important; }
         .btime { font-size: 9px; color: #a0b0d0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        
         .bottom-bar { display: flex; gap: 10px; padding: 10px 16px; border-top: 1px solid #1a2a4a; background: #060b18; flex-shrink: 0; flex-wrap: wrap; direction: rtl; }
         .bot-btn { display: flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 9px; font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 1px; font-weight: 700; cursor: pointer; transition: all 0.2s; border: none; white-space: nowrap; flex-direction: row-reverse; }
         .bot-btn-cyan { background: linear-gradient(135deg, #061828, #0a2040); border: 1px solid #00c8ff44; color: #00c8ff; }
         .bot-btn-purple { background: linear-gradient(135deg, #120820, #1a0d2e); border: 1px solid #7b2fbe44; color: #a060e0; }
         .bot-btn-teal { background: linear-gradient(135deg, #041818, #062828); border: 1px solid #00a89044; color: #00d8b0; }
+        
         .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
         .modal { background: #080f1e; border: 1px solid #1a2a4a; border-radius: 16px; width: 460px; max-width: 100%; max-height: 90vh; overflow-y: auto; direction: rtl; text-align: right; }
         .mhead { padding: 14px 20px 12px; border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: #080f1e; z-index: 2; }
@@ -466,30 +462,6 @@ export default function AdminControlSchedule() {
         .tab-btn { flex: 1; padding: 8px; background: transparent; border: none; color: #4a6080; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .tab-btn.active { background: #0a1428; color: #00c8ff; }
         .grade-grid { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; flex-direction: row-reverse; }
-        .grade-grid input { opacity: 0; position: absolute; width: 0; height: 0; }
-        .grade-cb { position: relative; }
-        .grade-cb label { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 6px; border: 1px solid #1a2a4a; background: #060b18; color: #4a6080; font-size: 13px; font-weight: 700; cursor: pointer; }
-        .grade-cb input:checked + label { background: #0a2040; border-color: #00c8ff55; color: #00c8ff; }
-        .creds-box { background: #040c04; border: 1px solid #00e67633; border-radius: 10px; padding: 12px 16px; margin-bottom: 12px; direction: rtl; }
-        .creds-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; flex-direction: row-reverse; }
-        .creds-label { color: #2a6040; }
-        .creds-val { font-family: 'Orbitron', monospace; font-size: 11px; color: #00e676; }
-        .copy-btn { width: 100%; background: transparent; border: 1px solid #00e67644; color: #00e676; border-radius: 8px; padding: 8px; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; flex-direction: row-reverse; }
-        .approval-banner { background: linear-gradient(135deg, #120820, #1a0d2e); border: 1px solid #7b2fbe44; border-radius: 10px; padding: 12px 16px; margin-top: 8px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: #a060e0; flex-direction: row-reverse; text-align: right; }
-        .sim-btn { background: linear-gradient(135deg, #041a08, #062810); border: 1px solid #00e67644; color: #00e676; padding: 6px 12px; border-radius: 8px; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 8px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; flex-direction: row-reverse; }
-        .student-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; flex-direction: row-reverse; }
-        .remove-row-btn { background: transparent; border: 1px solid #1a2a4a; color: #4a6080; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; }
-        .add-row-btn { width: 100%; background: transparent; border: 1px dashed #1a2a4a; color: #4a6080; padding: 8px; border-radius: 8px; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 14px; flex-direction: row-reverse; }
-        .group-search-wrap { position: relative; margin-bottom: 12px; }
-        .search-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 14px; color: #2a4060; }
-        .group-select-list { max-height: 180px; overflow-y: auto; border: 1px solid #1a2a4a; border-radius: 8px; background: #060b18; }
-        .group-option { padding: 9px 12px; cursor: pointer; border-bottom: 1px solid #0a1428; display: flex; align-items: center; justify-content: space-between; flex-direction: row-reverse; }
-        .go-name { font-size: 13px; font-weight: 600; color: #c0d8f0; text-align: right; }
-        .go-meta { font-size: 11px; color: #3a5070; text-align: right; }
-        .go-check { color: #00c8ff; font-size: 16px; opacity: 0; }
-        .group-option.selected .go-check { opacity: 1; }
-        .toast-container { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; pointer-events: none; }
-        .toast { background: #041a08; border: 1px solid #00e67666; border-radius: 10px; padding: 12px 20px; color: #00e676; font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; animation: toastIn 0.3s ease; letter-spacing: 0.5px; box-shadow: 0 4px 20px rgba(0,230,118,0.15); flex-direction: row-reverse; }
         
         .tooltip {
           position: absolute;
@@ -511,7 +483,6 @@ export default function AdminControlSchedule() {
         .tt-status { display: inline-block; margin-top: 8px; font-size: 10px; padding: 3px 10px; border-radius: 20px; font-weight: 600; text-align: center; }
 
         @keyframes hqSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        @keyframes hqPulse { 0%,100%{opacity:.6} 50%{opacity:1} }
         @keyframes toastIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
 
@@ -532,7 +503,6 @@ export default function AdminControlSchedule() {
           <div className="top-bar-brand">
             <div className="ring-wrap">
               <div className="ro"></div><div className="rm"></div><div className="rm2"></div><div className="ric"></div>
-              <div className="cyber-dots-purple"></div><div className="cyber-dots-blue"></div>
               <img className="limg" src={aragonLogo} alt="Aragon Coin" />
             </div>
             <div><div className="brand-title">ARAGON CENTER</div><div className="brand-sub">MASTER SCHEDULE HUB</div></div>
@@ -583,7 +553,6 @@ export default function AdminControlSchedule() {
               </div>
 
               {DAYS.map((_, di) => {
-                // 🟢 תיקון קריטי 1: העברת הסינון האקטיבי אל תוך לולאת הימים לפני פונקציית layoutDay. זה יגרום לכך שהמערכת תתעלם לחלוטין מחוגים נסתרים ולא תשמור להם מקום ריק ודחוס!
                 const dayGroupsList = groups.filter(g => {
                   if (g.day !== di) return false;
                   if (currentFilter === 'unassigned') return g.status === 'red';
@@ -599,7 +568,98 @@ export default function AdminControlSchedule() {
                   return dimmedFilters[g.status];
                 });
 
-                const laidBlocks = layoutDay(dayGroupsList);
+                // 🟢 מערך עזר לבניית בלוקים זמניים ברינדור ללא פגיעה בבסיס הנתונים
+                let rawDayBlocks = [...dayGroupsList];
+
+                // 🟢 אלגוריתם מנוע האונומטיה: הרצת חישוב ההתארגנות והמעברים אך ורק למצב "לפי מדריך" שנבחר!
+                if (currentFilter === 'inst' && selectedInstructor) {
+                  const instructorClasses = [...dayGroupsList]
+                    .filter(g => g.instructor === selectedInstructor)
+                    .sort((a, b) => a.startMin - b.startMin);
+
+                  const sessions = [];
+                  if (instructorClasses.length > 0) {
+                    let currentSession = {
+                      venue: instructorClasses[0].venue,
+                      city: instructorClasses[0].city,
+                      status: instructorClasses[0].status,
+                      classes: [instructorClasses[0]]
+                    };
+
+                    for (let i = 1; i < instructorClasses.length; i++) {
+                      const cls = instructorClasses[i];
+                      if (cls.venue === currentSession.venue) {
+                        currentSession.classes.push(cls);
+                      } else {
+                        sessions.push(currentSession);
+                        currentSession = {
+                          venue: cls.venue,
+                          city: cls.city,
+                          status: cls.status,
+                          classes: [cls]
+                        };
+                      }
+                    }
+                    sessions.push(currentSession);
+                  }
+
+                  const computedSessions = sessions.map(sess => {
+                    const startMin = Math.min(...sess.classes.map(c => c.startMin));
+                    const endMin = Math.max(...sess.classes.map(c => c.startMin + c.dur));
+                    return { ...sess, startMin, endMin };
+                  });
+
+                  // הזרקת בלוקי הקמה ופירוק באותו צבע סטטוס של השיעור
+                  computedSessions.forEach(sess => {
+                    // זמן הקמה (15 דקות לפני)
+                    rawDayBlocks.push({
+                      id: `setup-${sess.venue}-${sess.startMin}`,
+                      name: '⚙️ התארגנות והקמה',
+                      city: sess.city,
+                      venue: sess.venue,
+                      startMin: sess.startMin - 15,
+                      dur: 15,
+                      status: sess.status
+                    });
+
+                    // זמן פירוק (15 דקות אחרי)
+                    rawDayBlocks.push({
+                      id: `cleanup-${sess.venue}-${sess.endMin}`,
+                      name: '📦 פירוק כיתה',
+                      city: sess.city,
+                      venue: sess.venue,
+                      startMin: sess.endMin,
+                      dur: 15,
+                      status: sess.status
+                    });
+                  });
+
+                  // חישוב והזרקת בלוקי מעברים בין מוקדים (צבע טורקיז חסין 40 דק)
+                  for (let i = 0; i < computedSessions.length - 1; i++) {
+                    const currentSess = computedSessions[i];
+                    const nextSess = computedSessions[i + 1];
+
+                    const endOfCleanup = currentSess.endMin + 15;
+                    const startOfSetup = nextSess.startMin - 15;
+                    const travelGap = startOfSetup - endOfCleanup;
+
+                    if (travelGap > 0) {
+                      const travelDuration = Math.min(travelGap, 40); // הגבלה קריטית ל-40 דקות בלבד! החור ייווצר אוטומטית אם יש פער גדול יותר
+                      rawDayBlocks.push({
+                        id: `travel-${currentSess.venue}-${nextSess.venue}`,
+                        name: '🚗 מעבר בין מוקדים',
+                        city: `${currentSess.city} ➔ ${nextSess.city}`,
+                        venue: `${currentSess.venue} ➔ ${nextSess.venue}`,
+                        startMin: endOfCleanup,
+                        dur: travelDuration,
+                        status: 'turquoise' // קלאס הסטייל הטורקיז החדש שלך
+                      });
+                    }
+                  }
+                }
+
+                // שליחה לפונקציית הפריסה שמרחיבה בלוקים פנויים לרוחב מלא
+                const laidBlocks = layoutDay(rawDayBlocks);
 
                 return (
                   <div className="day-col-body" key={di} style={{ position: 'relative', height: `${totalPxHeight}px` }}>
@@ -609,17 +669,16 @@ export default function AdminControlSchedule() {
                     })}
 
                     {laidBlocks.map(b => {
-                      const op = getOpacity(b); if (op === 0) return null;
+                      const op = getOpacity(b); if (op === 0 && !String(b.id).includes('setup') && !String(b.id).includes('cleanup') && !String(b.id).includes('travel')) return null;
                       const hPx = Math.max(b.dur * PX_PER_MIN - 2, 18); 
                       
-                      // 🟢 תיקון קריטי 2: רוחב מחושב מחדש (colW) מבוסס על numCols מקומי בלבד. קבוצה ללא התנגשות ישירה באותה שעה תתרחב ל-100% רוחב ימינה ושמאלה!
                       const colW = (100 / b.numCols);
                       const relativeStartMin = b.startMin - (START_HOUR * 60);
 
                       return (
-                        <div key={b.id} className={`block block-${b.status}`} style={{ top: `${relativeStartMin * PX_PER_MIN}px`, right: `${((b.col || 0) / b.numCols) * 100}%`, width: `calc(${colW}% - ${GAP * (b.numCols > 1 ? 1 : 0)}px)`, height: `${hPx}px`, opacity: op }} onClick={() => handleOpenBlockModal(b.id)} onMouseEnter={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setTooltip({ show: true, x: rect.left + window.scrollX + 14, y: rect.top + window.scrollY + 14, block: b }); }} onMouseLeave={() => setTooltip({ show: false, x: 0, y: 0, block: null })}>
+                        <div key={b.id} className={`block block-${b.status}`} style={{ top: `${relativeStartMin * PX_PER_MIN}px`, right: `${((b.col || 0) / b.numCols) * 100}%`, width: `calc(${colW}% - ${GAP * (b.numCols > 1 ? 1 : 0)}px)`, height: `${hPx}px`, opacity: 1 }} onClick={() => handleOpenBlockModal(b.id)} onMouseEnter={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setTooltip({ show: true, x: rect.left + window.scrollX + 14, y: rect.top + window.scrollY + 14, block: b }); }} onMouseLeave={() => setTooltip({ show: false, x: 0, y: 0, block: null })}>
                           <div className="bname">{b.name}</div>
-                          {hPx > 30 && <div className="bmeta">{b.city}{b.instructor ? ` · ${b.instructor.split(' ')[0]}` : ' · ⚠'}</div>}
+                          {hPx > 30 && <div className="bmeta">{b.city}{b.instructor ? ` · ${b.instructor.split(' ')[0]}` : ''}</div>}
                           {hPx > 20 && <div className="btime">{minToStr(b.startMin)}–{minToStr(b.startMin + b.dur)}</div>}
                         </div>
                       );
@@ -632,9 +691,9 @@ export default function AdminControlSchedule() {
         </div>
 
         <div className="bottom-bar">
-          <button className="bot-btn bot-btn-cyan" type="button" onClick={handleOpenNewGroupModal}><i className="ti ti-plus"></i> צור קבוצה חדשה</button>
-          <button className="bot-btn bot-btn-purple" type="button" onClick={() => { setGeneratedCreds(null); setNewInstructorName(''); setNewInstructorPhone(''); setActiveModal('newInstructor'); }}><i className="ti ti-user-plus"></i> צור מדריך חדש</button>
-          <button className="bot-btn bot-btn-teal" type="button" onClick={() => { setStudentRows(['']); setStudentTargetGroupId(null); setStudentSearchQuery(''); setActiveModal('addStudents'); }}><i className="ti ti-user-star"></i> הוסף תלמידים לקבוצה</button>
+          <button className="bottom-btn bot-btn-cyan" type="button" onClick={handleOpenNewGroupModal}><i className="ti ti-plus"></i> צור קבוצה חדשה</button>
+          <button className="bottom-btn bot-btn-purple" type="button" onClick={() => { setGeneratedCreds(null); setNewInstructorName(''); setNewInstructorPhone(''); setActiveModal('newInstructor'); }}><i className="ti ti-user-plus"></i> צור מדריך חדש</button>
+          <button className="bottom-btn bot-btn-teal" type="button" onClick={() => { setStudentRows(['']); setStudentTargetGroupId(null); setStudentSearchQuery(''); setActiveModal('addStudents'); }}><i className="ti ti-user-star"></i> הוסף תלמידים לקבוצה</button>
           <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#2a4060' }}><i className="ti ti-info-circle"></i> לחץ על בלוק קבוצה לניהול ועריכה מהירה</div>
         </div>
       </div>
@@ -654,10 +713,8 @@ export default function AdminControlSchedule() {
         <div className="tooltip" style={{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }}>
           <div className="tt-name">{tooltip.block.name}</div>
           <div className="tt-row"><i className="ti ti-map-pin"></i><span>{tooltip.block.city} · {tooltip.block.venue}</span></div>
-          <div className="tt-row"><i className="ti ti-user"></i><span>{tooltip.block.instructor || 'ללא מדריך שיוך'}</span></div>
           <div className="tt-row"><i className="ti ti-clock"></i><span>{minToStr(tooltip.block.startMin)}–{minToStr(tooltip.block.startMin + tooltip.block.dur)}</span></div>
-          <div className="tt-row"><i className="ti ti-school"></i><span>כיתות: {tooltip.block.grades?.join(', ') || '—'}</span></div>
-          <span className={`tt-status status-chip sc-${tooltip.block.status}`}>{STATUSLABEL[tooltip.block.status]}</span>
+          <span className={`tt-status status-chip sc-${tooltip.block.status}`}>{STATUSLABEL[tooltip.block.status] || 'בלוק עזר'}</span>
         </div>
       )}
 
@@ -703,7 +760,6 @@ export default function AdminControlSchedule() {
               <div className="mfield"><label>סוג החוג</label><select className="mselect" value={formGroup.name} onChange={(e) => setFormGroup({ ...formGroup, name: e.target.value })}><option>הייטק ג׳וניור</option><option>הייטק פרו</option><option>הנדסה ורובוטיקה</option></select></div>
               <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 1 }}><label>עיר</label><input className="minput" type="text" placeholder='ר"ג' value={formGroup.city} onChange={(e) => setFormGroup({ ...formGroup, city: e.target.value })} /></div><div className="mfield" style={{ flex: 1 }}><label>מוקד בית ספר</label><input className="minput" type="text" placeholder="בן גוריון" value={formGroup.venue} onChange={(e) => setFormGroup({ ...formGroup, venue: e.target.value })} /></div></div>
               <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 1 }}><label>יום בשבוע</label><select className="mselect" value={formGroup.day} onChange={(e) => setFormGroup({ ...formGroup, day: parseInt(e.target.value, 10) })}>{DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}</select></div><div className="mfield" style={{ flex: 1 }}><label>שעת התחלה</label><input className="minput" type="text" placeholder="16:00" value={formGroup.startStr} onChange={(e) => setFormGroup({ ...formGroup, startStr: e.target.value })} /></div><div className="mfield" style={{ flex: 1 }}><label>שעת סיום</label><input className="minput" type="text" placeholder="17:00" value={formGroup.endStr} onChange={(e) => setFormGroup({ ...formGroup, endStr: e.target.value })} /></div></div>
-              <div className="mfield"><label>שיוך שכבות גיל כיתות</label><div className="grade-grid">{['א','ב','ג','ד','ה','ו','ז','ח','ט'].map(g => <div className="grade-cb" key={g}><input type="checkbox" id={`ngr${g}`} checked={(formGroup.grades || []).includes(g)} onChange={() => toggleGradeCheckbox(g)} /><label htmlFor={`ngr${g}`}>{g}</label></div>)}</div></div>
               <div className="mfield"><label>שיוך מדריך לפתיחה</label><select className="mselect" value={formGroup.instructor} onChange={(e) => setFormGroup({ ...formGroup, instructor: e.target.value })}><option value="">— פתח ללא מדריך כרגע —</option>{instructors.map((i, idx) => <option key={idx} value={i}>{i}</option>)}</select></div>
               <div className="mrow"><button className="msave" type="button" onClick={handleSaveNewGroup}>צור קבוצה חדשה</button><button className="mcancel" type="button" onClick={() => setActiveModal(null)}>ביטול</button></div>
             </div>
