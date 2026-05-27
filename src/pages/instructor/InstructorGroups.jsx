@@ -619,7 +619,7 @@ export default function InstructorGroups() {
         {/* MODAL 1: חלונית יצירה מרובה של תלמידים (BULK CREATION) */}
         <div className={`modal-overlay ${isBulkModalOpen ? 'open' : ''}`} onClick={(e) => e.target.className === 'modal-overlay open' && setIsBulkModalOpen(false)}>
           <div className="modal-sheet">
-            <div className="modal-student-name" style={{ margin Bottom: '6px' }}>
+          <div className="modal-student-name" style={{ marginBottom: '6px' }}>
               🎯 הקמת תלמידים מרובה
             </div>
             <div style={{ textAlign: 'center', fontSize: '11px', color: '#8050ff', fontFamily: 'Orbitron', marginBottom: '16px', letterSpacing: '0.5px' }}>
