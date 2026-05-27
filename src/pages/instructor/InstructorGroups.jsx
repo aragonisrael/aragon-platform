@@ -325,7 +325,7 @@ export default function InstructorGroups() {
     <div className="groups-main-container">
       {/* Precision Scoped Stylesheet Embedding */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Exo+2:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Exo+2:wght@300;400;500;600;700&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         
         .groups-main-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #050a14; width: 100%; }
@@ -440,7 +440,9 @@ export default function InstructorGroups() {
         .results-scroll-pane { background: #05050f; border: 1px solid #1e1e35; border-radius: 12px; max-height: 220px; overflow-y: auto; padding: 8px; margin-top: 12px; }
         .result-user-row { display: flex; justify-content: space-between; padding: 6px 8px; border-bottom: 1px solid #141425; font-size: 12px; direction: ltr; }
         .result-user-name-he { color: #b0b0cc; font-family: 'Exo 2', sans-serif; direction: rtl; text-align: right; }
-        .result-user-credentials { color: #38bdf8; font-family: 'Orbitron', monospace; text-align: left; }
+        
+        /* 🟢 תיקון: שינוי פונט ל-Exo 2 הנקי והקריא, הדגשת הטקסט ומרווח אותיות נוח לקריאה מהירה */
+        .result-user-credentials { color: #38bdf8; font-family: 'Exo 2', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; text-align: left; }
 
         .coins-panel { display: none; margin-top: 14px; }
         .coins-panel.open { display: block; animation: fadeIn .3s ease; }
@@ -619,7 +621,7 @@ export default function InstructorGroups() {
         {/* MODAL 1: חלונית יצירה מרובה של תלמידים (BULK CREATION) */}
         <div className={`modal-overlay ${isBulkModalOpen ? 'open' : ''}`} onClick={(e) => e.target.className === 'modal-overlay open' && setIsBulkModalOpen(false)}>
           <div className="modal-sheet">
-          <div className="modal-student-name" style={{ marginBottom: '6px' }}>
+            <div className="modal-student-name" style={{ marginBottom: '6px' }}>
               🎯 הקמת תלמידים מרובה
             </div>
             <div style={{ textAlign: 'center', fontSize: '11px', color: '#8050ff', fontFamily: 'Orbitron', marginBottom: '16px', letterSpacing: '0.5px' }}>
