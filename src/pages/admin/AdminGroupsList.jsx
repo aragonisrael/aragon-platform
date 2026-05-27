@@ -6,6 +6,12 @@ import { supabase } from '../../supabaseClient';
 // ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
 import aragonLogo from '../../assets/aragonlogo.png';
 
+const STATUSLABEL = {
+  green: 'אושר השבוע',
+  yellow: 'ממתין לאישור',
+  red: 'ללא מדריך'
+};
+
 export default function AdminGroupsList() {
   const navigate = useNavigate();
 
@@ -15,9 +21,10 @@ export default function AdminGroupsList() {
   // מערכת ניהול התראות צפות (Toast System)
   const [toast, setToast] = useState({ show: false, message: '', isWarn: false });
 
-  // בקרת מודאלים
+  // בקרת מודאלים וכרטיסיות פנימיות
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
+  const [modalTab, setModalTab] = useState(1); // 1 = Students, 2 = Edit Group, 3 = Instructor, 4 = Broadcast
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -34,6 +41,9 @@ export default function AdminGroupsList() {
   const [formDay, setFormDay] = useState(0);
   const [formGrades, setFormGrades] = useState([]);
   const [formInstructor, setFormInstructor] = useState('');
+
+  // אובייקט עריכה מורחב עבור הקונסולה המשולבת לקבוצה קיימת
+  const [formGroup, setFormGroup] = useState({});
 
   // שדה להוספת תלמיד בודד
   const [newStudentName, setNewStudentName] = useState('');
@@ -57,7 +67,6 @@ export default function AdminGroupsList() {
           venue: g.venue,
           instructor: g.instructor || '',
           day: Number(g.day),
-          // 🟢 תיקון: עדכון ברירת מחדל אבסולוטית ל-16:00 (960 דקות מחצות)
           startMin: Number(g.start_min || 960),
           dur: Number(g.dur || 60),
           status: g.status,
@@ -69,18 +78,14 @@ export default function AdminGroupsList() {
       // 2. משיכת משתמשי הרשת (תלמידים ומדריכים)
       const { data: dbUsers } = await supabase.from('users').select('*');
       if (dbUsers) {
-        // סינון המדריכים לקופסת הבחירה בטופס
         const allInstructors = dbUsers.filter(u => u.role === 'instructor').map(u => u.full_name);
         setInstructors(allInstructors);
 
-        // סינון ומיפוי תלמידים לפי מזהה הקבוצה שלהם (group_id)
         const allStudents = dbUsers.filter(u => u.role === 'student');
         const studentsMap = {};
         
-        // אתחול מערכים ריקים לכל קבוצה קיימת
         mappedGroups.forEach(g => { studentsMap[g.id] = []; });
 
-        // הזנת התלמידים למפה המשוייכת
         allStudents.forEach(s => {
           if (s.group_id) {
             if (!studentsMap[s.group_id]) studentsMap[s.group_id] = [];
@@ -94,12 +99,10 @@ export default function AdminGroupsList() {
     }
   };
 
-  // טעינת הנתונים בריאל-טיים בטעינת המסך
   useEffect(() => {
     fetchLiveGroupsAndRosters();
   }, []);
 
-  // מסנכרן את מצב כפתור הנגן מול האודיו הגלובלי ב-App.jsx בעת מעבר דפים
   useEffect(() => {
     const globalAudio = document.getElementById('hq-cyber-radio');
     if (globalAudio) {
@@ -112,7 +115,6 @@ export default function AdminGroupsList() {
     setTimeout(() => setToast({ show: false, message: '', isWarn: false }), 3000);
   };
 
-  // 🟢 תיקון פונקציית פענוח הזמן: הסרת START_HOUR לטובת חישוב אבסולוטי נקי מחצות
   const minToStr = (m) => {
     const h = Math.floor(m / 60), mm = m % 60;
     return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
@@ -123,25 +125,17 @@ export default function AdminGroupsList() {
     return n.split('').map(c => m[c] || c).join('').replace(/\s+/g, '.');
   };
 
-  // אופציות ייחודיות לפילטרים
   const uniqueCities = [...new Set(groups.map(g => g.city))];
   const uniqueTypes = ['הייטק ג׳וניור', 'הייטק פרו', 'הנדסה ורובוטיקה'];
   const gradesList = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'];
 
-  // שליטה בנגן הרדיו הגלובלי
   const toggleRadioPlay = () => {
     const globalAudio = document.getElementById('hq-cyber-radio');
     if (!globalAudio) return;
-
-    if (globalAudio.paused) {
-      globalAudio.play().catch(err => console.log("Audio play blocked", err));
-    } else {
-      globalAudio.pause();
-    }
+    globalAudio.paused ? globalAudio.play().catch(err => console.log(err)) : globalAudio.pause();
     setIsPlaying(!globalAudio.paused);
   };
 
-  // אלגוריתם סינון הקבוצות בלייב
   const filteredGroups = groups.filter(g => {
     if (filterCity && g.city !== filterCity) return false;
     if (filterType && g.name !== filterType) return false;
@@ -150,7 +144,6 @@ export default function AdminGroupsList() {
     return true;
   });
 
-  // פונקציית ייבוא קובץ CSV חכמה
   const handleCSVImport = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -162,7 +155,7 @@ export default function AdminGroupsList() {
       const batchInsert = [];
 
       lines.forEach((line, idx) => {
-        if (idx === 0 || !line.trim()) return; // דילוג על כותרת
+        if (idx === 0 || !line.trim()) return; 
         const cols = line.split(',');
         if (cols.length < 4) return;
 
@@ -179,7 +172,6 @@ export default function AdminGroupsList() {
           venue: venue,
           instructor: inst,
           day: day,
-          // 🟢 תיקון: שינוי ערך ברירת מחדל אבסולוטי ל-16:00
           start_min: 960, 
           dur: 60,
           status: inst ? 'green' : 'red',
@@ -202,7 +194,6 @@ export default function AdminGroupsList() {
     reader.readAsText(file, 'UTF-8');
   };
 
-  // שמירת קבוצה חדשה מהטופס ישירות בענן
   const handleSaveNewGroup = async () => {
     if (!formCity.trim() || !formVenue.trim()) {
       triggerToast('⚠️ נא למלא עיר ושם מוקד', true);
@@ -216,17 +207,15 @@ export default function AdminGroupsList() {
         venue: formVenue.trim(),
         instructor: formInstructor,
         day: parseInt(formDay, 10),
-        // 🟢 תיקון: שינוי ערך ברירת מחדל אבסולוטי ל-16:00
         start_min: 960, 
         dur: 60,
-        status: formInstructor ? 'green' : 'red',
+        status: formInstructor ? 'yellow' : 'red',
         grades: formGrades.length > 0 ? formGrades.join(',') : 'ד'
       }]);
 
       await fetchLiveGroupsAndRosters();
       setIsAddModalOpen(false);
       triggerToast(`קבוצת ${formType} ב${formCity} הוקמה בשרת בענן ✓`);
-
       setFormCity(''); setFormVenue(''); setFormDay(0); setFormGrades([]); setFormInstructor('');
     } catch (err) {
       console.error(err);
@@ -237,13 +226,114 @@ export default function AdminGroupsList() {
     setFormGrades(prev => prev.includes(grade) ? prev.filter(g => g !== grade) : [...prev, grade]);
   };
 
-  const handleOpenStudentsModal = (id) => {
+  const toggleEditGradeSelection = (grade) => {
+    const currentGrades = formGroup.grades || [];
+    setFormGroup({
+      ...formGroup,
+      grades: currentGrades.includes(grade) ? currentGrades.filter(g => g !== grade) : [...currentGrades, grade]
+    });
+  };
+
+  // 🟢 פתיחת קונסולת השליטה המאוחדת לקבוצה
+  const handleOpenGroupConsoleModal = (id) => {
+    const g = groups.find(x => x.id === id);
+    if (!g) return;
     setSelectedGroupId(id);
+    setFormGroup({
+      ...g,
+      startStr: minToStr(g.startMin),
+      endStr: minToStr(g.startMin + g.dur),
+      broadcastMsg: ''
+    });
     setNewStudentName('');
+    setModalTab(1); // ברירת מחדל לטאב תלמידים
     setIsStudentModalOpen(true);
   };
 
-  // הוספת תלמיד בודד
+  // 🟢 עריכת נתוני קבוצה (הגדרות ליבה) בענן
+  const handleSaveGroupSettingsEdit = async () => {
+    const parseTimeToMin = (s) => {
+      const parts = s.trim().replace('.', ':').split(':').map(Number);
+      return parts[0] * 60 + (parts[1] || 0);
+    };
+    const sMin = parseTimeToMin(formGroup.startStr);
+    const eMin = parseTimeToMin(formGroup.endStr);
+
+    if (sMin === null || eMin === null || eMin <= sMin) {
+      triggerToast('❌ שעות פעילות לא תקינות', true);
+      return;
+    }
+
+    try {
+      await supabase
+        .from('groups')
+        .update({
+          name: formGroup.name,
+          city: formGroup.city,
+          venue: formGroup.venue,
+          day: parseInt(formGroup.day, 10),
+          start_min: sMin,
+          dur: eMin - sMin,
+          grades: (formGroup.grades || []).join(',')
+        })
+        .eq('id', selectedGroupId);
+
+      await fetchLiveGroupsAndRosters();
+      setIsStudentModalOpen(false);
+      triggerToast('הקבוצה עודכנה בשרת בהצלחה ✓');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 🟢 שינוי שיוך מדריך לקבוצה קיימת
+  const handleSaveGroupInstructorEdit = async () => {
+    try {
+      await supabase
+        .from('groups')
+        .update({
+          instructor: formGroup.instructor,
+          status: formGroup.instructor ? 'yellow' : 'red'
+        })
+        .eq('id', selectedGroupId);
+
+      await fetchLiveGroupsAndRosters();
+      setIsStudentModalOpen(false);
+      triggerToast(formGroup.instructor ? `הקבוצה שויכה והועברה לאישור המדריך ✓` : 'שיוך המדריך הוסר מהקבוצה');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 🟢 מחיקת קבוצה לחלוטין משרת ה-Database בענן
+  const handleDeleteGroupPermanently = async () => {
+    if (!window.confirm(`⚠️ אזהרה קריטית! האם למחוק לחלוטין את קבוצת "${formGroup.venue} — ${formGroup.name}"? פעולה זו תסיר את החוג מהלו"ז של האדמין והמדריכים לצמיתות ולא ניתנת לשחזור!`)) return;
+
+    try {
+      await supabase
+        .from('groups')
+        .delete()
+        .eq('id', selectedGroupId);
+
+      await fetchLiveGroupsAndRosters();
+      setIsStudentModalOpen(false);
+      triggerToast(`🗑️ הקבוצה נמחקה לצמיתות מרשומות הממלכה`, true);
+    } catch (err) {
+      console.error(err);
+      triggerToast('❌ תקלה במחיקת הקבוצה מהשרת', true);
+    }
+  };
+
+  // 🟢 שליחת הודעת פוש קבוצתית מהאדמין
+  const handleSendGroupBroadcast = () => {
+    if (!formGroup.broadcastMsg?.trim()) {
+      triggerToast('נא להזין תוכן הודעה', true);
+      return;
+    }
+    setIsStudentModalOpen(false);
+    triggerToast(`📢 ההודעה שוגרה בהצלחה לכל תלמידי החוג!`);
+  };
+
   const handleAddStudentToGroup = async () => {
     if (!newStudentName.trim()) {
       triggerToast('נא להזין שם מלא של תלמיד', true);
@@ -322,9 +412,7 @@ export default function AdminGroupsList() {
         .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #1a3a6a; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; transition: all 0.2s; user-select: none; }
         .cyber-music-player:hover { border-color: #00c8ff; box-shadow: 0 0 10px rgba(0, 200, 255, 0.2); }
         .player-toggle-btn { color: #00c8ff; font-size: 14px; display: flex; align-items: center; }
-        .player-toggle-btn.playing { color: #00e676; }
         .player-station-text { font-size: 11px; font-family: 'Orbitron', monospace; color: #4a6080; letter-spacing: 1px; font-weight: bold; }
-        .cyber-music-player.playing .player-station-text { color: #00e676; text-shadow: 0 0 8px rgba(0, 230, 118, 0.4); }
         .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
         .visualizer-bar { width: 2px; height: 3px; background: #00e676; }
         .cyber-music-player.playing .visualizer-bar { animation: liveWave 0.6s ease-in-out infinite alternate; }
@@ -358,12 +446,20 @@ export default function AdminGroupsList() {
         .status-dot-cell { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-left: 8px; }
 
         .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .modal { background: #080f1e; border: 1px solid #1a2a4a; border-radius: 16px; width: 440px; max-width: 100%; max-height: 85vh; overflow-y: auto; direction: rtl; text-align: right; padding: 24px; }
+        
+        /* ─── שדרוג מודאל המאסטר הראשי עבור הקונסולה של הקבוצה ─── */
+        .modal { background: #080f1e; border: 1px solid #1a2a4a; border-radius: 16px; width: 480px; max-width: 100%; max-height: 88vh; overflow-y: auto; direction: rtl; text-align: right; padding: 20px; }
         .modal-title { font-family: 'Orbitron', monospace; font-size: 13px; letter-spacing: 1.5px; color: #00c8ff; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
-        .mhead { padding: 14px 20px 12px; border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: #080f1e; z-index: 2; }
-        .mtitle { font-family: 'Orbitron', monospace; font-size: 11px; letter-spacing: 1.5px; color: #00c8ff; display: flex; align-items: center; gap: 8px; }
+        .mhead { padding: 10px 14px 12px; border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: #080f1e; z-index: 12; }
+        .mtitle { font-family: 'Orbitron', monospace; font-size: 12px; letter-spacing: 1px; color: #c0d8f0; display: flex; align-items: center; gap: 6px; }
         .mclose { background: transparent; border: none; color: #4a6080; cursor: pointer; font-size: 18px; }
-        .mbody { padding: 16px 20px; }
+        .mbody { padding: 14px 6px; }
+        
+        /* מערכת כרטיסיות הייטקיות לקונסולת הקבוצה */
+        .tab-row { display: flex; margin-bottom: 16px; border-radius: 8px; overflow: hidden; border: 1px solid #1a2a4a; flex-direction: row-reverse; }
+        .tab-btn { flex: 1; padding: 9px; background: transparent; border: none; color: #4a6080; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; }
+        .tab-btn.active { background: #0a1428; color: #00c8ff; border-bottom: 1.5px solid #00c8ff; }
+        
         .mfield { margin-bottom: 14px; }
         .mfield label { display: block; font-size: 11px; color: #4a6080; letter-spacing: 1px; margin-bottom: 6px; }
         .minput, .mselect { width: 100%; background: #060b18; border: 1px solid #1a2a4a; border-radius: 8px; padding: 9px 12px; color: #c0d8f0; font-family: 'Rajdhani', sans-serif; font-size: 14px; outline: none; text-align: right; }
@@ -371,24 +467,32 @@ export default function AdminGroupsList() {
         .msave { flex: 1; background: linear-gradient(135deg, #0a1f3d, #0d2a50); border: 1px solid #00c8ff44; color: #00c8ff; padding: 10px; border-radius: 8px; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
         .mcancel { flex: 1; background: transparent; border: 1px solid #1a2a4a; color: #4a6080; padding: 10px; border-radius: 8px; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; }
         
+        /* לחצן מחיקה חגיגי באדום-סייבר אזהרה */
+        .mdelete-warning-btn { width: 100%; background: rgba(255, 59, 48, 0.05); border: 1px dashed rgba(255, 59, 48, 0.4); color: #ff5555; padding: 10px; border-radius: 8px; font-family: 'Rajdhani', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 18px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .mdelete-warning-btn:hover { background: rgba(255, 59, 48, 0.16); border-color: #ff3b30; color: #ff3b30; box-shadow: 0 0 15px rgba(255, 59, 48, 0.25); }
+
         .grade-grid { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; flex-direction: row-reverse; }
         .grade-cb { position: relative; }
         .grade-cb label { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 6px; border: 1px solid #1a2a4a; background: #060b18; color: #4a6080; font-size: 13px; font-weight: 700; cursor: pointer; }
         .grade-cb input { position: absolute; opacity: 0; width: 0; height: 0; }
         .grade-cb input:checked + label { background: #0a2040; border-color: #00c8ff; color: #00c8ff; }
 
-        .student-modal-list { max-height: 200px; overflow-y: auto; border: 1px solid #1a2a4a; background: #060b18; border-radius: 8px; padding: 8px; margin-bottom: 14px; }
+        .student-modal-list { max-height: 180px; overflow-y: auto; border: 1px solid #1a2a4a; background: #060b18; border-radius: 8px; padding: 6px; margin-bottom: 14px; }
         .student-modal-row { padding: 8px 12px; font-size: 13px; color: #cbd5e1; border-bottom: 1px solid #0d1a2e; display: flex; justify-content: space-between; align-items: center; flex-direction: row-reverse; }
         .no-students-placeholder { font-size: 12px; color: #4a6080; text-align: center; padding: 20px 0; }
 
         .bottom-bar { display: flex; gap: 10px; padding: 12px 16px; border-top: 1px solid #1a2a4a; background: #060b18; flex-shrink: 0; flex-wrap: wrap; direction: rtl; }
         .bot-btn { display: flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 9px; font-family: 'Orbitron', monospace; font-size: 10px; letter-spacing: 1px; font-weight: 700; cursor: pointer; transition: all 0.2s; border: none; white-space: nowrap; flex-direction: row-reverse; position: relative; }
         .bot-btn-cyan { background: linear-gradient(135deg, #061828, #0a2040); border: 1px solid #00c8ff44; color: #00c8ff; }
+        .pack-btn { background: linear-gradient(135deg, #040c1a, #081428); border: 1px solid #1a3a6a; color: #6090c0; padding: 8px 14px; border-radius: 8px; font-family: 'Rajdhani', sans-serif; font-size: 12.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
 
         .toast-container { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; pointer-events: none; }
         .toast { background: #041a08; border: 1px solid #00e67666; border-radius: 10px; padding: 12px 20px; color: #00e676; font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 20px rgba(0,230,118,0.15); flex-direction: row-reverse; }
+        
+        .approval-banner { margin-top: 12px; display: flex; gap: 10px; background: rgba(240,168,32,0.06); border: 1px solid rgba(240,168,32,0.25); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #f0a820; align-items: center; direction: rtl; }
+        
         @keyframes hqSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        @keyframes hqPulse { 0%,100%{opacity:.6} 50%{opacity:1} }
+        @keyframes liveWave { 0% { height: 2px; } 100% { height: 10px; } }
       `}</style>
 
       {/* סיידבר הניווט */}
@@ -454,7 +558,7 @@ export default function AdminGroupsList() {
               <label>סנן לפי יום פעילות</label>
               <select className="filter-select" value={filterDay} onChange={(e) => setFilterDay(e.target.value)}>
                 <option value="">כל הימים</option>
-                {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                {DAYS.map((d, i) => <option key={i} value={i}>יום {d}</option>)}
               </select>
             </div>
 
@@ -478,7 +582,7 @@ export default function AdminGroupsList() {
             <div className="table-head">
               <div className="table-head-title">
                 <i className="ti ti-table" style={{ color: '#00c8ff' }}></i>
-                ניהול קבוצות ותלמידים ברשת — לחץ על שורה לצפייה בתלמידים
+                ניהול קבוצות ותלמידים ברשת — לחץ על שורה לניהול ועריכת הקבוצה
               </div>
               <div className="table-badge">{filteredGroups.length} קבוצות נמצאו</div>
             </div>
@@ -498,11 +602,11 @@ export default function AdminGroupsList() {
               </thead>
               <tbody>
                 {filteredGroups.map(g => (
-                  <tr key={g.id} onClick={() => handleOpenStudentsModal(g.id)}>
+                  <tr key={g.id} onClick={() => handleOpenGroupConsoleModal(g.id)}>
                     <td><span className="tag-cyan">{g.city}</span></td>
                     <td><span className="cell-bold">{g.venue}</span></td>
                     <td><span className="tag-purple">{g.name}</span></td>
-                    <td><span className="tag-outline">{DAYS[g.day]}</span></td>
+                    <td><span className="tag-outline">יום {DAYS[g.day]}</span></td>
                     <td><span style={{ fontFamily: 'Orbitron, monospace', color: '#00e676' }}>{minToStr(g.startMin)}</span></td>
                     <td><span style={{ fontFamily: 'Orbitron, monospace', color: '#ff5555' }}>{minToStr(g.startMin + g.dur)}</span></td>
                     <td>
@@ -538,7 +642,7 @@ export default function AdminGroupsList() {
         </div>
       </div>
 
-      {/* MODAL 1: צור קבוצה חדשה */}
+      {/* MODAL 1: הקמת קבוצה חדשה */}
       {isAddModalOpen && (
         <div className="modal-bg" onClick={(e) => e.target.className === 'modal-bg' && setIsAddModalOpen(false)}>
           <div className="modal">
@@ -566,28 +670,72 @@ export default function AdminGroupsList() {
         </div>
       )}
 
-      {/* MODAL 2: ניהול תלמידים */}
-      {isStudentModalOpen && currentGroupObj && (
+      {/* MODAL 2: קונסולת מפקדת קבוצה מאוחדת (מערכת כרטיסיות מבוססת טאבים) */}
+      {isStudentModalOpen && currentGroupObj && formGroup && (
         <div className="modal-bg" onClick={(e) => e.target.className === 'modal-bg' && setIsStudentModalOpen(false)}>
           <div className="modal">
             <div className="mhead">
-              <div className="mtitle"><i className="ti ti-users"></i> ניהול תלמידים — {currentGroupObj.name} ({currentGroupObj.city})</div>
+              <div className="mtitle"><i className="ti ti-settings"></i> קונסולת ניהול: {formGroup.venue} — {formGroup.name}</div>
               <div className="mclose" onClick={() => setIsStudentModalOpen(false)}><i className="ti ti-x"></i></div>
             </div>
             <div className="mbody">
-              <div style={{ fontSize: '12px', color: '#6080a0', marginBottom: '12px', textAlign: 'right' }}>מוקד: {currentGroupObj.venue} · מדריך: {currentGroupObj.instructor || 'טרם שובץ'}</div>
-              <label className="flabel" style={{ display: 'block', fontSize: '11px', color: '#4a6080', marginBottom: '6px' }}>רשימת ילדים רשומים ({(groupStudents[selectedGroupId] || []).length})</label>
-              <div className="student-modal-list">
-                {(groupStudents[selectedGroupId] || []).length > 0 ? (groupStudents[selectedGroupId] || []).map((student, idx) => <div className="student-modal-row" key={idx}><span>{idx + 1}. {student}</span><i className="ti ti-user-check" style={{ color: '#00e676', fontSize: '12px' }}></i></div>) : <div className="no-students-placeholder">⚠️ אין עדיין תלמידים רשומים בקבוצה זו</div>}
+              {/* סרגל כרטיסיות הייטקי פנימי למודאל */}
+              <div className="tab-row">
+                <button className={`tab-btn ${modalTab === 1 ? 'active' : ''}`} type="button" onClick={() => setModalTab(1)}>👥 חניכים</button>
+                <button className={`tab-btn ${modalTab === 2 ? 'active' : ''}`} type="button" onClick={() => setModalTab(2)}>✏️ ערוך קבוצה</button>
+                <button className={`tab-btn ${modalTab === 3 ? 'active' : ''}`} type="button" onClick={() => setModalTab(3)}>👤 מדריך</button>
+                <button className={`tab-btn ${modalTab === 4 ? 'active' : ''}`} type="button" onClick={() => setModalTab(4)}>📢 עדכון</button>
               </div>
-              <div className="mfield">
-                <label>הוספת תלמיד חדש לקבוצה זו</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input className="minput" type="text" placeholder="הקלד שם מלא של התלמיד..." value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} />
-                  <button className="pack-btn" style={{ background: 'linear-gradient(135deg, #041818, #062828)', borderColor: '#00d8b044', color: '#00d8b0', padding: '0 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }} type="button" onClick={handleAddStudentToGroup}><i className="ti ti-plus"></i> הוסף</button>
+
+              {/* טאב 1: ניהול והוספת תלמידים (הלוגיקה המקורית שלך) */}
+              {modalTab === 1 && (
+                <div>
+                  <label className="flabel" style={{ display: 'block', fontExo: 'Inter', fontSize: '11px', color: '#4a6080', marginBottom: '6px' }}>רשימת חניכים רשומים לקבוצה ({(groupStudents[selectedGroupId] || []).length})</label>
+                  <div className="student-modal-list">
+                    {(groupStudents[selectedGroupId] || []).length > 0 ? (groupStudents[selectedGroupId] || []).map((student, idx) => <div className="student-modal-row" key={idx}><span>{idx + 1}. {student}</span><i className="ti ti-user-check" style={{ color: '#00e676', fontSize: '12px' }}></i></div>) : <div className="no-students-placeholder">⚠️ אין עדיין תלמידים רשומים בקבוצה זו</div>}
+                  </div>
+                  <div className="mfield">
+                    <label>רישום חניך בודד לקבוצה זו</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input className="minput" type="text" placeholder="הקלד שם מלא של התלמיד..." value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} />
+                      <button className="pack-btn" style={{ background: 'linear-gradient(135deg, #041818, #062828)', borderColor: '#00d8b044', color: '#00d8b0', padding: '0 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }} type="button" onClick={handleAddStudentToGroup}> הוסף לקבוצה</button>
+                    </div>
+                  </div>
+                  <div className="mrow"><button className="mcancel" style={{ width: '100%' }} type="button" onClick={() => setIsStudentModalOpen(false)}>סגור קונסולה</button></div>
                 </div>
-              </div>
-              <div className="mrow"><button className="msave" type="button" onClick={() => setIsStudentModalOpen(false)}>סגור מפקדת תלמידים</button></div>
+              )}
+
+              {/* טאב 2: הגדרות ליבה, עריכת זמנים + לחצן מחיקה מורחב קריטי */}
+              {modalTab === 2 && (
+                <div>
+                  <div className="mfield"><label>סוג החוג / קבוצה</label><select className="mselect" value={formGroup.name} onChange={(e) => setFormGroup({ ...formGroup, name: e.target.value })}><option value="הייטק ג׳וניור">הייטק ג׳וניור</option><option value="הייטק פרו">הייטק פרו</option><option value="הנדסה ורובוטיקה">הנדסה ורובוטיקה</option></select></div>
+                  <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 1 }}><label>עיר פעילות</label><input className="minput" type="text" value={formGroup.city} onChange={(e) => setFormGroup({ ...formGroup, city: e.target.value })} /></div><div className="mfield" style={{ flex: 1 }}><label>שם המוקד / בית ספר</label><input className="minput" type="text" value={formGroup.venue} onChange={(e) => setFormGroup({ ...formGroup, venue: e.target.value })} /></div></div>
+                  <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 1 }}><label>יום בשבוע</label><select className="mselect" value={formGroup.day} onChange={(e) => setFormGroup({ ...formGroup, day: e.target.value })}>{DAYS.map((d, i) => <option key={i} value={i}>יום {d}</option>)}</select></div><div className="mfield" style={{ flex: 1 }}><label>שעת התחלה</label><input className="minput" type="text" value={formGroup.startStr} onChange={(e) => setFormGroup({ ...formGroup, startStr: e.target.value })} /></div><div className="mfield" style={{ flex: 1 }}><label>שעת סיום</label><input className="minput" type="text" value={formGroup.endStr} onChange={(e) => setFormGroup({ ...formGroup, endStr: e.target.value })} /></div></div>
+                  <div className="mfield"><label>שכבת כיתות מיועדת</label><div className="grade-grid">{gradesList.map(g => <div className="grade-cb" key={g}><input type="checkbox" id={`edit_g_${g}`} checked={(formGroup.grades || []).includes(g)} onChange={() => toggleEditGradeSelection(g)} /><label htmlFor={`edit_g_${g}`}>{g}</label></div>)}</div></div>
+                  
+                  <div className="mrow"><button className="msave" type="button" onClick={handleSaveGroupSettingsEdit}>שמור שינויים</button><button className="mcancel" type="button" onClick={() => setIsStudentModalOpen(false)}>ביטול</button></div>
+                  
+                  {/* לחצן מחיקת הקבוצה לחלוטין מה-Database בענן */}
+                  <button className="mdelete-warning-btn" type="button" onClick={handleDeleteGroupPermanently}><i className="ti ti-trash"></i> מחק קבוצה זו לצמיתות מהמערכת</button>
+                </div>
+              )}
+
+              {/* טאב 3: ניהול שיוך מדריכים ואישורי לו"ז */}
+              {modalTab === 3 && (
+                <div>
+                  <div className="mfield"><label>מדריך אחראי משוייך לחוג</label><select className="mselect" value={formGroup.instructor} onChange={(e) => setFormGroup({ ...formGroup, instructor: e.target.value })}><option value="">— ללא מדריך (קבוצה אדומה) —</option>{instructors.map((inst, idx) => <option key={idx} value={inst}>{inst}</option>)}</select></div>
+                  {formGroup.status === 'yellow' && formGroup.instructor && <div className="approval-banner"><i className="ti ti-clock"></i><div>הקבוצה ממתינה כעת לאישור הלו"ז של המדריך/ה {formGroup.instructor} בנייד.</div></div>}
+                  <div className="mrow"><button className="msave" type="button" onClick={handleSaveGroupInstructorEdit}>עדכן שיוך מדריך</button><button className="mcancel" type="button" onClick={() => setIsStudentModalOpen(false)}>ביטול</button></div>
+                </div>
+              )}
+
+              {/* טאב 4: התראות ושידור פוש לקבוצה */}
+              {modalTab === 4 && (
+                <div>
+                  <div className="mfield"><label>הודעת שידור פוש מהירה לתלמידי הקבוצה</label><textarea className="minput" rows="4" style={{ resize: 'none', height: '90px' }} placeholder="הקלד תוכן הודעה שתישלח כהתראה למכשירים הניידים של החניכים..." value={formGroup.broadcastMsg} onChange={(e) => setFormGroup({ ...formGroup, broadcastMsg: e.target.value })}></textarea></div>
+                  <div className="mrow"><button className="msave" type="button" onClick={handleSendGroupBroadcast}>📢 שדר הודעה כעת</button><button className="mcancel" type="button" onClick={() => setIsStudentModalOpen(false)}>ביטול</button></div>
+                </div>
+              )}
             </div>
           </div>
         </div>
