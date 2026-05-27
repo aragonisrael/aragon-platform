@@ -6,6 +6,13 @@ import { supabase } from '../../supabaseClient';
 // ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
 import aragonLogo from '../../assets/aragonlogo.png';
 
+const STATUSLABEL = {
+  green: 'אושר השבוע',
+  yellow: 'ממתין לאישור',
+  red: 'ללא מדריך',
+  turquoise: 'מעבר ונסיעה'
+};
+
 export default function AdminShopLogistics() {
   const navigate = useNavigate();
 
@@ -43,7 +50,7 @@ export default function AdminShopLogistics() {
           product: o.product,
           emoji: o.emoji,
           date: o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '—',
-          status: o.status || 'ordered' // חיווט לעמודת הסטטוס החדשה בקלאוד
+          status: o.status || 'ordered'
         }));
         setOrders(mappedOrders);
       }
@@ -52,9 +59,31 @@ export default function AdminShopLogistics() {
     }
   };
 
-  // טעינת הנתונים מהענן בהפעלת הדף
+  // 🟢 טעינת נתונים והפעלת צינור האזנה חי בריאל-טיים לטבלת הרכישות
   useEffect(() => {
+    // משיכה ראשונית של המצב הקיים בענן
     fetchShopAndLogisticsData();
+
+    // הגדרת ערוץ האזנה חי לאירועי הזרקה (INSERT) בטבלת ההזמנות
+    const shopRealtimeChannel = supabase
+      .channel('hq-live-orders-stream')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders' },
+        (payload) => {
+          // 1. משיכה מיידית ומסונכרנת של השורות החדשות אל תוך ה-UI ללא שום רענון ידני!
+          fetchShopAndLogisticsData();
+          
+          // 2. הקפצת חלונית סייבר-ירוקה חגיגית ופועמת על המסך
+          triggerToast(`🛒 הזמנה חדשה התקבלה בריאל-טיים! החניך ${payload.new.student} רכש ${payload.new.product} ${payload.new.emoji || ''}`);
+        }
+      )
+      .subscribe();
+
+    // ניקוי ערוץ ההאזנה (Teardown) בעת עזיבת הדף למניעת זליגות זיכרון
+    return () => {
+      supabase.removeChannel(shopRealtimeChannel);
+    };
   }, []);
 
   // מסנכרן את מצב כפתור הנגן מול האודיו הגלובלי
@@ -67,14 +96,14 @@ export default function AdminShopLogistics() {
 
   const triggerToast = (msg) => {
     setToast({ show: true, message: msg });
-    setTimeout(() => setToast({ show: false, message: '' }), 3000);
+    setTimeout(() => setToast({ show: false, message: '' }), 4500); // הארכת זמן הצפייה בהודעה הרציפה
   };
 
   // שליטה בנגן הרדיו הגלובלי הפעיל ברקע
   const toggleRadioPlay = () => {
     const globalAudio = document.getElementById('hq-cyber-radio');
     if (!globalAudio) return;
-    globalAudio.paused ? globalAudio.play() : globalAudio.pause();
+    globalAudio.paused ? globalAudio.play().catch(e => console.log(e)) : globalAudio.pause();
     setIsPlaying(!globalAudio.paused);
   };
 
@@ -153,7 +182,7 @@ export default function AdminShopLogistics() {
     }
   };
 
-  // 🔥 קידום שלב בשרשרת האספקה: שילוח הפרס למדריך בשטח והעברת הסטטוס ל-'shipped_to_coach'
+  // קידום שלב בשרשרת האספקה: שילוח הפרס למדריך בשטח
   const handleShipToCoachOrder = async (id) => {
     try {
       await supabase
@@ -173,7 +202,7 @@ export default function AdminShopLogistics() {
     setTimeout(() => window.print(), 500);
   };
 
-  // ספירת הזמנות פתוחות (כל ההזמנות שטרם הושלמו לחלוטין לידי הילד)
+  // ספירת הזמנות פתוחות
   const openOrdersCount = orders.filter(o => o.status !== 'completed').length;
 
   return (
@@ -245,7 +274,7 @@ export default function AdminShopLogistics() {
         .prod-body { padding: 14px; }
         .prod-name { font-size: 15px; font-weight: 700; color: #c0d8f0; margin-bottom: 6px; text-align: right; }
         .prod-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-direction: row-reverse; }
-        .prod-price { font-family: 'Orbitron', monospace; font-size: 14px; color: #00c8ff; font-weight: 700; }
+        .prod-price { font-family: 'Orbitron', monospace; font-size: 14px; color: #fbbf24; font-weight: 700; }
         .prod-stock { font-size: 11px; color: #3a5070; background: #0a1428; padding: 3px 8px; border-radius: 6px; border: 1px solid #1a2a4a; }
         
         .edit-btn { width: 100%; background: transparent; border: 1px solid #1a2a4a; color: #4a6080; padding: 7px; border-radius: 8px; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
@@ -273,7 +302,7 @@ export default function AdminShopLogistics() {
         .pack-btn:hover { border-color: #00c8ff66; color: #00c8ff; background: linear-gradient(135deg, #081428, #0a1e38); }
         
         .toast-container { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; }
-        .toast { background: #041a08; border: 1px solid #00e67666; border-radius: 10px; padding: 12px 20px; color: #00e676; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 20px rgba(0,230,118,0.15); }
+        .toast { background: #041a08; border: 1px solid #00e67666; border-radius: 10px; padding: 12px 20px; color: #00e676; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 20px rgba(0,230,118,0.15); text-align: center; direction: rtl; }
         
         .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
         .modal { background: #080f1e; border: 1px solid #1a2a4a; border-radius: 16px; width: 460px; max-width: 100%; max-height: 90vh; overflow-y: auto; direction: rtl; text-align: right; }
@@ -374,7 +403,6 @@ export default function AdminShopLogistics() {
                       <td><span className="product-tag">{o.emoji} {o.product}</span></td>
                       <td><span className="date-tag">{o.date}</span></td>
                       <td>
-                        {/* שיקוף חכם ומסונכרן של 4 שלבי שרשרת האספקה החדשה באדמין */}
                         {o.status === 'ordered' && (
                           <button className="pack-btn" type="button" style={{ borderColor: '#ff8c00', color: '#ff8c00' }} onClick={() => handleShipToCoachOrder(o.id)}>
                             <i className="ti ti-truck"></i> שחרור למדריך
