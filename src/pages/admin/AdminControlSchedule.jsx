@@ -10,13 +10,14 @@ const STATUSLABEL = {
   green: 'אושר השבוע',
   yellow: 'ממתין לאישור',
   red: 'ללא מדריך',
-  turquoise: 'מעבר ונסיעה' // מניעת קריסת הטולטיפ במעברים
+  turquoise: 'מעבר ונסיעה'
 };
 
 export default function AdminControlSchedule() {
   const navigate = useNavigate();
 
-  const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי'];
+  // 🟢 שינוי קריטי 1: צמצום המערך לימי ראשון עד חמישי בלבד (הורדת יום שישי)
+  const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי'];
   const START_HOUR = 12, END_HOUR = 20, PX_PER_MIN = 1.2, TOTAL_MIN = (END_HOUR - START_HOUR) * 60;
   const GAP = 2;
 
@@ -29,7 +30,6 @@ export default function AdminControlSchedule() {
   const [dimmedFilters, setDimmedFilters] = useState({ green: true, yellow: true, red: true });
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // הלוח מתחיל ריק לחלוטין ונטען דינמית רק מהענן
   const [instructors, setInstructors] = useState([]);
   const [groups, setGroups] = useState([]);
 
@@ -49,7 +49,6 @@ export default function AdminControlSchedule() {
   // פונקציה למשיכת הנתונים האמיתיים מ-Supabase בריאל-טיים
   const fetchLiveScheduleData = async () => {
     try {
-      // 1. משיכת רשימת המדריכים המעודכנת
       const { data: dbInstructors } = await supabase
         .from('users')
         .select('full_name')
@@ -59,7 +58,6 @@ export default function AdminControlSchedule() {
         setInstructors(dbInstructors.map(i => i.full_name));
       }
 
-      // 2. משיכת הבלוקים והחוגים מטבלת groups שהקמת הרגע
       const { data: dbGroups, error } = await supabase
         .from('groups')
         .select('*');
@@ -89,12 +87,10 @@ export default function AdminControlSchedule() {
     }
   };
 
-  // הרצת הפונקציה בטעינת הדף
   useEffect(() => {
     fetchLiveScheduleData();
   }, []);
 
-  // מסנכרן את מצב כפתור הנגן מול האודיו הגלובלי ב-App.jsx בעת מעבר דפים
   useEffect(() => {
     const globalAudio = document.getElementById('hq-cyber-radio');
     if (globalAudio) {
@@ -102,7 +98,6 @@ export default function AdminControlSchedule() {
     }
   }, []);
 
-  // תיקון פונקציית פענוח הזמן: הפיכה לאבסולוטית ללא תוספות מיותרות
   const minToStr = (m) => {
     const h = Math.floor(m / 60), mm = m % 60;
     return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
@@ -113,15 +108,13 @@ export default function AdminControlSchedule() {
     setTimeout(() => setToast({ show: false, message: '' }), 3000);
   };
 
-  // שליטה בנגן הרדיו הגלובלי
   const toggleRadioPlay = () => {
     const globalAudio = document.getElementById('hq-cyber-radio');
     if (!globalAudio) return;
-    globalAudio.paused ? globalAudio.play() : globalAudio.pause();
+    globalAudio.paused ? globalAudio.play().catch(e => console.log(e)) : globalAudio.pause();
     setIsPlaying(!globalAudio.paused);
   };
 
-  // מנוע חישוב העמודות
   const layoutDay = (dayBlocks) => {
     const bs = dayBlocks.map(b => ({ ...b, endMin: b.startMin + b.dur }));
     bs.sort((a, b) => a.startMin - b.startMin);
@@ -142,7 +135,6 @@ export default function AdminControlSchedule() {
     return bs;
   };
 
-  // מנוע הסינון המדויק לפי הבקשה החדשה שלך לקצוות הארציים
   const getOpacity = (g) => {
     if (currentFilter === 'unassigned') return g.status === 'red' ? 1 : 0;
     if (currentFilter === 'city') {
@@ -163,7 +155,7 @@ export default function AdminControlSchedule() {
   };
 
   const handleOpenBlockModal = (id) => {
-    if (String(id).includes('setup') || String(id).includes('cleanup') || String(id).includes('travel')) return; // חסימת עריכה לבלוקים זמניים
+    if (String(id).includes('setup') || String(id).includes('cleanup') || String(id).includes('travel')) return; 
     const g = groups.find(x => x.id === id);
     if (!g) return;
     setSelectedGroupId(id);
@@ -327,10 +319,8 @@ export default function AdminControlSchedule() {
       });
 
       await supabase.from('users').insert(newStudentsBatch);
-
-      const targetG = groups.find(g => g.id === studentTargetGroupId);
       setActiveModal(null); 
-      triggerToast(`${filteredNames.length} תלמידים נוספו בהצלחה אל ${targetG.name} ✓`);
+      triggerToast(`${filteredNames.length} תלמידים נוספו בהצלחה לחוג ✓`);
     } catch (err) {
       console.error(err);
     }
@@ -343,10 +333,30 @@ export default function AdminControlSchedule() {
   const totalPxHeight = TOTAL_MIN * PX_PER_MIN;
   const timeColumnElements = [];
   for (let m = 0; m < TOTAL_MIN; m += 30) {
-    const isMajor = m % 60 === 0;
+    // 🟢 שינוי קריטי 3 א': תיקון האופסט האנכי של השעות בציר הזמן
+    const borderIsFullHour = (m + 30) % 60 === 0;
+    const textIsFullHour = m % 60 === 0;
+    
     timeColumnElements.push(
-      <div key={m} style={{ position: 'absolute', top: `${m * PX_PER_MIN}px`, left: 0, right: 0, height: `${30 * PX_PER_MIN}px`, borderBottom: `${isMajor ? '1.5px' : '1px'} solid ${isMajor ? '#1e3250' : '#0d1a2c'}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '3px', fontFamily: 'Orbitron, monospace', fontSize: '9px', color: isMajor ? '#2a4a6a' : 'transparent' }}>
-        {isMajor ? minToStr(m + START_HOUR * 60) : ''}
+      <div 
+        key={m} 
+        style={{ 
+          position: 'absolute', 
+          top: `${m * PX_PER_MIN}px`, 
+          left: 0, 
+          right: 0, 
+          height: `${30 * PX_PER_MIN}px`, 
+          borderBottom: `${borderIsFullHour ? '1.5px' : '1px'} solid ${borderIsFullHour ? '#1e3250' : '#0d1a2c'}`, 
+          display: 'flex', 
+          alignItems: 'flex-start', 
+          justify-content: 'center', 
+          paddingTop: '3px', 
+          fontFamily: 'Orbitron, monospace', 
+          fontSize: '9px', 
+          color: textIsFullHour ? '#2a4a6a' : 'transparent' 
+        }}
+      >
+        {textIsFullHour ? minToStr(m + START_HOUR * 60) : ''}
       </div>
     );
   }
@@ -411,7 +421,9 @@ export default function AdminControlSchedule() {
         .overlay-label { font-size: 11px; color: #4a6080; letter-spacing: 1px; }
         
         .grid-outer { flex: 1; overflow: auto; border-radius: 12px; border: 1px solid #1a2a4a; background: #060b18; position: relative; }
-        .sched-wrap { display: grid; grid-template-columns: 56px repeat(6, 1fr); min-width: 720px; position: relative; }
+        
+        /* 🟢 שינוי קריטי 1 ב': התאמת שדות ה-Grid הארציים ל-5 עמודות בלבד ללא יום שישי */
+        .sched-wrap { display: grid; grid-template-columns: 56px repeat(5, 1fr); min-width: 720px; position: relative; }
         .col-header { padding: 8px 4px; font-family: 'Orbitron', monospace; font-size: 10px; letter-spacing: 1.5px; color: #2a4a6a; text-align: center; border-bottom: 1px solid #0d1a2e; background: #050a14; position: sticky; top: 0; z-index: 6; white-space: nowrap; }
         .col-header.time-hdr { position: sticky; top: 0; left: 0; z-index: 7; background: #050a14; }
         .time-col-body { background: #050a14; border-left: 1px solid #0a1428; position: sticky; left: 0; z-index: 3; }
@@ -422,17 +434,16 @@ export default function AdminControlSchedule() {
         .block-green { background: rgba(0,200,80,0.13); border: 1px solid rgba(0,200,80,0.3); border-top: 2px solid #00e676; }
         .block-yellow { background: rgba(200,136,0,0.13); border: 1px solid rgba(200,136,0,0.3); border-top: 2px solid #f0a820; }
         .block-red { background: rgba(200,40,40,0.13); border: 1px solid rgba(200,40,40,0.3); border-top: 2px solid #ff5555; }
-        
-        /* 🟢 פקודת עיצוב חדשה: בלוק מעבר וסיבוב בצבע טורקיז זוהר ומרהיב */
         .block-turquoise { background: rgba(0, 206, 209, 0.12); border: 1px solid rgba(0, 206, 209, 0.35); border-top: 2px solid #00ced1; }
         .block-turquoise .bname { color: #00ced1; font-weight: 800; }
 
-        .bname { font-size: 10px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* 🟢 שינוי קריטי 5: הגדלה קלה, נקייה ולא מוגזמת של הפונטים בתוך הבלוקים */
+        .bname { font-size: 11.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .block-green .bname { color: #00e676; }
         .block-yellow .bname { color: #f0a820; }
         .block-red .bname { color: #ff5555; }
-        .bmeta { font-size: 9px !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff !important; opacity: 1 !important; }
-        .btime { font-size: 9px; color: #a0b0d0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bmeta { font-size: 10px !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff !important; opacity: 0.9 !important; }
+        .btime { font-size: 10px; color: #a0b0d0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         
         .bottom-bar { display: flex; gap: 10px; padding: 10px 16px; border-top: 1px solid #1a2a4a; background: #060b18; flex-shrink: 0; flex-wrap: wrap; direction: rtl; }
         .bot-btn { display: flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 9px; font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 1px; font-weight: 700; cursor: pointer; transition: all 0.2s; border: none; white-space: nowrap; flex-direction: row-reverse; }
@@ -483,10 +494,9 @@ export default function AdminControlSchedule() {
         .tt-status { display: inline-block; margin-top: 8px; font-size: 10px; padding: 3px 10px; border-radius: 20px; font-weight: 600; text-align: center; }
 
         @keyframes hqSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        @keyframes toastIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
 
-      {/* SIDEBAR NAVIGATION CONTROL CENTER - 5 BUTTON MATRIX */}
+      {/* SIDEBAR */}
       <div className="sidebar">
         <div className="sidebar-logo"><div className="sidebar-logo-inner">A</div></div>
         <button className="nav-btn" type="button" onClick={() => navigate('/admin')}><i className="ti ti-layout-dashboard"></i><span className="nav-label">בית</span></button>
@@ -498,12 +508,12 @@ export default function AdminControlSchedule() {
       </div>
 
       <div className="main-col">
-        {/* TOP SYSTEM BAR */}
+        {/* TOP BAR */}
         <div className="top-bar">
           <div className="top-bar-brand">
             <div className="ring-wrap">
               <div className="ro"></div><div className="rm"></div><div className="rm2"></div><div className="ric"></div>
-              <img className="limg" src={aragonLogo} alt="Aragon Coin" />
+              <img className="limg" src={aragonLogo} alt="Aragon" />
             </div>
             <div><div className="brand-title">ARAGON CENTER</div><div className="brand-sub">MASTER SCHEDULE HUB</div></div>
           </div>
@@ -514,9 +524,7 @@ export default function AdminControlSchedule() {
               <div className="player-station-text">HQ RADIO</div>
               <div className="audio-visualizer-wave"><div className="visualizer-bar"></div><div className="visualizer-bar"></div><div className="visualizer-bar"></div></div>
             </div>
-            
             <div className="status-pill"><div className="status-dot"></div>מערכת פעילה</div>
-            <div style={{ fontSize: '11px', color: '#2a4060', fontFamily: 'Orbitron', letterSpacing: '1px' }}>17.05.26</div>
           </div>
           <div className="top-bar-neon"></div>
         </div>
@@ -531,9 +539,9 @@ export default function AdminControlSchedule() {
             <button className={`tb-btn ${currentFilter === 'unassigned' ? 'active' : ''}`} type="button" onClick={() => setCurrentFilter('unassigned')}><i className="ti ti-alert-triangle"></i> ללא שיוך</button>
             
             <div className="legend">
-              <div className="leg-item"><div className="leg-dot" style={{ background: '#00e676', boxShadow: '0 0 5px #00e676' }}></div>אושר</div>
-              <div className="leg-item"><div className="leg-dot" style={{ background: '#f0a820', boxShadow: '0 0 5px #f0a820' }}></div>ממתין</div>
-              <div className="leg-item"><div className="leg-dot" style={{ background: '#ff5555', boxShadow: '0 0 5px #ff5555' }}></div>ללא מדריך</div>
+              <div className="leg-item"><div className="leg-dot" style={{ background: '#00e676' }}></div>אושר</div>
+              <div className="leg-item"><div className="leg-dot" style={{ background: '#f0a820' }}></div>ממתין</div>
+              <div className="leg-item"><div className="leg-dot" style={{ background: '#ff5555' }}></div>ללא מדריך</div>
             </div>
           </div>
 
@@ -568,10 +576,8 @@ export default function AdminControlSchedule() {
                   return dimmedFilters[g.status];
                 });
 
-                // 🟢 מערך עזר לבניית בלוקים זמניים ברינדור ללא פגיעה בבסיס הנתונים
                 let rawDayBlocks = [...dayGroupsList];
 
-                // 🟢 אלגוריתם מנוע האונומטיה: הרצת חישוב ההתארגנות והמעברים אך ורק למצב "לפי מדריך" שנבחר!
                 if (currentFilter === 'inst' && selectedInstructor) {
                   const instructorClasses = [...dayGroupsList]
                     .filter(g => g.instructor === selectedInstructor)
@@ -593,10 +599,7 @@ export default function AdminControlSchedule() {
                       } else {
                         sessions.push(currentSession);
                         currentSession = {
-                          venue: cls.venue,
-                          city: cls.city,
-                          status: cls.status,
-                          classes: [cls]
+                          venue: cls.venue, city: cls.city, status: cls.status, classes: [cls]
                         };
                       }
                     }
@@ -609,77 +612,79 @@ export default function AdminControlSchedule() {
                     return { ...sess, startMin, endMin };
                   });
 
-                  // הזרקת בלוקי הקמה ופירוק באותו צבע סטטוס של השיעור
                   computedSessions.forEach(sess => {
-                    // זמן הקמה (15 דקות לפני)
                     rawDayBlocks.push({
                       id: `setup-${sess.venue}-${sess.startMin}`,
                       name: '⚙️ התארגנות והקמה',
-                      city: sess.city,
-                      venue: sess.venue,
-                      startMin: sess.startMin - 15,
-                      dur: 15,
-                      status: sess.status
+                      city: sess.city, venue: sess.venue,
+                      startMin: sess.startMin - 15, dur: 15, status: sess.status
                     });
 
-                    // זמן פירוק (15 דקות אחרי)
                     rawDayBlocks.push({
                       id: `cleanup-${sess.venue}-${sess.endMin}`,
                       name: '📦 פירוק כיתה',
-                      city: sess.city,
-                      venue: sess.venue,
-                      startMin: sess.endMin,
-                      dur: 15,
-                      status: sess.status
+                      city: sess.city, venue: sess.venue,
+                      startMin: sess.endMin, dur: 15, status: sess.status
                     });
                   });
 
-                  // חישוב והזרקת בלוקי מעברים בין מוקדים (צבע טורקיז חסין 40 דק)
                   for (let i = 0; i < computedSessions.length - 1; i++) {
                     const currentSess = computedSessions[i];
                     const nextSess = computedSessions[i + 1];
-
                     const endOfCleanup = currentSess.endMin + 15;
                     const startOfSetup = nextSess.startMin - 15;
                     const travelGap = startOfSetup - endOfCleanup;
 
                     if (travelGap > 0) {
-                      const travelDuration = Math.min(travelGap, 40); // הגבלה קריטית ל-40 דקות בלבד! החור ייווצר אוטומטית אם יש פער גדול יותר
+                      const travelDuration = Math.min(travelGap, 40); 
                       rawDayBlocks.push({
                         id: `travel-${currentSess.venue}-${nextSess.venue}`,
-                        name: '🚗 מעבר בין מוקדים',
+                        name: 'מעבר בין מוקדים',
                         city: `${currentSess.city} ➔ ${nextSess.city}`,
                         venue: `${currentSess.venue} ➔ ${nextSess.venue}`,
-                        startMin: endOfCleanup,
-                        dur: travelDuration,
-                        status: 'turquoise' // קלאס הסטייל הטורקיז החדש שלך
+                        startMin: endOfCleanup, dur: travelDuration, status: 'turquoise'
                       });
                     }
                   }
                 }
 
-                // שליחה לפונקציית הפריסה שמרחיבה בלוקים פנויים לרוחב מלא
                 const laidBlocks = layoutDay(rawDayBlocks);
 
                 return (
                   <div className="day-col-body" key={di} style={{ position: 'relative', height: `${totalPxHeight}px` }}>
                     {Array.from({ length: (END_HOUR - START_HOUR) * 2 }).map((_, i) => {
-                      const m = i * 30; const isMajor = m % 60 === 0;
-                      return <div style={{ position: 'absolute', top: `${m * PX_PER_MIN}px`, left: 0, right: 0, height: `${30 * PX_PER_MIN}px`, borderBottom: `${isMajor ? '1.5px' : '1px'} solid ${isMajor ? '#1e3250' : '#0d1a2c'}`, pointerEvents: 'none' }} key={i}></div>;
+                      const m = i * 30;
+                      // 🟢 שינוי קריטי 3 ב': קווים עבים בשעה עגולה, קווים דקים בחצי שעה
+                      const borderIsFullHour = (m + 30) % 60 === 0;
+                      return <div style={{ position: 'absolute', top: `${m * PX_PER_MIN}px`, left: 0, right: 0, height: `${30 * PX_PER_MIN}px`, borderBottom: `${borderIsFullHour ? '1.5px' : '1px'} solid ${borderIsFullHour ? '#1e3250' : '#0d1a2c'}`, pointerEvents: 'none' }} key={i}></div>;
                     })}
 
                     {laidBlocks.map(b => {
-                      const op = getOpacity(b); if (op === 0 && !String(b.id).includes('setup') && !String(b.id).includes('cleanup') && !String(b.id).includes('travel')) return null;
-                      const hPx = Math.max(b.dur * PX_PER_MIN - 2, 18); 
+                      const op = getOpacity(b); 
+                      const isHelperBlock = String(b.id).includes('setup') || String(b.id).includes('cleanup');
+                      const isTravelBlock = String(b.id).includes('travel');
                       
+                      if (op === 0 && !isHelperBlock && !isTravelBlock) return null;
+                      const hPx = Math.max(b.dur * PX_PER_MIN - 2, 18); 
                       const colW = (100 / b.numCols);
                       const relativeStartMin = b.startMin - (START_HOUR * 60);
 
                       return (
-                        <div key={b.id} className={`block block-${b.status}`} style={{ top: `${relativeStartMin * PX_PER_MIN}px`, right: `${((b.col || 0) / b.numCols) * 100}%`, width: `calc(${colW}% - ${GAP * (b.numCols > 1 ? 1 : 0)}px)`, height: `${hPx}px`, opacity: 1 }} onClick={() => handleOpenBlockModal(b.id)} onMouseEnter={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setTooltip({ show: true, x: rect.left + window.scrollX + 14, y: rect.top + window.scrollY + 14, block: b }); }} onMouseLeave={() => setTooltip({ show: false, x: 0, y: 0, block: null })}>
-                          <div className="bname">{b.name}</div>
-                          {hPx > 30 && <div className="bmeta">{b.city}{b.instructor ? ` · ${b.instructor.split(' ')[0]}` : ''}</div>}
-                          {hPx > 20 && <div className="btime">{minToStr(b.startMin)}–{minToStr(b.startMin + b.dur)}</div>}
+                        <div key={b.id} className={`block block-${b.status}`} style={{ top: `${relativeStartMin * PX_PER_MIN}px`, right: `${((b.col || 0) / b.numCols) * 100}%`, width: `calc(${colW}% - ${GAP * (b.numCols > 1 ? 1 : 0)}px)`, height: `${hPx}px` }} onClick={() => handleOpenBlockModal(b.id)} onMouseEnter={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setTooltip({ show: true, x: rect.left + window.scrollX + 14, y: rect.top + window.scrollY + 14, block: b }); }} onMouseLeave={() => setTooltip({ show: false, x: 0, y: 0, block: null })}>
+                          {isHelperBlock ? (
+                            // 🟢 שינוי קריטי 1 ג': מחיקת הטקסט מחוץ לבלוק ההתארגנות/פירוק למניעת כיווץ (יופיע רק בטולטיפ)
+                            null
+                          ) : isTravelBlock ? (
+                            // 🟢 שינוי קריטי 2: בלוק מעבר יציג רק אימוג'י מכונית וכותרת קבועה נקייה
+                            <div className="bname">🚗 מעבר בין מוקדים</div>
+                          ) : (
+                            // חוג רגיל (פונטים מוגדלים קצת לפי דרישה 5)
+                            <>
+                              <div className="bname">{b.name}</div>
+                              {hPx > 30 && <div className="bmeta">{b.city}{b.instructor ? ` · ${b.instructor.split(' ')[0]}` : ''}</div>}
+                              {hPx > 20 && <div className="btime">{minToStr(b.startMin)}–{minToStr(b.startMin + b.dur)}</div>}
+                            </>
+                          )}
                         </div>
                       );
                     })}
@@ -694,21 +699,19 @@ export default function AdminControlSchedule() {
           <button className="bottom-btn bot-btn-cyan" type="button" onClick={handleOpenNewGroupModal}><i className="ti ti-plus"></i> צור קבוצה חדשה</button>
           <button className="bottom-btn bot-btn-purple" type="button" onClick={() => { setGeneratedCreds(null); setNewInstructorName(''); setNewInstructorPhone(''); setActiveModal('newInstructor'); }}><i className="ti ti-user-plus"></i> צור מדריך חדש</button>
           <button className="bottom-btn bot-btn-teal" type="button" onClick={() => { setStudentRows(['']); setStudentTargetGroupId(null); setStudentSearchQuery(''); setActiveModal('addStudents'); }}><i className="ti ti-user-star"></i> הוסף תלמידים לקבוצה</button>
-          <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#2a4060' }}><i className="ti ti-info-circle"></i> לחץ על בלוק קבוצה לניהול ועריכה מהירה</div>
         </div>
       </div>
 
-      {/* TOAST NOTIFICATION WINDOW */}
+      {/* TOAST WINDOW */}
       {toast.show && (
         <div className="toast-container">
           <div className="toast" style={toast.isWarn ? { background: '#1a0404', borderColor: '#ff555566', color: '#ff5555' } : {}}>
-            <i className={toast.isWarn ? "ti ti-alert-triangle" : "ti ti-circle-check"}></i>
-            <span>{toast.message}</span>
+            <i className={toast.isWarn ? "ti ti-alert-triangle" : "ti ti-circle-check"}></i><span>{toast.message}</span>
           </div>
         </div>
       )}
 
-      {/* TOOLTIP MATRIX FLOATER */}
+      {/* TOOLTIP MATRIX */}
       {tooltip.show && tooltip.block && (
         <div className="tooltip" style={{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }}>
           <div className="tt-name">{tooltip.block.name}</div>
@@ -718,7 +721,7 @@ export default function AdminControlSchedule() {
         </div>
       )}
 
-      {/* MODALS TERMINAL SWITCHER */}
+      {/* EDIT MODAL TAB CONTROLLERS */}
       {activeModal === 'editBlock' && formGroup && (
         <div className="modal-bg" onClick={(e) => e.target.className === 'modal-bg' && setActiveModal(null)}>
           <div className="modal">
@@ -729,7 +732,7 @@ export default function AdminControlSchedule() {
               {modalTab === 1 && (
                 <div>
                   <div className="mfield"><label>שם החוג</label><input className="minput" type="text" value={formGroup.name} onChange={(e) => setFormGroup({ ...formGroup, name: e.target.value })} /></div>
-                  <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 1 }}><label>עיר</label><input className="minput" type="text" value={formGroup.city} onChange={(e) => setFormGroup({ ...formGroup, city: e.target.value })} /></div><div className="mfield" style={{ flex: 1 }}><label>מוקד</label><input className="minput" type="text" placeholder="מוקד רשת" value={formGroup.venue} onChange={(e) => setFormGroup({ ...formGroup, venue: e.target.value })} /></div></div>
+                  <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 1 }}><label>עיר</label><input className="minput" type="text" value={formGroup.city} onChange={(e) => setFormGroup({ ...formGroup, city: e.target.value })} /></div><div className="mfield" style={{ flex: 1 }}><label>מוקד</label><input className="minput" type="text" value={formGroup.venue} onChange={(e) => setFormGroup({ ...formGroup, venue: e.target.value })} /></div></div>
                   <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 1 }}><label>יום</label><select className="mselect" value={formGroup.day} onChange={(e) => setFormGroup({ ...formGroup, day: e.target.value })}>{DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}</select></div><div className="mfield" style={{ flex: 1 }}><label>התחלה</label><input className="minput" type="text" value={formGroup.startStr} onChange={(e) => setFormGroup({ ...formGroup, startStr: e.target.value })} /></div><div className="mfield" style={{ flex: 1 }}><label>סיום</label><input className="minput" type="text" value={formGroup.endStr} onChange={(e) => setFormGroup({ ...formGroup, endStr: e.target.value })} /></div></div>
                   <div className="mrow"><button className="msave" type="button" onClick={handleSaveGroupEdit}>שמור קבוצה</button><button className="mcancel" type="button" onClick={() => setActiveModal(null)}>ביטול</button></div>
                 </div>
@@ -737,13 +740,13 @@ export default function AdminControlSchedule() {
               {modalTab === 2 && (
                 <div>
                   <div className="mfield"><label>שיוך מדריך אחראי</label><select className="mselect" value={formGroup.instructor} onChange={(e) => setFormGroup({ ...formGroup, instructor: e.target.value })}><option value="">— ללא מדריך כרגע —</option>{instructors.map((i, idx) => <option key={idx} value={i}>{i}</option>)}</select></div>
-                  {formGroup.status === 'yellow' && formGroup.instructor && <div className="approval-banner"><i className="ti ti-clock"></i><div style={{ flex: 1 }}>ממתין לאישור של {formGroup.instructor}<button className="sim-btn" type="button" onClick={handleSimulateInstructorApproval}><i className="ti ti-check"></i> סמלץ אישור והפעלת קבוצה בלייב ✓</button></div></div>}
+                  {formGroup.status === 'yellow' && formGroup.instructor && <div className="approval-banner"><i className="ti ti-clock"></i><div style={{ flex: 1 }}>ממתין לאישור של {formGroup.instructor}<button className="sim-btn" type="button" onClick={handleSimulateInstructorApproval}><i className="ti ti-check"></i> סמלץ אישור בלייב ✓</button></div></div>}
                   <div className="mrow" style={{ marginTop: '10px' }}><button className="msave" type="button" onClick={handleSaveInstructorAssignment}>שמור שיוך</button><button className="mcancel" type="button" onClick={() => setActiveModal(null)}>ביטול</button></div>
                 </div>
               )}
               {modalTab === 3 && (
                 <div>
-                  <div className="mfield"><label>הודעה מהירה לתלמדי הקבוצה</label><textarea className="mtextarea" rows="4" placeholder="רשום הודעה שתשלח כהתראת פוש..." value={formGroup.updateMsg} onChange={(e) => setFormGroup({ ...formGroup, updateMsg: e.target.value })}></textarea></div>
+                  <div className="mfield"><label>הודעה מהירה לתלמדי הקבוצה</label><textarea className="mtextarea" rows="4" value={formGroup.updateMsg} onChange={(e) => setFormGroup({ ...formGroup, updateMsg: e.target.value })}></textarea></div>
                   <div className="mrow"><button className="msave" type="button" onClick={handleSendGroupBroadcast}>📢 שלח הודעה</button><button className="mcancel" type="button" onClick={() => setActiveModal(null)}>ביטול</button></div>
                 </div>
               )}
@@ -752,14 +755,15 @@ export default function AdminControlSchedule() {
         </div>
       )}
 
+      {/* NEW GROUP MODAL */}
       {activeModal === 'newGroup' && (
         <div className="modal-bg" onClick={(e) => e.target.className === 'modal-bg' && setActiveModal(null)}>
           <div className="modal">
             <div className="mhead"><div className="mtitle"><i className="ti ti-plus"></i>צור חוג וקבוצה חדשה</div><button className="mclose" type="button" onClick={() => setActiveModal(null)}><i className="ti ti-x"></i></button></div>
             <div className="mbody">
               <div className="mfield"><label>סוג החוג</label><select className="mselect" value={formGroup.name} onChange={(e) => setFormGroup({ ...formGroup, name: e.target.value })}><option>הייטק ג׳וניור</option><option>הייטק פרו</option><option>הנדסה ורובוטיקה</option></select></div>
-              <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 1 }}><label>עיר</label><input className="minput" type="text" placeholder='ר"ג' value={formGroup.city} onChange={(e) => setFormGroup({ ...formGroup, city: e.target.value })} /></div><div className="mfield" style={{ flex: 1 }}><label>מוקד בית ספר</label><input className="minput" type="text" placeholder="בן גוריון" value={formGroup.venue} onChange={(e) => setFormGroup({ ...formGroup, venue: e.target.value })} /></div></div>
-              <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 1 }}><label>יום בשבוע</label><select className="mselect" value={formGroup.day} onChange={(e) => setFormGroup({ ...formGroup, day: parseInt(e.target.value, 10) })}>{DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}</select></div><div className="mfield" style={{ flex: 1 }}><label>שעת התחלה</label><input className="minput" type="text" placeholder="16:00" value={formGroup.startStr} onChange={(e) => setFormGroup({ ...formGroup, startStr: e.target.value })} /></div><div className="mfield" style={{ flex: 1 }}><label>שעת סיום</label><input className="minput" type="text" placeholder="17:00" value={formGroup.endStr} onChange={(e) => setFormGroup({ ...formGroup, endStr: e.target.value })} /></div></div>
+              <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 1 }}><label>עיר</label><input className="minput" type="text" value={formGroup.city} onChange={(e) => setFormGroup({ ...formGroup, city: e.target.value })} /></div><div className="mfield" style={{ flex: 1 }}><label>מוקד בית ספר</label><input className="minput" type="text" value={formGroup.venue} onChange={(e) => setFormGroup({ ...formGroup, venue: e.target.value })} /></div></div>
+              <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 1 }}><label>יום בשבוע</label><select className="mselect" value={formGroup.day} onChange={(e) => setFormGroup({ ...formGroup, day: parseInt(e.target.value, 10) })}>{DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}</select></div><div className="mfield" style={{ flex: 1 }}><label>שעת התחלה</label><input className="minput" type="text" value={formGroup.startStr} onChange={(e) => setFormGroup({ ...formGroup, startStr: e.target.value })} /></div><div className="mfield" style={{ flex: 1 }}><label>שעת סיום</label><input className="minput" type="text" value={formGroup.endStr} onChange={(e) => setFormGroup({ ...formGroup, endStr: e.target.value })} /></div></div>
               <div className="mfield"><label>שיוך מדריך לפתיחה</label><select className="mselect" value={formGroup.instructor} onChange={(e) => setFormGroup({ ...formGroup, instructor: e.target.value })}><option value="">— פתח ללא מדריך כרגע —</option>{instructors.map((i, idx) => <option key={idx} value={i}>{i}</option>)}</select></div>
               <div className="mrow"><button className="msave" type="button" onClick={handleSaveNewGroup}>צור קבוצה חדשה</button><button className="mcancel" type="button" onClick={() => setActiveModal(null)}>ביטול</button></div>
             </div>
@@ -767,12 +771,13 @@ export default function AdminControlSchedule() {
         </div>
       )}
 
+      {/* NEW INSTRUCTOR MODAL */}
       {activeModal === 'newInstructor' && (
         <div className="modal-bg" onClick={(e) => e.target.className === 'modal-bg' && setActiveModal(null)}>
           <div className="modal">
             <div className="mhead"><div className="mtitle" style={{ color: '#a060e0' }}><i className="ti ti-user-plus"></i>צור חשבון מדריך חדש ברשת</div><button className="mclose" type="button" onClick={() => setActiveModal(null)}><i className="ti ti-x"></i></button></div>
             <div className="mbody">
-              <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 2 }}><label>שם המדריך המלא</label><input className="minput" type="text" placeholder="ירון כהן" value={newInstructorName} onChange={(e) => setNewInstructorName(e.target.value)} /></div><div className="mfield" style={{ flex: 1 }}><label>טלפון ליצירת קשר</label><input className="minput" type="text" placeholder="050-0000000" value={newInstructorPhone} onChange={(e) => setNewInstructorPhone(e.target.value)} /></div></div>
+              <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 2 }}><label>שם המדריך המלא</label><input className="minput" type="text" value={newInstructorName} onChange={(e) => setNewInstructorName(e.target.value)} /></div><div className="mfield" style={{ flex: 1 }}><label>טלפון</label><input className="minput" type="text" value={newInstructorPhone} onChange={(e) => setNewInstructorPhone(e.target.value)} /></div></div>
               {generatedCreds && <div className="creds-box"><div className="creds-row"><span className="creds-label">שם משתמש:</span><span className="creds-val">{generatedCreds.username}</span></div><div className="creds-row"><span className="creds-label">סיסמה:</span><span className="creds-val">12345678</span></div><button className="copy-btn" type="button" onClick={handleCopyCredentialsToWhatsapp}><i className="ti ti-brand-whatsapp"></i> העתק פרטי גישה</button></div>}
               {!generatedCreds && <div className="mrow"><button className="msave" style={{ background: 'linear-gradient(135deg,#120820,#1a0d2e)', color: '#a060e0' }} type="button" onClick={handleGenerateInstructor}>⚡ הפק חשבון אוטומטי</button><button className="mcancel" type="button" onClick={() => setActiveModal(null)}>ביטול</button></div>}
             </div>
@@ -780,13 +785,14 @@ export default function AdminControlSchedule() {
         </div>
       )}
 
+      {/* ADD STUDENTS MODAL */}
       {activeModal === 'addStudents' && (
         <div className="modal-bg" onClick={(e) => e.target.className === 'modal-bg' && setActiveModal(null)}>
           <div className="modal">
             <div className="mhead"><div className="mtitle" style={{ color: '#00d8b0' }}><i className="ti ti-user-star"></i>הוספת חלוקת תלמידים מרובה לקבוצה</div><button className="mclose" type="button" onClick={() => setActiveModal(null)}><i className="ti ti-x"></i></button></div>
             <div className="mbody">
-              <div className="mfield"><label>שמות התלמידים (להוספה מהירה)</label><div style={{ maxHeight: '140px', overflowY: 'auto', marginBottom: '6px' }}>{studentRows.map((row, idx) => <div className="student-row" key={idx}><input className="minput" type="text" placeholder="שם תלמיד מלא" value={row} onChange={(e) => { const updated = [...studentRows]; updated[idx] = e.target.value; setStudentRows(updated); }} /><button className="remove-row-btn" type="button" onClick={() => setStudentRows(studentRows.filter((_, i) => i !== idx))}><i className="ti ti-x"></i></button></div>)}</div><button className="add-row-btn" type="button" onClick={() => setStudentRows([...studentRows, ''])}><i className="ti ti-plus"></i> הוסף שורת תלמיד נוספת</button></div>
-              <div className="mfield"><label>שיוך קבוצה ממוינת</label><div className="group-search-wrap"><input className="minput" type="text" placeholder="חפש קבוצה לפי עיר/מוקד..." value={studentSearchQuery} onChange={(e) => setStudentSearchQuery(e.target.value)} /><i className="ti ti-search search-icon"></i></div><div className="group-select-list">{sortedGroupsForAllocation.map(g => <div className={`group-option ${g.id === studentTargetGroupId ? 'selected' : ''}`} key={g.id} onClick={() => setStudentTargetGroupId(g.id)}><div><div className="go-name">{g.name}</div><div className="go-meta">{g.city} · {g.venue}</div></div><i className="ti ti-check go-check"></i></div>)}</div></div>
+              <div className="mfield"><label>שמות התלמידים</label><div style={{ maxHeight: '140px', overflowY: 'auto', marginBottom: '6px' }}>{studentRows.map((row, idx) => <div className="student-row" key={idx}><input className="minput" type="text" placeholder="שם תלמיד מלא" value={row} onChange={(e) => { const updated = [...studentRows]; updated[idx] = e.target.value; setStudentRows(updated); }} /><button className="remove-row-btn" type="button" onClick={() => setStudentRows(studentRows.filter((_, i) => i !== idx))}><i className="ti ti-x"></i></button></div>)}</div><button className="add-row-btn" type="button" onClick={() => setStudentRows([...studentRows, ''])}><i className="ti ti-plus"></i> הוסף שורת תלמיד נוספת</button></div>
+              <div className="mfield"><label>שיוך קבוצה ממוינת</label><div className="group-search-wrap"><input className="minput" type="text" value={studentSearchQuery} onChange={(e) => setStudentSearchQuery(e.target.value)} /><i className="ti ti-search search-icon"></i></div><div className="group-select-list">{sortedGroupsForAllocation.map(g => <div className={`group-option ${g.id === studentTargetGroupId ? 'selected' : ''}`} key={g.id} onClick={() => setStudentTargetGroupId(g.id)}><div><div className="go-name">{g.name}</div><div className="go-meta">{g.city} · {g.venue}</div></div><i className="ti ti-check go-check"></i></div>)}</div></div>
               <div className="mrow" style={{ marginTop: '18px' }}><button className="msave" style={{ background: 'linear-gradient(135deg, #041818, #062828)', color: '#00d8b0' }} type="button" onClick={handleSaveBulkStudents}>אשר והוסף תלמידים לקבוצה</button><button className="mcancel" type="button" onClick={() => setActiveModal(null)}>ביטול</button></div>
             </div>
           </div>
