@@ -46,7 +46,7 @@ export default function InstructorSchedule() {
   const daysShort = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳'];
   const monthsHe = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
 
-  // פונקציה לשליפת הלו"ז האמיתי של המדריך ובקשות ההחלפה הפתוחות מהענן
+  // פונקציה לשליפת הלו"ז האמיתי של המדריך وبקשות ההחלפה הפתוחות מהענן
   const fetchLiveInstructorSchedule = async () => {
     try {
       const { data: userData } = await supabase
@@ -77,7 +77,7 @@ export default function InstructorSchedule() {
           const allGreen = dbGroups.length > 0 && dbGroups.every(g => g.status === 'green');
           setIsWeekApproved(allGreen);
 
-          // חישוב והזרקת בלוקי הקמה, פירוק ונסיעה לתוך הלו"ז של המדריך
+          // 🟢 חישוב והזרקת בלוקי הקמה, פירוק ונסיעה לתוך הלו"ז של המדריך
           for (let dayIdx = 0; dayIdx <= 5; dayIdx++) {
             const dayGroups = dbGroups
               .filter(g => Number(g.day) === dayIdx)
@@ -113,7 +113,7 @@ export default function InstructorSchedule() {
             const dayTimelineBlocks = [];
 
             computedSessions.forEach(sess => {
-              // א׳. בלוק התארגנות והקמה (15 דקות לפני)
+              // א׳. בלוק התארגנות והקמה (15 דקות לפני) -> סוג: setup
               dayTimelineBlocks.push({
                 startMin: sess.startMin - 15,
                 time: `${minToHourStr(sess.startMin - 15)}–${minToHourStr(sess.startMin)}`,
@@ -137,7 +137,7 @@ export default function InstructorSchedule() {
                 });
               });
 
-              // ג׳. בלוק פירוק כיתה (15 דקות אחרי)
+              // ג׳. בלוק פירוק כיתה (15 דקות אחרי) -> סוג: cleanup
               dayTimelineBlocks.push({
                 startMin: sess.endMin,
                 time: `${minToHourStr(sess.endMin)}–${minToHourStr(sess.endMin + 15)}`,
@@ -149,7 +149,7 @@ export default function InstructorSchedule() {
               });
             });
 
-            // ד׳. חישוב והזרקת בלוק המעבר הטורקיז (עד 40 דקות)
+            // ד׳. חישוב והזרקת בלוק המעבר הטורקיז (עד 40 דקות) -> סוג: travel
             for (let i = 0; i < computedSessions.length - 1; i++) {
               const currSess = computedSessions[i];
               const nextSess = computedSessions[i + 1];
@@ -359,7 +359,7 @@ export default function InstructorSchedule() {
         .rm2 { position: absolute; inset: 14px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #4060ff; animation: spin 7s linear infinite reverse; box-shadow: inset 0 0 10px rgba(64,128,255,.3); }
         .ric { position: absolute; inset: 22px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(80,100,255,.18); }
         .rp { position: absolute; inset: 22px; border-radius: 50%; background: radial-gradient(circle,rgba(60,80,255,.13) 0%,transparent 70%); animation: pulse 2.5s ease-in-out infinite; }
-        @keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:.4;transform:scale(.9)} 50%{opacity:1;transform:scale(1.05)} }
         .limg { width: 50px; height: 50px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 2px; box-shadow: 0 0 10px rgba(64,128,255,0.4); }
         
@@ -405,35 +405,34 @@ export default function InstructorSchedule() {
         .sched-day { margin-bottom: 8px; }
         .sday-hdr { font-size: 10px; color: #4a4a7a; letter-spacing: 1.5px; text-transform: uppercase; padding: 0 2px 5px; display: flex; align-items: center; gap: 6px; flex-direction: row-reverse; justify-content: flex-end; }
         .sday-hdr .sday-line { flex: 1; height: 1px; background: #14142a; }
-        .sday-slots { display: flex; flex-direction: column; gap: 5px; }
+        .sday-slots { display: flex; flex-direction: column; gap: 6px; }
         
-        .slot { border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; position: relative; overflow: hidden; flex-direction: row-reverse; transition: all 0.3s ease; }
+        /* ─── 🟢 חיווט קשיח ומוצלח מחדש של צבעי הרקע והגבהים לשלושת סוגי הבלוקים ─── */
+        .slot { border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; position: relative; overflow: hidden; flex-direction: row-reverse; }
         
-        /* ─── 🟢 חיווט קשיח ומוצלח של צבעי הרקע והגבהים לשלושת סוגי הבלוקים החדשים ─── */
+        /* 1. חוג רגיל */
         .slot.type-class { min-height: 54px; }
-        
-        /* 1. חוג רגיל - לפי סטטוס אישור (ירוק/צהוב) */
-        .slot.type-class.is-pending { background: linear-gradient(135deg,rgba(224,144,32,.14),rgba(160,100,5,.08)); border: 1px solid rgba(224,144,32,.25); }
-        .slot.type-class.is-pending .slot-dot { background: #e09020; box-shadow: 0 0 6px rgba(224,144,32,.6); }
-        .slot.type-class.is-pending .slot-tag { background: rgba(224,144,32,.1); color: #e09020; border: 1px solid rgba(224,144,32,.18); }
-        .slot.type-class.is-approved { background: linear-gradient(135deg,rgba(24,192,160,.16),rgba(10,128,96,.1)); border: 1px solid rgba(24,192,160,.32); }
-        .slot.type-class.is-approved .slot-dot { background: #18c0a0; box-shadow: 0 0 6px rgba(24,192,160,.6); }
-        .slot.type-class.is-approved .slot-tag { background: rgba(24,192,160,.12); color: #18c0a0; border: 1px solid rgba(24,192,160,.2); }
+        .slot.type-class.pending { background: linear-gradient(135deg,rgba(224,144,32,.14),rgba(160,100,5,.08)); border: 1px solid rgba(224,144,32,.25); }
+        .slot.type-class.pending .slot-dot { background: #e09020; box-shadow: 0 0 6px rgba(224,144,32,.6); }
+        .slot.type-class.pending .slot-tag { background: rgba(224,144,32,.1); color: #e09020; border: 1px solid rgba(224,144,32,.18); }
+        .slot.type-class.approved { background: linear-gradient(135deg,rgba(24,192,160,.16),rgba(10,128,96,.1)); border: 1px solid rgba(24,192,160,.32); }
+        .slot.type-class.approved .slot-dot { background: #18c0a0; box-shadow: 0 0 6px rgba(24,192,160,.6); }
+        .slot.type-class.approved .slot-tag { background: rgba(24,192,160,.12); color: #18c0a0; border: 1px solid rgba(24,192,160,.2); }
 
-        /* 2. בלוקי עזר (הקמה ופירוק) - בדיוק שליש גובה (28px), מקווקו ונקי מטקסט כפול */
-        .slot.type-setup, .slot.type-cleanup { min-height: 28px; padding: 4px 12px; background: rgba(255,255,255,0.02); }
-        .slot.type-setup.is-pending, .slot.type-cleanup.is-pending { border: 1px dashed rgba(224,144,32,.35); }
-        .slot.type-setup.is-pending .slot-dot, .slot.type-cleanup.is-pending .slot-dot { background: #e09020; opacity: 0.6; }
-        .slot.type-setup.is-approved, .slot.type-cleanup.is-approved { border: 1px dashed rgba(24,192,160,.4); }
-        .slot.type-setup.is-approved .slot-dot, .slot.type-cleanup.is-approved .slot-dot { background: #18c0a0; opacity: 0.6; }
-        .slot.type-setup .slot-name, .slot.type-cleanup .slot-name { font-size: 11px; opacity: 0.75; font-weight: 500; color: #b0c0e8; }
+        /* 2. בלוקי עזר (הקמה ופירוק) - בדיוק שליש גובה (32px), מוגדר מוצק ומואר */
+        .slot.type-setup, .slot.type-cleanup { min-height: 32px; padding: 6px 12px; }
+        .slot.type-setup.pending, .slot.type-cleanup.pending { background: rgba(224,144,32,0.05); border: 1px dashed rgba(224,144,32,0.35); }
+        .slot.type-setup.pending .slot-dot, .slot.type-cleanup.pending .slot-dot { background: #e09020; opacity: 0.6; }
+        .slot.type-setup.approved, .slot.type-cleanup.approved { background: rgba(24,192,160,0.05); border: 1px dashed rgba(24,192,160,0.4); }
+        .slot.type-setup.approved .slot-dot, .slot.type-cleanup.approved .slot-dot { background: #18c0a0; opacity: 0.6; }
+        .slot.type-setup .slot-name, .slot.type-cleanup .slot-name { font-size: 11.5px; font-weight: 600; color: #a78bfa; }
         .slot.type-setup .slot-tag, .slot.type-cleanup .slot-tag { background: rgba(255,255,255,0.03); color: #6a6a9a; border: 1px solid #1a1a30; }
 
-        /* 3. בלוק מעבר (נסיעה) - בדיוק שני שליש גובה (38px) בצבע טורקיז זוהר מרהיב */
-        .slot.type-travel { min-height: 38px; padding: 6px 12px; background: linear-gradient(135deg, rgba(0, 206, 209, 0.12), rgba(0, 180, 185, 0.06)); border: 1px solid rgba(0, 206, 209, 0.35); }
+        /* 3. בלוק מעבר (נסיעה) - בדיוק שני שליש גובה (42px) בצבע טורקיז זוהר מרהיב */
+        .slot.type-travel { min-height: 42px; padding: 8px 12px; background: linear-gradient(135deg, rgba(0, 206, 209, 0.12), rgba(0, 180, 185, 0.06)); border: 1px solid rgba(0, 206, 209, 0.35); }
         .slot.type-travel .slot-dot { background: #00ced1; box-shadow: 0 0 6px #00ced1; }
-        .slot.type-travel .slot-name { color: #00ced1; font-weight: 700; font-size: 11.5px; }
-        .slot.type-travel .slot-time { color: #00ced1; }
+        .slot.type-travel .slot-name { color: #00ced1; font-weight: 700; font-size: 12px; }
+        .slot.type-travel .slot-time { color: #00ced1; font-family: 'Orbitron', monospace; font-size: 10px; }
         .slot.type-travel .slot-tag { background: rgba(0, 206, 209, 0.12); color: #00ced1; border: 1px solid rgba(0, 206, 209, 0.2); }
         
         .slot-time { font-family: 'Orbitron',monospace; font-size: 10px; color: #8a9fc4; white-space: nowrap; flex-shrink: 0; }
@@ -559,19 +558,21 @@ export default function InstructorSchedule() {
                   <div className="sday-slots">
                     {slots.map((s, idx) => {
                       const isApprovedSlot = s.status === 'green' || isWeekApproved;
+                      const statusClass = isApprovedSlot ? 'approved' : 'pending';
+                      
                       const isHelper = s.type === 'setup' || s.type === 'cleanup';
                       const isTravel = s.type === 'travel';
 
                       return (
+                        // 🟢 התיקון הקריטי: סינכרון מחלקות מושלם וחסין, מעכשיו הסטטוס נסרק חלק
                         <div 
                           key={idx} 
-                          className={`slot type-${s.type} status-${s.status} ${isApprovedSlot ? 'is-approved' : 'is-pending'}`}
+                          className={`slot type-${s.type} ${statusClass}`}
                         >
                           <div className="slot-dot"></div>
                           <div className="slot-time">{s.time}</div>
                           <div className="slot-info">
                             <div className="slot-name">{s.name}</div>
-                            {/* הסרת כפל טקסט לפי דרישת מובייל נקייה — מטא דאטה מופיעה אך ורק בחוגים רגילים */}
                             {!isHelper && !isTravel && <div className="slot-meta">{s.school} · {s.city}</div>}
                           </div>
                           
@@ -631,7 +632,7 @@ export default function InstructorSchedule() {
 
         <nav className="navbar">
           <div className="nav-item" role="button" onClick={() => navigate('/instructor')}><i className="ti ti-home"></i><span className="nav-label">בית</span></div>
-          <div className="nav-item" role="button" onClick={() => navigate('/instructor/tasks')}><i className="ti ti-list-check"></i><span className="nav-label">משימות</span></div>
+          <div className="nav-item" role="button" onClick={() => navigate('/instructor/tasks')}><i className="ti ti-list-check"></i><span className="nav-label">Missions</span></div>
           <div className="nav-item" role="button" onClick={() => navigate('/instructor/groups')}><i className="ti ti-users"></i><span className="nav-label">קבוצות</span></div>
           <div className="nav-item" role="button" onClick={() => navigate('/instructor/benefits')}><i className="ti ti-trophy"></i><span className="nav-label">הטבות</span></div>
           <div className="nav-item" role="button" onClick={() => navigate('/instructor/updates')}><i className="ti ti-bell"></i><span className="nav-label">עדכונים</span></div>
