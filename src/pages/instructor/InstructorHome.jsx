@@ -93,10 +93,10 @@ export default function InstructorHome() {
     fetchDashboardData();
   }, [loggedUser]);
 
-  // חישוב דינמי של נקודות הבונוס המוארות (מתוך 5 נקודות מקסימום ליעד של 1000 ש"ח)
+  // חישוב דינמי של נקודות הבונוס המוארות
   const activeDotsCount = Math.min(5, Math.floor((ilsBalance / 1000) * 5));
 
-  // מסנכרן את מצב כפתור הנגן מול האודיו הגלובלי ב-App.jsx בעת מעבר דפים
+  // מסנכרן את מצב כפתור הנגן מול האודיו הגלובלי בעת מעבר דפים
   useEffect(() => {
     const globalAudio = document.getElementById('hq-cyber-radio');
     if (globalAudio) {
@@ -120,7 +120,7 @@ export default function InstructorHome() {
   return (
     <div className="ins-global-viewport">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Exo+2:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Exo+2:wght@300;400;500;600;700&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         
         .ins-global-viewport { width: 100%; min-height: 100vh; background: #050a14; display: flex; justify-content: center; align-items: center; }
@@ -181,16 +181,17 @@ export default function InstructorHome() {
         .capsule-wave { display: flex; align-items: flex-end; gap: 1.5px; height: 8px; }
         .capsule-wave-bar { width: 1.5px; height: 2px; background: #2e2e4e; border-radius: 1px; }
         .hero-radio-capsule.playing .capsule-wave-bar { background: #18b090; animation: liveWave 0.6s ease-in-out infinite alternate; }
-        .hero-radio-capsule.playing .capsule-wave-bar:nth-child(2) { animation-delay: 0.15s; }
-        .hero-radio-capsule.playing .capsule-wave-bar:nth-child(3) { animation-delay: 0.35s; }
 
-        .content-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 95px; /* 🟢 מרווח ביטחון בתחתית למניעת בליעת הקבוצות תחת הבר הצף */ scrollbar-width: none; }
+        .content-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 95px; scrollbar-width: none; }
         .content-scroll::-webkit-scrollbar { display: none; }
 
-        .header-row { padding: 18px 20px 14px; display: flex; align-items: center; justify-content: space-between; }
-        .greeting { font-size: 13px; color: #6a6a9a; letter-spacing: .4px; text-align: right; }
-        .instructor-name { font-family: 'Orbitron',monospace; font-size: 15px; font-weight: 500; color: #c0b0ff; margin-top: 2px; letter-spacing: 1px; text-align: right; }
-        .avatar { width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid #5030aa; background: linear-gradient(135deg,#1e1040,#141030); display: flex; align-items: center; justify-content: center; font-family: 'Orbitron',monospace; font-size: 13px; color: #9070ee; font-weight: 700; }
+        /* ─── 🟢 שדרוג ומרכוז מלא של תיבת הברכה והשם ─── */
+        .header-row { padding: 22px 16px 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; }
+        .greeting { font-size: 13.5px; font-weight: 600; color: #6a6a9a; letter-spacing: 0.5px; }
+        
+        /* עיצוב עבה, זוהר ומרהיב לשם המדריך במרכז המסך */
+        .instructor-name { font-family: 'Orbitron',monospace; font-size: 22px; font-weight: 900; color: #e0d7ff; margin-top: 2px; letter-spacing: 1.5px; text-shadow: 0 0 15px rgba(124, 58, 237, 0.6), 0 0 35px rgba(79, 70, 229, 0.35); }
+        .avatar { width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid #8050ff; background: linear-gradient(135deg,#1e1040,#0e0e1e); display: flex; align-items: center; justify-content: center; font-family: 'Orbitron',monospace; font-size: 13.5px; color: #c0b0ff; font-weight: 700; box-shadow: 0 0 12px rgba(128, 80, 255, 0.25); margin-bottom: 4px; }
         
         .section-label { font-size: 10px; letter-spacing: 2.5px; color: #48487a; text-transform: uppercase; padding: 0 20px; margin-bottom: 10px; text-align: right; }
         .kpi-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; padding: 0 20px; margin-bottom: 18px; }
@@ -236,14 +237,11 @@ export default function InstructorHome() {
         .group-item:hover { border-color: #302060; }
         .gdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
         .gdot.on { background: #18b090; }
-        .gdot.soon { background: #3070ff; }
-        .gdot.soon { background: #3070ff; }
         .ginfo { flex: 1; text-align: right; }
         .gname { font-size: 13px; font-weight: 500; color: #b0b0cc; margin-bottom: 2px; }
         .gmeta { font-size: 11px; color: #484868; }
         .gcount { font-family: 'Orbitron',monospace; font-size: 11px; color: #8050ff; background: rgba(80,48,170,.1); border: 1px solid rgba(80,48,170,.2); border-radius: 7px; padding: 2px 7px; }
         
-        /* 🟢 שדרוג ה-Navbar לבר צף, קבוע וממורכז ברמת מובייל מקצועית */
         .navbar { 
           position: fixed; 
           bottom: 0; 
@@ -302,19 +300,12 @@ export default function InstructorHome() {
           {/* Radio Aragon Music Stream Player */}
           <div className={`hero-radio-capsule ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
             <div className="capsule-left">
-              <div className="capsule-play-btn">
-                <i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i>
-              </div>
+              <div className="capsule-play-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i></div>
               <div className="capsule-text">HQ RADIO</div>
             </div>
-            <div className="capsule-wave">
-              <div className="capsule-wave-bar"></div>
-              <div className="capsule-wave-bar"></div>
-              <div className="capsule-wave-bar"></div>
-            </div>
+            <div className="capsule-wave"><div className="capsule-wave-bar"></div><div className="capsule-wave-bar"></div><div className="capsule-wave-bar"></div></div>
           </div>
 
-          {/* לולאת טבעות הלוגו בצירוף נקודות הניאון המסתובבות כהלכה */}
           <div className="ring-wrap">
             <div className="ro"></div><div className="rm"></div><div className="rm2"></div>
             <div className="ric"></div><div className="rp"></div>
@@ -330,12 +321,12 @@ export default function InstructorHome() {
 
         {/* Dynamic Content Scroll Layer */}
         <div className="content-scroll">
+          
+          {/* 🟢 שדרוג, מרכוז ושינוי הכותרות לבקשתך לחלוטין */}
           <div className="header-row">
-            <div>
-              <div className="greeting">שלום, מדריך</div>
-              <div className="instructor-name">{instructorName}</div>
-            </div>
             <div className="avatar">{instructorName.slice(0, 2)}</div>
+            <div className="greeting">ברוך הבא לממלכת אראגון</div>
+            <div className="instructor-name">{instructorName}</div>
           </div>
 
           <div className="section-label">סטטיסטיקות</div>
@@ -368,7 +359,6 @@ export default function InstructorHome() {
               </div>
               <div className="bonus-amount">{ilsBalance} ₪</div>
               
-              {/* מחוון נקודות דינמי לפי גובה הבונוס האמיתי בשרת */}
               <div className="bonus-dots">
                 <div className={`bonus-dot ${activeDotsCount >= 1 ? 'on' : ''}`}></div>
                 <div className={`bonus-dot ${activeDotsCount >= 2 ? 'on' : ''}`}></div>
@@ -402,7 +392,7 @@ export default function InstructorHome() {
           </div>
         </div>
 
-        {/* בר הניווט המקורי והמסונכרן לחלוטין לפי קוד המקור והצילום מסך */}
+        {/* בר הניווט המקורי והמסונכרן */}
         <nav className="navbar">
           <div className="nav-item active"><i className="ti ti-home"></i><span className="nav-label">בית</span></div>
           <div className="nav-item" onClick={() => navigate('/instructor/tasks')}><i className="ti ti-list-check"></i><span className="nav-label">משימות</span></div>
