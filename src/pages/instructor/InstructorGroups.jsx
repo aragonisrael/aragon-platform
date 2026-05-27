@@ -189,7 +189,7 @@ export default function InstructorGroups() {
     const { data: allUsers } = await supabase.from('users').select('username');
     const allExistingUsernames = allUsers?.map(u => u.username) || [];
 
-    const newStudentsPool ForDB = [];
+    const newStudentsPoolForDB = [];
     const localResultsToShow = [];
 
     lines.forEach(fullName => {
