@@ -10,6 +10,7 @@ import StudentShop from './pages/student/StudentShop';
 import StudentMissions from './pages/student/StudentMissions';
 import StudentProfile from './pages/student/StudentProfile';
 import StudentUpdates from './pages/student/StudentUpdates';
+import StudentGame from './pages/student/StudentGame'; // 🎮 ייבוא מנוע המשחק וה-XP החדש!
 
 // עמודי עולם המדריך 👨‍🏫
 import InstructorHome from './pages/instructor/InstructorHome';
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="/student/missions" element={<ProtectedRoute allowedRoles={['student']}><StudentMissions /></ProtectedRoute>} />
         <Route path="/student/profile" element={<ProtectedRoute allowedRoles={['student']}><StudentProfile /></ProtectedRoute>} />
         <Route path="/student/updates" element={<ProtectedRoute allowedRoles={['student']}><StudentUpdates /></ProtectedRoute>} />
+        <Route path="/student/game" element={<ProtectedRoute allowedRoles={['student']}><StudentGame /></ProtectedRoute>} />
         
         {/* 👨‍🏫 עולם המדריך - נעול אך ורק עבור משתמשים עם רול instructor */}
         <Route path="/instructor" element={<ProtectedRoute allowedRoles={['instructor']}><InstructorHome /></ProtectedRoute>} />
