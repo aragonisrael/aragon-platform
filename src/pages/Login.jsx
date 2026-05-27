@@ -177,6 +177,7 @@ export default function Login() {
           position: relative;
           flex-shrink: 0;
           overflow: hidden;
+          direction: rtl;
         }
 
         .brand-bar::before {
@@ -289,7 +290,6 @@ export default function Login() {
         .form-group { margin-bottom: 1.4rem; position: relative; text-align: center; direction: rtl; }
         .form-label { display: block; font-size: 0.8rem; color: #a78bfa; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600; text-align: center; }
         
-        /* העלאת תיעדוף הלחיצה של השדות */
         .form-input { width: 100%; background: rgba(15, 25, 50, 0.8); border: 1px solid rgba(124,58,237,0.3); border-radius: 12px; padding: 0.85rem 1rem; color: #e2e8f0; font-size: 0.95rem; font-family: 'Orbitron', sans-serif; transition: all 0.2s; outline: none; text-align: center; position: relative; z-index: 5; }
         .form-input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.15), 0 0 15px rgba(124,58,237,0.1); }
         .form-input::placeholder { color: #334155; font-family: 'Inter', sans-serif; font-size: 0.85rem; }
@@ -341,6 +341,52 @@ export default function Login() {
           50%       { box-shadow: 0 0 28px rgba(124,58,237,0.6), 0 0 45px rgba(59,130,246,0.25); }
         }
         @keyframes shineBtn { 0% { left: -60%; } 45%, 100% { left: 120%; } }
+
+        /* ─── 🟢 מלבן זוהר להוספת האפליקציה למסך הבית ─── */
+        .add-app-btn {
+          width: 100%;
+          padding: 0.8rem 1rem;
+          background: rgba(6, 182, 212, 0.06); 
+          border: 1px dashed rgba(6, 182, 212, 0.4);
+          border-radius: 12px;
+          color: #06b6d4; 
+          font-family: 'Inter', sans-serif;
+          font-size: 0.85rem;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          cursor: pointer;
+          margin-top: 1.2rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          transition: all 0.2s;
+          box-shadow: 0 0 15px rgba(6, 182, 212, 0.1);
+          z-index: 5;
+          position: relative;
+          direction: rtl; 
+        }
+        .add-app-btn:hover {
+          background: rgba(6, 182, 212, 0.15);
+          border-color: #06b6d4;
+          box-shadow: 0 0 25px rgba(6, 182, 212, 0.35);
+          color: #fff;
+        }
+        .add-app-icon {
+          width: 22px;
+          height: 22px;
+          object-fit: cover;
+          border-radius: 50%;
+          background: #ffffff;
+          padding: 1px;
+          box-shadow: 0 0 8px rgba(6, 182, 212, 0.5);
+          flex-shrink: 0;
+        }
+        .add-app-text {
+          font-size: 12.5px;
+          font-weight: 700;
+          letter-spacing: 0.3px;
+        }
 
         .error-banner { color: #f87171; font-size: 11px; font-weight: 600; text-align: center; margin-top: 10px; text-shadow: 0 0 8px rgba(248,113,113,0.3); direction: rtl; }
         .footer { width: 100%; padding: 1.2rem; text-align: center; font-size: 0.68rem; color: #1e293b; letter-spacing: 1px; text-transform: uppercase; flex-shrink: 0; position: relative; z-index: 1; }
@@ -405,7 +451,6 @@ export default function Login() {
           <div className="card-subtitle">ברוכים הבאים לממלכת אראגון</div>
 
           <form onSubmit={handleLoginSubmit}>
-            {/* 🟢 תגיות ה-label הומרו ל-div מוגן כדי למנוע שידורי פוקוס שבורים במובייל */}
             <div className="form-group">
               <div className="form-label">מזהה משתמש בממלכה</div>
               <input 
@@ -451,6 +496,16 @@ export default function Login() {
 
             <button className="login-btn" type="submit" disabled={loading}>
               {loading ? 'AUTHENTICATING...' : 'לממלכה שלך ✓'}
+            </button>
+
+            {/* ─── 🟢 מלבן הוספה כאפליקציה החדש עם הסמל בצד ימין ─── */}
+            <button 
+              className="add-app-btn" 
+              type="button"
+              onClick={() => alert('💡 כדי להוסיף כאפליקציה: לחץ על כפתור השיתוף בדפדפן (או שלוש הנקודות) ובחר באפשרות "הוסף למסך הבית" (Add to Home Screen).')}
+            >
+              <img src={aragonLogo} className="add-app-icon" alt="Aragon Icon App" />
+              <span className="add-app-text">הוסף אותי כאפליקציה</span>
             </button>
           </form>
         </div>
