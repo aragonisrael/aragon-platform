@@ -9,6 +9,7 @@ export default function StudentHome() {
   
   // States דינמיים עבור נתוני התלמיד האמיתיים מהענן
   const [balance, setBalance] = useState(0);
+  const [playerXp, setPlayerXp] = useState(0); // 🟢 סטייט חדש לשמירת השיא האישי
   const [studentName, setStudentName] = useState('תלמיד אראגון');
   const [statsCount, setStatsCount] = useState({ missions: 0, orders: 0 });
   
@@ -34,10 +35,10 @@ export default function StudentHome() {
       const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'student1';
       
       try {
-        // 1. שליפת רשומת התלמיד מהענן
+        // 1. שליפת רשומת התלמיד מהענן (כולל עמודת ה-XP החדשה)
         const { data: userData, error } = await supabase
           .from('users')
-          .select('full_name, coins, group_id, username')
+          .select('full_name, coins, group_id, username, xp') // 🟢 הוספת xp לשליפה
           .eq('username', loggedUser)
           .single();
 
@@ -45,6 +46,7 @@ export default function StudentHome() {
           const currentName = userData.full_name || userData.username;
           setStudentName(currentName);
           setBalance(userData.coins || 0);
+          setPlayerXp(userData.xp || 0); // 🟢 השמת ערך ה-XP מהענן
 
           let groupStr = '';
           // 2. אם הוא משויך לקבוצה, נשלוף את שם המוקד שלה כדי לספור את משימות הקבוצה שלו
@@ -158,7 +160,7 @@ export default function StudentHome() {
           flex-direction: column;
           border-radius: 24px;
           box-shadow: 0 20px 50px rgba(0,0,0,0.8);
-          padding-bottom: 95px; /* 🟢 הוספת מרווח בתחתית כדי שהתוכן לא ייבלע תחת הבר הצף */
+          padding-bottom: 95px; 
         }
 
         .stars { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
@@ -279,13 +281,38 @@ export default function StudentHome() {
         @keyframes coinSpin { 0% { transform: rotateY(0deg) rotateX(5deg); } 100% { transform: rotateY(360deg) rotateX(5deg); } }
         .coin svg { width: 155px; height: 155px; filter: drop-shadow(0 0 18px rgba(251,191,36,0.6)); }
 
+        /* 🟢 עיצוב כרטיסיית הארקייד החדשה בדף הבית */
+        .arena-card {
+          position: relative;
+          z-index: 10;
+          background: linear-gradient(135deg, rgba(0, 200, 255, 0.05), rgba(124, 58, 237, 0.08));
+          border: 1px solid rgba(0, 200, 255, 0.25);
+          border-radius: 14px;
+          margin: 0 16px 14px;
+          padding: 12px 14px;
+          cursor: pointer;
+          transition: all 0.2s;
+          direction: rtl;
+          box-shadow: 0 0 15px rgba(0, 200, 255, 0.05);
+        }
+        .arena-card:hover {
+          border-color: #00c8ff;
+          box-shadow: 0 0 20px rgba(0, 200, 255, 0.2);
+          background: linear-gradient(135deg, rgba(0, 200, 255, 0.08), rgba(124, 58, 237, 0.12));
+        }
+        .arena-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .arena-title { font-size: 11px; font-weight: 900; color: #00c8ff; letter-spacing: 1px; text-shadow: 0 0 8px rgba(0, 200, 255, 0.3); }
+        .arena-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+        .arena-score { font-size: 12px; color: rgba(167, 139, 250, 0.8); font-weight: 700; }
+        .arena-score span { color: #00e676; font-weight: 900; text-shadow: 0 0 6px rgba(0, 230, 118, 0.3); }
+        .arena-btn-launch { font-family: 'Orbitron', sans-serif; font-size: 9.5px; font-weight: 700; background: linear-gradient(135deg, #00c8ff, #4f46e5); border: 1px solid rgba(0,200,255,0.3); border-radius: 7px; color: white; padding: 5px 12px; cursor: pointer; box-shadow: 0 0 10px rgba(0,200,255,0.2); }
+
         .mini-stats { position: relative; z-index: 10; display: flex; gap: 8px; margin: 0 16px 8px; direction: rtl; }
         .stat-pill { flex: 1; background: rgba(124,58,237,0.12); border: 1px solid rgba(124,58,237,0.25); border-radius: 10px; padding: 6px 8px; text-align: center; }
         .stat-pill var { font-style: normal; }
         .stat-val { font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 700; color: #fbbf24; }
         .stat-lbl { font-family: 'Orbitron', sans-serif; font-size: 8px; color: #6b7280; letter-spacing: 1px; margin-top: 2px; }
 
-        /* 🟢 שדרוג הבר לבר צף, קבוע וממורכז ברמת מובייל מקצועית */
         .nav-bar { 
           position: fixed; 
           bottom: 0; 
@@ -312,6 +339,8 @@ export default function StudentHome() {
         @keyframes scanMove { from { top: 0; opacity: 0; } 5% { opacity: 1; } 95% { opacity: 1; } to { top: 100%; opacity: 0; } }
         
         .neon-border { position: absolute; inset: 0; border-radius: 24px; pointer-events: none; z-index: 20; box-shadow: inset 0 0 30px rgba(124,58,237,0.1), 0 0 0 1px rgba(124,58,237,0.3); }
+        .fu { animation: fuAnim 0.4s ease forwards; opacity: 0; }
+        @keyframes fuAnim { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
 
       <div className="app" id="app">
@@ -359,7 +388,7 @@ export default function StudentHome() {
         <div className="top-banner">
           <div className="banner-scan"></div>
           
-          {/* צד שמאל: כפתור פליי עגול ונקי */}
+          {/* קפסולת הרדיו */}
           <div className="circuit-left-wrap">
             <div className={`radio-chip-banner ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
               <div className="radio-chip-icon">
@@ -385,11 +414,11 @@ export default function StudentHome() {
             <img className="logo-img" src={aragonLogo} alt="Aragon Logo"/>
           </div>
 
-          {/* צד ימין: יתרת המטבעות המחוברת דינמית */}
+          {/* צד ימין: יתרת המטבעות */}
           <div className="circuit-right-wrap">
             <div className="circuit-right-svg">
               <svg viewBox="0 0 110 70" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-                <line x1="0" y1="35" x2="35" y2="35" stroke="#7c3aed" strokeWidth="1.5" opacity="0.7"/>
+                <line x1="0" y1="35" x2="35" x2="35" stroke="#7c3aed" strokeWidth="1.5" opacity="0.7"/>
                 <line x1="35" y1="35" x2="55" y2="18" stroke="#7c3aed" strokeWidth="1" opacity="0.5"/>
                 <line x1="35" y1="35" x2="60" y2="35" stroke="#38bdf8" strokeWidth="1" opacity="0.6"/>
                 <circle cx="35" cy="35" r="3" fill="#7c3aed" opacity="0.9"/>
@@ -409,7 +438,7 @@ export default function StudentHome() {
           <div className="student-name">{studentName}</div>
         </div>
 
-        {/* BALANCE DISPLAY - CONNECTED DYNAMICALLY */}
+        {/* BALANCE DISPLAY */}
         <div className="balance-section">
           <div className="balance-label">יתרת מטבעות</div>
           <div className="balance-number">{balance}</div>
@@ -468,7 +497,19 @@ export default function StudentHome() {
           </div>
         </div>
 
-        {/* MINI STATS PILLS - DYNAMICALLY POPULATED */}
+        {/* 🟢 כרטיסיית זירת הסייבר המשובצת: ממוקמת אסטרטגית מתחת למטבע */}
+        <div className="arena-card fu" onClick={() => navigate('/student/game')}>
+          <div className="arena-header">
+            <span style={{ fontSize: '14px' }}>🕹️</span>
+            <div className="arena-title">זירת הסייבר · MATRIX RUNNER</div>
+          </div>
+          <div className="arena-meta">
+            <div className="arena-score">שיא חודשי: <span>{playerXp} XP</span></div>
+            <button className="arena-btn-launch" type="button">כנס לקרב ⚔️</button>
+          </div>
+        </div>
+
+        {/* MINI STATS PILLS */}
         <div className="mini-stats">
           <div className="stat-pill"><div className="stat-val">+{balance}</div><div className="stat-lbl">סך הכל</div></div>
           <div className="stat-pill"><div className="stat-val">{statsCount.missions}</div><div className="stat-lbl">Missions</div></div>
