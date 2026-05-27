@@ -395,20 +395,38 @@ export default function InstructorSchedule() {
         .approve-week-btn.pending:hover { border-style: solid; border-color: #ffe060; color: #ffe060; box-shadow: 0 0 15px rgba(224,144,32,0.2); }
         .approve-week-btn.approved { background: linear-gradient(135deg, rgba(24,192,160,0.15), rgba(10,128,96,0.08)); border: 1px solid #18c0a0; color: #20c070; cursor: default; }
         
-        /* ─── 🟢 שדרוג קריטי: תיקון כושר היישור הימני מוחלט והגדלת כפתורי הימים (Pills) ─── */
-        .day-pills { display: flex; gap: 6px; padding: 4px 16px 12px; overflow-x: auto; scrollbar-width: none; direction: rtl; justify-content: flex-start; align-items: center; }
+        /* החזרת הטאבים העליונים של הניווט למצבם הדינמי והמקורי */
+        .day-pills { display: flex; gap: 5px; padding: 0 16px 8px; overflow-x: auto; scrollbar-width: none; direction: rtl; }
         .day-pills::-webkit-scrollbar { display: none; }
-        
-        /* הגדלת הפונט, שינוי הרדיוס והריפוד הפנימי של הטאבים לנוחות מקסימלית מהנייד */
-        .dpill { padding: 7px 14px; border-radius: 9px; border: 1px solid #1e1e38; background: #0d0d1a; font-size: 13.5px; font-weight: 600; color: #5a5a8a; cursor: pointer; white-space: nowrap; transition: all .18s; flex-shrink: 0; }
-        .dpill.active { border-color: #8050ff; background: rgba(128, 80, 255, 0.15); color: #c4b5fd; box-shadow: 0 0 10px rgba(128, 80, 255, 0.25); }
-        .dpill.today { border-color: #18c0a0; color: #20c070; }
+        .dpill { padding: 5px 10px; border-radius: 8px; border: 1px solid #1e1e38; background: #0d0d1a; font-size: 11px; color: #5a5a8a; cursor: pointer; white-space: nowrap; transition: all .18s; flex-shrink: 0; }
+        .dpill.active { border-color: #4030aa; background: rgba(80,48,170,.15); color: #c0a0ff; }
+        .dpill.today { border-color: #2a4a2a; color: #40a060; }
         
         .sched-grid { padding: 0 16px 4px; direction: rtl; }
         .sched-day { margin-bottom: 8px; }
-        .sday-hdr { font-size: 10px; color: #4a4a7a; letter-spacing: 1.5px; text-transform: uppercase; padding: 0 2px 5px; display: flex; align-items: center; gap: 6px; flex-direction: row-reverse; justify-content: flex-end; }
-        .sday-hdr .sday-line { flex: 1; height: 1px; background: #14142a; }
-        .sday-slots { display: flex; flex-direction: column; gap: 6px; }
+        
+        /* ─── 🟢 שדרוג קריטי: מרכוז, יישור מוחלט לימין והגדלת כותרות הימים בלו"ז ─── */
+        .sday-hdr { 
+          font-family: 'Exo 2', sans-serif;
+          font-size: 13.5px; /* הגדלת הפונט בהתאם לבקשה */
+          font-weight: 700; /* הפיכה לעבה ובולט */
+          color: #7362aa; /* צבע מותאם ומנצנץ */
+          letter-spacing: 0.5px; 
+          padding: 8px 4px 6px; 
+          display: flex; 
+          align-items: center; 
+          gap: 10px; 
+          direction: rtl; /* אילוץ יישור ימני מושלם */
+        }
+        
+        /* מתיחת קו ההפרדה הזוהר מהטקסט שמאלה עם אפקט דהייה אלגנטי */
+        .sday-hdr .sday-line { 
+          flex: 1; 
+          height: 1px; 
+          background: linear-gradient(270deg, #201e38 0%, transparent 100%); 
+        }
+        
+        .sday-slots { display: flex; flex-direction: column; gap: 5px; }
         
         .slot { border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; position: relative; overflow: hidden; flex-direction: row-reverse; }
         
@@ -522,7 +540,6 @@ export default function InstructorSchedule() {
             {isWeekApproved ? '✓ הלו"ז השבועי מאושר ומסונכרן' : 'לחץ כאן לאישור הלו"ז השבועי'}
           </button>
 
-          {/* 🟢 רשימת הגלילה המיושרת לימין והמוגדלת */}
           <div className="day-pills">
             <div className={`dpill ${activeDay === 0 ? 'active' : ''}`} onClick={() => setActiveDay(0)}>הכל</div>
             {datesList.map((d, i) => {
@@ -544,7 +561,11 @@ export default function InstructorSchedule() {
                 if (activeDay !== 0) {
                   return (
                     <div key={di} className="sched-day">
-                      <div className="sday-hdr"><span>יום {daysHe[di]} · {d.getDate()}</span><div className="sday-line"></div></div>
+                      {/* 🟢 שדרוג: יישור ימני קשיח, הדגשה ומתיחת קו ההפרדה לשמאל כפי שביקשת בדיוק */}
+                      <div className="sday-hdr">
+                        <span>יום {daysHe[di]} · {d.getDate()}</span>
+                        <div className="sday-line"></div>
+                      </div>
                       <div className="empty-day">אין שיעורים ביום זה</div>
                     </div>
                   );
@@ -554,7 +575,11 @@ export default function InstructorSchedule() {
 
               return (
                 <div key={di} className="sched-day">
-                  <div className="sday-hdr"><span>יום {daysHe[di]} · {d.getDate()}</span><div className="sday-line"></div></div>
+                  {/* 🟢 שדרוג: יישור ימני קשיח, הדגשה ומתיחת קו ההפרדה לשמאל כפי שביקשת בדיוק */}
+                  <div className="sday-hdr">
+                    <span>יום {daysHe[di]} · {d.getDate()}</span>
+                    <div className="sday-line"></div>
+                  </div>
                   <div className="sday-slots">
                     {slots.map((s, idx) => {
                       const isApprovedSlot = s.status === 'green' || isWeekApproved;
