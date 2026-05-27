@@ -20,33 +20,19 @@ export default function StudentGame() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [stars, setStars] = useState([]);
   const [isNewRecord, setIsNewRecord] = useState(false);
-  
-  // 🟢 מד חיים חי בתצוגת ה-UI של React
-  const [liveHearts, setLiveHearts] = useState(10);
 
-  // מנוע המשחק המרכזי שמנוהל ב-Ref למניעת לאגים ברינדור
+  // מנוע המשחק המרכזי שמנוהל ב-Ref למניעת לאגים במובייל
   const gameVars = useRef({
-    playerY: 150,
-    targetY: 150,
-    lasers: [],
+    playerX: 175,
+    targetX: 175,
+    playerY: 275,
     obstacles: [],
     collectibles: [],
     particles: [],
-    powerUpTimer: 0, 
-    lives: 10, // 🟢 10 פסילות מקסימום על פספוס וירוסים
-    flashRedFrames: 0, // אפקט הבזק אדום כשהמערכת נפגעת
-    
-    // משתני רקע עמוק (Parallax)
-    bgLayers: {
-      layer1X: 0, 
-      layer2X: 0, 
-      layer3X: 0  
-    },
-    
+    bgStars: [], // כוכבי רקע שנופלים למטה (Parallax)
     frameId: null,
     score: 0,
-    speedModifier: 4.0, // מהירות התחלתית מעט גבוהה יותר לאתגר
-    shootCooldown: 0,
+    speedModifier: 2.2, // מהירות התחלתית איטית ונורמלית
     gameActive: false
   });
 
@@ -88,7 +74,8 @@ export default function StudentGame() {
     imagesRef.current.aragon.src = aragonLogo;
     imagesRef.current.cybot.src = cybotLogo;
 
-    const generatedStars = Array.from({ length: 30 }).map((_, i) => ({
+    // יצירת רקע כוכבים אסתטי סטטי מחוץ לקנבס
+    const generatedStars = Array.from({ length: 25 }).map((_, i) => ({
       id: i, left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, size: `${Math.random() * 2 + 0.5}px`, duration: `${Math.random() * 2 + 1}s`
     }));
     setStars(generatedStars);
@@ -96,12 +83,13 @@ export default function StudentGame() {
     return () => cancelAnimationFrame(gameVars.current.frameId);
   }, []);
 
+  // 🟢 עקיבה אופקית (שמאל/ימין) מושלמת למובייל: האגודל נשאר למטה והחללית זזה אליו חלק
   const handleMouseMove = (e) => {
     if (gameState !== 'PLAYING') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    gameVars.current.targetY = Math.max(20, Math.min(canvas.height - 40, e.clientY - rect.top));
+    gameVars.current.targetX = Math.max(20, Math.min(canvas.width - 20, e.clientX - rect.left));
   };
 
   const handleTouchMove = (e) => {
@@ -109,30 +97,33 @@ export default function StudentGame() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    gameVars.current.targetY = Math.max(20, Math.min(canvas.height - 40, e.touches[0].clientY - rect.top));
+    gameVars.current.targetX = Math.max(20, Math.min(canvas.width - 20, e.touches[0].clientX - rect.left));
   };
 
-  // מנוע הלוּפ הראשי של הארקייד (Active Game Loop)
-  const startArcadeGame = () => {
+  // אתחול לופ המשחק האנכי החדש
+  const startVerticalGame = () => {
     setGameState('PLAYING');
     setIsNewRecord(false);
-    setLiveHearts(10);
     
+    // יצירת מערך כוכבי רקע שנופלים למטה עבור ה-Canvas
+    const canvasStars = Array.from({ length: 25 }).map(() => ({
+      x: Math.random() * 350,
+      y: Math.random() * 320,
+      speed: Math.random() * 1.5 + 0.5,
+      size: Math.random() * 1.8 + 0.5
+    }));
+
     gameVars.current = {
-      playerY: 150,
-      targetY: 150,
-      lasers: [],
+      playerX: 175,
+      targetX: 175,
+      playerY: 280, // מיקום קבוע בתחתית המסך
       obstacles: [],
       collectibles: [],
       particles: [],
-      powerUpTimer: 0,
-      lives: 10,
-      flashRedFrames: 0,
-      bgLayers: { layer1X: 0, layer2X: 0, layer3X: 0 },
+      bgStars: canvasStars,
       frameId: null,
       score: 0,
-      speedModifier: 4.2, 
-      shootCooldown: 0,
+      speedModifier: 2.4, // קצב התחלתי איטי ונוח
       gameActive: true
     };
 
@@ -143,192 +134,124 @@ export default function StudentGame() {
     const renderFrame = () => {
       if (!gameVars.current.gameActive) return;
 
-      ctx.fillStyle = '#010103';
+      // רקע חלל עמוק
+      ctx.fillStyle = '#020106';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // --- 🌌 שכבות רקע (Parallax) ---
-      gameVars.current.bgLayers.layer1X -= 0.6;
-      if (gameVars.current.bgLayers.layer1X <= -80) gameVars.current.bgLayers.layer1X = 0;
-      ctx.strokeStyle = 'rgba(0, 200, 255, 0.04)'; ctx.lineWidth = 1;
-      for (let x = gameVars.current.bgLayers.layer1X; x < canvas.width; x += 80) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-      }
-
-      gameVars.current.bgLayers.layer2X -= 1.5;
-      if (gameVars.current.bgLayers.layer2X <= -200) gameVars.current.bgLayers.layer2X = 0;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-      for (let i = 0; i < 6; i++) {
-        const x = (gameVars.current.bgLayers.layer2X + (i * 80)) % canvas.width;
-        ctx.fillRect(x < 0 ? x + canvas.width : x, (i * 45) % canvas.height, 1.5, 1.5);
-      }
-
-      gameVars.current.bgLayers.layer3X -= 4.5; // 🟢 מהירות מוגברת לתחושת טיסה קינטית
-      if (gameVars.current.bgLayers.layer3X <= -250) gameVars.current.bgLayers.layer3X = 0;
+      // --- 🌌 1. רקע כוכבים נופל (Parallax Vertical Scrolling) ---
       ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-      for (let i = 0; i < 4; i++) {
-        const x = (gameVars.current.bgLayers.layer3X + (i * 120)) % canvas.width;
-        ctx.fillRect(x < 0 ? x + canvas.width : x, (i * 70) % canvas.height, 18, 1);
-      }
-
-      // --- 🚀 שחקן: חללית ---
-      gameVars.current.playerY += (gameVars.current.targetY - gameVars.current.playerY) * 0.16;
-      ctx.shadowBlur = 18; ctx.shadowColor = '#00c8ff';
-      ctx.font = '30px Orbitron'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-      
-      if (gameVars.current.powerUpTimer > 0) {
-        gameVars.current.powerUpTimer--;
-        ctx.shadowColor = '#00e676';
-        ctx.fillText('🚀', 35, gameVars.current.playerY + 18);
-        ctx.shadowBlur = 10; ctx.strokeStyle = 'rgba(0, 230, 118, 0.4)';
-        ctx.beginPath(); ctx.arc(35, gameVars.current.playerY + 18, 22, 0, Math.PI * 2); ctx.stroke();
-      } else {
-        ctx.fillText('🚀', 35, gameVars.current.playerY + 18);
-      }
-
-      // --- ⚡ ירי לייזר ---
-      if (gameVars.current.shootCooldown <= 0) {
-        if (gameVars.current.powerUpTimer > 0) {
-          gameVars.current.lasers.push({ x: 55, y: gameVars.current.playerY + 18, vy: 0 });
-          gameVars.current.lasers.push({ x: 50, y: gameVars.current.playerY + 6, vy: -1.3 });
-          gameVars.current.lasers.push({ x: 50, y: gameVars.current.playerY + 30, vy: 1.3 });
-          gameVars.current.shootCooldown = 11; 
-        } else {
-          gameVars.current.lasers.push({ x: 55, y: gameVars.current.playerY + 18, vy: 0 });
-          gameVars.current.shootCooldown = 17;
+      gameVars.current.bgStars.forEach(star => {
+        star.y += star.speed;
+        if (star.y > canvas.height) {
+          star.y = 0;
+          star.x = Math.random() * canvas.width;
         }
-      } else {
-        gameVars.current.shootCooldown--;
-      }
-
-      ctx.shadowBlur = 6; ctx.shadowColor = gameVars.current.powerUpTimer > 0 ? '#00e676' : '#00c8ff';
-      ctx.fillStyle = gameVars.current.powerUpTimer > 0 ? '#00e676' : '#00c8ff';
-      gameVars.current.lasers.forEach(laser => {
-        laser.x += 7.5;
-        laser.y += laser.vy;
-        ctx.fillRect(laser.x, laser.y - 2, 12, 4);
+        ctx.fillRect(star.x, star.y, star.size, star.size);
       });
-      gameVars.current.lasers = gameVars.current.lasers.filter(l => l.x < canvas.width);
 
-      // --- 👾 אויבים: וירוסים ובאגים קטלניים ---
-      gameVars.current.speedModifier += 0.0022; // 🟢 עליית מהירות אגרסיבית ומהירה פי 4!
-      if (Math.random() < 0.028 && gameVars.current.obstacles.length < 5) {
-        gameVars.current.obstacles.push({
-          x: canvas.width + 30,
-          y: Math.random() * (canvas.height - 60) + 30,
-          type: Math.random() > 0.45 ? '👾' : '🪲',
-          size: 26,
-          speed: Math.random() * 1.6 + gameVars.current.speedModifier,
-          pulse: 0,
-          passedCheck: false
+      // --- 🚀 2. שחקן: חללית בתחתית זזה אופקית (Smooth Slider) ---
+      gameVars.current.playerX += (gameVars.current.targetX - gameVars.current.playerX) * 0.18;
+      
+      // פליטת חלקיקי אש קטנים ואסתטיים מתחת לחללית (Engine Particles)
+      if (Math.random() < 0.4) {
+        gameVars.current.particles.push({
+          x: gameVars.current.playerX + (Math.random() - 0.5) * 10,
+          y: gameVars.current.playerY + 15,
+          vx: (Math.random() - 0.5) * 1,
+          vy: Math.random() * 2 + 1,
+          alpha: 1,
+          color: '#00c8ff'
         });
       }
 
-      ctx.shadowBlur = 10; ctx.shadowColor = '#ff2a2a'; ctx.font = '26px Orbitron';
-      gameVars.current.obstacles.forEach((obs) => {
-        obs.x -= obs.speed;
-        obs.pulse += 0.1;
-        const currentPulse = Math.sin(obs.pulse) * 3;
-        ctx.shadowBlur = 12 + currentPulse;
+      ctx.shadowBlur = 15; ctx.shadowColor = '#00c8ff';
+      ctx.font = '28px Orbitron'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+      ctx.fillText('🚀', gameVars.current.playerX, gameVars.current.playerY);
+
+      // --- 👾 3. אויבים: וירוסים וג'וקים נופלים מלמעלה ---
+      // 🟢 האצה הדרגתית קבועה: ככל שעובר הזמן הקצב עולה ועולה ועולה!
+      gameVars.current.speedModifier += 0.0012; 
+      
+      if (Math.random() < 0.028 && gameVars.current.obstacles.length < 5) {
+        const bugTypes = ['👾', '🪲', '🦠'];
+        gameVars.current.obstacles.push({
+          x: Math.random() * (canvas.width - 40) + 20,
+          y: -20,
+          type: bugTypes[Math.floor(Math.random() * bugTypes.length)],
+          size: 24,
+          speed: gameVars.current.speedModifier + (Math.random() * 1.2 - 0.6)
+        });
+      }
+
+      ctx.shadowBlur = 12; ctx.shadowColor = '#ff2a2a';
+      gameVars.current.obstacles.forEach(obs => {
+        obs.y += obs.speed; // נפילה מטה
         ctx.fillText(obs.type, obs.x, obs.y);
 
-        // 💥 התנגשות פיזית: חללית פוגעת בוירוס -> פוסל מיד!
-        const distToPlayer = Math.hypot(obs.x - 35, obs.y - (gameVars.current.playerY + 18));
+        // 🛑 קריטי: כל נגיעה קטנה של הוירוס בחללית פוסלת ומסיימת את המשחק מיד!
+        const distToPlayer = Math.hypot(obs.x - gameVars.current.playerX, obs.y - (gameVars.current.playerY - 4));
         if (distToPlayer < 24) {
-          terminateGameSession();
+          executeGameOverSequence();
         }
-
-        // 🟢 מנגנון פספוס וירוסים (המכניקה החדשה שלך!):
-        if (obs.x <= -15 && !obs.passedCheck && !obs.destroyed) {
-          obs.passedCheck = true;
-          gameVars.current.lives--; // הורדת נקודת חיים אחת
-          gameVars.current.flashRedFrames = 10; // הפעלת הבזק אדום לחצי שנייה
-          setLiveHearts(gameVars.current.lives);
-
-          // אם השחקן פספס 10 וירוסים -> השרת קורס!
-          if (gameVars.current.lives <= 0) {
-            terminateGameSession();
-          }
-        }
-
-        // לייזר פוגע בוירוס -> פיצוץ
-        gameVars.current.lasers.forEach((laser) => {
-          const distToLaser = Math.hypot(obs.x - laser.x, obs.y - laser.y);
-          if (distToLaser < 20) {
-            for (let p = 0; p < 8; p++) {
-              gameVars.current.particles.push({
-                x: obs.x, y: obs.y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, alpha: 1, color: '#ff3b30'
-              });
-            }
-            gameVars.current.score += 25; // תגמול XP על השמדה
-            obs.destroyed = true;
-            laser.x = canvas.width + 100; 
-          }
-        });
       });
-      gameVars.current.obstacles = gameVars.current.obstacles.filter(o => !o.destroyed && o.x > -40);
+      gameVars.current.obstacles = gameVars.current.obstacles.filter(o => o.y < canvas.height + 20);
 
-      // --- 🏆 לוגואים: חפצי איסוף כוח מיוחד ---
-      if (Math.random() < 0.007 && gameVars.current.collectibles.length < 1) {
+      // --- 🏆 4. לוגואים: חפצי איסוף (קבלת כוח ונקודות גבוהות) ---
+      if (Math.random() < 0.008 && gameVars.current.collectibles.length < 1) {
         gameVars.current.collectibles.push({
-          x: canvas.width + 30,
-          y: Math.random() * (canvas.height - 60) + 30,
-          type: Math.random() > 0.35 ? 'aragon' : 'cybot',
-          pulse: 0
+          x: Math.random() * (canvas.width - 40) + 20,
+          y: -20,
+          type: Math.random() > 0.35 ? 'aragon' : 'cybot'
         });
       }
 
-      gameVars.current.collectibles.forEach((coll) => {
-        coll.x -= 3.0;
-        coll.pulse += 0.05;
-        ctx.shadowBlur = 15 + Math.sin(coll.pulse) * 2;
+      gameVars.current.collectibles.forEach(coll => {
+        coll.y += (gameVars.current.speedModifier * 0.85); // נופלים מעט לאט יותר
 
         if (coll.type === 'aragon') {
-          ctx.shadowColor = '#00c8ff';
-          try { ctx.drawImage(imagesRef.current.aragon, coll.x - 14, coll.y - 14, 28, 28); } 
-          catch(e) { ctx.fillStyle = '#8050ff'; ctx.beginPath(); ctx.arc(coll.x, coll.y, 14, 0, Math.PI * 2); ctx.fill(); }
+          ctx.shadowBlur = 15; ctx.shadowColor = '#00c8ff';
+          try { ctx.drawImage(imagesRef.current.aragon, coll.x - 13, coll.y - 13, 26, 26); } 
+          catch(e) { ctx.fillStyle = '#8050ff'; ctx.beginPath(); ctx.arc(coll.x, coll.y, 12, 0, Math.PI * 2); ctx.fill(); }
         } else {
-          ctx.shadowColor = '#00e676';
-          try { ctx.drawImage(imagesRef.current.cybot, coll.x - 15, coll.y - 15, 30, 30); } 
-          catch(e) { ctx.fillStyle = '#00e676'; ctx.fillRect(coll.x - 15, coll.y - 15, 30, 30); }
+          ctx.shadowBlur = 15; ctx.shadowColor = '#00e676';
+          try { ctx.drawImage(imagesRef.current.cybot, coll.x - 14, coll.y - 14, 28, 28); } 
+          catch(e) { ctx.fillStyle = '#00e676'; ctx.fillRect(coll.x - 14, coll.y - 14, 28, 28); }
         }
 
-        const distToPlayer = Math.hypot(coll.x - 35, coll.y - (gameVars.current.playerY + 18));
-        if (distToPlayer < 28) {
+        // איסוף לוגו מוצלח
+        const distToPlayer = Math.hypot(coll.x - gameVars.current.playerX, coll.y - (gameVars.current.playerY - 4));
+        if (distToPlayer < 26) {
           coll.collected = true;
-          gameVars.current.score += coll.type === 'aragon' ? 80 : 200; 
-          gameVars.current.powerUpTimer = coll.type === 'aragon' ? 240 : 400; 
+          // זיכוי נקודות משמעותי
+          gameVars.current.score += coll.type === 'aragon' ? 100 : 250;
 
+          // פיצוץ חלקיקי נאון יפה
           const pColor = coll.type === 'aragon' ? '#00c8ff' : '#00e676';
           for (let p = 0; p < 12; p++) {
             gameVars.current.particles.push({
-              x: coll.x, y: coll.y, vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8, alpha: 1, color: pColor
+              x: coll.x, y: coll.y,
+              vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6,
+              alpha: 1, color: pColor
             });
           }
         }
       });
-      gameVars.current.collectibles = gameVars.current.collectibles.filter(c => !c.collected && c.x > -40);
+      gameVars.current.collectibles = gameVars.current.collectibles.filter(c => !c.collected && c.y < canvas.height + 20);
 
-      // --- 💥 מנוע חלקיקים ---
-      gameVars.current.particles.forEach((p) => {
-        p.x += p.vx; p.y += p.vy; p.alpha -= 0.03;
+      // --- 💥 5. רינדור חלקיקים ---
+      gameVars.current.particles.forEach(p => {
+        p.x += p.vx; p.y += p.vy; p.alpha -= 0.04;
         if (p.alpha > 0) {
-          ctx.shadowBlur = 6; ctx.shadowColor = p.color;
+          ctx.shadowBlur = 4; ctx.shadowColor = p.color;
           ctx.fillStyle = p.color; ctx.globalAlpha = p.alpha;
-          ctx.fillRect(p.x, p.y, 3.5, 3.5);
+          ctx.fillRect(p.x, p.y, 3, 3);
         }
       });
-      ctx.globalAlpha = 1.0; ctx.shadowBlur = 0; 
+      ctx.globalAlpha = 1.0; ctx.shadowBlur = 0;
       gameVars.current.particles = gameVars.current.particles.filter(p => p.alpha > 0);
 
-      // 🔴 אפקט נזק: צביעת המסך באדום דהוי למספר פריימים בעת פספוס וירוס
-      if (gameVars.current.flashRedFrames > 0) {
-        gameVars.current.flashRedFrames--;
-        ctx.fillStyle = 'rgba(255, 59, 48, 0.15)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
-
-      // עדכון הניקוד
-      gameVars.current.score += 0.08; // נקודות הישרדות פאסיביות
+      // ניקוד הישרדות פסיבי לפי זמן
+      gameVars.current.score += 0.15;
       setCurrentScore(Math.floor(gameVars.current.score));
 
       gameVars.current.frameId = requestAnimationFrame(renderFrame);
@@ -337,8 +260,8 @@ export default function StudentGame() {
     gameVars.current.frameId = requestAnimationFrame(renderFrame);
   };
 
-  // סיום המשחק ובדיקת שבירת שיא אישי
-  const terminateGameSession = async () => {
+  // סיום המשחק ובדיקת שבירת שיא אישי חודשי
+  const executeGameOverSequence = async () => {
     gameVars.current.gameActive = false;
     cancelAnimationFrame(gameVars.current.frameId);
     setGameState('GAMEOVER');
@@ -369,138 +292,82 @@ export default function StudentGame() {
         setIsNewRecord(false); 
       }
     } catch (err) {
-      console.error("Critical error auditing user record score:", err);
+      console.error("Critical error saving high-score data:", err);
     }
   };
 
   return (
     <div className="game-main-container">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+      {/* 🟢 פריסה משודרגת: בעת GameOver כל המבנה מתרחב ולוח התוצאות מקבל את קדמת הבמה בצורה מרהיבה */}
+      <div className={`app ${gameState === 'GAMEOVER' ? 'expanded-layout' : ''}`} id="matrixGameApp">
         
-        .game-main-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #050a14; width: 100%; }
-        .app { width: 380px; background: #05010f; font-family: 'Orbitron', sans-serif; position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 24px; min-height: 740px; box-shadow: 0 0 60px rgba(124,58,237,.25); padding: 16px 14px 20px; }
-        
-        .stars { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
-        .star { position: absolute; border-radius: 50%; background: white; animation: hqPulse var(--d) ease-in-out infinite alternate; opacity: 0.3; }
-        @keyframes hqPulse { from{opacity:0.1} to{opacity:0.6} }
-        
-        .game-screen-wrapper { position: relative; width: 100%; height: 260px; background: #010103; border: 2px solid rgba(0,200,255,0.4); border-radius: 16px; overflow: hidden; margin-bottom: 12px; cursor: none; box-shadow: inset 0 0 30px rgba(0,0,0,0.95); }
-        .canvas-element { width: 100%; height: 100%; display: block; }
-        
-        .screen-overlay { position: absolute; inset: 0; background: rgba(3, 1, 10, 0.94); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 14px; z-index: 10; cursor: default; }
-        .game-title { font-size: 16px; font-weight: 900; background: linear-gradient(135deg, #00c8ff, #00e676); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 2px; margin-bottom: 4px; }
-        .game-subtitle { font-size: 8.5px; color: rgba(167,139,250,0.6); letter-spacing: 1px; margin-bottom: 18px; line-height: 1.6; }
-        
-        .game-btn { background: linear-gradient(135deg, #00c8ff, #4f46e5); border: 1px solid rgba(0,200,255,0.4); padding: 10px 26px; border-radius: 10px; color: #ffffff; font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 15px rgba(0,200,255,0.3); }
-        .game-btn:hover { transform: scale(1.04); box-shadow: 0 0 22px rgba(0,200,255,0.6); }
-        
-        .game-info-caption { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px 14px; direction: rtl; text-align: center; }
-        .gic-ico { font-size: 14px; color: #fbbf24; }
-        .gic-text { font-size: 8.5px; color: rgba(167,139,250,0.5); letter-spacing: .5px; line-height: 1.4; }
-
-        /* 🟢 מד לבבות מנצנץ לחיים */
-        .hearts-status-bar { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #ff3b30; font-weight: bold; margin-bottom: 8px; direction: rtl; }
-
-        .live-score-badge { display: flex; justify-content: space-between; align-items: center; background: rgba(0,200,255,0.04); border: 1px solid rgba(0,200,255,0.2); border-radius: 12px; padding: 8px 14px; margin-bottom: 16px; direction: rtl; }
-        .sb-lbl { font-size: 9px; color: rgba(167,139,250,0.55); letter-spacing: 1px; }
-        .sb-val { font-size: 14px; font-weight: 900; color: #00c8ff; }
-
-        .leaderboard-title-divider { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; direction: rtl; }
-        .ld-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(124,58,237,0.4)); }
-        .ld-text { font-size: 9.5px; font-weight: 700; color: #a78bfa; letter-spacing: 1.5px; white-space: nowrap; }
-        
-        .leaderboard-container { flex: 1; overflow-y: auto; background: rgba(10, 5, 28, 0.6); border: 1px solid rgba(124,58,237,0.15); border-radius: 14px; padding: 6px; display: flex; flex-column; gap: 5px; direction: rtl; }
-        .leaderboard-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,0.02); border: 1px solid transparent; }
-        .leaderboard-row.is-me { background: rgba(251,191,36,0.06); border-color: rgba(251,191,36,0.25); }
-        
-        .rank-name-box { display: flex; align-items: center; gap: 8px; }
-        .rank-num { font-size: 11px; font-weight: 900; color: rgba(167,139,250,0.4); width: 16px; text-align: center; }
-        .leaderboard-row:nth-child(1) .rank-num { color: #fbbf24; font-size: 13px; }
-        .leaderboard-row:nth-child(2) .rank-num { color: #cbd5e1; font-size: 12px; }
-        .leaderboard-row:nth-child(3) .rank-num { color: #b45309; font-size: 11.5px; }
-        
-        .player-fullname { font-size: 11.5px; font-weight: 600; color: #d4ccff; }
-        .leaderboard-row.is-me .player-fullname { color: #fbbf24; font-weight: 700; }
-        .player-xp-score { font-family: monospace; font-size: 12px; font-weight: 700; color: #a78bfa; }
-        .leaderboard-row.is-me .player-xp-score { color: #fbbf24; }
-
-        .back-to-profile-btn { margin-top: 12px; width: 100%; padding: 10px; background: transparent; border: 1px solid rgba(124,58,237,0.2); border-radius: 12px; color: rgba(167,139,250,0.6); font-family: 'Orbitron',sans-serif; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
-        .back-to-profile-btn:hover { background: rgba(124,58,237,0.05); color: #a78bfa; border-color: rgba(124,58,237,0.4); }
-      `}</style>
-
-      <div className="app" id="matrixGameApp">
         <div className="stars">
           {stars.map(s => (
             <div key={s.id} className="star" style={{ width: s.size, height: s.size, left: s.left, top: s.top, '--d': s.duration }} />
           ))}
         </div>
 
-        {/* 🟢 מד הלבבות החי מעל מסך הריצה */}
-        {gameState === 'PLAYING' && (
-          <div className="hearts-status-bar">
-            <span>🖥️ חוסן השרת: </span>
-            <span>{Array.from({ length: liveHearts }).map(() => '❤️').join('')}</span>
-            <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', marginRight: '6px' }}>({liveHearts}/10)</span>
+        {/* חלונית ה-CANVAS - מוסתרת אוטומטית ב-GameOver כדי לפנות מקום ללוח המובילים הגדול */}
+        {gameState !== 'GAMEOVER' && (
+          <div 
+            className="game-screen-wrapper" 
+            onMouseMove={handleMouseMove}
+            onTouchMove={handleTouchMove}
+          >
+            <canvas className="canvas-element" ref={canvasRef} width="350" height="320" />
+
+            {/* מסך פתיחה */}
+            {gameState === 'START' && (
+              <div className="screen-overlay">
+                <div className="game-title">CYBER DROP: ARAGON CATCHER</div>
+                <div className="game-subtitle">החלק את האצבע בתחתית המסך כדי לזוז!<br />נגיעה אחת בוירוס פוסלת מיד. הקצב יילך ויאיץ!</div>
+                <button className="game-btn" type="button" onClick={startVerticalGame}>הפעל מגן מערכת 🚀</button>
+              </div>
+            )}
           </div>
         )}
 
-        {/* חלונית ה-CANVAS הגרפית - כוללת את כל הגרפיקה והרקע */}
-        <div 
-          className="game-screen-wrapper" 
-          onMouseMove={handleMouseMove}
-          onTouchMove={handleTouchMove}
-        >
-          <canvas className="canvas-element" ref={canvasRef} width="400" height="260" />
+        {/* 🟢 מסך ה-GAMEOVER המתרחב והמעוצב מחדש שכולל את לוח התוצאות קופץ ומנצנץ */}
+        {gameState === 'GAMEOVER' && (
+          <div className="fullscreen-record-overlay fu">
+            {isNewRecord ? (
+              <>
+                <div className="game-title-big" style={{ color: '#00e676', textShadow: '0 0 20px #00e676' }}>🥇 שיא חדש!</div>
+                <div className="game-desc-big">עשית זאת! שברת את שיא ה-XP שלך והוא עודכן בהצלחה בענן!</div>
+              </>
+            ) : (
+              <>
+                <div className="game-title-big" style={{ color: '#ff3b30', textShadow: '0 0 15px rgba(255,59,48,0.4)' }}>💥 השרת קרס!</div>
+                <div className="game-desc-big">נפגעת מווירוס קטלני. התוצאה לא עקפה את שיאך האישי הנוכחי.</div>
+              </>
+            )}
 
-          {/* מסכי פתיחה */}
-          {gameState === 'START' && (
-            <div className="screen-overlay">
-              <div className="game-title">CYBER SHIELD: ACTIVE DEFENSE</div>
-              <div className="game-subtitle">עקוב עם האצבע/עכבר כדי לכוון ולהשמיד וירוסים!<br />אל תיתן לוירוסים לחמוק לצד שמאל — פספוס של 10 וירוסים יפיל את השרת!</div>
-              <button className="game-btn" type="button" onClick={startArcadeGame}>הפעל הגנת מערכת 🚀</button>
+            <div className="score-summary-box">
+              <div className="ss-node">ציון בסיבוב: <span style={{ color: '#00c8ff' }}>{currentScore}</span></div>
+              <div className="ss-node">שיא אישי: <span style={{ color: '#00e676' }}>{playerHighScore} XP</span></div>
             </div>
-          )}
 
-          {/* מסך סיום מבוסס שיא אישי */}
-          {gameState === 'GAMEOVER' && (
-            <div className="screen-overlay">
-              {isNewRecord ? (
-                <>
-                  <div className="game-title" style={{ color: '#00e676', textShadow: '0 0 12px #00e676' }}>🏆 שיא ארצי חדש!</div>
-                  <div className="game-subtitle">מטורף! שברת את שיא המיומנות של עצמך!<br />ה-High Score החדש שלך עודכן ללוח המובילים!</div>
-                </>
-              ) : (
-                <>
-                  <div className="game-title" style={{ color: '#f87171' }}>השרת קרס!</div>
-                  <div className="game-subtitle">הוירוסים הצליחו לחדור למערכת המרכזית.<br />התוצאה הנוכחית לא עקפה את שיאך האישי החודשי.</div>
-                </>
-              )}
-              <div className="game-subtitle" style={{ marginBottom: '12px' }}> צברת בסיבוב זה: <span style={{ color: '#00c8ff', fontWeight: 'bold' }}>{currentScore} נקודות</span></div>
-              <button className="game-btn" type="button" onClick={startArcadeGame}>אתחל סימולציה 🔄</button>
-            </div>
-          )}
-        </div>
-
-        {/* שורת כיתוב והסבר חכמה מתחת למשחק */}
-        <div className="game-info-caption">
-          <div className="gic-ico">💡</div>
-          <div className="gic-text">אסוף את הלוגואים של <span style={{color:'#00c8ff', fontWeight:'bold'}}>Aragon</span> או <span style={{color:'#00e676', fontWeight:'bold'}}>Cybot</span> כדי לטעון נשק לייזר משולש ועוצמתי!</div>
-        </div>
-
-        {/* תצוגת הניקוד המאובטחת */}
-        <div className="live-score-badge">
-          <div>
-            <span className="sb-lbl">תוצאה נוכחית: </span>
-            <span className="sb-val" style={{ color: '#00c8ff' }}>{currentScore}</span>
+            <button className="game-btn" style={{ margin: '14px 0 20px' }} type="button" onClick={startVerticalGame}>שחק שוב 🔄</button>
           </div>
-          <div>
-            <span className="sb-lbl">שיא אישי (High Score): </span>
-            <span className="sb-val" style={{ color: '#00e676' }}>{playerHighScore} XP</span>
-          </div>
-        </div>
+        )}
 
-        {/* טבלת ה-LEADERBOARD החודשית */}
+        {/* שורת הסבר קצרה וחכמה */}
+        {gameState === 'PLAYING' && (
+          <div className="game-info-caption">
+            <div className="gic-ico">💡</div>
+            <div className="gic-text">תפוס סמלי <span style={{color:'#00c8ff', fontWeight:'bold'}}>אראגון (+100)</span> ו<span style={{color:'#00e676', fontWeight:'bold'}}>סייבוט (+250)</span> כדי להקפיץ את הניקוד!</div>
+          </div>
+        )}
+
+        {/* תצוגת הציון הרגילה באמצע המשחק */}
+        {gameState === 'PLAYING' && (
+          <div className="live-score-badge">
+            <div><span className="sb-lbl">תוצאה: </span><span className="sb-val">{currentScore}</span></div>
+            <div><span className="sb-lbl">שיא חודשי: </span><span className="sb-val" style={{ color: '#00e676' }}>{playerHighScore} XP</span></div>
+          </div>
+        )}
+
+        {/* טבלת ה-LEADERBOARD החודשית - תמיד פרוסה יפה בתחתית, ובמצב GameOver עולה למרכז */}
         <div className="leaderboard-title-divider">
           <div className="ld-line"></div>
           <span className="ld-text">🏆 טבלת אלופי ה-XP של אראגון</span>
