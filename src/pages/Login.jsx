@@ -88,7 +88,9 @@ export default function Login() {
 
       loginContext(dbUser.username, dbUser.role);
 
+      // חיווט הניתובים הראשיים של אראגון לפי רולים קשיחים
       if (dbUser.role === 'admin') navigate('/admin');
+      else if (dbUser.role === 'logistics') navigate('/admin/logistics'); // 🚚 הזרקה אוטומטית ישירות לחמ"ל הלוגיסטי הראשי!
       else if (dbUser.role === 'instructor') navigate('/instructor');
       else navigate('/student'); 
 

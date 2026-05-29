@@ -72,13 +72,13 @@ export default function App() {
         <Route path="/admin/team" element={<ProtectedRoute allowedRoles={['admin']}><AdminInstructors /></ProtectedRoute>} />
         <Route path="/admin/groups" element={<ProtectedRoute allowedRoles={['admin']}><AdminGroupsList /></ProtectedRoute>} />
 
-        {/* 🚚 מערך הלוגיסטיקה והחמ"ל המרכזי של אראגון - מוגן הרמטית ומחולק לקבצים עצמאיים */}
-        <Route path="/admin/logistics" element={<ProtectedRoute allowedRoles={['admin']}><LogisticsDashboard /></ProtectedRoute>} />
-        <Route path="/admin/logistics/updates" element={<ProtectedRoute allowedRoles={['admin']}><LogisticsUpdates /></ProtectedRoute>} />
-        <Route path="/admin/logistics/tasks" element={<ProtectedRoute allowedRoles={['admin']}><LogisticsTasks /></ProtectedRoute>} />
-        <Route path="/admin/logistics/classes" element={<ProtectedRoute allowedRoles={['admin']}><LogisticsClasses /></ProtectedRoute>} />
-        <Route path="/admin/logistics/camps" element={<ProtectedRoute allowedRoles={['admin']}><LogisticsCamps /></ProtectedRoute>} />
-        <Route path="/admin/logistics/purchase" element={<ProtectedRoute allowedRoles={['admin']}><LogisticsPurchase /></ProtectedRoute>} />
+        {/* 🚚 מערך הלוגיסטיקה - פתוח כעת רשמית גם לאדמינים וגם למשתמשים עם רול logistics ייעודי! */}
+        <Route path="/admin/logistics" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsDashboard /></ProtectedRoute>} />
+        <Route path="/admin/logistics/updates" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsUpdates /></ProtectedRoute>} />
+        <Route path="/admin/logistics/tasks" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsTasks /></ProtectedRoute>} />
+        <Route path="/admin/logistics/classes" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsClasses /></ProtectedRoute>} />
+        <Route path="/admin/logistics/camps" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsCamps /></ProtectedRoute>} />
+        <Route path="/admin/logistics/purchase" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsPurchase /></ProtectedRoute>} />
       </Routes>
     </AuthProvider>
   );
