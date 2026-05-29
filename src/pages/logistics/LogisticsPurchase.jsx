@@ -1,0 +1,534 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+// ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
+import aragonLogo from '../../assets/aragonlogo.png';
+
+export default function LogisticsPurchase() {
+  const navigate = useNavigate();
+
+  // סטייט תפעולי גלובלי למסך
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [clk, setClk] = useState('00:00:00');
+  const [toast, setToast] = useState({ show: false, message: '' });
+
+  // סטייט תקציב וחשבונאות מתוך קוד המקור
+  const [budget, setBudget] = useState(5480);
+  const TOTAL = 10000;
+  const [invMissing, setInvMissing] = useState(3);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+
+  // סטייט מודאלים פנימיים
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalType, setModalType] = useState('wish'); // 'wish' | 'exec' | 'move'
+  const [formName, setFormName] = useState('');
+  const [formCost, setFormCost] = useState('');
+  const [formInv, setFormInv] = useState(false);
+  const [editMoveItem, setEditMoveItem] = useState(null);
+  const [editingCostId, setEditingCostId] = useState(null);
+  const [editCostInput, setEditCostInput] = useState('');
+
+  // מאגר רכש כללי — דרישות ציוד קרובות
+  const [wishItems, setWishItems] = useState([
+    { id: 'w1', name: '20 עכברי גיימינג לחדר מחשבים — קייטנת ראשל"צ', cost: 4500, status: 'pending' },
+    { id: 'w2', name: '5 כבלים HDMI ארוכים לחדר גיימינג', cost: 350, status: 'pending' },
+    { id: 'w3', name: '3 מאריכי חשמל 8 שקעים לקייטנת ר"ג', cost: 280, status: 'pending' },
+    { id: 'w4', name: 'סוללות AA כפול 40 לשלטי טלוויזיה', cost: 180, status: 'pending' },
+    { id: 'w5', name: '10 מפצלי USB לחדרי מחשבים', cost: 620, status: 'pending' },
+  ]);
+
+  // מאגר רכש מאושר — רכישות שבוצעו בפועל
+  const [execItems, setExecItems] = useState([
+    { id: 'e1', name: 'רכישת 5 כבלים מאריכים ומפצלים — ראשל"צ', cost: 1240, hasInv: true, purchased: true },
+    { id: 'e2', name: 'עדכון מנוי PlayStation Plus — 3 מכשירים', cost: 890, hasInv: false, purchased: false },
+    { id: 'e3', name: 'ארגזי אחסון ציוד × 4', cost: 680, hasInv: false, purchased: true },
+    { id: 'e4', name: 'כרטיסי ביקור ומדבקות לוגו אראגון', cost: 420, hasInv: true, purchased: false },
+    { id: 'e5', name: 'חוט LAN + ראוטר נייד לקייטנת פרדסייה', cost: 560, hasInv: false, purchased: false },
+    { id: 'e6', name: 'ציוד כללי — מטה', cost: 730, hasInv: true, purchased: true },
+  ]);
+
+  const showToast = (msg) => {
+    setToast({ show: true, message: msg });
+    setTimeout(() => setToast({ show: false, message: '' }), 3200);
+  };
+
+  // עדכון שעון חמ"ל לוגיסטי
+  useEffect(() => {
+    const tick = () => setClk(new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    const interval = setInterval(tick, 1000);
+    tick();
+    return () => clearInterval(interval);
+  }, []);
+
+  // סנכרן את מצב כפתור הנגן מול האודיו הגלובלי ב-App.jsx בעת מעבר דפים
+  useEffect(() => {
+    const globalAudio = document.getElementById('hq-cyber-radio');
+    if (globalAudio) setIsPlaying(!globalAudio.paused);
+  }, []);
+
+  const toggleRadioPlay = () => {
+    const globalAudio = document.getElementById('hq-cyber-radio');
+    if (!globalAudio) return;
+    globalAudio.paused ? globalAudio.play().catch(err => console.log(err)) : globalAudio.pause();
+    setIsPlaying(!globalAudio.paused);
+  };
+
+  // שינוי סטטוס רכש כללי (כולל פתיחת מודאל העברה לרכש מאושר)
+  const handleChangeStatus = (id, newStatus) => {
+    const item = wishItems.find(x => x.id === id);
+    if (!item) return;
+
+    if (newStatus === 'approved') {
+      setEditMoveItem(item);
+      setFormCost(item.cost);
+      setFormInv(false);
+      setModalType('move');
+      setIsModalOpen(true);
+      return;
+    }
+
+    setWishItems(prev => prev.map(x => x.id === id ? { ...x, status: newStatus } : x));
+    if (newStatus === 'rejected') showToast('הפריט נפסל והועבר לארכיון הרכש');
+  };
+
+  // הפעלת מצב עריכת עלות ישירה (Inline Edit)
+  const startCostEdit = (id, currentCost) => {
+    setEditingCostId(id);
+    setEditCostInput(currentCost);
+  };
+
+  const confirmCostEdit = (id) => {
+    const newCost = parseInt(editCostInput, 10) || 0;
+    const item = execItems.find(x => x.id === id);
+    if (!item) return;
+
+    const diff = item.cost - newCost;
+    setExecItems(prev => prev.map(x => x.id === id ? { ...x, cost: newCost } : x));
+    setBudget(prev => prev + diff);
+    setEditingCostId(null);
+    showToast('העלות עודכנה והתקציב חושב מחדש ✓');
+  };
+
+  // שינוי סימון חשבונית הוגשה
+  const handleToggleInv = (id) => {
+    setExecItems(prev => prev.map(x => {
+      if (x.id !== id) return x;
+      const nextInv = !x.hasInv;
+      setInvMissing(m => Math.max(0, m + (nextInv ? -1 : 1)));
+      showToast(nextInv ? 'חשבונית סומנה כהוגשה ✓' : 'חשבונית סומנה כחסרה');
+      return { ...x, hasInv: nextInv };
+    }));
+  };
+
+  // שינוי סימון נרכש בהצלחה
+  const handleTogglePurchased = (id) => {
+    setExecItems(prev => prev.map(x => {
+      if (x.id !== id) return x;
+      const nextPurchased = !x.purchased;
+      showToast(nextPurchased ? 'סומן כנרכש בהצלחה ✓' : 'סומן כטרם נרכש');
+      return { ...x, purchased: nextPurchased };
+    }));
+  };
+
+  // פתיחת מודאלים ליצירת פריטים
+  const openCreateModal = (type) => {
+    setModalType(type);
+    setFormName('');
+    setFormCost('');
+    setFormInv(false);
+    setIsModalOpen(true);
+  };
+
+  const handleFormSubmit = () => {
+    if (!formName.trim()) { showToast('נא למלא תיאור לפריט'); return; }
+    const costNum = parseInt(formCost, 10) || 0;
+
+    if (modalType === 'wish') {
+      setWishItems([{ id: 'w' + Date.now(), name: formName.trim(), cost: costNum, status: 'pending' }, ...wishItems]);
+      showToast('דרישת רכש חדשה נוספה למערכת ✓');
+    } else if (modalType === 'exec') {
+      if (!formInv) setInvMissing(prev => prev + 1);
+      setExecItems([{ id: 'e' + Date.now(), name: formName.trim(), cost: costNum, hasInv: formInv, purchased: false }, ...execItems]);
+      setBudget(prev => prev - costNum);
+      showToast('רכש נרשם — התקציב הפנוי עודכן ✓');
+    } else if (modalType === 'move' && editMoveItem) {
+      if (!formInv) setInvMissing(prev => prev + 1);
+      setExecItems([{ id: 'e' + Date.now(), name: editMoveItem.name, cost: costNum, hasInv: formInv, purchased: false }, ...execItems]);
+      setWishItems(prev => prev.filter(x => x.id !== editMoveItem.id));
+      setBudget(prev => prev - costNum);
+      showToast('הועבר בהצלחה לרכש מאושר — התקציב עודכן ✓');
+    }
+
+    setIsModalOpen(false);
+  };
+
+  // פקודות חישוב אחוז תקציב פנוי
+  const pct = (budget / TOTAL) * 100;
+  const budgetColor = pct > 30 ? '#00e5a0' : pct > 15 ? '#f5c842' : '#ff4560';
+
+  const activeWishItems = wishItems.filter(x => x.status !== 'rejected');
+  const rejectedWishItems = wishItems.filter(x => x.status === 'rejected');
+
+  return (
+    <div className="hq-global-wrapper">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Heebo:wght@300;400;500;600;700&display=swap');
+        @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
+        
+        *{ box-sizing: border-box; margin: 0; padding: 0; }
+        .hq-global-wrapper { width: 100%; height: 100vh; background: #040b18; display: flex; font-family: 'Heebo', sans-serif; color: rgba(220,235,255,0.92); direction: rtl; overflow: hidden; }
+        
+        /* SIDEBAR */
+        .sidebar { width: 78px; background: #070f1e; border-left: 1px solid rgba(0,212,255,0.1); display: flex; flex-direction: column; align-items: center; padding: 18px 0 14px; gap: 4px; flex-shrink: 0; z-index: 10; }
+        .sb-logo { width: 38px; height: 38px; margin-bottom: 18px; cursor: pointer; }
+        .sb-logo img { width: 100%; height: 100%; object-fit: contain; }
+        
+        .nb { width: 58px; height: 58px; border-radius: 12px; border: 1px solid transparent; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; transition: all 0.18s; color: rgba(160,185,215,0.5); font-size: 9.5px; font-weight: 500; font-family: 'Heebo', sans-serif; }
+        .nb:hover { background: #111f35; color: #00d4ff; border-color: rgba(0,212,255,0.1); }
+        .nb.on { background: rgba(0,212,255,0.12); border-color: rgba(0,212,255,0.25); color: #00d4ff; }
+        .nb i { font-size: 20px; }
+        .nb-sep { width: 32px; height: 1px; background: rgba(0,212,255,0.1); margin: 4px 0; }
+
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+        .topbar { height: 52px; background: #070f1e; border-bottom: 1px solid rgba(0,212,255,0.1); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; flex-shrink: 0; }
+        .topbar-title { font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; color: #00d4ff; letter-spacing: 3px; text-transform: uppercase; }
+        .topbar-r { display: flex; align-items: center; gap: 18px; }
+        .live { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #00e5a0; letter-spacing: 1.5px; }
+        .ld { width: 7px; height: 7px; border-radius: 50%; background: #00e5a0; animation: lp 2s infinite; }
+        @keyframes lp { 0%,100% { box-shadow: 0 0 0 0 rgba(0,229,160,0.5); } 60% { box-shadow: 0 0 0 5px rgba(0,229,160,0); } }
+        .clk { font-family: 'Orbitron', monospace; font-size: 13px; color: #00d4ff; letter-spacing: 2px; font-weight: 600; }
+
+        /* BUDGET HEADER ROW */
+        .budget-hdr { flex-shrink: 0; display: grid; grid-template-columns: 1fr 1.6fr 1fr; border-bottom: 1px solid rgba(0,212,255,0.1); background: #070f1e; height: 100px; }
+        .bh-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 24px; border-left: 1px solid rgba(0,212,255,0.1); }
+        .bh-cell:last-child { border-left: none; }
+        .bh-lbl { font-size: 10px; letter-spacing: 2px; color: rgba(160,185,215,0.5); text-transform: uppercase; margin-bottom: 6px; font-weight: 600; }
+        .budget-main { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 0 30px; }
+        .budget-num { font-family: 'Orbitron', monospace; font-size: 34px; font-weight: 900; letter-spacing: 1px; transition: all 0.6s; }
+        .budget-of { font-size: 12px; color: rgba(160,185,215,0.5); }
+        .budget-bar-wrap { width: 180px; height: 5px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+        .budget-bar { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+        
+        .cd-num { font-family: 'Orbitron', monospace; font-size: 28px; font-weight: 900; color: #f5c842; }
+        .inv-num { font-family: 'Orbitron', monospace; font-size: 28px; font-weight: 900; color: #ff4560; }
+
+        /* SPLIT FRAMES LAYOUT (50% / 50%) */
+        .body { flex: 1; display: flex; overflow: hidden; }
+        .col { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-left: 1px solid rgba(0,212,255,0.1); }
+        .col:last-child { border-left: none; }
+        .col-hdr { padding: 12px 18px; border-bottom: 1px solid rgba(0,212,255,0.1); background: #070f1e; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .col-hdr-title { font-family: 'Orbitron', monospace; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+        .col-dot { width: 5px; height: 5px; border-radius: 50%; }
+        .col-scroll { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+
+        /* ACTION BUTTON BRUSHES */
+        .col-add-btn { padding: 7px 16px; border-radius: 7px; border: 1px solid; font-family: 'Heebo', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.18s; flex-direction: row-reverse; }
+        .btn-wish { background: rgba(245,200,66,0.1); border-color: rgba(245,200,66,0.4); color: #f5c842; }
+        .btn-wish:hover { background: rgba(245,200,66,0.2); box-shadow: 0 0 14px rgba(245,200,66,0.15); }
+        .btn-exec { background: rgba(0,212,255,0.1); border-color: #00d4ff; color: #00d4ff; }
+        .btn-exec:hover { background: rgba(0,212,255,0.2); box-shadow: 0 0 14px rgba(0,212,255,0.18); }
+
+        /* REJECTED ARCHIVE ACCORDION LOWER PANEL */
+        .archive-section { flex-shrink: 0; border-top: 1px solid rgba(255,69,96,0.15); background: rgba(255,69,96,0.03); }
+        .archive-hdr { padding: 7px 12px; display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; font-size: 11px; color: rgba(255,69,96,0.6); font-weight: 600; flex-direction: row-reverse; justify-content: flex-end; }
+        .archive-hdr:hover { color: #ff4560; }
+        .archive-hdr i { transition: transform 0.2s; }
+        .archive-hdr.open i { transform: rotate(180deg); }
+        .archive-list { padding: 4px 10px 8px; display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; }
+
+        /* EXPENSES CARDS SHAPE */
+        .pcard { background: #0c1729; border: 1px solid rgba(0,212,255,0.1); border-radius: 8px; padding: 8px 12px; position: relative; overflow: hidden; }
+        .pcard::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; }
+        .pcard-wish::after { background: linear-gradient(90deg, transparent, rgba(245,200,66,0.3), transparent); }
+        
+        .wish-row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+        .wish-name { font-size: 12px; font-weight: 600; color: rgba(220,235,255,0.92); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; text-align: right; }
+        .wish-cost { font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; color: #f5c842; white-space: nowrap; margin-left: 8px; }
+
+        .status-sel { background: #070f1e; border: 1px solid; border-radius: 5px; padding: 2px 6px; font-family: 'Heebo', sans-serif; font-size: 10px; font-weight: 700; cursor: pointer; outline: none; text-align: center; }
+        .status-approved { border-color: rgba(0,229,160,0.4); color: #00e5a0; }
+        .status-pending { border-color: rgba(245,200,66,0.4); color: #f5c842; box-shadow: 0 0 8px rgba(245,200,66,0.15); }
+        .status-rejected { border-color: rgba(255,69,96,0.4); color: #ff4560; }
+
+        .archive-card { background: rgba(255,69,96,0.04); border: 1px solid rgba(255,69,96,0.12); border-radius: 6px; padding: 6px 10px; display: flex; align-items: center; gap: 8px; justify-content: space-between; flex-direction: row-reverse; }
+        .archive-card-name { font-size: 11px; color: rgba(220,235,255,0.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; text-align: right; }
+        .archive-card-cost { font-size: 10px; color: rgba(255,69,96,0.4); font-family: 'Orbitron', monospace; }
+
+        /* EXECUTED REQUISITIONS */
+        .exec-card { background: #0c1729; border: 1px solid rgba(0,212,255,0.1); border-radius: 8px; padding: 8px 12px; position: relative; overflow: hidden; transition: border-color 0.2s; }
+        .exec-card::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,229,160,0.3), transparent); }
+        .exec-card:hover { border-color: rgba(0,212,255,0.25); }
+        .exec-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+        .exec-name { font-size: 12px; font-weight: 600; flex: 1; line-height: 1.3; color: rgba(220,235,255,0.92); text-align: right; }
+        .exec-price-block { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; gap: 1px; }
+        .exec-vat-excl { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 900; color: #00e5a0; cursor: pointer; }
+        .exec-vat-incl { font-size: 10px; color: rgba(160,185,215,0.5); }
+        .exec-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; gap: 8px; flex-direction: row-reverse; }
+
+        .exec-status-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; cursor: pointer; }
+        .exec-status-purchased { background: rgba(0,229,160,0.1); color: #00e5a0; border: 1px solid rgba(0,229,160,0.3); }
+        .exec-status-pending { background: rgba(245,200,66,0.08); color: #f5c842; border: 1px solid rgba(245,200,66,0.25); }
+
+        .inv-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; cursor: pointer; flex-direction: row-reverse; }
+        .inv-ok { background: rgba(0,229,160,0.08); color: #00e5a0; border: 1px solid rgba(0,229,160,0.25); }
+        .inv-missing { background: rgba(255,69,96,0.08); color: #ff4560; border: 1px solid rgba(255,69,96,0.25); }
+
+        .cost-edit-wrap { display: flex; align-items: center; gap: 4px; direction: ltr; }
+        .cost-edit-input { background: #111f35; border: 1px solid rgba(0,212,255,0.25); border-radius: 5px; color: rgba(220,235,255,0.92); padding: 3px 7px; font-family: 'Orbitron', monospace; font-size: 13px; width: 90px; text-align: center; outline: none; }
+        .cost-confirm-btn { background: rgba(0,229,160,0.12); border: 1px solid #00e5a0; border-radius: 5px; color: #00e5a0; padding: 3px 8px; cursor: pointer; font-size: 11px; font-weight: 700; }
+
+        /* MODAL COCKPIT */
+        .ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+        .ov.open { display: flex; }
+        .mbox { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 460px; max-width: 96vw; box-shadow: 0 0 50px rgba(0,212,255,0.1); direction: rtl; text-align: right; position: relative; }
+        .mbox::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent); }
+        .mt { font-family: 'Orbitron', monospace; font-size: 12px; color: #00d4ff; letter-spacing: 2px; margin-bottom: 20px; padding-bottom: 13px; border-bottom: 1px solid rgba(0,212,255,0.12); }
+        .mclose { position: absolute; left: 16px; top: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: rgba(160,185,215,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .mclose:hover { background: rgba(255,69,96,0.1); color: #ff4560; }
+        
+        .fl { font-size: 11px; color: rgba(0,212,255,0.55); text-transform: uppercase; margin-bottom: 6px; }
+        .fr { margin-bottom: 14px; }
+        .fi { width: 100%; background: #111f35; border: 1px solid rgba(0,212,255,0.25); border-radius: 7px; color: rgba(220,235,255,0.92); padding: 10px 13px; font-family: 'Heebo', sans-serif; font-size: 14px; outline: none; text-align: right; }
+        .fi:focus { border-color: #00d4ff; box-shadow: 0 0 8px rgba(0,212,255,0.1); }
+        
+        .chk-row-m { display: flex; align-items: center; gap: 10px; padding: 10px 13px; background: #111f35; border: 1px solid rgba(0,212,255,0.1); border-radius: 7px; cursor: pointer; flex-direction: row-reverse; justify-content: flex-end; }
+        .chk-row-m input { width: 16px; height: 16px; accent-color: #00e5a0; cursor: pointer; }
+        
+        .mfooter { display: flex; gap: 10px; margin-top: 20px; }
+        .mbtn-go { flex: 1; padding: 13px; background: rgba(0,212,255,0.12); border: 1px solid #00d4ff; border-radius: 8px; color: #00d4ff; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 15px; cursor: pointer; }
+        .mbtn-go.green { background: rgba(0,229,160,0.1); border-color: #00e5a0; color: #00e5a0; }
+        .mbtn-cancel { padding: 13px 18px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 8px; color: rgba(160,185,215,0.5); font-family: 'Heebo', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; }
+
+        .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111f35; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 22px rgba(0,229,160,0.18); transition: transform 0.28s; z-index: 300; text-align: center; pointer-events: none; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 30px; color: rgba(160,185,215,0.5); font-size: 13px; text-align: center; }
+        
+        .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #162540; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; user-select: none; }
+        .player-toggle-btn { color: #00d4ff; font-size: 14px; display: flex; align-items: center; }
+        .player-toggle-btn.playing { color: #00e5a0; }
+        .player-station-text { font-size: 11px; font-family: 'Orbitron', monospace; color: rgba(160,185,215,0.5); letter-spacing: 1px; font-weight: bold; }
+        .cyber-music-player.playing .player-station-text { color: #00e5a0; }
+        .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
+        .visualizer-bar { width: 2px; height: 3px; background: #00e5a0; }
+        .cyber-music-player.playing .visualizer-bar { animation: wavePulse 0.6s ease-in-out infinite alternate; }
+        @keyframes wavePulse { 0% { height: 3px; } 100% { height: 10px; } }
+      `}</style>
+
+      {/* SIDEBAR NAVIGATION — קבוע לחלוטין */}
+      <div className="sidebar">
+        <div className="sb-logo" onClick={() => navigate('/admin')}>
+          <img src={aragonLogo} alt="Aragon Platform Logo" />
+        </div>
+        <button className="nb" onClick={() => navigate('/admin/logistics')} title="בית"><i className="ti ti-home"></i>בית</button>
+        <button className="nb" onClick={() => navigate('/admin/logistics/updates')} title="עדכונים"><i className="ti ti-bell"></i>עדכונים</button>
+        <button className="nb" onClick={() => navigate('/admin/logistics/tasks')} title="משימות"><i className="ti ti-list-check"></i>Missions</button>
+        <div className="nb-sep"></div>
+        <button className="nb" onClick={() => navigate('/admin/logistics/classes')} title="חוגים"><i className="ti ti-device-laptop"></i>חוגים</button>
+        <button className="nb" onClick={() => navigate('/admin/logistics/camps')} title="קייטנות"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 17 22 12"/></svg>קייטנות</button>
+        <div className="nb-sep"></div>
+        <button className="nb on" title="רכש"><i className="ti ti-shopping-cart"></i>רכש</button>
+      </div>
+
+      <div className="main">
+        {/* TOPBAR */}
+        <div className="topbar">
+          <div className="topbar-title">ARAGON · LOGISTICS HQ</div>
+          <div className="topbar-r">
+            <div className={`cyber-music-player ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
+              <div className="player-toggle-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i ></div>
+              <div className="player-station-text">HQ RADIO</div>
+              <div className="audio-visualizer-wave"><div className="visualizer-bar"></div><div className="visualizer-bar"></div><div className="visualizer-bar"></div></div>
+            </div>
+            <div className="live"><div className="ld"></div>LIVE MATRIX</div>
+            <div className="clk">{clk}</div>
+          </div>
+        </div>
+
+        {/* FINANCIAL CONTROL HEADER PANEL */}
+        <div className="budget-hdr">
+          <div className="bh-cell">
+            <div className="bh-lbl">⏳ דדליין רכש קייטנות</div>
+            <div className="cd-num">12</div>
+            <div className="cd-sub">ימים נותרו ליעד</div>
+          </div>
+          <div className="budget-main">
+            <div className="bh-lbl">יתרת תקציב פנויה לרשת</div>
+            <div className="budget-num" style={{ color: budgetColor, textShadow: `0 0 24px ${budgetColor}55` }}>₪ {budget.toLocaleString('he-IL')}</div>
+            <div className="budget-of">מתוך ₪ {TOTAL.toLocaleString('he-IL')} שהוטענו ע"י אדמין</div>
+            <div className="budget-bar-wrap">
+              <div className="budget-bar" style={{ width: `${pct}%`, background: budgetColor }}></div>
+            </div>
+          </div>
+          <div className="bh-cell">
+            <div className="bh-lbl">❌ חשבוניות חסרות</div>
+            <div className="inv-num">{invMissing}</div>
+            <div className="inv-sub">ממתינות להגשה במשרד</div>
+          </div>
+        </div>
+
+        {/* SPLIT SCREEN BODY (50% / 50%) */}
+        <div className="body">
+          
+          {/* RIGHT COL: WISHLIST (רכש כללי — דרישות ציוד) */}
+          <div className="col">
+            <div className="col-hdr">
+              <div className="col-hdr-title">
+                <div className="col-dot" style={{ background: '#f5c842', boxShadow: '0 0 6px #f5c842' }}></div>
+                רכש כללי — דרישות ציוד לקייטנות ומדריכים
+              </div>
+              <button className="col-add-btn btn-wish" onClick={() => openCreateModal('wish')}>
+                <i className="ti ti-plus" style={{ fontWeight: 900 }}></i>הכנס רשימת רכש
+              </button>
+            </div>
+            
+            <div className="col-scroll">
+              {activeWishItems.length === 0 ? (
+                <div className="empty"><i className="ti ti-file-text" style={{ fontSize: '24px', opacity: 0.3 }}></i>לא קיימות דרישות רכש ממתינות</div>
+              ) : (
+                activeWishItems.map(item => (
+                  <div key={item.id} className="pcard pcard-wish">
+                    <div className="wish-row">
+                      <div className="wish-name" title={item.name}>{item.name}</div>
+                      <div className="wish-cost">₪ {item.cost.toLocaleString('he-IL')}</div>
+                      <select className={`status-sel ${item.status === 'pending' ? 'status-pending' : 'status-approved'}`} value={item.status} onChange={(e) => handleChangeStatus(item.id, e.target.value)}>
+                        <option value="pending">⏳ ממתין</option>
+                        <option value="approved">✓ מאושר</option>
+                        <option value="rejected">✗ נפסל</option>
+                      </select>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* REJECTED ARCHIVE BLOCK */}
+            <div className="archive-section">
+              <div className={`archive-hdr ${archiveOpen ? 'open' : ''}`} onClick={() => setArchiveOpen(!archiveOpen)}>
+                <i className="ti ti-chevron-down" style={{ transform: archiveOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}></i>
+                <span>ארכיון רכש — נפסל ({rejectedWishItems.length})</span>
+              </div>
+              {archiveOpen && (
+                <div className="archive-list">
+                  {rejectedWishItems.length === 0 ? (
+                    <div style={{ fontSize: '11px', color: 'rgba(160,185,215,0.4)', textAlign: 'center' }}>אין פריטים שנפסלו בארכיון</div>
+                  ) : (
+                    rejectedWishItems.map(item => (
+                      <div key={item.id} className="archive-card">
+                        <div className="archive-card-name" title={item.name}>{item.name}</div>
+                        <div className="archive-card-cost">₪ {item.cost.toLocaleString('he-IL')}</div>
+                        <select className="status-sel status-rejected" value="rejected" onChange={(e) => handleChangeStatus(item.id, e.target.value)}>
+                          <option value="rejected">✗ נפסל</option>
+                          <option value="pending">⏳ ממתין</option>
+                          <option value="approved">✓ מאושר</option>
+                        </select>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* LEFT COL: EXECUTED EXPENSES (רכש מאושר — בוצע) */}
+          <div className="col">
+            <div className="col-hdr">
+              <div className="col-hdr-title">
+                <div className="col-dot" style={{ background: '#00e5a0', boxShadow: '0 0 6px #00e5a0' }}></div>
+                רכש מאושר — בוצע ונגרע מהתקציב
+              </div>
+              <button className="col-add-btn btn-exec" onClick={() => openCreateModal('exec')}>
+                <i className="ti ti-credit-card"></i>בוצע רכש
+              </button>
+            </div>
+            
+            <div className="col-scroll">
+              {execItems.map(item => {
+                const noVat = Math.round(item.cost / 1.18);
+                const isEditing = editingCostId === item.id;
+                return (
+                  <div key={item.id} className="exec-card">
+                    <div className="exec-top">
+                      <div className="exec-name">{item.name}</div>
+                      <div className="exec-price-block">
+                        {isEditing ? (
+                          <div className="cost-edit-wrap">
+                            <input className="cost-edit-input" type="number" value={editCostInput} onChange={(e) => setEditCostInput(e.target.value)} />
+                            <button className="cost-confirm-btn" onClick={() => confirmCostEdit(item.id)}>✓</button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="exec-vat-excl" onClick={() => startCostEdit(item.id, item.cost)} title="לחץ לעריכת עלות">₪ {noVat.toLocaleString('he-IL')}</div>
+                            <div className="exec-vat-incl">כולל מע"מ: ₪ {item.cost.toLocaleString('he-IL')}</div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="exec-bottom">
+                      <div className={`inv-badge ${item.hasInv ? 'inv-ok' : 'inv-missing'}`} onClick={() => handleToggleInv(item.id)}>
+                        <i className={item.hasInv ? "ti ti-check" : "ti ti-x"}></i>
+                        {item.hasInv ? 'חשבונית הוגשה ✓' : 'חשבונית חסרה'}
+                      </div>
+                      <div className={`exec-status-badge ${item.purchased ? 'exec-status-purchased' : 'exec-status-pending'}`} onClick={() => handleTogglePurchased(item.id)}>
+                        {item.purchased ? '✓ נרכש בהצלחה' : '⏳ טרם נרכש'}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* GLOBAL OPERATIONS PROCUREMENT MODAL BOX */}
+      {isModalOpen && (
+        <div className="ov open" onClick={(e) => e.target.className === 'ov open' && setIsModalOpen(false)}>
+          <div className="mbox">
+            <button className="mclose" onClick={() => setIsModalOpen(false)}>×</button>
+            <div className="mt">
+              {modalType === 'wish' && '➕ הכנס דרישת רכש חומרה חדשה'}
+              {modalType === 'exec' && '💳 רישום רכש חומרה שבוצע בפועל'}
+              {modalType === 'move' && '💳 אישור סופי והעברה לרכש מאושר'}
+            </div>
+            
+            {modalType === 'move' && editMoveItem && (
+              <div style={{ padding: '10px 13px', background: 'rgba(245,200,66,0.06)', border: '1px solid rgba(245,200,66,0.2)', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
+                {editMoveItem.name}
+              </div>
+            )}
+
+            {modalType !== 'move' && (
+              <div className="fr">
+                <div className="fl">פירוט הציוד הלוגיסטי הנדרש</div>
+                <input className="fi" type="text" placeholder="למשל: 20 עכברי גיימינג, כבלים מאריכים..." value={formName} onChange={(e) => setFormName(e.target.value)} />
+              </div>
+            )}
+
+            <div className="fr">
+              <div className="fl">{modalType === 'wish' ? 'עלות צפויה מוערכת (₪)' : 'עלות סופית כולל מע"מ (₪)'}</div>
+              <input className="fi" type="number" placeholder="0" min="0" value={formCost} onChange={(e) => setFormCost(e.target.value)} />
+            </div>
+
+            {modalType !== 'wish' && (
+              <label className="chk-row-m">
+                <input type="checkbox" checked={formInv} onChange={(e) => setFormInv(e.target.checked)} />
+                <span style={{ fontSize: '13px', fontWeight: 600 }}>החשבונית הפיזית הוגשה למשרד כעת</span>
+              </label>
+            )}
+
+            <div className="mfooter">
+              <button className="mbtn-cancel" onClick={() => setIsModalOpen(false)}>ביטול</button>
+              <button className={`mbtn-go ${modalType !== 'wish' ? 'green' : ''}`} onClick={handleFormSubmit}>
+                {modalType === 'wish' ? 'שגר דרישה לרשת' : modalType === 'exec' ? 'אישור רכש ועריכת תקציב' : 'העבר לרכש מאושר'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST FEEDBACK ALERT */}
+      <div className={`toast ${toast.show ? 'show' : ''}`}>✓ {toast.message}</div>
+    </div>
+  );
+}

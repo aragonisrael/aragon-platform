@@ -10,7 +10,7 @@ import StudentShop from './pages/student/StudentShop';
 import StudentMissions from './pages/student/StudentMissions';
 import StudentProfile from './pages/student/StudentProfile';
 import StudentUpdates from './pages/student/StudentUpdates';
-import StudentGame from './pages/student/StudentGame'; // 🎮 ייבוא מנוע המשחק וה-XP החדש!
+import StudentHomeGame from './pages/student/StudentGame'; // 🎮 ייבוא מנוע המשחק וה-XP החדש!
 
 // עמודי עולם המדריך 👨‍🏫
 import InstructorHome from './pages/instructor/InstructorHome';
@@ -29,6 +29,14 @@ import AdminControlSchedule from './pages/admin/AdminControlSchedule';
 import AdminGroupsList from './pages/admin/AdminGroupsList';
 import AdminInstructors from './pages/admin/AdminInstructors';
 
+// עמודי מערך הלוגיסטיקה והחמ"ל המשרדי המבוזר (Matrix HQ) 🚚
+import LogisticsDashboard from './pages/logistics/LogisticsDashboard';
+import LogisticsUpdates from './pages/logistics/LogisticsUpdates';
+import LogisticsTasks from './pages/logistics/LogisticsTasks';
+import LogisticsClasses from './pages/logistics/LogisticsClasses';
+import LogisticsCamps from './pages/logistics/LogisticsCamps';
+import LogisticsPurchase from './pages/logistics/LogisticsPurchase';
+
 export default function App() {
   return (
     <AuthProvider>
@@ -45,7 +53,7 @@ export default function App() {
         <Route path="/student/missions" element={<ProtectedRoute allowedRoles={['student']}><StudentMissions /></ProtectedRoute>} />
         <Route path="/student/profile" element={<ProtectedRoute allowedRoles={['student']}><StudentProfile /></ProtectedRoute>} />
         <Route path="/student/updates" element={<ProtectedRoute allowedRoles={['student']}><StudentUpdates /></ProtectedRoute>} />
-        <Route path="/student/game" element={<ProtectedRoute allowedRoles={['student']}><StudentGame /></ProtectedRoute>} />
+        <Route path="/student/game" element={<ProtectedRoute allowedRoles={['student']}><StudentHomeGame /></ProtectedRoute>} />
         
         {/* 👨‍🏫 עולם המדריך - נעול אך ורק עבור משתמשים עם רול instructor */}
         <Route path="/instructor" element={<ProtectedRoute allowedRoles={['instructor']}><InstructorHome /></ProtectedRoute>} />
@@ -63,6 +71,14 @@ export default function App() {
         <Route path="/admin/control" element={<ProtectedRoute allowedRoles={['admin']}><AdminControlSchedule /></ProtectedRoute>} />
         <Route path="/admin/team" element={<ProtectedRoute allowedRoles={['admin']}><AdminInstructors /></ProtectedRoute>} />
         <Route path="/admin/groups" element={<ProtectedRoute allowedRoles={['admin']}><AdminGroupsList /></ProtectedRoute>} />
+
+        {/* 🚚 מערך הלוגיסטיקה והחמ"ל המרכזי של אראגון - מוגן הרמטית ומחולק לקבצים עצמאיים */}
+        <Route path="/admin/logistics" element={<ProtectedRoute allowedRoles={['admin']}><LogisticsDashboard /></ProtectedRoute>} />
+        <Route path="/admin/logistics/updates" element={<ProtectedRoute allowedRoles={['admin']}><LogisticsUpdates /></ProtectedRoute>} />
+        <Route path="/admin/logistics/tasks" element={<ProtectedRoute allowedRoles={['admin']}><LogisticsTasks /></ProtectedRoute>} />
+        <Route path="/admin/logistics/classes" element={<ProtectedRoute allowedRoles={['admin']}><LogisticsClasses /></ProtectedRoute>} />
+        <Route path="/admin/logistics/camps" element={<ProtectedRoute allowedRoles={['admin']}><LogisticsCamps /></ProtectedRoute>} />
+        <Route path="/admin/logistics/purchase" element={<ProtectedRoute allowedRoles={['admin']}><LogisticsPurchase /></ProtectedRoute>} />
       </Routes>
     </AuthProvider>
   );
