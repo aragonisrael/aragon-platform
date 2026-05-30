@@ -11,10 +11,15 @@ export default function LogisticsDashboard() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [clk, setClk] = useState('00:00:00');
 
-  // סטייט מודאלים (הוצאה / החזרה מהירה)
+  // סטייט שליטה במודאלים (הוצאה / החזרה מהירה)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState('out'); // 'out' | 'in'
   
+  // 🟢 סטייט נתוני הטופס המורחב בתוך החלונית החדשה (תואם בול את ממשק קו זמני)
+  const [modalLineName, setModalLineName] = useState('');
+  const [modalManager, setModalManager] = useState('מנהל לוגיסטיקה');
+  const [modalGear, setModalGear] = useState({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 });
+
   // מערכת טוסט התראות פנימית
   const [toast, setToast] = useState({ show: false, message: '' });
 
@@ -24,10 +29,20 @@ export default function LogisticsDashboard() {
   // עדכון מאגר הנסיעות והתקלות המשולב לפי העמודות החדשות
   const [trips, setTrips] = useState([
     { id: 1, date: '28.05 | 20:15', name: 'אריה כהן', gearTake: '💻×2 (תקול)', gearGive: '💻×1 🔌×1', status: 'ready' },
-    { id: 2, date: '28.05 | 17:30', name: 'רחל לוי', gearTake: '鼠标×2 (תקול)', gearGive: '🖱×2 (חדש)', status: 'ready' },
+    { id: 2, date: '28.05 | 17:30', name: 'רחל לוי', gearTake: '🖱×2 (תקול)', gearGive: '🖱×2 (חדש)', status: 'ready' },
     { id: 3, date: '29.05 | 11:00', name: 'ישראל ישראלי', gearTake: '🔌×1 (תקול)', gearGive: '🔌×1 (תקין)', status: 'prep' },
     { id: 4, date: '29.05 | 13:15', name: 'מיכל דוד', gearTake: '—', gearGive: '💻×12 🖱×12', status: 'ready' }
   ]);
+
+  // רשימת פריטי חומרה קשיחה מאוחדת לרנדור הגריד
+  const GEAR_ITEMS = [
+    { key: 'laptops', label: 'מחשבים', icon: '💻' },
+    { key: 'tablets', label: 'טאבלטים', icon: '📱' },
+    { key: 'chargers', label: 'מטענים', icon: '🔌' },
+    { key: 'mice', label: 'עכברים', icon: '🖱' },
+    { key: 'routers', label: 'ראוטר', icon: '📶' },
+    { key: 'robots', label: 'רובוטים', icon: '🤖' },
+  ];
 
   const showToast = (msg) => {
     setToast({ show: true, message: msg });
@@ -44,7 +59,7 @@ export default function LogisticsDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // סנכרן את מצב כפתור הנגן מול האודיו הגלובלי ב-App.jsx
+  // סנכרן את מצב כפתור הנגן
   useEffect(() => {
     const globalAudio = document.getElementById('hq-cyber-radio');
     if (globalAudio) {
@@ -62,6 +77,31 @@ export default function LogisticsDashboard() {
   const handleSendTrip = (id) => {
     setTrips(prev => prev.map(t => t.id === id ? { ...t, status: 'departed' } : t));
     showToast('נסיעה סומנה — יצא לדרך 🚚');
+  };
+
+  // פתיחת המודאל המורחב ואיפוס נתונים מוקדם
+  const handleOpenQuickModal = (type) => {
+    setModalType(type);
+    setModalLineName('');
+    setModalManager('מנהל לוגיסטיקה');
+    setModalGear({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 });
+    setIsModalOpen(true);
+  };
+
+  // שליחת טופס הבזק הראשי
+  const handleQuickSubmit = (e) => {
+    e.preventDefault();
+    if (modalType === 'out' && !modalLineName.trim()) {
+      showToast('⚠️ נא להזין יעד או שם קייטנה להוצאה');
+      return;
+    }
+
+    setIsModalOpen(false);
+    if (modalType === 'out') {
+      showToast(`📤 הוצאת בזק אושרה בהצלחה עבור ${modalLineName} באחריות ${modalManager}!`);
+    } else {
+      showToast(`📥 קליטת החזרת בזק מהמדריך/מנהל ${modalManager} הוזנה במלאי בהצלחה!`);
+    }
   };
 
   return (
@@ -84,7 +124,7 @@ export default function LogisticsDashboard() {
         .nb i { font-size: 20px; }
         .nb-sep { width: 32px; height: 1px; background: rgba(0,212,255,0.1); margin: 4px 0; }
 
-        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; height: 100vh; max-height: 100vh; }
         .topbar { height: 52px; background: #070f1e; border-bottom: 1px solid rgba(0,212,255,0.1); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; flex-shrink: 0; }
         .topbar-title { font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; color: #00d4ff; letter-spacing: 3px; text-transform: uppercase; }
         .topbar-r { display: flex; align-items: center; gap: 18px; }
@@ -93,7 +133,7 @@ export default function LogisticsDashboard() {
         @keyframes lp { 0%,100% { box-shadow: 0 0 0 0 rgba(0,229,160,0.5); } 60% { box-shadow: 0 0 0 5px rgba(0,229,160,0); } }
         .clk { font-family: 'Orbitron', monospace; font-size: 13px; color: #00d4ff; letter-spacing: 2px; font-weight: 600; }
 
-        .content { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; }
+        .content { flex: 1; overflow-y: auto; padding: 20px 24px 80px; display: flex; flex-direction: column; gap: 18px; height: calc(100% - 52px); min-height: 0; }
         .action-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex-shrink: 0; }
         .abtn { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 18px 28px; border-radius: 12px; border: 1px solid; cursor: pointer; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 17px; transition: all 0.2s; }
         .abtn-out { background: rgba(0,229,160,0.07); border-color: rgba(0,229,160,0.32); color: #00e5a0; }
@@ -102,11 +142,10 @@ export default function LogisticsDashboard() {
         .abtn-in:hover { background: rgba(0,212,255,0.14); box-shadow: 0 0 22px rgba(0,212,255,0.18); transform: translateY(-2px); }
         .abtn-icon { font-size: 24px; }
 
-        .mid-row { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 14px; }
-        .card { background: #0c1729; border: 1px solid rgba(0,212,255,0.1); border-radius: 12px; padding: 18px 20px; position: relative; overflow: hidden; }
+        .mid-row { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 14px; flex-shrink: 0; }
+        .card { background: #0c1729; border: 1px solid rgba(0,212,255,0.1); border-radius: 12px; padding: 18px 20px; position: relative; overflow: hidden; flex-shrink: 0; }
         .card::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.25), transparent); }
         
-        /* 🟢 תיקון 1: כותרות מאוחדות - גדולות, לבנות ומודגשות בגרסת פונט Heebo נקייה */
         .clbl { font-size: 15px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
         .clbl-dot { width: 6px; height: 6px; border-radius: 50%; }
         
@@ -125,8 +164,7 @@ export default function LogisticsDashboard() {
         .gauge-fill { height: 100%; border-radius: 5px; transition: width 1s ease; }
         .gauge-sub { display: flex; justify-content: space-between; width: 100%; font-size: 11px; color: rgba(160,185,215,0.5); margin-top: 5px; }
 
-        /* 🟢 תיקון 3: פריסת שורה תחתונה מותאמת ליחס מורחב (1fr 2fr) לטבלה הענקית */
-        .bot-row { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; }
+        .bot-row { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; min-height: 0; flex: 1; }
         .ev-list { display: flex; flex-direction: column; gap: 9px; }
         .ev-row { display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 10px; padding: 9px 11px; background: #111f35; border-radius: 8px; border: 1px solid rgba(0,212,255,0.1); }
         .ev-dbox { text-align: center; background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.18); border-radius: 7px; padding: 5px 3px; }
@@ -138,9 +176,7 @@ export default function LogisticsDashboard() {
         .chip { font-size: 10px; padding: 3px 9px; border-radius: 5px; font-weight: 700; white-space: nowrap; }
         .chip-hot { background: rgba(255,69,96,0.1); color: #ff4560; border: 1px solid rgba(255,69,96,0.22); }
         .chip-go { background: rgba(245,200,66,0.1); color: #f5c842; border: 1px solid rgba(245,200,66,0.22); }
-        .chip-ok { background: rgba(0,229,160,0.08); color: #00e5a0; border: 1px solid rgba(0,229,160,0.2); }
-
-        /* טבלה מורחבת */
+        
         .ttbl { width: 100%; border-collapse: collapse; font-size: 13px; }
         .ttbl thead tr { border-bottom: 1px solid rgba(0,212,255,0.25); }
         .ttbl th { font-size: 11px; font-weight: 700; color: rgba(160,185,215,0.6); text-transform: uppercase; padding: 0 12px 12px; text-align: right; }
@@ -158,25 +194,33 @@ export default function LogisticsDashboard() {
         .send-btn:hover:not(:disabled) { background: rgba(0,229,160,0.16); box-shadow: 0 0 10px rgba(0,229,160,0.2); }
         .send-btn:disabled { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.07); color: rgba(160,185,215,0.3); cursor: default; }
 
-        /* MODAL */
-        .ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.88); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+        /* MODAL STRUCTURE OVERRIDES — 🟢 סינכרון עיצובי מושלם לקוקפיט חוגים */
+        .ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
         .ov.open { display: flex; }
-        .mbox { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 28px; width: 480px; max-width: 95vw; box-shadow: 0 0 50px rgba(0,212,255,0.1); direction: rtl; }
-        .mt { font-family: 'Orbitron', monospace; font-size: 13px; color: #00d4ff; letter-spacing: 2px; margin-bottom: 22px; padding-bottom: 14px; border-bottom: 1px solid rgba(0,212,255,0.1); }
-        .fl { font-size: 11px; letter-spacing: 1.5px; color: rgba(0,212,255,0.55); text-transform: uppercase; margin-bottom: 7px; }
-        .fr { margin-bottom: 15px; }
-        .fi, .fs { width: 100%; background: #111f35; border: 1px solid rgba(0,212,255,0.25); border-radius: 7px; color: rgba(220,235,255,0.92); padding: 10px 13px; font-family: 'Heebo', sans-serif; font-size: 14px; direction: rtl; outline: none; }
-        .fi:focus, .fs:focus { border-color: #00d4ff; box-shadow: 0 0 8px rgba(0,212,255,0.1); }
-        .qr { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-        .qb { background: #111f35; border: 1px solid rgba(0,212,255,0.1); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; }
-        .ql { font-size: 10px; color: rgba(160,185,215,0.5); letter-spacing: 1px; }
-        .qi { background: none; border: none; color: #00d4ff; font-family: 'Orbitron', monospace; font-size: 18px; font-weight: 700; width: 100%; direction: ltr; outline: none; text-align: center; }
+        .mbox { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 520px; max-width: 95vw; box-shadow: 0 0 50px rgba(0,212,255,0.15); direction: rtl; text-align: right; position: relative; overflow: hidden; }
+        .mbox::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent); }
+        .modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid rgba(0,212,255,0.12); }
+        .modal-title-text { font-family: 'Heebo', sans-serif; font-size: 15px; font-weight: 800; color: #ffffff; }
+        .modal-subtitle-text { font-size: 12px; color: rgba(160,185,215,0.5); margin-top: 3px; }
+        .modal-close-btn { position: absolute; left: 16px; top: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: rgba(160,185,215,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .modal-close-btn:hover { background: rgba(255,69,96,0.12); color: #ff4560; }
+
+        .mfr { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+        .mfl { font-size: 11px; color: rgba(0,212,255,0.55); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .mfi, .mfs { width: 100%; background: #111f35; border: 1px solid rgba(0,212,255,0.25); border-radius: 7px; color: #ffffff; padding: 10px 13px; font-family: 'Heebo', sans-serif; font-size: 13.5px; direction: rtl; outline: none; }
+        .mfi:focus, .mfs:focus { border-color: #00d4ff; box-shadow: 0 0 8px rgba(0,212,255,0.15); }
         
+        /* גריד 6 המוצרים החדש */
+        .mini-gear-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+        .mg-box { background: #111f35; border: 1px solid rgba(0,212,255,0.12); border-radius: 7px; padding: 8px; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+        .mg-box-lbl { font-size: 10.5px; color: rgba(160,185,215,0.5); font-weight: 600; }
+        .mg-box-input { width: 100%; background: transparent; border: none; color: #00d4ff; font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; text-align: center; outline: none; }
+        
+        .update-btn { width: 100%; padding: 12px; background: rgba(0,212,255,0.12); border: 1px solid #00d4ff; border-radius: 8px; color: #00d4ff; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; outline: none; }
+        .update-btn:hover { background: rgba(0,212,255,0.22); box-shadow: 0 0 18px rgba(0,212,255,0.2); }
+        .mbtn-cancel { padding: 12px 18px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 8px; color: rgba(160,185,215,0.5); font-family: 'Heebo', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; }
         .mf2 { display: flex; gap: 10px; margin-top: 20px; }
-        .mbtn-go { flex: 1; padding: 13px; background: rgba(0,212,255,0.1); border: 1px solid #00d4ff; border-radius: 8px; color: #00d4ff; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 15px; cursor: pointer; transition: all 0.18s; }
-        .mbtn-go:hover { background: rgba(0,212,255,0.18); box-shadow: 0 0 16px rgba(0,212,255,0.2); }
-        .mbtn-cancel { padding: 13px 18px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 8px; color: rgba(160,185,215,0.5); font-family: 'Heebo', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; }
-        
+
         .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #162540; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; user-select: none; }
         .player-toggle-btn { color: #00d4ff; font-size: 14px; display: flex; align-items: center; }
         .player-toggle-btn.playing { color: #00e5a0; }
@@ -189,6 +233,9 @@ export default function LogisticsDashboard() {
 
         .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111f35; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 22px rgba(0,229,160,0.18); transition: transform 0.28s; z-index: 300; text-align: center; pointer-events: none; }
         .toast.show { transform: translateX(-50%) translateY(0); }
+        
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.2); border-radius: 4px; }
       `}</style>
 
       {/* SIDEBAR NAVIGATION */}
@@ -201,7 +248,7 @@ export default function LogisticsDashboard() {
         <button className="nb" onClick={() => navigate('/admin/logistics/tasks')} title="משימות"><i className="ti ti-list-check"></i>Missions</button>
         <div className="nb-sep"></div>
         <button className="nb" onClick={() => navigate('/admin/logistics/classes')} title="חוגים"><i className="ti ti-device-laptop"></i>חוגים</button>
-        <button className="nb" onClick={() => navigate('/admin/logistics/camps')} title="קייטנות"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 17 22 12"/></svg>קייטנות</button>
+        <button className="nb" onClick={() => navigate('/admin/logistics/camps')} title="קייטנות"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 17 22 12"/></svg>קייטנות</button>
         <div className="nb-sep"></div>
         <button className="nb" onClick={() => navigate('/admin/logistics/purchase')} title="רכש"><i className="ti ti-shopping-cart"></i>רכש</button>
       </div>
@@ -212,7 +259,7 @@ export default function LogisticsDashboard() {
           <div className="topbar-title">ARAGON · LOGISTICS HQ</div>
           <div className="topbar-r">
             <div className={`cyber-music-player ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
-              <div className="player-toggle-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i></div>
+              <div className="player-toggle-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i ></div>
               <div className="player-station-text">HQ RADIO</div>
               <div className="audio-visualizer-wave"><div className="visualizer-bar"></div><div className="visualizer-bar"></div><div className="visualizer-bar"></div></div>
             </div>
@@ -224,13 +271,13 @@ export default function LogisticsDashboard() {
         {/* CONTENT ZONE */}
         <div className="content">
           <div className="action-strip">
-            <button className="abtn abtn-out" onClick={() => { setModalType('out'); setIsModalOpen(true); }}><span className="abtn-icon">📤</span> הוצאת ציוד מהירה</button>
-            <button className="abtn abtn-in" onClick={() => { setModalType('in'); setIsModalOpen(true); }}><span className="abtn-icon">📥</span> החזרת ציוד מהירה</button>
+            {/* 🟢 כפתורי ההפעלה המהירה המנותבים למודאל המשודרג החדש */}
+            <button className="abtn abtn-out" onClick={() => handleOpenQuickModal('out')}><span className="abtn-icon">📤</span> הוצאת ציוד מהירה</button>
+            <button className="abtn abtn-in" onClick={() => handleOpenQuickModal('in')}><span className="abtn-icon">📥</span> החזרת ציוד מהירה</button>
           </div>
 
           <div className="mid-row">
             <div className="card">
-              {/* 🟢 תיקון 1: הגדלה, הדגשה וצבע לבן לכותרת */}
               <div className="clbl"><div className="clbl-dot" style={{ background: '#ff4560' }}></div>תקלות ממתינות לטיפול</div>
               <div className="malf-top">
                 <div className="malf-num">{stats.openFaults}</div>
@@ -244,7 +291,6 @@ export default function LogisticsDashboard() {
             </div>
 
             <div className="card">
-              {/* 🟢 תיקון 1 + תיקון 2: שינוי שם ומחיקת המילה "בארונות" */}
               <div className="clbl"><div className="clbl-dot" style={{ background: '#00d4ff' }}></div>מד זמינות לפטופים</div>
               <div className="gauge-body">
                 <div className="gauge-big" style={{ color: '#00d4ff' }}>42</div>
@@ -255,7 +301,6 @@ export default function LogisticsDashboard() {
             </div>
 
             <div className="card">
-              {/* 🟢 תיקון 1 + תיקון 2: שינוי שם ומחיקת המילה "(חלל ומדע)" */}
               <div className="clbl"><div className="clbl-dot" style={{ background: '#8b5cf6' }}></div>מד טאבלטים זמינים</div>
               <div className="gauge-body">
                 <div className="gauge-big" style={{ color: '#8b5cf6' }}>18</div>
@@ -268,7 +313,6 @@ export default function LogisticsDashboard() {
 
           <div className="bot-row">
             <div className="card">
-              {/* 🟢 תיקון 1: הגדלה, הדגשה וצבע לבן לכותרת */}
               <div className="clbl"><div className="clbl-dot" style={{ background: '#f5c842' }}></div>קייטנות ואירועים קרובים</div>
               <div className="ev-list">
                 <div className="ev-row">
@@ -284,7 +328,6 @@ export default function LogisticsDashboard() {
               </div>
             </div>
 
-            {/* 🟢 תיקון 3 + תיקון 4: מחיקת המשבצת הימנית ואיחודה לטבלה מורחבת בעלת 6 עמודות רחבות ומרווחות */}
             <div className="card">
               <div className="clbl"><div className="clbl-dot" style={{ background: '#f5c842' }}></div>נסיעות ושילוח לביצוע</div>
               <table className="ttbl">
@@ -322,32 +365,101 @@ export default function LogisticsDashboard() {
         </div>
       </div>
 
-      {/* QUICK TRANSACTION MODAL */}
-      <div className={`ov ${isModalOpen ? 'open' : ''}`} onClick={(e) => e.target.className === 'ov open' && setIsModalOpen(false)}>
-        <div className="mbox">
-          <div className="mt">{modalType === 'out' ? '📤 הוצאת ציוד בזק מהירה' : '📥 החזרת ציוד בזק מהירה'}</div>
-          <div className="fr">
-            <div className="fl">{modalType === 'out' ? 'מדריך אחראי לוקח' : 'מדריך מחזיר'}</div>
-            <select className="fs"><option>אריה כהן</option><option>רחל לוי</option><option>ישראל ישראלי</option><option>מיכל דוד</option></select>
-          </div>
-          {modalType === 'out' && (
-            <div className="fr"><div className="fl">יעד מוקד החוג / שם קייטנה</div><input className="fi" type="text" placeholder="למשל: בית ספר אלון, קייטנת רמת גן..." /></div>
-          )}
-          <div className="fl" style={{ marginBottom: '9px' }}>כמויות בספירה ידנית</div>
-          <div className="qr">
-            <div className="qb"><div className="ql">💻 מחשבים</div><input className="qi" type="number" defaultValue="0" min="0" /></div>
-            <div className="qb"><div className="ql">🔌 מטענים</div><input className="qi" type="number" defaultValue="0" min="0" /></div>
-            <div className="qb"><div className="ql">🖱 עכברים</div><input className="qi" type="number" defaultValue="0" min="0" /></div>
-          </div>
-          <div className="mf2">
-            <button className="mbtn-cancel" onClick={() => setIsModalOpen(false)}>ביטול</button>
-            <button className="mbtn-go" onClick={() => setIsModalOpen(false)}>{modalType === 'out' ? '📤 אשר ושגר הוצאה' : '📥 אשר והזן החזרה'}</button>
+      {/* 🟢 QUICK TRANSACTION COCKPIT MODAL — חלונית הוצאה והחזרה משודרגת מבוססת 6 פריטים ורשימת מדריכים/הנהלה */}
+      {isModalOpen && (
+        <div className="ov open" onClick={(e) => e.target.className === 'ov open' && setIsModalOpen(false)}>
+          <div className="mbox">
+            <button className="modal-close-btn" onClick={() => setIsModalOpen(false)}>×</button>
+            
+            <div className="modal-head">
+              <div className="av av-temp" style={{ background: modalType === 'out' ? 'rgba(0, 229, 160, 0.12)' : 'rgba(0, 212, 255, 0.12)', color: modalType === 'out' ? '#00e5a0' : '#00d4ff' }}>
+                {modalType === 'out' ? '📤' : '📥'}
+              </div>
+              <div>
+                <div className="modal-title-text">{modalType === 'out' ? 'הוצאת ציוד בזק מהירה' : 'החזרת ציוד בזק מהירה'}</div>
+                <div className="modal-subtitle-text">סנכרן נתוני מלאי וזרימת חומרה בריאל-טיים לחמ"ל</div>
+              </div>
+            </div>
+
+            <form onSubmit={handleQuickSubmit}>
+              {/* מציג שדה יעד אך ורק בהוצאת ציוד */}
+              {modalType === 'out' && (
+                <div className="mfr">
+                  <label className="mfl">יעד מוקד החוג / שם קייטנה</label>
+                  <input 
+                    className="mfi" 
+                    type="text" 
+                    placeholder="למשל: בית ספר אלון, מוקד ראשל''צ..." 
+                    value={modalLineName} 
+                    onChange={(e) => setModalLineName(e.target.value)} 
+                  />
+                </div>
+              )}
+
+              <div className="mfr">
+                <label className="mfl">{modalType === 'out' ? 'מדריך אחראי לוקח' : 'מדריך / גורם מחזיר'}</label>
+                <select className="mfs" value={modalManager} onChange={(e) => setModalManager(e.target.value)}>
+                  <option value="מנהל לוגיסטיקה">👤 מנהל לוגיסטיקה</option>
+                  <option value="מנהלת משרד">👤 מנהלת משרד</option>
+                  <option value="מנהל הדרכה">👤 מנהל הדרכה</option>
+                  <option value="אריה כהן">👨‍🏫 אריה כהן</option>
+                  <option value="רחל לוי">👨‍🏫 רחל לוי</option>
+                  <option value="ישראל ישראלי">👨‍🏫 ישראל ישראלי</option>
+                  <option value="מיכל דוד">👨‍🏫 מיכל דוד</option>
+                </select>
+              </div>
+
+              <div style={{ fontSize: '11px', color: modalType === 'out' ? '#00e5a0' : '#00d4ff', fontWeight: '700', marginBottom: '8px', textTransform: 'uppercase' }}>
+                כמויות בספירה ידנית לחמ"ל
+              </div>
+              
+              {/* גריד 6 פריטים מובנה וחסין חיתוכי טקסט */}
+              <div className="mini-gear-grid">
+                {GEAR_ITEMS.map(g => (
+                  <div key={g.key} className="mg-box">
+                    <span className="mg-box-lbl">{g.icon} {g.label}</span>
+                    <input 
+                      className="mg-box-input" 
+                      type="number" 
+                      min="0" 
+                      value={modalGear[g.key]} 
+                      onChange={(e) => setModalGear({ ...modalGear, [g.key]: parseInt(e.target.value, 10) || 0 })} 
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="mf2">
+                <button type="button" className="mbtn-cancel" onClick={() => setIsModalOpen(false)}>ביטול</button>
+                <button 
+                  className="update-btn" 
+                  type="submit" 
+                  style={{ 
+                    background: modalType === 'out' ? 'rgba(0, 229, 160, 0.12)' : 'rgba(0, 212, 255, 0.12)', 
+                    borderColor: modalType === 'out' ? '#00e5a0' : '#00d4ff',
+                    color: modalType === 'out' ? '#00e5a0' : '#00d4ff'
+                  }}
+                >
+                  {modalType === 'out' ? (
+                    <>
+                      <i className="ti ti-arrow-up-right"></i>
+                      אשר ושגר הוצאה
+                    </>
+                  ) : (
+                    <>
+                      <i className="ti ti-arrow-down-left"></i>
+                      אשר והזן החזרה
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </div>
+      )}
 
       {/* TOAST SYSTEM */}
-      <div className={`toast ${toast.message ? 'show' : ''}`}>✓ {toast.message}</div>
+      <div className={`toast ${toast.show ? 'show' : ''}`}>✓ {toast.message}</div>
     </div>
   );
 }
