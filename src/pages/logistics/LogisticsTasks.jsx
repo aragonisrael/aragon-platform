@@ -12,7 +12,7 @@ export default function LogisticsTasks() {
   const [clk, setClk] = useState('00:00:00');
   const [toast, setToast] = useState({ show: false, message: '' });
 
-  // 🟢 תיקון 3: סטייט תמונת מצב - מוניטור מלאי דיגיטלי ללפטופים וטאבלטים (זמינים / ממתינים / תקולים)
+  // סטייט תמונת מצב - מוניטור מלאי דיגיטלי ללפטופים וטאבלטים
   const [inventorySnapshot, setInventorySnapshot] = useState({
     laptops: { available: 42, pendingRepair: 4, broken: 2 },
     tablets: { available: 18, pendingRepair: 3, broken: 1 }
@@ -29,14 +29,13 @@ export default function LogisticsTasks() {
   const [activeCol, setActiveCol] = useState('field');
   const [statusRows, setStatusRows] = useState([{ type: 'מחשב', state: 'זמין', qty: 1 }]);
 
-  // 🟢 תיקון 2: סטייט מודאל חוסרי ציוד ייעודי למדריכים
+  // סטייט מודאל חוסרי ציוד ייעודי למดריכים
   const [isMissingModalOpen, setIsMissingModalOpen] = useState(false);
   const [missingText, setMissingText] = useState('');
   const [missingTaskObj, setMissingTaskObj] = useState(null);
 
   // ── מאגר משימות חמ"ל שטח ותקלות מורחב ──
   const [fieldTasks, setFieldTasks] = useState([
-    // 🟢 תיקון 1: משימת הכנת ציוד מבוססת רשימת ציוד קשיחה, אימוג'ים ותג מדריך ייחודי
     { 
       id: 'fc1', 
       type: 'gear_prep',
@@ -54,7 +53,6 @@ export default function LogisticsTasks() {
         { item: 'עכבר', qty: 2, icon: '🖱' }
       ]
     },
-    // 🟢 תיקון 2: הזרקת משימה חדשה וקשיחה של "בדיקת ציוד חוזר" עבור המדריך יהב
     {
       id: 'fc2_return',
       type: 'check_return',
@@ -128,7 +126,7 @@ export default function LogisticsTasks() {
     setTimeout(() => setToast({ show: false, message: '' }), 3500);
   };
 
-  // שעון חמ"ל לוגיסטי
+  // שעון חמ"ל
   useEffect(() => {
     const tick = () => setClk(new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     const interval = setInterval(tick, 1000);
@@ -149,7 +147,6 @@ export default function LogisticsTasks() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // ניהול מודאל הסטטוס הדינמי
   const openStatusModal = (cardId, col, title) => {
     setActiveCardId(cardId);
     setActiveCol(col);
@@ -173,11 +170,9 @@ export default function LogisticsTasks() {
     setIsModalOpen(false);
   };
 
-  // 🟢 תיקון 2: לוגיקת כפתור "נבדק ומועבר לתיקון" - מעדכן את מונה הממתינים לתיקון בלייב
   const handleApproveReturn = (id, instructor, gearList) => {
     setFieldTasks(prev => prev.filter(x => x.id !== id));
     
-    // ספירת כמויות הציוד שהועברו לתיקון ועדכון המוניטור העליון
     let addedLaptops = 0;
     let addedTablets = 0;
     gearList.forEach(g => {
@@ -198,7 +193,6 @@ export default function LogisticsTasks() {
     showToast(`✓ הציוד של ${instructor} נבדק ונוסף לסטטוס 'נדרש תיקון' במעבדה`);
   };
 
-  // 🟢 תיקון 2: פתיחת מודאל דיווח חוסרים למדריך
   const openMissingModal = (task) => {
     setMissingTaskObj(task);
     setMissingText('');
@@ -241,26 +235,6 @@ export default function LogisticsTasks() {
     showToast(msg);
   };
 
-  const toggleCheckItem = (campId, itemIdx, colType) => {
-    if (colType === 'camp') {
-      setCampTasks(prev => prev.map(c => {
-        if (c.id !== campId) return c;
-        const nextChecklist = c.checklist.map((item, idx) => {
-          if (idx !== itemIdx) return item;
-          const isDone = !item.done;
-          return { ...item, done: isDone, status: isDone ? 'בוצע' : 'טרם בוצע', color: isDone ? '#00e5a0' : '#ff4560' };
-        });
-        return { ...c, checklist: nextChecklist };
-      }));
-    } else if (colType === 'alert') {
-      setAlertTasks(prev => prev.map(a => {
-        if (a.id !== campId) return a;
-        const nextChecklist = a.checklist.map((item, idx) => (idx === itemIdx ? { ...item, done: !item.done } : item));
-        return { ...a, checklist: nextChecklist };
-      }));
-    }
-  };
-
   return (
     <div className="hq-global-wrapper">
       <style>{`
@@ -295,21 +269,20 @@ export default function LogisticsTasks() {
         .col { display: flex; flex-direction: column; border-left: 1px solid rgba(0,212,255,0.1); overflow: hidden; }
         .col:last-child { border-left: none; }
         
-        /* כותרות מאוחדות עבות ולבנות */
+        /* כותרות עמודה עבות ולבנות */
         .col-hdr { padding: 14px 18px; border-bottom: 1px solid rgba(0,212,255,0.1); background: #070f1e; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; }
         .col-hdr-title { font-family: 'Heebo', sans-serif; font-size: 15px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
         .col-hdr-dot { width: 6px; height: 6px; border-radius: 50%; }
         .col-hdr-count { font-size: 11px; font-family: 'Orbitron', monospace; padding: 2px 8px; border-radius: 4px; font-weight: 700; }
         .col-body { flex: 1; overflow-y: auto; padding: 14px 14px; display: flex; flex-direction: column; gap: 12px; }
 
-        /* CARDS - יישור ימינה ומניעת חיתוכים */
-        .tcard { background: #0c1729; border-radius: 10px; border: 1px solid transparent; padding: 16px; transition: all 0.3s; position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 8px; width: 100%; box-sizing: border-box; }
+        /* 🔒 פתרון קסם: מניעת כיווץ ויזואלי של כרטיסיות ב-100% זום */
+        .tcard { background: #0c1729; border-radius: 10px; border: 1px solid transparent; padding: 16px; transition: all 0.3s; position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 8px; width: 100%; box-sizing: border-box; flex-shrink: 0; }
         .tcard::before { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; opacity: 0.6; }
-        .tcard-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
+        .tcard-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; width: 100%; }
         .tcard-badge-wrap { display: flex; align-items: center; gap: 8px; }
         .tcard-badge { font-size: 10px; padding: 3px 9px; border-radius: 5px; font-weight: 700; letter-spacing: 0.3px; white-space: nowrap; }
         
-        /* תג שם מדריך מעוצב */
         .instructor-tag { font-size: 10.5px; font-weight: 700; color: #00d4ff; background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.2); padding: 2px 8px; border-radius: 4px; }
         .tcard-time { font-size: 10px; color: rgba(160,185,215,0.5); font-family: 'Orbitron', monospace; white-space: nowrap; }
         
@@ -317,7 +290,6 @@ export default function LogisticsTasks() {
         .tcard-who { font-size: 11.5px; color: rgba(160,185,215,0.5); display: flex; align-items: center; gap: 6px; text-align: right; width: 100%; }
         .tcard-body { font-size: 12.5px; color: rgba(220,235,255,0.72); line-height: 1.55; text-align: right; width: 100%; word-break: break-word; }
 
-        /* 🟢 תיקון 1: רשימת ציוד אחידה באימוג'ים ופורמט X כמות מרווח */
         .gear-list-wrap { display: flex; flex-direction: column; gap: 5px; width: 100%; margin: 2px 0; }
         .gear-list-row { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #ffffff; direction: rtl; }
         .gear-item-qty { font-family: 'Orbitron', monospace; color: #00e5a0; font-weight: 700; font-size: 13.5px; }
@@ -338,11 +310,11 @@ export default function LogisticsTasks() {
         .btn-success { background: rgba(0,229,160,0.08); border-color: rgba(0,229,160,0.4); color: #00e5a0; }
         .btn-success:hover { background: rgba(0,229,160,0.16); box-shadow: 0 0 14px rgba(0,229,160,0.15); }
         .btn-warn { background: rgba(255,140,66,0.08); border-color: rgba(255,140,66,0.4); color: #ff8c42; }
-        .btn-warn:hover { background: rgba(255,140,66,0.14); }
+        .btn-warn:hover { background: rgba(255,140,66,0.14);box-shadow: 0 0 14px rgba(255,140,66,0.1); }
         .btn-purple { background: rgba(139,92,246,0.08); border-color: rgba(139,92,246,0.35); color: #8b5cf6; }
 
-        /* 🟢 תיקון 3: תמונת מצב - מוניטור קאונטרים זוהר לחומרה במשרד */
-        .snapshot-container { width: 100%; background: #070f1e; border: 1px solid rgba(0,212,255,0.12); border-radius: 10px; padding: 14px; margin-bottom: 4px; display: flex; flex-direction: column; gap: 12px; }
+        /* 🔒 מניעת כיווץ של תמונת המצב הדינמית */
+        .snapshot-container { width: 100%; background: #070f1e; border: 1px solid rgba(0,212,255,0.12); border-radius: 10px; padding: 14px; margin-bottom: 4px; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
         .snapshot-row { display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 10px; }
         .snapshot-row:last-child { border-bottom: none; padding-bottom: 0; }
         .snapshot-label { font-size: 13px; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 6px; }
@@ -351,7 +323,7 @@ export default function LogisticsTasks() {
         .snap-val { font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; }
         .snap-lbl { font-size: 9.5px; color: rgba(160,185,215,0.5); font-weight: 600; }
 
-        /* ARCHIVE LOWER SECTIONS */
+        /* ARCHIVE */
         .arch-section { border-top: 1px solid rgba(0,212,255,0.1); flex-shrink: 0; background: #070f1e; }
         .arch-toggle { padding: 11px 14px; cursor: pointer; display: flex; align-items: center; gap: 7px; font-size: 10px; letter-spacing: 1.5px; color: rgba(160,185,215,0.5); text-transform: uppercase; user-select: none; }
         .arch-list { display: flex; max-height: 130px; overflow-y: auto; padding: 0 14px 10px; flex-direction: column; gap: 5px; }
@@ -369,6 +341,11 @@ export default function LogisticsTasks() {
 
         .mselect { background: #111f35; border: 1px solid rgba(0,212,255,0.22); border-radius: 7px; color: rgba(220,235,255,0.9); padding: 8px 10px; font-family: Heebo,sans-serif; font-size: 13px; direction: rtl; width: 100%; outline: none; }
         .minput-num { background: #111f35; border: 1px solid rgba(0,212,255,0.22); border-radius: 7px; color: #00d4ff; padding: 8px 10px; font-family: Orbitron,monospace; font-size: 14px; font-weight: 700; text-align: center; width: 100%; outline: none; }
+        
+        /* התאמת גלילה דקה ואסטטית */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 255, 0.4); }
       `}</style>
 
       {/* SIDEBAR NAVIGATION */}
@@ -419,7 +396,6 @@ export default function LogisticsTasks() {
                   <div className="tcard-top">
                     <div className="tcard-badge-wrap">
                       <span className="tcard-badge" style={{ background: 'rgba(255,69,96,0.1)', color: task.badgeColor, border: `1px solid ${task.borderC}` }}>{task.badge}</span>
-                      {/* 🟢 תיקון 1: תג מזהה מדריך נקי ישירות ליד הבאדג' העליון */}
                       <span className="instructor-tag">👤 {task.instructor}</span>
                     </div>
                     <span className="tcard-time">{task.time}</span>
@@ -427,7 +403,6 @@ export default function LogisticsTasks() {
                   <div className="tcard-title">{task.title}</div>
                   <div className="tcard-body">{task.body}</div>
                   
-                  {/* 🟢 תיקון 1 + תיקון 2: רנדור רשימת ציוד אחידה באימוג'ים ובמבנה X כמות סגור */}
                   <div className="gear-list-wrap">
                     {task.gearList.map((g, idx) => (
                       <div key={idx} className="gear-list-row">
@@ -440,13 +415,11 @@ export default function LogisticsTasks() {
 
                   <div className="act-strip">
                     {task.type === 'check_return' ? (
-                      /* 🟢 תיקון 2: כפתורי פעולה ייחודיים עבור משימת "بדיקת ציוד חוזר" */
                       <div className="act-btn-split">
                         <button className="act-btn btn-warn" onClick={() => openMissingModal(task)}>יש חוסרים</button>
                         <button className="act-btn btn-success" onClick={() => handleApproveReturn(task.id, task.instructor, task.gearList)}>נבדק ומועבר לתיקון</button>
                       </div>
                     ) : (
-                      /* 🟢 תיקון 1: כפתור "בוצע שלח לנסיעה" למשימות הכנת ציוד רגילות */
                       <button className="act-btn btn-success" onClick={() => executeTaskRemoval(task.id, 'field', `${task.title} הושלמה — שולח לנסיעות בשטח! 🚚`)}>
                         <i className="ti ti-truck"></i>בוצע שלח לנסיעה
                       </button>
@@ -504,7 +477,7 @@ export default function LogisticsTasks() {
                     </div>
 
                     <div style={{ marginBottom: '10px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'rgba(160,185,215,0.5)', marginBottom: '5px' }}>
+                      <div style={{ display: 'flex', justifySpaceBetween: 'space-between', fontSize: '10px', color: 'rgba(160,185,215,0.5)', marginBottom: '5px', justifyContent: 'space-between' }}>
                         <span>התקדמות</span><span>{doneCount} / {totalCount}</span>
                       </div>
                       <div style={{ height: '5px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
@@ -538,7 +511,6 @@ export default function LogisticsTasks() {
           {/* COLUMN 3: SNAPSHOT & SMART ALERTS (תמונת מצב והתראות חכמות) */}
           <div className="col">
             <div className="col-hdr">
-              {/* כותרת מאוחדת ומורחבת */}
               <div className="col-hdr-title">
                 <div className="col-hdr-dot" style={{ background: '#f5c842', boxShadow: '0 0 6px #f5c842' }}></div>
                 תמונת מצב והתראות
@@ -547,7 +519,7 @@ export default function LogisticsTasks() {
             </div>
             <div className="col-body">
               
-              {/* 🟢 תיקון 3: תמונת מצב - מוניטור מלאי דיגיטלי עליון קבוע לחומרה במשרד */}
+              {/* תמונת מצב - מוניטור מלאי דיגיטלי עליון קבוע לחומרה במשרד */}
               <div className="snapshot-container">
                 <div className="snapshot-row">
                   <div className="snapshot-label">💻 לפטופים במשרד</div>
@@ -567,7 +539,6 @@ export default function LogisticsTasks() {
                 </div>
               </div>
 
-              {/* 🟢 תיקון 3: התראות חכמות ממוקמות כעת בחצי התחתון של העמודה */}
               <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(160,185,215,0.4)', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '6px', marginBottom: '2px', textAlign: 'right' }}>⚠️ התראות מערכת אקטיביות</div>
 
               {alertTasks.map(task => (
@@ -618,7 +589,7 @@ export default function LogisticsTasks() {
         </div>
       </div>
 
-      {/* STATUS MODAL — חלונית פריטים מתקדמת */}
+      {/* STATUS MODAL */}
       {isModalOpen && (
         <div className="ov open" onClick={(e) => e.target.className === 'ov open' && setIsModalOpen(false)}>
           <div style={{ background: '#0c1729', border: '1px solid rgba(0,212,255,0.28)', borderRadius: '14px', padding: '26px', width: '500px', maxWidth: '95vw', boxShadow: '0 0 50px rgba(0,212,255,0.1)', direction: 'rtl', display: 'flex', flexDirection: 'column' }}>
@@ -636,7 +607,7 @@ export default function LogisticsTasks() {
                     {['זמין', 'תקול', 'ממתין לתיקון'].map(s => <option key={s}>{s}</option>)}
                   </select>
                   <input className="minput-num" type="number" min="1" value={row.qty} onChange={(e) => setStatusRows(statusRows.map((r, i) => i === idx ? { ...r, qty: parseInt(e.target.value, 10) || 1 } : r))} />
-                  <button onClick={() => handleRemoveRow(idx)} style={{ background: 'rgba(255,69,96,0.08)', border: '1px solid rgba(255,69,96,0.25)', borderRadius: '6px', color: '#ff4560', height: '36px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><i className="ti ti-trash"></i></button>
+                  <button onClick={() => handleRemoveRow(idx)} style={{ background: 'rgba(255,69,96,0.08)', border: '1px solid rgba(255,69,96,0.25)', borderRadius: '6px', color: '#ff4560', height: '36px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifySpaceBetween: 'center', justifyContent: 'center' }}><i className="ti ti-trash"></i></button>
                 </div>
               ))}
             </div>
@@ -649,12 +620,12 @@ export default function LogisticsTasks() {
         </div>
       )}
 
-      {/* 🟢 תיקון 2: מודאל דיווח חוסרי ציוד ייעודי למדריכים בשטח */}
+      {/* מודאל דיווח חוסרי ציוד ייעודי למדריכים בשטח */}
       {isMissingModalOpen && missingTaskObj && (
         <div className="ov open" onClick={(e) => e.target.className === 'ov open' && setIsMissingModalOpen(false)}>
           <div className="mbox" style={{ padding: '24px', width: '460px' }}>
             <div className="mt" style={{ color: '#ff8c42', borderBottomColor: 'rgba(255,140,66,0.15)' }}>⚠️ דיווח חוסרים — {missingTaskObj.instructor}</div>
-            <div style={{ fontSize: '13px', color: 'rgba(220,235,255,0.6),', marginBottom: '12px', textAlign: 'right' }}>אנא פרט אילו רכיבים או פריטים חסרים בתיק שהחזיר המדריך:</div>
+            <div style={{ fontSize: '13px', color: 'rgba(220,235,255,0.6)', marginBottom: '12px', textAlign: 'right' }}>אנא פרט אילו רכיבים או פריטים חסרים בתיק שהחזיר המדריך:</div>
             <textarea 
               className="fi" 
               rows="4" 
