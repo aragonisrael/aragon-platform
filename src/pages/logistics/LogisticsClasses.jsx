@@ -24,7 +24,7 @@ export default function LogisticsClasses() {
   const [newLineManager, setNewLineManager] = useState('מנהל לוגיסטיקה');
   const [newLineGear, setNewLineGear] = useState({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 });
 
-  // מאגר מדריכים וארנקי ציוד מורחב ומעודכן ל-6 פריטים
+  // 🟢 תיקון 3 + 4: מאגר מדריכים וארנקי ציוד מורחב ומעודכן ל-6 פריטים (כולל טאבלטים ורובוטים מובנים)
   const [instructors, setInstructors] = useState([
     { id: 'a1', name: 'אריה כהן', city: 'רמת גן', laptops: 10, tablets: 0, chargers: 8, mice: 10, routers: 1, robots: 0, isTempLine: false },
     { id: 'a2', name: 'רחל לוי', city: 'תל אביב', laptops: 8, tablets: 15, chargers: 8, mice: 6, routers: 0, robots: 5, isTempLine: false },
@@ -38,7 +38,7 @@ export default function LogisticsClasses() {
     { id: 'a10', name: 'מאיה רוזן', city: 'תל מונד', laptops: 5, tablets: 12, chargers: 4, mice: 5, routers: 0, robots: 6, isTempLine: false },
   ]);
 
-  // רשימת פריטי חומרה מאוחדת ומורחבת ל-6 פריטים
+  // רשימת פריטי חומרה מאוחדת ומורחבת ל-6 פריטים לניהול ורנדור אופטימלי במערכת
   const GEAR = [
     { key: 'laptops', label: 'מחשבים', icon: '💻' },
     { key: 'tablets', label: 'טאבלטים', icon: '📱' },
@@ -79,7 +79,7 @@ export default function LogisticsClasses() {
     return (p[0][0] + (p[1] ? p[1][0] : '')).toUpperCase();
   };
 
-  // מנוע חישוב אזהרות ופערי ציוד במזוודה — בודק אקטיבית אך ורק יחס של לפטופים מול מטענים ועכברים!
+  // 🟢 תיקון 4: מנוע חישוב אזהרות ופערי ציוד במזוודה — בודק אקטיבית אך ורק יחס של לפטופים מול מטענים ועכברים!
   const getWarnings = (inst) => {
     const w = [];
     if (inst.chargers < inst.laptops) w.push(`חסרים ${inst.laptops - inst.chargers} מטענים`);
@@ -141,7 +141,7 @@ export default function LogisticsClasses() {
     showToast(`ארנק הציוד של ${inst.name} עודכן בהצלחה ✓`);
   };
 
-  // לוגיקת יצירת קו זמני חדש והזרקתו ישירות למערך הכרטיסיות הראשי
+  // 🟢 תיקון 3: לוגיקת יצירת קו זמני חדש והזרקתו ישירות למערך הכרטיסיות הראשי
   const handleCreateTempLine = (e) => {
     e.preventDefault();
     if (!newLineName.trim()) { showToast('נא להזין שם או מזהה עבור הקו הזמני'); return; }
@@ -162,6 +162,7 @@ export default function LogisticsClasses() {
     setInstructors([newCustomLine, ...instructors]);
     setIsAddLineModalOpen(false);
     
+    // איפוס שדות הטופס
     setNewLineName('');
     setNewLineManager('מנהל לוגיסטיקה');
     setNewLineGear({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 });
@@ -169,7 +170,7 @@ export default function LogisticsClasses() {
     showToast(`🚀 קו זמני חדש "${newCustomLine.name}" נוצר והתווסף למטריצה!`);
   };
 
-  // חישוב מונים כלליים לפאנל הסיכום הצידי (25%)
+  // חישוב מונים כלליים לפאנל הסיכום הצידי (25%) כולל רכיבים מורחבים
   const totals = { laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 };
   instructors.forEach(i => {
     totals.laptops += i.laptops;
@@ -185,6 +186,7 @@ export default function LogisticsClasses() {
 
   const editingInstructor = instructors.find(i => i.id === editId);
   const modalWarnings = editingInstructor ? getWarnings(editingInstructor) : [];
+  const isModalUnbalanced = modalWarnings.length > 0;
 
   return (
     <div className="hq-global-wrapper">
@@ -206,8 +208,7 @@ export default function LogisticsClasses() {
         .nb i { font-size: 20px; }
         .nb-sep { width: 32px; height: 1px; background: rgba(0,212,255,0.1); margin: 4px 0; }
 
-        /* MAIN AND SPLIT CONTAINERS */
-        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; height: 100vh; max-height: 100vh; min-height: 0; }
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
         .topbar { height: 52px; background: #070f1e; border-bottom: 1px solid rgba(0,212,255,0.1); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; flex-shrink: 0; }
         .topbar-title { font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; color: #00d4ff; letter-spacing: 3px; text-transform: uppercase; }
         .topbar-r { display: flex; align-items: center; gap: 18px; }
@@ -216,8 +217,10 @@ export default function LogisticsClasses() {
         @keyframes lp { 0%,100% { box-shadow: 0 0 0 0 rgba(0,229,160,0.5); } 60% { box-shadow: 0 0 0 5px rgba(0,229,160,0); } }
         .clk { font-family: 'Orbitron', monospace; font-size: 13px; color: #00d4ff; letter-spacing: 2px; font-weight: 600; }
 
-        .classes-body { flex: 1; display: flex; flex-direction: row-reverse; overflow: hidden; height: calc(100% - 52px); width: 100%; min-height: 0; }
+        /* BODY LAYOUT SPLIT (75% / 25%) */
+        .classes-body { flex: 1; display: flex; flex-direction: row-reverse; overflow: hidden; }
         
+        /* 🟢 תיקון 2: בר ניווט עליון חדש המכיל את לחצני הפעולה המובנים ללא סרגלי סינון */
         .filter-bar { padding: 11px 18px; border-bottom: 1px solid rgba(0,212,255,0.1); background: #070f1e; display: flex; align-items: center; gap: 10px; flex-shrink: 0; width: 100%; }
         .action-btn-hub { display: flex; align-items: center; gap: 10px; }
         .act-btn-classes { padding: 6px 16px; border-radius: 7px; border: 1px solid; font-family: 'Heebo', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.18s; }
@@ -226,40 +229,42 @@ export default function LogisticsClasses() {
         .btn-audit { background: rgba(0, 229, 160, 0.06); border-color: rgba(0, 229, 160, 0.35); color: #00e5a0; }
         .btn-audit:hover { background: rgba(0, 229, 160, 0.15); box-shadow: 0 0 12px rgba(0, 229, 160, 0.2); }
 
-        .matrix-area { flex: 0 0 75%; width: 75%; display: flex; flex-direction: column; overflow: hidden; height: 100%; min-height: 0; }
-        .matrix-scroll { flex: 1; overflow-y: auto; padding: 16px 18px 120px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; align-content: start; }
+        .matrix-area { flex: 0 0 75%; display: flex; flex-direction: column; overflow: hidden; }
+        .matrix-scroll { flex: 1; overflow-y: auto; padding: 16px 18px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 13px; align-content: start; }
 
         /* CARDS EQUIPMENT MATRIX */
-        .icard { border-radius: 12px; border: 1px solid rgba(0,212,255,0.1); background: #0c1729; padding: 16px; position: relative; overflow: hidden; transition: all 0.25s; cursor: pointer; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+        .icard { border-radius: 12px; border: 1px solid rgba(0,212,255,0.1); background: #0c1729; padding: 15px 16px; position: relative; overflow: hidden; transition: all 0.25s; cursor: pointer; flex-shrink: 0; }
         .icard::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.2), transparent); }
         .icard:hover { border-color: rgba(0,212,255,0.25); transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
         .icard.warn { border-color: rgba(255,140,66,0.55); animation: wp 2.5s ease-in-out infinite; }
         .icard.temp-line-card { border-color: rgba(139, 92, 246, 0.4); background: linear-gradient(135deg, #0c1729 0%, rgba(139, 92, 246, 0.03) 100%); }
+        @keyframes wp { 0%,100% { box-shadow: 0 0 8px rgba(255,140,66,0.06); } 50% { box-shadow: 0 0 20px rgba(255,140,66,0.2); } }
 
-        .icard-head { display: flex; align-items: center; gap: 9px; margin-bottom: 2px; }
+        .icard-head { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
         .av { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; flex-shrink: 0; }
         .av-ok { background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.28); color: #00d4ff; }
-        .av-warn { background: rgba(255,140,66,0.12); border: 1px solid rgba(255,140,66,0.38); color: #ff8c42; flex-shrink: 0; }
+        .av-warn { background: rgba(255,140,66,0.12); border: 1px solid rgba(255,140,66,0.38); color: #ff8c42; }
         .av-temp { background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); color: #a78bfa; }
         
-        .ic-name { font-size: 14px; font-weight: 700; line-height: 1.2; text-align: right; color: #ffffff; }
-        .ic-city { font-size: 10.5px; color: rgba(160,185,215,0.5); margin-top: 3px; display: flex; align-items: center; gap: 3px; }
+        .ic-name { font-size: 13.5px; font-weight: 700; line-height: 1.2; text-align: right; color: #ffffff; }
+        .ic-city { font-size: 10px; color: rgba(160,185,215,0.5); margin-top: 3px; display: flex; align-items: center; gap: 3px; }
 
-        /* 👑 החזרת הפריסה המאוזנת ל-2 עמודות לרווח מלא ללא חיתוך טקסט בזום 100% */
-        .gear-compact { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; margin-top: 2px; }
-        .gc-cell { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px; width: 100%; box-sizing: border-box; }
+        /* 🟢 תיקון 4: פריסת גריד פנימית משודרגת ל-3 עמודות על 2 שורות כדי להציג את 6 האלמנטים בצורה אסטטית ומרווחת */
+        .gear-compact { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px; width: 100%; }
+        .gc-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 4px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px; gap: 2px; }
         .gc-cell.miss { background: rgba(255,140,66,0.05); border-color: rgba(255,140,66,0.15); }
-        .gc-lbl-wrap { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: rgba(180,200,230,0.7); font-weight: 600; white-space: nowrap; }
-        .gc-val { font-family: 'Orbitron', monospace; font-size: 13.5px; font-weight: 700; color: #00d4ff; }
+        .gc-lbl-wrap { display: flex; align-items: center; gap: 3px; font-size: 10px; color: rgba(160,185,215,0.5); font-weight: 600; }
+        .gc-val { font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 700; color: #00d4ff; }
         .gc-val.miss { color: #ff8c42; }
         
-        .warn-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: rgba(255,140,66,0.06); border: 1px solid rgba(255,140,66,0.2); border-radius: 6px; font-size: 11px; color: #ff8c42; font-weight: 600; line-height: 1.4; margin-top: 2px; }
+        .warn-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: rgba(255,140,66,0.06); border: 1px solid rgba(255,140,66,0.2); border-radius: 6px; font-size: 10px; color: #ff8c42; font-weight: 600; line-height: 1.4; margin-top: 4px; }
 
-        /* SIDE PANEL LEFT */
-        .panel { flex: 0 0 25%; width: 25%; display: flex; flex-direction: column; border-right: 1px solid rgba(0,212,255,0.1); overflow-y: auto; padding: 14px 13px 100px; gap: 12px; background: #040b18; height: 100%; min-height: 0; }
+        /* SIDE PANEL LEFT (25%) */
+        .panel { flex: 0 0 25%; display: flex; flex-direction: column; border-right: 1px solid rgba(0,212,255,0.1); overflow-y: auto; padding: 14px 13px; gap: 12px; background: #040b18; }
         .ps { background: #0c1729; border: 1px solid rgba(0,212,255,0.1); border-radius: 10px; padding: 13px 14px; position: relative; overflow: hidden; flex-shrink: 0; }
         .ps::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.18), transparent); }
         
+        /* 🟢 תיקון 1: החלפת כותרות הפאנל הצידי לפונט Heebo מודגש, לבן וגדול כמו בדשבורד */
         .pt-classes { font-family: 'Heebo', sans-serif; font-size: 15px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
         .pd-dot { width: 6px; height: 6px; border-radius: 50%; }
         
@@ -299,6 +304,19 @@ export default function LogisticsClasses() {
         .modal-warn { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: rgba(255,140,66,0.06); border: 1px solid rgba(255,140,66,0.23); border-radius: 8px; font-size: 12px; color: #ff8c42; font-weight: 600; margin-bottom: 14px; }
         .update-btn { width: 100%; padding: 12px; background: rgba(0,212,255,0.12); border: 1px solid #00d4ff; border-radius: 8px; color: #00d4ff; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; outline: none; }
         .update-btn:hover { background: rgba(0,212,255,0.22); box-shadow: 0 0 18px rgba(0,212,255,0.2); }
+
+        .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111f35; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 22px rgba(0,229,160,0.18); transition: transform 0.28s; z-index: 300; text-align: center; pointer-events: none; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        
+        .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #162540; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; user-select: none; }
+        .player-toggle-btn { color: #00d4ff; font-size: 14px; display: flex; align-items: center; }
+        .player-toggle-btn.playing { color: #00e5a0; }
+        .player-station-text { font-size: 11px; font-family: 'Orbitron', monospace; color: rgba(160,185,215,0.5); letter-spacing: 1px; font-weight: bold; }
+        .cyber-music-player.playing .player-station-text { color: #00e5a0; }
+        .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
+        .visualizer-bar { width: 2px; height: 3px; background: #00e5a0; }
+        .cyber-music-player.playing .visualizer-bar { animation: wavePulse 0.6s ease-in-out infinite alternate; }
+        @keyframes wavePulse { 0% { height: 3px; } 100% { height: 10px; } }
 
         .mfr { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
         .mfl { font-size: 11px; color: rgba(0,212,255,0.55); font-weight: 700; text-transform: uppercase; }
@@ -346,6 +364,7 @@ export default function LogisticsClasses() {
           {/* LEFT SIDE PANEL: NETWORK SUMMARY (25%) */}
           <div className="panel">
             <div className="ps">
+              {/* 🟢 תיקון 1: החלפת פונט, גודל, צבע ודגש מודגש כמו בדשבורד */}
               <div className="pt-classes"><div className="pd-dot" style={{ background: '#00d4ff' }}></div>סיכום מצבת רשת</div>
               <div className="sum-grid">
                 <div className="sg"><div className="sg-val">{totals.laptops}</div><div className="sg-lbl">💻 מחשבים</div></div>
@@ -357,7 +376,8 @@ export default function LogisticsClasses() {
               </div>
             </div>
 
-            <div className="ps" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div className="ps" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              {/* 🟢 תיקון 1: החלפת פונט, גודל, צבע ודגש מודגש כמו בדשבורד */}
               <div className="pt-classes"><div className="pd-dot" style={{ background: '#ff8c42' }}></div>חריגות במזוודות (שטח)</div>
               <div style={{ overflowY: 'auto', flex: 1 }}>
                 {unbalancedInstructors.map(inst => (
@@ -375,6 +395,7 @@ export default function LogisticsClasses() {
 
           {/* RIGHT SIDE AREA: EQUIPMENT MATRIX (75%) */}
           <div className="matrix-area">
+            {/* 🟢 תיקון 2: החלפת בר הסינון בכפתורי פעולה אסטרטגיים — הוספת קו וביקורת */}
             <div className="filter-bar">
               <div className="action-btn-hub">
                 <button className="act-btn-classes btn-add-line" onClick={() => setIsAddLineModalOpen(true)}>
@@ -410,6 +431,7 @@ export default function LogisticsClasses() {
                       {!inst.isTempLine && hw && <i className="ti ti-alert-triangle" style={{ marginRight: 'auto', color: '#ff8c42', fontSize: '16px' }}></i>}
                     </div>
                     
+                    {/* 🟢 תיקון 4: פריסה משודרגת ל-6 מוצרים (3 עמודות על 2 שורות) ללא חיתוכי מילים */}
                     <div className="gear-compact">
                       <div className="gc-cell"><div className="gc-lbl-wrap"><span>💻</span><span>מחשב</span></div><span className="gc-val">{inst.laptops}</span></div>
                       <div className="gc-cell"><div className="gc-lbl-wrap"><span>📱</span><span>טאבלט</span></div><span className="gc-val" style={{ color: '#00e5a0' }}>{inst.tablets}</span></div>
@@ -428,7 +450,7 @@ export default function LogisticsClasses() {
         </div>
       </div>
 
-      {/* ADJUST CUSTODY COUNTER MODAL BOX */}
+      {/* 🟢 תיקון 4: מודאל עדכון ארנק מדריך/קו משודרג התומך באופן מלא ב-6 הרכיבים האקטיביים של הרשת */}
       {editId && editingInstructor && (
         <div className="modal-ov open" onClick={(e) => e.target.className === 'modal-ov open' && closeModal()}>
           <div className="modal-box">
@@ -445,7 +467,7 @@ export default function LogisticsClasses() {
             
             {editingInstructor.isTempLine ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 12px', background: 'rgba(139, 92, 246, 0.06)', border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: '7px', fontSize: '12px', color: '#a78bfa', marginBottom: '14px' }}><span>✓ ניהול כמויות עצמאי עבור קו שטח זמני</span></div>
-            ) : modalWarnings.length > 0 ? (
+            ) : isModalUnbalanced ? (
               <div className="modal-warn"><span>⚠ פער במזוודה:</span><span>{modalWarnings.join(' · ')}</span></div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 12px', background: 'rgba(0,229,160,0.06)', border: '1px solid rgba(0,229,160,0.18)', borderRadius: '7px', fontSize: '12px', color: '#00e5a0', marginBottom: '14px' }}><span>✓ המזוודה מאוזנת פיקס</span></div>
@@ -475,7 +497,7 @@ export default function LogisticsClasses() {
         </div>
       )}
 
-      {/* MODAL יצירת קו זמני חדש */}
+      {/* 🟢 תיקון 3: מודאל יצירת קו זמני חדש (קוקפיט הזנת פריטים מורחב) */}
       {isAddLineModalOpen && (
         <div className="modal-ov open" onClick={(e) => e.target.className === 'modal-ov open' && setIsAddLineModalOpen(false)}>
           <div className="modal-box" style={{ width: '520px' }}>
