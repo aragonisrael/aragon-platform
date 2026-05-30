@@ -206,6 +206,7 @@ export default function LogisticsClasses() {
         .nb i { font-size: 20px; }
         .nb-sep { width: 32px; height: 1px; background: rgba(0,212,255,0.1); margin: 4px 0; }
 
+        /* MAIN AND SPLIT CONTAINERS */
         .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; height: 100vh; max-height: 100vh; min-height: 0; }
         .topbar { height: 52px; background: #070f1e; border-bottom: 1px solid rgba(0,212,255,0.1); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; flex-shrink: 0; }
         .topbar-title { font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; color: #00d4ff; letter-spacing: 3px; text-transform: uppercase; }
@@ -226,7 +227,7 @@ export default function LogisticsClasses() {
         .btn-audit:hover { background: rgba(0, 229, 160, 0.15); box-shadow: 0 0 12px rgba(0, 229, 160, 0.2); }
 
         .matrix-area { flex: 0 0 75%; width: 75%; display: flex; flex-direction: column; overflow: hidden; height: 100%; min-height: 0; }
-        .matrix-scroll { flex: 1; overflow-y: auto; padding: 16px 18px 100px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; align-content: start; }
+        .matrix-scroll { flex: 1; overflow-y: auto; padding: 16px 18px 120px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; align-content: start; }
 
         /* CARDS EQUIPMENT MATRIX */
         .icard { border-radius: 12px; border: 1px solid rgba(0,212,255,0.1); background: #0c1729; padding: 16px; position: relative; overflow: hidden; transition: all 0.25s; cursor: pointer; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -244,7 +245,7 @@ export default function LogisticsClasses() {
         .ic-name { font-size: 14px; font-weight: 700; line-height: 1.2; text-align: right; color: #ffffff; }
         .ic-city { font-size: 10.5px; color: rgba(160,185,215,0.5); margin-top: 3px; display: flex; align-items: center; gap: 3px; }
 
-        /* 🟢 תיקון חסינות זום 100%: שינוי פריסת הפריטים בכרטיסייה ל-2 עמודות (בכל עמודה יש חצי כרטיסייה במקום שליש) כדי למנוע דחיסת טקסט ועיוות גובה */
+        /* 👑 החזרת הפריסה המאוזנת ל-2 עמודות לרווח מלא ללא חיתוך טקסט בזום 100% */
         .gear-compact { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; margin-top: 2px; }
         .gc-cell { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px; width: 100%; box-sizing: border-box; }
         .gc-cell.miss { background: rgba(255,140,66,0.05); border-color: rgba(255,140,66,0.15); }
@@ -277,6 +278,36 @@ export default function LogisticsClasses() {
         .modal-ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
         .modal-ov.open { display: flex; }
         .modal-box { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 480px; max-width: 96vw; box-shadow: 0 0 50px rgba(0,212,255,0.12); direction: rtl; position: relative; overflow: hidden; text-align: right; }
+        .modal-box::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent); }
+        .modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid rgba(0,212,255,0.12); }
+        .modal-name { font-family: 'Heebo', sans-serif; font-size: 15px; font-weight: 800; color: #00d4ff; }
+        .modal-city { font-size: 12px; color: rgba(160,185,215,0.5); margin-top: 3px; }
+        .modal-close { position: absolute; left: 16px; top: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: rgba(160,185,215,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .modal-close:hover { background: rgba(255,69,96,0.12); color: #ff4560; }
+        
+        .modal-gear-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+        .mg { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 10px 12px; }
+        .mg.miss { background: rgba(255,140,66,0.05); border-color: rgba(255,140,66,0.2); }
+        .mg-lbl { font-size: 11px; color: rgba(160,185,215,0.6); font-weight: 600; margin-bottom: 6px; }
+        .mg-controls { display: flex; align-items: center; gap: 8px; }
+        .mg-val { font-family: 'Orbitron', monospace; font-size: 20px; font-weight: 900; color: #00d4ff; flex: 1; text-align: center; }
+        .mg-val.miss { color: #ff8c42; }
+        .cb { width: 32px; height: 32px; border-radius: 7px; border: 1px solid; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 700; transition: all 0.15s; }
+        .cb-m { background: rgba(255,69,96,0.08); border-color: rgba(255,69,96,0.3); color: #ff4560; }
+        .cb-p { background: rgba(0,229,160,0.08); border-color: rgba(0,229,160,0.3); color: #00e5a0; }
+        
+        .modal-warn { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: rgba(255,140,66,0.06); border: 1px solid rgba(255,140,66,0.23); border-radius: 8px; font-size: 12px; color: #ff8c42; font-weight: 600; margin-bottom: 14px; }
+        .update-btn { width: 100%; padding: 12px; background: rgba(0,212,255,0.12); border: 1px solid #00d4ff; border-radius: 8px; color: #00d4ff; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; outline: none; }
+        .update-btn:hover { background: rgba(0,212,255,0.22); box-shadow: 0 0 18px rgba(0,212,255,0.2); }
+
+        .mfr { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+        .mfl { font-size: 11px; color: rgba(0,212,255,0.55); font-weight: 700; text-transform: uppercase; }
+        .mfi, .mfs { width: 100%; background: #111f35; border: 1px solid rgba(0,212,255,0.25); border-radius: 7px; color: #ffffff; padding: 10px 13px; font-family: 'Heebo', sans-serif; font-size: 13.5px; direction: rtl; outline: none; }
+        .mfi:focus, .mfs:focus { border-color: #00d4ff; box-shadow: 0 0 8px rgba(0,212,255,0.15); }
+        .mini-gear-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+        .mg-box { background: #111f35; border: 1px solid rgba(0,212,255,0.12); border-radius: 7px; padding: 8px; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+        .mg-box-lbl { font-size: 10.5px; color: rgba(160,185,215,0.5); font-weight: 600; }
+        .mg-box-input { width: 100%; background: transparent; border: none; color: #00d4ff; font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; text-align: center; outline: none; }
       `}</style>
 
       {/* SIDEBAR NAVIGATION */}
