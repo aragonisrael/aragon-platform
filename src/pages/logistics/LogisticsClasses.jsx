@@ -24,7 +24,7 @@ export default function LogisticsClasses() {
   const [newLineManager, setNewLineManager] = useState('מנהל לוגיסטיקה');
   const [newLineGear, setNewLineGear] = useState({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 });
 
-  // מאגר מדריכים וארנקי ציוד מורחב ומעודכן ל-6 פריטים (כולל טאבלטים ורובוטים מובנים)
+  // מאגר מדריכים וארנקי ציוד מורחב ומעודכן ל-6 פריטים
   const [instructors, setInstructors] = useState([
     { id: 'a1', name: 'אריה כהן', city: 'רמת גן', laptops: 10, tablets: 0, chargers: 8, mice: 10, routers: 1, robots: 0, isTempLine: false },
     { id: 'a2', name: 'רחל לוי', city: 'תל אביב', laptops: 8, tablets: 15, chargers: 8, mice: 6, routers: 0, robots: 5, isTempLine: false },
@@ -38,7 +38,7 @@ export default function LogisticsClasses() {
     { id: 'a10', name: 'מאיה רוזן', city: 'תל מונד', laptops: 5, tablets: 12, chargers: 4, mice: 5, routers: 0, robots: 6, isTempLine: false },
   ]);
 
-  // רשימת פריטי חומרה מאוחדת ומורחבת ל-6 פריטים לניהול ורנדור אופטימלי במערכת
+  // רשימת פריטי חומרה מאוחדת ומורחבת ל-6 פריטים
   const GEAR = [
     { key: 'laptops', label: 'מחשבים', icon: '💻' },
     { key: 'tablets', label: 'טאבלטים', icon: '📱' },
@@ -207,8 +207,8 @@ export default function LogisticsClasses() {
         .nb i { font-size: 20px; }
         .nb-sep { width: 32px; height: 1px; background: rgba(0,212,255,0.1); margin: 4px 0; }
 
-        /* 🔒 פתרון חסינות הזום: מניעת כיווץ אנכי של קומפוננטת המיין המרכזית */
-        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; min-height: 0; }
+        /* 🔒 תיקון קריטי: נעילת הגובה הכללי למניעת זליגה מהמסך */
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; height: 100vh; max-height: 100vh; }
         .topbar { height: 52px; background: #070f1e; border-bottom: 1px solid rgba(0,212,255,0.1); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; flex-shrink: 0; }
         .topbar-title { font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; color: #00d4ff; letter-spacing: 3px; text-transform: uppercase; }
         .topbar-r { display: flex; align-items: center; gap: 18px; }
@@ -217,8 +217,8 @@ export default function LogisticsClasses() {
         @keyframes lp { 0%,100% { box-shadow: 0 0 0 0 rgba(0,229,160,0.5); } 60% { box-shadow: 0 0 0 5px rgba(0,229,160,0); } }
         .clk { font-family: 'Orbitron', monospace; font-size: 13px; color: #00d4ff; letter-spacing: 2px; font-weight: 600; }
 
-        /* BODY LAYOUT SPLIT (75% / 25%) */
-        .classes-body { flex: 1; display: flex; flex-direction: row-reverse; overflow: hidden; min-height: 0; }
+        /* 🔒 תיקון קריטי: הגבלת גובה אזור העבודה המרכזי במדויק */
+        .classes-body { flex: 1; display: flex; flex-direction: row-reverse; overflow: hidden; height: calc(100% - 52px); width: 100%; min-height: 0; }
         
         .filter-bar { padding: 11px 18px; border-bottom: 1px solid rgba(0,212,255,0.1); background: #070f1e; display: flex; align-items: center; gap: 10px; flex-shrink: 0; width: 100%; }
         .action-btn-hub { display: flex; align-items: center; gap: 10px; }
@@ -228,9 +228,11 @@ export default function LogisticsClasses() {
         .btn-audit { background: rgba(0, 229, 160, 0.06); border-color: rgba(0, 229, 160, 0.35); color: #00e5a0; }
         .btn-audit:hover { background: rgba(0, 229, 160, 0.15); box-shadow: 0 0 12px rgba(0, 229, 160, 0.2); }
 
-        /* 🔒 פתרון חסינות הזום: הוספת min-height למניעת קריסת גריד המדריכים ב-100% תצוגה */
-        .matrix-area { flex: 0 0 75%; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
-        .matrix-scroll { flex: 1; overflow-y: auto; padding: 16px 18px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 13px; align-content: start; }
+        /* 🔒 תיקון קריטי: מניעת התפשטות אנכית של אזור כרטיסיות המדריכים */
+        .matrix-area { flex: 0 0 75%; width: 75%; display: flex; flex-direction: column; overflow: hidden; height: 100%; min-height: 0; }
+        
+        /* 🔒 תיקון קריטי: הוספת רפידת פדינג נדיבה בתחתית הגלילה (padding-bottom: 80px) כדי למנוע חיתוך כפתורים */
+        .matrix-scroll { flex: 1; overflow-y: auto; padding: 16px 18px 80px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 13px; align-content: start; }
 
         /* CARDS EQUIPMENT MATRIX */
         .icard { border-radius: 12px; border: 1px solid rgba(0,212,255,0.1); background: #0c1729; padding: 15px 16px; position: relative; overflow: hidden; transition: all 0.25s; cursor: pointer; flex-shrink: 0; }
@@ -243,7 +245,7 @@ export default function LogisticsClasses() {
         .icard-head { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
         .av { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; flex-shrink: 0; }
         .av-ok { background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.28); color: #00d4ff; }
-        .av-warn { background: rgba(255,140,66,0.12); border: 1px solid rgba(255,140,66,0.38); color: #ff8c42; }
+        .av-warn { background: rgba(255,140,66,0.12); border: 1px solid rgba(255,140,66,0.38); color: #ff8c42; flex-shrink: 0; }
         .av-temp { background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); color: #a78bfa; }
         
         .ic-name { font-size: 13.5px; font-weight: 700; line-height: 1.2; text-align: right; color: #ffffff; }
@@ -258,8 +260,8 @@ export default function LogisticsClasses() {
         
         .warn-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: rgba(255,140,66,0.06); border: 1px solid rgba(255,140,66,0.2); border-radius: 6px; font-size: 10px; color: #ff8c42; font-weight: 600; line-height: 1.4; margin-top: 4px; }
 
-        /* 🔒 פתרון חסינות הזום: הוספת min-height לפאנל הצידי למניעת קריסת אזור החריגות התחתון */
-        .panel { flex: 0 0 25%; display: flex; flex-direction: column; border-right: 1px solid rgba(0,212,255,0.1); overflow-y: auto; padding: 14px 13px; gap: 12px; background: #040b18; min-height: 0; }
+        /* 🔒 תיקון קריטי: נעילת גובה קשיחה של 100% לפאנל הצידי השמאלי פלוס תוספת רפידת הגנה בתחתית הארכיון */
+        .panel { flex: 0 0 25%; width: 25%; display: flex; flex-direction: column; border-right: 1px solid rgba(0,212,255,0.1); overflow-y: auto; padding: 14px 13px 80px; gap: 12px; background: #040b18; height: 100%; min-height: 0; }
         .ps { background: #0c1729; border: 1px solid rgba(0,212,255,0.1); border-radius: 10px; padding: 13px 14px; position: relative; overflow: hidden; flex-shrink: 0; }
         .ps::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.18), transparent); }
         
@@ -325,7 +327,7 @@ export default function LogisticsClasses() {
         .mg-box-lbl { font-size: 10.5px; color: rgba(160,185,215,0.5); font-weight: 600; }
         .mg-box-input { width: 100%; background: transparent; border: none; color: #00d4ff; font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; text-align: center; outline: none; }
         
-        /* אופטימיזציית פסי גלילה דקים לתפריטים הפנימיים */
+        /* אופטימיזציית פסי גלילה לתפריטים הפנימיים */
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.2); border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 255, 0.4); }
@@ -466,7 +468,7 @@ export default function LogisticsClasses() {
             
             {editingInstructor.isTempLine ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 12px', background: 'rgba(139, 92, 246, 0.06)', border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: '7px', fontSize: '12px', color: '#a78bfa', marginBottom: '14px' }}><span>✓ ניהול כמויות עצמאי עבור קו שטח זמני</span></div>
-            ) : isModalUnbalanced ? (
+            ) : modalWarnings.length > 0 ? (
               <div className="modal-warn"><span>⚠ פער במזוודה:</span><span>{modalWarnings.join(' · ')}</span></div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 12px', background: 'rgba(0,229,160,0.06)', border: '1px solid rgba(0,229,160,0.18)', borderRadius: '7px', fontSize: '12px', color: '#00e5a0', marginBottom: '14px' }}><span>✓ המזוודה מאוזנת פיקס</span></div>
