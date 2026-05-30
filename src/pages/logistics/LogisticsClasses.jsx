@@ -24,7 +24,7 @@ export default function LogisticsClasses() {
   const [newLineManager, setNewLineManager] = useState('מנהל לוגיסטיקה');
   const [newLineGear, setNewLineGear] = useState({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 });
 
-  // 🟢 תיקון 3 + 4: מאגר מדריכים וארנקי ציוד מורחב ומעודכן ל-6 פריטים (כולל טאבלטים ורובוטים מובנים)
+  // מאגר מדריכים וארנקי ציוד מורחב ומעודכן ל-6 פריטים (כולל טאבלטים ורובוטים מובנים)
   const [instructors, setInstructors] = useState([
     { id: 'a1', name: 'אריה כהן', city: 'רמת גן', laptops: 10, tablets: 0, chargers: 8, mice: 10, routers: 1, robots: 0, isTempLine: false },
     { id: 'a2', name: 'רחל לוי', city: 'תל אביב', laptops: 8, tablets: 15, chargers: 8, mice: 6, routers: 0, robots: 5, isTempLine: false },
@@ -79,7 +79,7 @@ export default function LogisticsClasses() {
     return (p[0][0] + (p[1] ? p[1][0] : '')).toUpperCase();
   };
 
-  // 🟢 תיקון 4: מנוע חישוב אזהרות ופערי ציוד במזוודה — בודק אקטיבית אך ורק יחס של לפטופים מול מטענים ועכברים!
+  // מנוע חישוב אזהרות ופערי ציוד במזוודה — בודק אקטיבית אך ורק יחס של לפטופים מול מטענים ועכברים!
   const getWarnings = (inst) => {
     const w = [];
     if (inst.chargers < inst.laptops) w.push(`חסרים ${inst.laptops - inst.chargers} מטענים`);
@@ -141,7 +141,7 @@ export default function LogisticsClasses() {
     showToast(`ארנק הציוד של ${inst.name} עודכן בהצלחה ✓`);
   };
 
-  // 🟢 תיקון 3: לוגיקת יצירת קו זמני חדש והזרקתו ישירות למערך הכרטיסיות הראשי
+  // לוגיקת יצירת קו זמני חדש והזרקתו ישירות למערך הכרטיסיות הראשי
   const handleCreateTempLine = (e) => {
     e.preventDefault();
     if (!newLineName.trim()) { showToast('נא להזין שם או מזהה עבור הקו הזמני'); return; }
@@ -162,7 +162,6 @@ export default function LogisticsClasses() {
     setInstructors([newCustomLine, ...instructors]);
     setIsAddLineModalOpen(false);
     
-    // איפוס שדות הטופס
     setNewLineName('');
     setNewLineManager('מנהל לוגיסטיקה');
     setNewLineGear({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 });
@@ -208,7 +207,8 @@ export default function LogisticsClasses() {
         .nb i { font-size: 20px; }
         .nb-sep { width: 32px; height: 1px; background: rgba(0,212,255,0.1); margin: 4px 0; }
 
-        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+        /* 🔒 פתרון חסינות הזום: מניעת כיווץ אנכי של קומפוננטת המיין המרכזית */
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; min-height: 0; }
         .topbar { height: 52px; background: #070f1e; border-bottom: 1px solid rgba(0,212,255,0.1); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; flex-shrink: 0; }
         .topbar-title { font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; color: #00d4ff; letter-spacing: 3px; text-transform: uppercase; }
         .topbar-r { display: flex; align-items: center; gap: 18px; }
@@ -218,9 +218,8 @@ export default function LogisticsClasses() {
         .clk { font-family: 'Orbitron', monospace; font-size: 13px; color: #00d4ff; letter-spacing: 2px; font-weight: 600; }
 
         /* BODY LAYOUT SPLIT (75% / 25%) */
-        .classes-body { flex: 1; display: flex; flex-direction: row-reverse; overflow: hidden; }
+        .classes-body { flex: 1; display: flex; flex-direction: row-reverse; overflow: hidden; min-height: 0; }
         
-        /* 🟢 תיקון 2: בר ניווט עליון חדש המכיל את לחצני הפעולה המובנים ללא סרגלי סינון */
         .filter-bar { padding: 11px 18px; border-bottom: 1px solid rgba(0,212,255,0.1); background: #070f1e; display: flex; align-items: center; gap: 10px; flex-shrink: 0; width: 100%; }
         .action-btn-hub { display: flex; align-items: center; gap: 10px; }
         .act-btn-classes { padding: 6px 16px; border-radius: 7px; border: 1px solid; font-family: 'Heebo', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.18s; }
@@ -229,7 +228,8 @@ export default function LogisticsClasses() {
         .btn-audit { background: rgba(0, 229, 160, 0.06); border-color: rgba(0, 229, 160, 0.35); color: #00e5a0; }
         .btn-audit:hover { background: rgba(0, 229, 160, 0.15); box-shadow: 0 0 12px rgba(0, 229, 160, 0.2); }
 
-        .matrix-area { flex: 0 0 75%; display: flex; flex-direction: column; overflow: hidden; }
+        /* 🔒 פתרון חסינות הזום: הוספת min-height למניעת קריסת גריד המדריכים ב-100% תצוגה */
+        .matrix-area { flex: 0 0 75%; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
         .matrix-scroll { flex: 1; overflow-y: auto; padding: 16px 18px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 13px; align-content: start; }
 
         /* CARDS EQUIPMENT MATRIX */
@@ -249,7 +249,6 @@ export default function LogisticsClasses() {
         .ic-name { font-size: 13.5px; font-weight: 700; line-height: 1.2; text-align: right; color: #ffffff; }
         .ic-city { font-size: 10px; color: rgba(160,185,215,0.5); margin-top: 3px; display: flex; align-items: center; gap: 3px; }
 
-        /* 🟢 תיקון 4: פריסת גריד פנימית משודרגת ל-3 עמודות על 2 שורות כדי להציג את 6 האלמנטים בצורה אסטטית ומרווחת */
         .gear-compact { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px; width: 100%; }
         .gc-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 4px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px; gap: 2px; }
         .gc-cell.miss { background: rgba(255,140,66,0.05); border-color: rgba(255,140,66,0.15); }
@@ -259,12 +258,11 @@ export default function LogisticsClasses() {
         
         .warn-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: rgba(255,140,66,0.06); border: 1px solid rgba(255,140,66,0.2); border-radius: 6px; font-size: 10px; color: #ff8c42; font-weight: 600; line-height: 1.4; margin-top: 4px; }
 
-        /* SIDE PANEL LEFT (25%) */
-        .panel { flex: 0 0 25%; display: flex; flex-direction: column; border-right: 1px solid rgba(0,212,255,0.1); overflow-y: auto; padding: 14px 13px; gap: 12px; background: #040b18; }
+        /* 🔒 פתרון חסינות הזום: הוספת min-height לפאנל הצידי למניעת קריסת אזור החריגות התחתון */
+        .panel { flex: 0 0 25%; display: flex; flex-direction: column; border-right: 1px solid rgba(0,212,255,0.1); overflow-y: auto; padding: 14px 13px; gap: 12px; background: #040b18; min-height: 0; }
         .ps { background: #0c1729; border: 1px solid rgba(0,212,255,0.1); border-radius: 10px; padding: 13px 14px; position: relative; overflow: hidden; flex-shrink: 0; }
         .ps::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.18), transparent); }
         
-        /* 🟢 תיקון 1: החלפת כותרות הפאנל הצידי לפונט Heebo מודגש, לבן וגדול כמו בדשבורד */
         .pt-classes { font-family: 'Heebo', sans-serif; font-size: 15px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
         .pd-dot { width: 6px; height: 6px; border-radius: 50%; }
         
@@ -326,6 +324,11 @@ export default function LogisticsClasses() {
         .mg-box { background: #111f35; border: 1px solid rgba(0,212,255,0.12); border-radius: 7px; padding: 8px; display: flex; flex-direction: column; gap: 4px; align-items: center; }
         .mg-box-lbl { font-size: 10.5px; color: rgba(160,185,215,0.5); font-weight: 600; }
         .mg-box-input { width: 100%; background: transparent; border: none; color: #00d4ff; font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; text-align: center; outline: none; }
+        
+        /* אופטימיזציית פסי גלילה דקים לתפריטים הפנימיים */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 255, 0.4); }
       `}</style>
 
       {/* SIDEBAR NAVIGATION */}
@@ -364,7 +367,6 @@ export default function LogisticsClasses() {
           {/* LEFT SIDE PANEL: NETWORK SUMMARY (25%) */}
           <div className="panel">
             <div className="ps">
-              {/* 🟢 תיקון 1: החלפת פונט, גודל, צבע ודגש מודגש כמו בדשבורד */}
               <div className="pt-classes"><div className="pd-dot" style={{ background: '#00d4ff' }}></div>סיכום מצבת רשת</div>
               <div className="sum-grid">
                 <div className="sg"><div className="sg-val">{totals.laptops}</div><div className="sg-lbl">💻 מחשבים</div></div>
@@ -376,8 +378,7 @@ export default function LogisticsClasses() {
               </div>
             </div>
 
-            <div className="ps" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              {/* 🟢 תיקון 1: החלפת פונט, גודל, צבע ודגש מודגש כמו בדשבורד */}
+            <div className="ps" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <div className="pt-classes"><div className="pd-dot" style={{ background: '#ff8c42' }}></div>חריגות במזוודות (שטח)</div>
               <div style={{ overflowY: 'auto', flex: 1 }}>
                 {unbalancedInstructors.map(inst => (
@@ -395,7 +396,6 @@ export default function LogisticsClasses() {
 
           {/* RIGHT SIDE AREA: EQUIPMENT MATRIX (75%) */}
           <div className="matrix-area">
-            {/* 🟢 תיקון 2: החלפת בר הסינון בכפתורי פעולה אסטרטגיים — הוספת קו וביקורת */}
             <div className="filter-bar">
               <div className="action-btn-hub">
                 <button className="act-btn-classes btn-add-line" onClick={() => setIsAddLineModalOpen(true)}>
@@ -431,7 +431,6 @@ export default function LogisticsClasses() {
                       {!inst.isTempLine && hw && <i className="ti ti-alert-triangle" style={{ marginRight: 'auto', color: '#ff8c42', fontSize: '16px' }}></i>}
                     </div>
                     
-                    {/* 🟢 תיקון 4: פריסה משודרגת ל-6 מוצרים (3 עמודות על 2 שורות) ללא חיתוכי מילים */}
                     <div className="gear-compact">
                       <div className="gc-cell"><div className="gc-lbl-wrap"><span>💻</span><span>מחשב</span></div><span className="gc-val">{inst.laptops}</span></div>
                       <div className="gc-cell"><div className="gc-lbl-wrap"><span>📱</span><span>טאבלט</span></div><span className="gc-val" style={{ color: '#00e5a0' }}>{inst.tablets}</span></div>
@@ -450,7 +449,7 @@ export default function LogisticsClasses() {
         </div>
       </div>
 
-      {/* 🟢 תיקון 4: מודאל עדכון ארנק מדריך/קו משודרג התומך באופן מלא ב-6 הרכיבים האקטיביים של הרשת */}
+      {/* ADJUST CUSTODY COUNTER MODAL BOX */}
       {editId && editingInstructor && (
         <div className="modal-ov open" onClick={(e) => e.target.className === 'modal-ov open' && closeModal()}>
           <div className="modal-box">
@@ -497,7 +496,7 @@ export default function LogisticsClasses() {
         </div>
       )}
 
-      {/* 🟢 תיקון 3: מודאל יצירת קו זמני חדש (קוקפיט הזנת פריטים מורחב) */}
+      {/* MODAL יצירת קו זמני חדש */}
       {isAddLineModalOpen && (
         <div className="modal-ov open" onClick={(e) => e.target.className === 'modal-ov open' && setIsAddLineModalOpen(false)}>
           <div className="modal-box" style={{ width: '520px' }}>
