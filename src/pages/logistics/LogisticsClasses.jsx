@@ -169,7 +169,7 @@ export default function LogisticsClasses() {
     showToast(`🚀 קו זמני חדש "${newCustomLine.name}" נוצר והתווסף למטריצה!`);
   };
 
-  // חישוב מונים כלליים לפאנל הסיכום הצידי (25%) כולל רכיבים מורחבים
+  // חישוב מונים כלליים לפאנל הסיכום הצידי (25%)
   const totals = { laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 };
   instructors.forEach(i => {
     totals.laptops += i.laptops;
@@ -185,7 +185,6 @@ export default function LogisticsClasses() {
 
   const editingInstructor = instructors.find(i => i.id === editId);
   const modalWarnings = editingInstructor ? getWarnings(editingInstructor) : [];
-  const isModalUnbalanced = modalWarnings.length > 0;
 
   return (
     <div className="hq-global-wrapper">
@@ -207,8 +206,7 @@ export default function LogisticsClasses() {
         .nb i { font-size: 20px; }
         .nb-sep { width: 32px; height: 1px; background: rgba(0,212,255,0.1); margin: 4px 0; }
 
-        /* 🔒 תיקון קריטי: נעילת הגובה הכללי למניעת זליגה מהמסך */
-        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; height: 100vh; max-height: 100vh; }
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; height: 100vh; max-height: 100vh; min-height: 0; }
         .topbar { height: 52px; background: #070f1e; border-bottom: 1px solid rgba(0,212,255,0.1); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; flex-shrink: 0; }
         .topbar-title { font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; color: #00d4ff; letter-spacing: 3px; text-transform: uppercase; }
         .topbar-r { display: flex; align-items: center; gap: 18px; }
@@ -217,7 +215,6 @@ export default function LogisticsClasses() {
         @keyframes lp { 0%,100% { box-shadow: 0 0 0 0 rgba(0,229,160,0.5); } 60% { box-shadow: 0 0 0 5px rgba(0,229,160,0); } }
         .clk { font-family: 'Orbitron', monospace; font-size: 13px; color: #00d4ff; letter-spacing: 2px; font-weight: 600; }
 
-        /* 🔒 תיקון קריטי: הגבלת גובה אזור העבודה המרכזי במדויק */
         .classes-body { flex: 1; display: flex; flex-direction: row-reverse; overflow: hidden; height: calc(100% - 52px); width: 100%; min-height: 0; }
         
         .filter-bar { padding: 11px 18px; border-bottom: 1px solid rgba(0,212,255,0.1); background: #070f1e; display: flex; align-items: center; gap: 10px; flex-shrink: 0; width: 100%; }
@@ -228,40 +225,37 @@ export default function LogisticsClasses() {
         .btn-audit { background: rgba(0, 229, 160, 0.06); border-color: rgba(0, 229, 160, 0.35); color: #00e5a0; }
         .btn-audit:hover { background: rgba(0, 229, 160, 0.15); box-shadow: 0 0 12px rgba(0, 229, 160, 0.2); }
 
-        /* 🔒 תיקון קריטי: מניעת התפשטות אנכית של אזור כרטיסיות המדריכים */
         .matrix-area { flex: 0 0 75%; width: 75%; display: flex; flex-direction: column; overflow: hidden; height: 100%; min-height: 0; }
-        
-        /* 🔒 תיקון קריטי: הוספת רפידת פדינג נדיבה בתחתית הגלילה (padding-bottom: 80px) כדי למנוע חיתוך כפתורים */
-        .matrix-scroll { flex: 1; overflow-y: auto; padding: 16px 18px 80px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 13px; align-content: start; }
+        .matrix-scroll { flex: 1; overflow-y: auto; padding: 16px 18px 100px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; align-content: start; }
 
         /* CARDS EQUIPMENT MATRIX */
-        .icard { border-radius: 12px; border: 1px solid rgba(0,212,255,0.1); background: #0c1729; padding: 15px 16px; position: relative; overflow: hidden; transition: all 0.25s; cursor: pointer; flex-shrink: 0; }
+        .icard { border-radius: 12px; border: 1px solid rgba(0,212,255,0.1); background: #0c1729; padding: 16px; position: relative; overflow: hidden; transition: all 0.25s; cursor: pointer; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
         .icard::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.2), transparent); }
         .icard:hover { border-color: rgba(0,212,255,0.25); transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
         .icard.warn { border-color: rgba(255,140,66,0.55); animation: wp 2.5s ease-in-out infinite; }
         .icard.temp-line-card { border-color: rgba(139, 92, 246, 0.4); background: linear-gradient(135deg, #0c1729 0%, rgba(139, 92, 246, 0.03) 100%); }
-        @keyframes wp { 0%,100% { box-shadow: 0 0 8px rgba(255,140,66,0.06); } 50% { box-shadow: 0 0 20px rgba(255,140,66,0.2); } }
 
-        .icard-head { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+        .icard-head { display: flex; align-items: center; gap: 9px; margin-bottom: 2px; }
         .av { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; flex-shrink: 0; }
         .av-ok { background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.28); color: #00d4ff; }
         .av-warn { background: rgba(255,140,66,0.12); border: 1px solid rgba(255,140,66,0.38); color: #ff8c42; flex-shrink: 0; }
         .av-temp { background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); color: #a78bfa; }
         
-        .ic-name { font-size: 13.5px; font-weight: 700; line-height: 1.2; text-align: right; color: #ffffff; }
-        .ic-city { font-size: 10px; color: rgba(160,185,215,0.5); margin-top: 3px; display: flex; align-items: center; gap: 3px; }
+        .ic-name { font-size: 14px; font-weight: 700; line-height: 1.2; text-align: right; color: #ffffff; }
+        .ic-city { font-size: 10.5px; color: rgba(160,185,215,0.5); margin-top: 3px; display: flex; align-items: center; gap: 3px; }
 
-        .gear-compact { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px; width: 100%; }
-        .gc-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 4px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px; gap: 2px; }
+        /* 🟢 תיקון חסינות זום 100%: שינוי פריסת הפריטים בכרטיסייה ל-2 עמודות (בכל עמודה יש חצי כרטיסייה במקום שליש) כדי למנוע דחיסת טקסט ועיוות גובה */
+        .gear-compact { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; margin-top: 2px; }
+        .gc-cell { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px; width: 100%; box-sizing: border-box; }
         .gc-cell.miss { background: rgba(255,140,66,0.05); border-color: rgba(255,140,66,0.15); }
-        .gc-lbl-wrap { display: flex; align-items: center; gap: 3px; font-size: 10px; color: rgba(160,185,215,0.5); font-weight: 600; }
-        .gc-val { font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 700; color: #00d4ff; }
+        .gc-lbl-wrap { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: rgba(180,200,230,0.7); font-weight: 600; white-space: nowrap; }
+        .gc-val { font-family: 'Orbitron', monospace; font-size: 13.5px; font-weight: 700; color: #00d4ff; }
         .gc-val.miss { color: #ff8c42; }
         
-        .warn-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: rgba(255,140,66,0.06); border: 1px solid rgba(255,140,66,0.2); border-radius: 6px; font-size: 10px; color: #ff8c42; font-weight: 600; line-height: 1.4; margin-top: 4px; }
+        .warn-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: rgba(255,140,66,0.06); border: 1px solid rgba(255,140,66,0.2); border-radius: 6px; font-size: 11px; color: #ff8c42; font-weight: 600; line-height: 1.4; margin-top: 2px; }
 
-        /* 🔒 תיקון קריטי: נעילת גובה קשיחה של 100% לפאנל הצידי השמאלי פלוס תוספת רפידת הגנה בתחתית הארכיון */
-        .panel { flex: 0 0 25%; width: 25%; display: flex; flex-direction: column; border-right: 1px solid rgba(0,212,255,0.1); overflow-y: auto; padding: 14px 13px 80px; gap: 12px; background: #040b18; height: 100%; min-height: 0; }
+        /* SIDE PANEL LEFT */
+        .panel { flex: 0 0 25%; width: 25%; display: flex; flex-direction: column; border-right: 1px solid rgba(0,212,255,0.1); overflow-y: auto; padding: 14px 13px 100px; gap: 12px; background: #040b18; height: 100%; min-height: 0; }
         .ps { background: #0c1729; border: 1px solid rgba(0,212,255,0.1); border-radius: 10px; padding: 13px 14px; position: relative; overflow: hidden; flex-shrink: 0; }
         .ps::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.18), transparent); }
         
@@ -283,54 +277,6 @@ export default function LogisticsClasses() {
         .modal-ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
         .modal-ov.open { display: flex; }
         .modal-box { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 480px; max-width: 96vw; box-shadow: 0 0 50px rgba(0,212,255,0.12); direction: rtl; position: relative; overflow: hidden; text-align: right; }
-        .modal-box::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent); }
-        .modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid rgba(0,212,255,0.12); }
-        .modal-name { font-family: 'Heebo', sans-serif; font-size: 15px; font-weight: 800; color: #00d4ff; }
-        .modal-city { font-size: 12px; color: rgba(160,185,215,0.5); margin-top: 3px; }
-        .modal-close { position: absolute; left: 16px; top: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: rgba(160,185,215,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center; }
-        .modal-close:hover { background: rgba(255,69,96,0.12); color: #ff4560; }
-        
-        .modal-gear-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
-        .mg { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 10px 12px; }
-        .mg.miss { background: rgba(255,140,66,0.05); border-color: rgba(255,140,66,0.2); }
-        .mg-lbl { font-size: 11px; color: rgba(160,185,215,0.6); font-weight: 600; margin-bottom: 6px; }
-        .mg-controls { display: flex; align-items: center; gap: 8px; }
-        .mg-val { font-family: 'Orbitron', monospace; font-size: 20px; font-weight: 900; color: #00d4ff; flex: 1; text-align: center; }
-        .mg-val.miss { color: #ff8c42; }
-        .cb { width: 32px; height: 32px; border-radius: 7px; border: 1px solid; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 700; transition: all 0.15s; }
-        .cb-m { background: rgba(255,69,96,0.08); border-color: rgba(255,69,96,0.3); color: #ff4560; }
-        .cb-p { background: rgba(0,229,160,0.08); border-color: rgba(0,229,160,0.3); color: #00e5a0; }
-        
-        .modal-warn { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: rgba(255,140,66,0.06); border: 1px solid rgba(255,140,66,0.23); border-radius: 8px; font-size: 12px; color: #ff8c42; font-weight: 600; margin-bottom: 14px; }
-        .update-btn { width: 100%; padding: 12px; background: rgba(0,212,255,0.12); border: 1px solid #00d4ff; border-radius: 8px; color: #00d4ff; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; outline: none; }
-        .update-btn:hover { background: rgba(0,212,255,0.22); box-shadow: 0 0 18px rgba(0,212,255,0.2); }
-
-        .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111f35; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 22px rgba(0,229,160,0.18); transition: transform 0.28s; z-index: 300; text-align: center; pointer-events: none; }
-        .toast.show { transform: translateX(-50%) translateY(0); }
-        
-        .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #162540; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; user-select: none; }
-        .player-toggle-btn { color: #00d4ff; font-size: 14px; display: flex; align-items: center; }
-        .player-toggle-btn.playing { color: #00e5a0; }
-        .player-station-text { font-size: 11px; font-family: 'Orbitron', monospace; color: rgba(160,185,215,0.5); letter-spacing: 1px; font-weight: bold; }
-        .cyber-music-player.playing .player-station-text { color: #00e5a0; }
-        .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
-        .visualizer-bar { width: 2px; height: 3px; background: #00e5a0; }
-        .cyber-music-player.playing .visualizer-bar { animation: wavePulse 0.6s ease-in-out infinite alternate; }
-        @keyframes wavePulse { 0% { height: 3px; } 100% { height: 10px; } }
-
-        .mfr { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
-        .mfl { font-size: 11px; color: rgba(0,212,255,0.55); font-weight: 700; text-transform: uppercase; }
-        .mfi, .mfs { width: 100%; background: #111f35; border: 1px solid rgba(0,212,255,0.25); border-radius: 7px; color: #ffffff; padding: 10px 13px; font-family: 'Heebo', sans-serif; font-size: 13.5px; direction: rtl; outline: none; }
-        .mfi:focus, .mfs:focus { border-color: #00d4ff; box-shadow: 0 0 8px rgba(0,212,255,0.15); }
-        .mini-gear-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
-        .mg-box { background: #111f35; border: 1px solid rgba(0,212,255,0.12); border-radius: 7px; padding: 8px; display: flex; flex-direction: column; gap: 4px; align-items: center; }
-        .mg-box-lbl { font-size: 10.5px; color: rgba(160,185,215,0.5); font-weight: 600; }
-        .mg-box-input { width: 100%; background: transparent; border: none; color: #00d4ff; font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; text-align: center; outline: none; }
-        
-        /* אופטימיזציית פסי גלילה לתפריטים הפנימיים */
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.2); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 255, 0.4); }
       `}</style>
 
       {/* SIDEBAR NAVIGATION */}
