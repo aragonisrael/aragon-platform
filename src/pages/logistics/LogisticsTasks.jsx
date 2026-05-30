@@ -7,7 +7,7 @@ import aragonLogo from '../../assets/aragonlogo.png';
 export default function LogisticsTasks() {
   const navigate = useNavigate();
 
-  // סטייט תפעולי גלובלי למסך
+  // ── סטייט תפעולי גלובלי למסך ──
   const [isPlaying, setIsPlaying] = useState(false);
   const [clk, setClk] = useState('00:00:00');
   const [toast, setToast] = useState({ show: false, message: '' });
@@ -30,7 +30,7 @@ export default function LogisticsTasks() {
     { id: 'fc3', badge: '🔍 בדיקת ציוד', badgeColor: '#ff8c42', time: '28.05 | 17:10', title: '3 מטענים תקולים הגיעו מהשטח', who: 'הגיעו מהשטח — יש לבצע בדיקה', body: '3 מטענים חזרו מהשטח כתקולים. יש לבדוק כל מטען בנפרד ולעדכן סטטוס בהתאם.', type: 'warn', pColor: '#ff8c42', borderC: 'rgba(255,140,66,0.22)', bgC: 'rgba(255,140,66,0.06)', pills: [{ text: '🔌 לבדיקה × 3', miss: true }] }
   ]);
 
-  // ── מאגר משימות קייטנות (כולל מנגנון צ'קליסט דינמי) ──
+  // ── מאגר משימות קייטנות ──
   const [campTasks, setCampTasks] = useState([
     {
       id: 'cc1', badge: '⚡ דחוף — 18 יום', time: 'פתיחה: 15.06', title: 'קייטנת ראשון לציון', who: '3 חדרים | 45 ילדים | תחילת הכנה: 1.6', bgC: 'rgba(0,212,255,0.04)', borderC: 'rgba(0,212,255,0.2)',
@@ -72,7 +72,7 @@ export default function LogisticsTasks() {
     setTimeout(() => setToast({ show: false, message: '' }), 3500);
   };
 
-  // שעון חמ"ל לוגיסטי
+  // שעון חמ"ל
   useEffect(() => {
     const tick = () => setClk(new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     const interval = setInterval(tick, 1000);
@@ -80,7 +80,7 @@ export default function LogisticsTasks() {
     return () => clearInterval(interval);
   }, []);
 
-  // סנכרן את מצב כפתור הנגן מול האודיו הגלובלי ב-App.jsx
+  // סנכרן את מצב כפתור הנגן
   useEffect(() => {
     const globalAudio = document.getElementById('hq-cyber-radio');
     if (globalAudio) setIsPlaying(!globalAudio.paused);
@@ -93,7 +93,6 @@ export default function LogisticsTasks() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // ניהול מודאל הסטטוס הדינמי
   const openStatusModal = (cardId, col, title) => {
     setActiveCardId(cardId);
     setActiveCol(col);
@@ -110,7 +109,6 @@ export default function LogisticsTasks() {
     setStatusRows(prev => prev.filter((_, i) => i !== idx));
   };
 
-  // סגירת משימה והעברה לארכיון העמודה הרלוונטית
   const finishTask = () => {
     if (!activeCardId) return;
     const summary = statusRows.map(r => `${r.type} ×${r.qty} — ${r.state}`).join(' | ');
@@ -141,7 +139,6 @@ export default function LogisticsTasks() {
     showToast(msg);
   };
 
-  // שינוי סימון צ'קבוקסים דינמי בכרטיסיות (עדכון אחוזי התקדמות בלייב)
   const toggleCheckItem = (campId, itemIdx, colType) => {
     if (colType === 'camp') {
       setCampTasks(prev => prev.map(c => {
@@ -165,7 +162,7 @@ export default function LogisticsTasks() {
   return (
     <div className="hq-global-wrapper">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Heebo:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         
         *{ box-sizing: border-box; margin: 0; padding: 0; }
@@ -195,40 +192,42 @@ export default function LogisticsTasks() {
         .tasks-body { flex: 1; display: grid; grid-template-columns: 1fr 1fr 1fr; overflow: hidden; }
         .col { display: flex; flex-direction: column; border-left: 1px solid rgba(0,212,255,0.1); overflow: hidden; }
         .col:last-child { border-left: none; }
+        
+        /* 🟢 תיקון 1: החלפת כותרות העמודות לפונט Heebo עבה, מודגש ולבן כמו בדשבורד */
         .col-hdr { padding: 14px 18px; border-bottom: 1px solid rgba(0,212,255,0.1); background: #070f1e; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; }
-        .col-hdr-title { font-family: 'Orbitron', monospace; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+        .col-hdr-title { font-family: 'Heebo', sans-serif; font-size: 15px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
         .col-hdr-dot { width: 6px; height: 6px; border-radius: 50%; }
-        .col-hdr-count { font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 700; letter-spacing: 0.5px; }
-        .col-body { flex: 1; overflow-y: auto; padding: 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+        .col-hdr-count { font-size: 11px; font-family: 'Orbitron', monospace; padding: 2px 8px; border-radius: 4px; font-weight: 700; }
+        .col-body { flex: 1; overflow-y: auto; padding: 14px 14px; display: flex; flex-direction: column; gap: 12px; }
 
-        /* CARDS */
-        .tcard { border-radius: 10px; border: 1px solid; padding: 14px 15px; transition: all 0.3s; position: relative; overflow: hidden; }
+        /* 🟢 תיקון 2: מבנה כרטיסייה חסין הסתרות וחיתוכי טקסט — יישור ימינה מוחלט ומרווח */
+        .tcard { background: #0c1729; border-radius: 10px; border: 1px solid transparent; padding: 16px; transition: all 0.3s; position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 8px; width: 100%; box-sizing: border-box; }
         .tcard::before { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; opacity: 0.6; }
-        .tcard-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-        .tcard-badge { font-size: 10px; padding: 3px 9px; border-radius: 5px; font-weight: 700; letter-spacing: 0.5px; white-space: nowrap; flex-shrink: 0; }
+        .tcard-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; width: 100%; }
+        .tcard-badge { font-size: 10px; padding: 3px 9px; border-radius: 5px; font-weight: 700; letter-spacing: 0.3px; white-space: nowrap; flex-shrink: 0; }
         .tcard-time { font-size: 10px; color: rgba(160,185,215,0.5); font-family: 'Orbitron', monospace; white-space: nowrap; }
-        .tcard-title { font-size: 13px; font-weight: 700; color: rgba(220,235,255,0.92); margin-bottom: 4px; line-height: 1.4; text-align: right; }
-        .tcard-who { font-size: 11px; color: rgba(160,185,215,0.5); margin-bottom: 8px; display: flex; align-items: center; gap: 5px; justify-content: flex-start; }
-        .tcard-body { font-size: 12px; color: rgba(220,235,255,0.68); line-height: 1.55; margin-bottom: 12px; text-align: right; }
+        
+        .tcard-title { font-size: 14.5px; font-weight: 700; color: #ffffff; margin-bottom: 2px; line-height: 1.4; text-align: right; width: 100%; }
+        .tcard-who { font-size: 11.5px; color: rgba(160,185,215,0.5); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; justify-content: flex-start; text-align: right; width: 100%; }
+        .tcard-who i { font-size: 13px; color: rgba(0,212,255,0.6); }
+        .tcard-body { font-size: 12.5px; color: rgba(220,235,255,0.72); line-height: 1.55; margin-bottom: 6px; text-align: right; width: 100%; white-space: normal; word-break: break-word; }
 
         /* GEAR PILLS */
-        .gear-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; flex-direction: row-reverse; }
-        .gear-pill { background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.18); border-radius: 5px; padding: 3px 10px; font-size: 11px; color: #00d4ff; font-weight: 600; }
+        .gear-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; justify-content: flex-start; width: 100%; }
+        .gear-pill { background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.18); border-radius: 5px; padding: 3px 10px; font-size: 11px; color: #00d4ff; font-weight: 600; white-space: nowrap; }
 
-        /* CHECKLIST */
-        .checklist { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-        .chk-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: all 0.15s; flex-direction: row-reverse; }
+        /* CHECKLIST — ניקוי row-reverse שגרם להסתרות */
+        .checklist { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; width: 100%; }
+        .chk-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: all 0.15s; width: 100%; box-sizing: border-box; }
         .chk-row:hover { background: rgba(255,255,255,0.06); }
         .chk-row.checked { opacity: 0.5; }
-        .chk-box { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid rgba(0,212,255,0.35); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
-        .chk-row.checked .chk-box { background: #00e5a0; border-color: #00e5a0; }
-        .chk-lbl { font-size: 12px; color: rgba(220,235,255,0.92); flex: 1; text-align: right; }
-        .chk-row.checked .chk-lbl { text-decoration: line-through; color: rgba(160,185,215,0.5); }
-        .chk-status { font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 700; white-space: nowrap; margin-left: auto; }
+        .chk-box { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid rgba(0,212,255,0.35); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .chk-lbl { font-size: 12px; color: rgba(220,235,255,0.92); flex: 1; text-align: right; white-space: normal; }
+        .chk-status { font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 700; white-space: nowrap; margin-right: auto; margin-left: 0; }
 
         /* STRIP ACTION BUTTONS */
-        .act-strip { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 11px; }
-        .act-btn { width: 100%; padding: 8px 14px; border-radius: 7px; border: 1px solid; cursor: pointer; font-family: 'Heebo', sans-serif; font-size: 12px; font-weight: 700; transition: all 0.18s; display: flex; align-items: center; justify-content: center; gap: 7px; flex-direction: row-reverse; }
+        .act-strip { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 11px; margin-top: auto; width: 100%; }
+        .act-btn { width: 100%; padding: 8px 14px; border-radius: 7px; border: 1px solid; cursor: pointer; font-family: 'Heebo', sans-serif; font-size: 12.5px; font-weight: 700; transition: all 0.18s; display: flex; align-items: center; justify-content: center; gap: 7px; }
         .btn-success { background: rgba(0,229,160,0.08); border-color: rgba(0,229,160,0.4); color: #00e5a0; }
         .btn-success:hover { background: rgba(0,229,160,0.16); box-shadow: 0 0 14px rgba(0,229,160,0.15); }
         .btn-warn { background: rgba(255,140,66,0.08); border-color: rgba(255,140,66,0.4); color: #ff8c42; }
@@ -236,12 +235,10 @@ export default function LogisticsTasks() {
 
         /* ARCHIVE LOWER SECTIONS */
         .arch-section { border-top: 1px solid rgba(0,212,255,0.1); flex-shrink: 0; background: #070f1e; }
-        .arch-toggle { padding: 9px 14px; cursor: pointer; display: flex; align-items: center; gap: 7px; font-size: 10px; letter-spacing: 1.5px; color: rgba(160,185,215,0.5); text-transform: uppercase; user-select: none; }
+        .arch-toggle { padding: 11px 14px; cursor: pointer; display: flex; align-items: center; gap: 7px; font-size: 10px; letter-spacing: 1.5px; color: rgba(160,185,215,0.5); text-transform: uppercase; user-select: none; }
         .arch-list { display: flex; max-height: 130px; overflow-y: auto; padding: 0 14px 10px; flex-direction: column; gap: 5px; }
         .arch-item { display: flex; align-items: center; justify-content: space-between; padding: 5px 9px; background: rgba(0,229,160,0.04); border: 1px solid rgba(0,229,160,0.12); border-radius: 6px; }
-        .arch-item-lbl { font-size: 11px; color: rgba(0,229,160,0.6); }
-        .arch-item-time { font-size: 10px; color: rgba(160,185,215,0.5); font-family: 'Orbitron', monospace; }
-
+        
         /* INTERACTIVE MUSIC PLAYER */
         .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #162540; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; user-select: none; }
         .player-toggle-btn { color: #00d4ff; font-size: 14px; display: flex; align-items: center; }
@@ -260,7 +257,7 @@ export default function LogisticsTasks() {
         .toast.show { transform: translateX(-50%) translateY(0); }
       `}</style>
 
-      {/* SIDEBAR NAVIGATION — קבוע לחלוטין */}
+      {/* SIDEBAR NAVIGATION */}
       <div className="sidebar">
         <div className="sb-logo" onClick={() => navigate('/admin')}>
           <img src={aragonLogo} alt="Aragon Platform Logo" />
@@ -296,6 +293,7 @@ export default function LogisticsTasks() {
           {/* COLUMN 1: FIELD OPS & FAULTS (חמ"ל שטח ותקלות) */}
           <div className="col">
             <div className="col-hdr">
+              {/* 🟢 תיקון 1: כותרת מאוחדת ומודגשת בלגו הלבן */}
               <div className="col-hdr-title">
                 <div className="col-hdr-dot" style={{ background: '#ff4560', boxShadow: '0 0 6px #ff4560' }}></div>
                 חמ"ל שטח ותקלות
@@ -304,7 +302,7 @@ export default function LogisticsTasks() {
             </div>
             <div className="col-body">
               {fieldTasks.map(task => (
-                <div key={task.id} className="tcard" style={{ background: task.bgC, borderColor: task.borderC }}>
+                <div key={task.id} className="tcard" style={{ background: task.bgC, ConvertibleBorder: task.borderC, borderColor: task.borderC }}>
                   <div className="tcard-top">
                     <span className="tcard-badge" style={{ background: 'rgba(255,69,96,0.1)', color: task.badgeColor, border: `1px solid ${task.borderC}` }}>{task.badge}</span>
                     <span className="tcard-time">{task.time}</span>
@@ -325,7 +323,7 @@ export default function LogisticsTasks() {
                 </div>
               ))}
             </div>
-            <div className="arch-section">
+            <div className="archive-section">
               <div className="arch-toggle" onClick={() => setArchOpen({ ...archOpen, field: !archOpen.field })}>
                 <i className="ti ti-chevron-down" style={{ transform: archOpen.field ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', fontSize: '13px', marginLeft: '6px' }}></i>
                 ארכיון שטח ({archives.field.length})
@@ -343,6 +341,7 @@ export default function LogisticsTasks() {
           {/* COLUMN 2: CAMP PREPARATION (הכנת קייטנות) */}
           <div className="col">
             <div className="col-hdr">
+              {/* 🟢 תיקון 1: כותרת מאוחדת ומודגשת בלגו הלבן */}
               <div className="col-hdr-title">
                 <div className="col-hdr-dot" style={{ background: '#00d4ff', boxShadow: '0 0 6px #00d4ff' }}></div>
                 הכנת קייטנות
@@ -390,7 +389,7 @@ export default function LogisticsTasks() {
                 );
               })}
             </div>
-            <div className="arch-section">
+            <div className="archive-section">
               <div className="arch-toggle" onClick={() => setArchOpen({ ...archOpen, camp: !archOpen.camp })}>
                 <i className="ti ti-chevron-down" style={{ transform: archOpen.camp ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', fontSize: '13px', marginLeft: '6px' }}></i>
                 ארכיון קייטנות ({archives.camp.length})
@@ -408,6 +407,7 @@ export default function LogisticsTasks() {
           {/* COLUMN 3: SMART ALERTS (התראות חכמות) */}
           <div className="col">
             <div className="col-hdr">
+              {/* 🟢 תיקון 1: כותרת מאוחדת וממודגשת בלגו הלבן */}
               <div className="col-hdr-title">
                 <div className="col-hdr-dot" style={{ background: '#f5c842', boxShadow: '0 0 6px #f5c842' }}></div>
                 התראות חכמות
@@ -445,7 +445,7 @@ export default function LogisticsTasks() {
                 </div>
               ))}
             </div>
-            <div className="arch-section">
+            <div className="archive-section">
               <div className="arch-toggle" onClick={() => setArchOpen({ ...archOpen, alert: !archOpen.alert })}>
                 <i className="ti ti-chevron-down" style={{ transform: archOpen.alert ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', fontSize: '13px', marginLeft: '6px' }}></i>
                 ארכיון התראות ({archives.alert.length})
@@ -463,13 +463,13 @@ export default function LogisticsTasks() {
         </div>
       </div>
 
-      {/* STATUS MODAL — חלונית פריטים מתקדמת חסינת לאגים */}
+      {/* STATUS MODAL */}
       {isModalOpen && (
         <div className="ov open" onClick={(e) => e.target.className === 'ov open' && closeStatusModal()}>
           <div style={{ background: '#0c1729', border: '1px solid rgba(0,212,255,0.28)', borderRadius: '14px', padding: '26px', width: '500px', maxWidth: '95vw', boxShadow: '0 0 50px rgba(0,212,255,0.1)', direction: 'rtl', display: 'flex', flexDirection: 'column' }}>
             <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '12px', color: '#00d4ff', letterSpacing: '2px', marginBottom: '20px', paddingBottom: '14px', borderBottom: '1px solid rgba(0,212,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>{modalTitle}</span>
-              <button onclick={closeStatusModal} style={{ background: 'none', border: 'none', color: 'rgba(160,185,215,0.5)', cursor: 'pointer', fontSize: '18px' }}>×</button>
+              <button onClick={closeStatusModal} style={{ background: 'none', border: 'none', color: 'rgba(160,185,215,0.5)', cursor: 'pointer', fontSize: '18px' }}>×</button>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
               {statusRows.map((row, idx) => (
