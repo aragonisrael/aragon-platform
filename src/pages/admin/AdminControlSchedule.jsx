@@ -114,9 +114,20 @@ export default function AdminControlSchedule() {
     setIsPlaying(!globalAudio.paused);
   };
 
+  // 🟢 מנוע הפריסה החדש: מונע הידחסות ימינה ומותח בלוקים שמאלה לחלל פנוי (Stretching Layout Engine)
   const layoutDay = (dayBlocks) => {
-    const bs = dayBlocks.map(b => ({ ...b, endMin: b.startMin + b.dur }));
+    if (!dayBlocks || dayBlocks.length === 0) return [];
+
+    const bs = dayBlocks.map(b => ({ 
+      ...b, 
+      endMin: b.startMin + b.dur, 
+      col: 0, 
+      numCols: 1, 
+      colspan: 1 
+    }));
     bs.sort((a, b) => a.startMin - b.startMin);
+
+    // 1. השמה טורית חכמה של הבלוקים בערוצים
     const colEnd = [];
     bs.forEach(b => {
       let placed = false;
@@ -125,12 +136,49 @@ export default function AdminControlSchedule() {
       }
       if (!placed) { b.col = colEnd.length; colEnd.push(b.endMin); }
     });
-    
+
+    // 2. חלוקה לאשכולות (Clusters) של קבוצות חופפות בזמן
+    const clusters = [];
     bs.forEach(b => {
-      const overlapping = bs.filter(o => o.startMin < b.endMin && o.endMin > b.startMin);
-      const maxColIdx = Math.max(...overlapping.map(o => o.col || 0));
-      b.numCols = maxColIdx + 1;
+      let targets = [];
+      for (let i = 0; i < clusters.length; i++) {
+        const overlaps = clusters[i].some(o => b.startMin < o.endMin && b.endMin > o.startMin);
+        if (overlaps) targets.push(i);
+      }
+      
+      if (targets.length === 0) {
+        clusters.push([b]);
+      } else {
+        const primaryIdx = targets[0];
+        clusters[primaryIdx].push(b);
+        for (let k = targets.length - 1; k > 0; k--) {
+          const extraIdx = targets[k];
+          clusters[primaryIdx] = clusters[primaryIdx].concat(clusters[extraIdx]);
+          clusters.splice(extraIdx, 1);
+        }
+      }
     });
+
+    // 3. קביעת כמות עמודות אחידה ומאוזנת לכל אשכול
+    clusters.forEach(cluster => {
+      const maxCol = Math.max(...cluster.map(b => b.col));
+      const numCols = maxCol + 1;
+      cluster.forEach(b => { b.numCols = numCols; });
+    });
+
+    // 4. פקודת המתיחה (Stretching): מותח כל בלוק שמאלה אם אין חוג אחר שחוסם אותו באותו הזמן
+    bs.forEach(b => {
+      const overlapping = bs.filter(o => o.id !== b.id && o.startMin < b.endMin && o.endMin > b.startMin);
+      const occupiedColsAhead = overlapping.filter(o => o.col > b.col).map(o => o.col);
+      
+      if (occupiedColsAhead.length > 0) {
+        const nextOccupiedCol = Math.min(...occupiedColsAhead);
+        b.colspan = nextOccupiedCol - b.col;
+      } else {
+        b.colspan = b.numCols - b.col;
+      }
+    });
+
     return bs;
   };
 
@@ -364,7 +412,7 @@ export default function AdminControlSchedule() {
   return (
     <div className="hq-global-wrapper">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Heebo:wght@300;400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
 
         .hq-global-wrapper { width: 100%; min-height: 100vh; background: #050812; display: flex; font-family: 'Heebo', sans-serif; color: #e0f0ff; direction: rtl; overflow: hidden; }
@@ -388,7 +436,7 @@ export default function AdminControlSchedule() {
         .ring-wrap { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; z-index: 4; }
         .ro { position: absolute; inset: 0; border-radius: 50%; border: 1.5px dashed rgba(0, 200, 255, 0.2); animation: hqSpin 14s linear infinite; }
         .rm { position: absolute; inset: 4px; border-radius: 50%; border: 1px solid transparent; border-top-color: #6040ff; border-right-color: #00c8ff; animation: hqSpin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,.4); }
-        .rm2 { position: absolute; inset: 8px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #00c8ff; animation: hqSpin 7s linear infinite reverse; box-shadow: inset 0 0 10px rgba(64,128,255,.3); }
+        .rm2 { position: absolute; inset: 8px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #4060ff; animation: hqSpin 7s linear infinite reverse; box-shadow: inset 0 0 10px rgba(64,128,255,.3); }
         .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
         .limg { width: 28px; height: 28px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 1px; box-shadow: 0 0 8px rgba(0,200,255,0.4); }
         
@@ -438,7 +486,6 @@ export default function AdminControlSchedule() {
         .block-turquoise { background: rgba(0, 206, 209, 0.12); border: 1px solid rgba(0, 206, 209, 0.35); border-top: 2px solid #00ced1; }
         .block-turquoise .bname { color: #00ced1; font-weight: 800; }
 
-        /* 👑 שדרוג הנראות בתוך הבלוקים: גודל גופן אחיד 12px וצבע לבן נקי להכל */
         .bname { font-size: 12px; font-weight: 700; color: #ffffff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .bmeta { font-size: 12px; color: #ffffff; opacity: 0.95; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .btime { font-size: 12px; color: #ffffff; opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -518,7 +565,7 @@ export default function AdminControlSchedule() {
           
           <div className="top-bar-right">
             <div className={`cyber-music-player ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
-              <div className="player-toggle-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i></div>
+              <div className="player-toggle-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i ></div>
               <div className="player-station-text">HQ RADIO</div>
               <div className="audio-visualizer-wave"><div className="visualizer-bar"></div><div className="visualizer-bar"></div><div className="visualizer-bar"></div></div>
             </div>
@@ -537,9 +584,9 @@ export default function AdminControlSchedule() {
             <button className={`tb-btn ${currentFilter === 'unassigned' ? 'active' : ''}`} type="button" onClick={() => setCurrentFilter('unassigned')}><i className="ti ti-alert-triangle"></i> ללא שיוך</button>
             
             <div className="legend">
-              <div className="leg-item"><div className="leg-dot" style={{ background: '#00e676' }}></div>אושר</div>
-              <div className="leg-item"><div className="leg-dot" style={{ background: '#f0a820' }}></div>ממתין</div>
-              <div className="leg-item"><div className="leg-dot" style={{ background: '#ff5555' }}></div>ללא מדריך</div>
+              <div className="legend-item"><div className="leg-dot" style={{ background: '#00e676' }}></div>אושר</div>
+              <div className="legend-item"><div className="leg-dot" style={{ background: '#f0a820' }}></div>ממתין</div>
+              <div className="legend-item"><div className="leg-dot" style={{ background: '#ff5555' }}></div>ללא מדריך</div>
             </div>
           </div>
 
@@ -646,6 +693,7 @@ export default function AdminControlSchedule() {
                   }
                 }
 
+                // הפעלת מחולל הפריסה והמתיחה המעודכן
                 const laidBlocks = layoutDay(rawDayBlocks);
 
                 return (
@@ -663,11 +711,23 @@ export default function AdminControlSchedule() {
                       
                       if (op === 0 && !isHelperBlock && !isTravelBlock) return null;
                       const hPx = Math.max(b.dur * PX_PER_MIN - 2, 18); 
-                      const colW = (100 / b.numCols);
                       const relativeStartMin = b.startMin - (START_HOUR * 60);
 
                       return (
-                        <div key={b.id} className={`block block-${b.status}`} style={{ top: `${relativeStartMin * PX_PER_MIN}px`, right: `${((b.col || 0) / b.numCols) * 100}%`, width: `calc(${colW}% - ${GAP * (b.numCols > 1 ? 1 : 0)}px)`, height: `${hPx}px` }} onClick={() => handleOpenBlockModal(b.id)} onMouseEnter={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setTooltip({ show: true, x: rect.left + window.scrollX + 14, y: rect.top + window.scrollY + 14, block: b }); }} onMouseLeave={() => setTooltip({ show: false, x: 0, y: 0, block: null })}>
+                        <div 
+                          key={b.id} 
+                          className={`block block-${b.status}`} 
+                          style={{ 
+                            top: `${relativeStartMin * PX_PER_MIN}px`, 
+                            right: `${((b.col || 0) / b.numCols) * 100}%`, 
+                            // 🟢 פקודת המתיחה לחלל פנוי: מכפיל את רוחב העמודה במקדם ה-colspan הדינמי שלו
+                            width: `calc(${ (100 / b.numCols) * (b.colspan || 1) }% - ${GAP}px)`, 
+                            height: `${hPx}px` 
+                          }} 
+                          onClick={() => handleOpenBlockModal(b.id)} 
+                          onMouseEnter={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setTooltip({ show: true, x: rect.left + window.scrollX + 14, y: rect.top + window.scrollY + 14, block: b }); }} 
+                          onMouseLeave={() => setTooltip({ show: false, x: 0, y: 0, block: null })}
+                        >
                           {isHelperBlock ? (
                             null
                           ) : isTravelBlock ? (
@@ -675,7 +735,6 @@ export default function AdminControlSchedule() {
                           ) : (
                             <>
                               <div className="bname">{b.name}</div>
-                              {/* 👑 שינוי ראות: הוספת מוקד וצביעת כל המידע בלבן אחיד ובגודל 12px */}
                               {hPx > 45 && (
                                 <div className="bmeta">
                                   {b.venue}
