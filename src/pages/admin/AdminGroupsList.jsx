@@ -120,9 +120,31 @@ export default function AdminGroupsList() {
     return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   };
 
-  const toEng = (n) => {
-    const m = { 'א': 'a', 'ב': 'b', 'ג': 'g', 'ד': 'd', 'ה': 'h', 'ו': 'v', 'ז': 'z', 'ח': 'ch', 'ט': 't', 'י': 'y', 'כ': 'k', 'ל': 'l', 'מ': 'm', 'נ': 'n', 'ס': 's', 'ע': 'a', 'פ': 'p', 'צ': 'tz', 'ק': 'k', 'ר': 'r', 'ש': 'sh', 'ת': 't', 'ך': 'k', 'ם': 'm', 'ן': 'n', 'ף': 'p', 'ץ': 'tz' };
-    return n.split('').map(c => m[c] || c).join('').replace(/\s+/g, '.');
+  // 🟢 פונקציית הקסם החדשה: יצירת שם משתמש ייחודי בעברית מלאה חסין כפילויות ישירות מול ה-Database
+  const generateUniqueHebrewUsername = async (fullName) => {
+    // חיבור השם הפרטי ושם המשפחה באמצעות נקודה וניקוי רווחים כפולים
+    let baseUsername = fullName.trim().replace(/\s+/g, '.');
+    
+    let finalUsername = baseUsername;
+    let counter = 1;
+    let isUnique = false;
+
+    // ריצה בלולאה מול הטבלה בענן עד שמוצאים נתיב פנוי לחלוטין
+    while (!isUnique) {
+      const { data, error } = await supabase
+        .from('users')
+        .select('username')
+        .eq('username', finalUsername)
+        .maybeSingle();
+
+      if (!data) {
+        isUnique = true; // השם חופשי לחלוטין!
+      } else {
+        finalUsername = `${baseUsername}${counter}`; // השם תפוס, מצמידים מונה (הדס.ואקנין1, הדס.ואקנין2...)
+        counter++;
+      }
+    }
+    return finalUsername;
   };
 
   const uniqueCities = [...new Set(groups.map(g => g.city))];
@@ -234,7 +256,6 @@ export default function AdminGroupsList() {
     });
   };
 
-  // 🟢 פתיחת קונסולת השליטה המאוחדת לקבוצה
   const handleOpenGroupConsoleModal = (id) => {
     const g = groups.find(x => x.id === id);
     if (!g) return;
@@ -246,11 +267,10 @@ export default function AdminGroupsList() {
       broadcastMsg: ''
     });
     setNewStudentName('');
-    setModalTab(1); // ברירת מחדל לטאב תלמידים
+    setModalTab(1); 
     setIsStudentModalOpen(true);
   };
 
-  // 🟢 עריכת נתוני קבוצה (הגדרות ליבה) בענן
   const handleSaveGroupSettingsEdit = async () => {
     const parseTimeToMin = (s) => {
       const parts = s.trim().replace('.', ':').split(':').map(Number);
@@ -286,7 +306,6 @@ export default function AdminGroupsList() {
     }
   };
 
-  // 🟢 שינוי שיוך מדריך לקבוצה קיימת
   const handleSaveGroupInstructorEdit = async () => {
     try {
       await supabase
@@ -305,7 +324,6 @@ export default function AdminGroupsList() {
     }
   };
 
-  // 🟢 מחיקת קבוצה לחלוטין משרת ה-Database בענן
   const handleDeleteGroupPermanently = async () => {
     if (!window.confirm(`⚠️ אזהרה קריטית! האם למחוק לחלוטין את קבוצת "${formGroup.venue} — ${formGroup.name}"? פעולה זו תסיר את החוג מהלו"ז של האדמין והמדריכים לצמיתות ולא ניתנת לשחזור!`)) return;
 
@@ -324,7 +342,6 @@ export default function AdminGroupsList() {
     }
   };
 
-  // 🟢 שליחת הודעת פוש קבוצתית מהאדמין
   const handleSendGroupBroadcast = () => {
     if (!formGroup.broadcastMsg?.trim()) {
       triggerToast('נא להזין תוכן הודעה', true);
@@ -334,18 +351,19 @@ export default function AdminGroupsList() {
     triggerToast(`📢 ההודעה שוגרה בהצלחה לכל תלמידי החוג!`);
   };
 
+  // 🟢 עדכון פונקציית הקמת חניך בודד בלוח האדמין לעברית מלאה חסינת כפילויות
   const handleAddStudentToGroup = async () => {
     if (!newStudentName.trim()) {
       triggerToast('נא להזין שם מלא של תלמיד', true);
       return;
     }
 
-    const baseUser = toEng(newStudentName.trim()).toLowerCase();
-    const generatedUsername = `${baseUser}.${Math.floor(100 + Math.random() * 899)}`;
-
     try {
+      // הפעלת מחולל השמות העברי ובדיקת כפילויות דינמית ב-Supabase
+      const generatedUsername = await generateUniqueHebrewUsername(newStudentName);
+
       await supabase.from('users').insert([{
-        username: generatedUsername,
+        username: generatedUsername, // ➔ "הדס.ואקנין" או "הדס.ואקנין1"
         password: '12345678',
         role: 'student',
         full_name: newStudentName.trim(),
@@ -354,10 +372,11 @@ export default function AdminGroupsList() {
       }]);
 
       await fetchLiveGroupsAndRosters();
-      triggerToast(`התלמיד/ה ${newStudentName.trim()} נוצר/ה ושויך/ה בהצלחה לענן!`);
+      triggerToast(`התלמיד/ה ${newStudentName.trim()} נוצר/ה ושויך/ה בהצלחה בעברית לענן!`);
       setNewStudentName('');
     } catch (err) {
       console.error(err);
+      triggerToast('❌ תקלה ברישום החניך בענן', true);
     }
   };
 
@@ -447,7 +466,6 @@ export default function AdminGroupsList() {
 
         .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
         
-        /* ─── שדרוג מודאל המאסטר הראשי עבור הקונסולה של הקבוצה ─── */
         .modal { background: #080f1e; border: 1px solid #1a2a4a; border-radius: 16px; width: 480px; max-width: 100%; max-height: 88vh; overflow-y: auto; direction: rtl; text-align: right; padding: 20px; }
         .modal-title { font-family: 'Orbitron', monospace; font-size: 13px; letter-spacing: 1.5px; color: #00c8ff; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
         .mhead { padding: 10px 14px 12px; border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: #080f1e; z-index: 12; }
@@ -455,7 +473,6 @@ export default function AdminGroupsList() {
         .mclose { background: transparent; border: none; color: #4a6080; cursor: pointer; font-size: 18px; }
         .mbody { padding: 14px 6px; }
         
-        /* מערכת כרטיסיות הייטקיות לקונסולת הקבוצה */
         .tab-row { display: flex; margin-bottom: 16px; border-radius: 8px; overflow: hidden; border: 1px solid #1a2a4a; flex-direction: row-reverse; }
         .tab-btn { flex: 1; padding: 9px; background: transparent; border: none; color: #4a6080; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; }
         .tab-btn.active { background: #0a1428; color: #00c8ff; border-bottom: 1.5px solid #00c8ff; }
@@ -467,7 +484,6 @@ export default function AdminGroupsList() {
         .msave { flex: 1; background: linear-gradient(135deg, #0a1f3d, #0d2a50); border: 1px solid #00c8ff44; color: #00c8ff; padding: 10px; border-radius: 8px; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
         .mcancel { flex: 1; background: transparent; border: 1px solid #1a2a4a; color: #4a6080; padding: 10px; border-radius: 8px; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; }
         
-        /* לחצן מחיקה חגיגי באדום-סייבר אזהרה */
         .mdelete-warning-btn { width: 100%; background: rgba(255, 59, 48, 0.05); border: 1px dashed rgba(255, 59, 48, 0.4); color: #ff5555; padding: 10px; border-radius: 8px; font-family: 'Rajdhani', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 18px; display: flex; align-items: center; justify-content: center; gap: 6px; }
         .mdelete-warning-btn:hover { background: rgba(255, 59, 48, 0.16); border-color: #ff3b30; color: #ff3b30; box-shadow: 0 0 15px rgba(255, 59, 48, 0.25); }
 
@@ -670,7 +686,7 @@ export default function AdminGroupsList() {
         </div>
       )}
 
-      {/* MODAL 2: קונסולת מפקדת קבוצה מאוחדת (מערכת כרטיסיות מבוססת טאבים) */}
+      {/* MODAL 2: קונסולת מפקדת קבוצה מאוחדת */}
       {isStudentModalOpen && currentGroupObj && formGroup && (
         <div className="modal-bg" onClick={(e) => e.target.className === 'modal-bg' && setIsStudentModalOpen(false)}>
           <div className="modal">
@@ -679,7 +695,6 @@ export default function AdminGroupsList() {
               <div className="mclose" onClick={() => setIsStudentModalOpen(false)}><i className="ti ti-x"></i></div>
             </div>
             <div className="mbody">
-              {/* סרגל כרטיסיות הייטקי פנימי למודאל */}
               <div className="tab-row">
                 <button className={`tab-btn ${modalTab === 1 ? 'active' : ''}`} type="button" onClick={() => setModalTab(1)}>👥 חניכים</button>
                 <button className={`tab-btn ${modalTab === 2 ? 'active' : ''}`} type="button" onClick={() => setModalTab(2)}>✏️ ערוך קבוצה</button>
@@ -687,10 +702,10 @@ export default function AdminGroupsList() {
                 <button className={`tab-btn ${modalTab === 4 ? 'active' : ''}`} type="button" onClick={() => setModalTab(4)}>📢 עדכון</button>
               </div>
 
-              {/* טאב 1: ניהול והוספת תלמידים (הלוגיקה המקורית שלך) */}
+              {/* טאב 1: ניהול והוספת תלמידים */}
               {modalTab === 1 && (
                 <div>
-                  <label className="flabel" style={{ display: 'block', fontExo: 'Inter', fontSize: '11px', color: '#4a6080', marginBottom: '6px' }}>רשימת חניכים רשומים לקבוצה ({(groupStudents[selectedGroupId] || []).length})</label>
+                  <label className="flabel" style={{ display: 'block', fontSize: '11px', color: '#4a6080', marginBottom: '6px' }}>רשימת חניכים רשומים לקבוצה ({(groupStudents[selectedGroupId] || []).length})</label>
                   <div className="student-modal-list">
                     {(groupStudents[selectedGroupId] || []).length > 0 ? (groupStudents[selectedGroupId] || []).map((student, idx) => <div className="student-modal-row" key={idx}><span>{idx + 1}. {student}</span><i className="ti ti-user-check" style={{ color: '#00e676', fontSize: '12px' }}></i></div>) : <div className="no-students-placeholder">⚠️ אין עדיין תלמידים רשומים בקבוצה זו</div>}
                   </div>
@@ -705,7 +720,7 @@ export default function AdminGroupsList() {
                 </div>
               )}
 
-              {/* טאב 2: הגדרות ליבה, עריכת זמנים + לחצן מחיקה מורחב קריטי */}
+              {/* טאב 2: הגדרות ליבה */}
               {modalTab === 2 && (
                 <div>
                   <div className="mfield"><label>סוג החוג / קבוצה</label><select className="mselect" value={formGroup.name} onChange={(e) => setFormGroup({ ...formGroup, name: e.target.value })}><option value="הייטק ג׳וניור">הייטק ג׳וניור</option><option value="הייטק פרו">הייטק פרו</option><option value="הנדסה ורובוטיקה">הנדסה ורובוטיקה</option></select></div>
@@ -715,12 +730,11 @@ export default function AdminGroupsList() {
                   
                   <div className="mrow"><button className="msave" type="button" onClick={handleSaveGroupSettingsEdit}>שמור שינויים</button><button className="mcancel" type="button" onClick={() => setIsStudentModalOpen(false)}>ביטול</button></div>
                   
-                  {/* לחצן מחיקת הקבוצה לחלוטין מה-Database בענן */}
                   <button className="mdelete-warning-btn" type="button" onClick={handleDeleteGroupPermanently}><i className="ti ti-trash"></i> מחק קבוצה זו לצמיתות מהמערכת</button>
                 </div>
               )}
 
-              {/* טאב 3: ניהול שיוך מדריכים ואישורי לו"ז */}
+              {/* טאב 3: ניהול שיוך מדריכים */}
               {modalTab === 3 && (
                 <div>
                   <div className="mfield"><label>מדריך אחראי משוייך לחוג</label><select className="mselect" value={formGroup.instructor} onChange={(e) => setFormGroup({ ...formGroup, instructor: e.target.value })}><option value="">— ללא מדריך (קבוצה אדומה) —</option>{instructors.map((inst, idx) => <option key={idx} value={inst}>{inst}</option>)}</select></div>

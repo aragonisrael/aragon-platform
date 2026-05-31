@@ -147,23 +147,17 @@ export default function InstructorGroups() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  const transliterateHebrew = (text) => {
-    const map = {
-      'א':'a','ב':'b','ג':'g','ד':'d','ה':'h','ו':'v','ז':'z','ח':'ch','ט':'t','י':'i','כ':'k','ך':'k','ל':'l','מ':'m','ם':'m','נ':'n','ן':'n','ס':'s','ע':'a','פ':'p','ף':'p','צ':'tz','ץ':'tz','ק':'q','ר':'r','ש':'sh','ת':'t'
-    };
-    return text.split('').map(char => map[char] || char).join('');
-  };
-
+  // 🟢 מנוע יצירת שמות משתמש בעברית מלאה חסין כפילויות (החלפת הלוגיקה הישנה באנגלית)
   const generateUniqueUsername = (fullName, takenUsernames) => {
-    const parts = fullName.trim().replace(/\s+/g, ' ').split(' ');
-    const engParts = parts.map(p => transliterateHebrew(p).toLowerCase().replace(/[^a-z0-9]/g, ''));
-    const baseUsername = engParts.length >= 2 ? `${engParts[0]}.${engParts[engParts.length - 1]}` : engParts[0] || 'student';
+    // ניקוי רווחים מיותרים וחיבור השם הפרטי ושם המשפחה באמצעות נקודה
+    const baseUsername = fullName.trim().replace(/\s+/g, '.');
     
     let finalUsername = baseUsername;
     let counter = 1;
     
+    // בדיקה בלולאה האם שם המשתמש העברי כבר קיים במאגר הזמני או האבסולוטי בענן
     while (takenUsernames.includes(finalUsername)) {
-      finalUsername = `${baseUsername}${counter}`;
+      finalUsername = `${baseUsername}${counter}`; // הצמדת ספרת כפילות (הדס.ואקנין1, הדס.ואקנין2...)
       counter++;
     }
     
@@ -221,7 +215,7 @@ export default function InstructorGroups() {
 
     await fetchLiveGroupsAndStudents();
     setGeneratedResults(localResultsToShow);
-    triggerToast(`🎉 נוצרו ${localResultsToShow.length} תלמידים חדשים בענן!`);
+    triggerToast(`🎉 נוצרו ${localResultsToShow.length} תלמידים חדשים בעברית בענן!`);
   };
 
   const triggerToast = (msg) => {
@@ -235,7 +229,7 @@ export default function InstructorGroups() {
 
   const handleOpenModal = (student) => {
     setSelectedStudent(student); 
-    setEditNameInput(student.name); // 🟢 אתחול אינפוט עריכת השם עם ערכו הנוכחי
+    setEditNameInput(student.name); // אתחול אינפוט עריכת השם עם ערכו הנוכחי
     setActivePanel('');
     setTaskInputText('');
     setIsOpen(true);
@@ -257,7 +251,7 @@ export default function InstructorGroups() {
       const { error } = await supabase
         .from('users')
         .update({ coins: newCoinsTotal })
-        .eq('id', selectedStudent.id); // 🟢 החלפה ל-id לזיהוי אבסולוטי ומאובטח
+        .eq('id', selectedStudent.id); // החלפה ל-id לזיהוי אבסולוטי ומאובטח
 
       if (error) {
         console.error("Error awarding coins:", error.message);
@@ -274,7 +268,6 @@ export default function InstructorGroups() {
     }
   };
 
-  // 🟢 פונקציה חדשה לעדכון שם התצוגה של התלמיד בענן
   const handleUpdateStudentName = async () => {
     if (!editNameInput.trim()) { alert('נא להזין שם תקין'); return; }
     
@@ -295,7 +288,6 @@ export default function InstructorGroups() {
     }
   };
 
-  // 🟢 פונקציה חדשה למחיקת תלמיד לחלוטין מהמערכת בריאל-טיים
   const handleDeleteStudent = async () => {
     if (!window.confirm(`⚠️ אזהרה קריטית! האם למחוק לחלוטין את ${selectedStudent.name} מהחוג ומבסיס הנתונים? פעולה זו סופית ולא ניתנת לביטול!`)) return;
 
@@ -439,7 +431,6 @@ export default function InstructorGroups() {
         .modal-overlay.open .modal-sheet { transform: scale(1); }
         .modal-student-name { font-family: 'Orbitron',monospace; font-size: 14px; color: #c0a0ff; text-align: center; margin-bottom: 4px; font-weight: 900; }
         
-        /* 🟢 שדרוג לפריסת גריד 2X2 עבור ארבעת כפתורי הפעולה של התלמיד */
         .modal-actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
         
         .btn-cancel { background: transparent; border: 1px solid #2a2a48; color: #6a6a9a; padding: 10px; border-radius: 9px; font-family: 'Exo 2', sans-serif; font-size: 13px; cursor: pointer; flex: 1; text-align: center; }
@@ -467,7 +458,6 @@ export default function InstructorGroups() {
         .modal-big-btn.coins-trigger.active, .modal-big-btn.coins-trigger:hover { background: rgba(96,64,204,.15); border-color: #7050cc; color: #c0a0ff; }
         .modal-big-btn.task-trigger.active, .modal-big-btn.task-trigger:hover { background: rgba(48,128,255,.1); border-color: #3060aa; color: #90b0e8; }
         
-        /* 🟢 פקודות עיצוב חדשות עבור כפתורי העריכה והמחיקה בגריד */
         .modal-big-btn.edit-trigger.active, .modal-big-btn.edit-trigger:hover { background: rgba(24,192,160,.1); border-color: #18c0a0; color: #18c0a0; }
         .modal-big-btn.delete-trigger { border-color: rgba(255,85,85,0.25); color: #ff5555; }
         .modal-big-btn.delete-trigger:hover { background: rgba(255,59,48,0.15); border-color: #ff3b30; color: #ff3b30; box-shadow: 0 0 10px rgba(255,59,48,0.2); }
@@ -601,7 +591,7 @@ export default function InstructorGroups() {
           </div>
         </div>
 
-        {/* MODAL 2: חלונית פעולות תלמיד בודד (גריד 2X2 משודרג) */}
+        {/* MODAL 2: חלונית פעולות תלמיד בודד */}
         <div className={`modal-overlay ${isModalOpen ? 'open' : ''}`} onClick={(e) => e.target.className === 'modal-overlay open' && handleCloseModal()}>
           <div className="modal-sheet">
             <div className="modal-student-name">{selectedStudent?.name}</div>
@@ -609,7 +599,6 @@ export default function InstructorGroups() {
               u: {selectedStudent?.username} | p: {selectedStudent?.password || '12345678'}
             </div>
             
-            {/* 🟢 שדרוג לגריד 2X2 מרווח וסימטרי הכולל עריכה ומחיקה */}
             <div className="modal-actions-grid">
               <button className={`modal-big-btn coins-trigger ${activePanel === 'coins' ? 'active' : ''}`} type="button" onClick={() => handleTogglePanel('coins')}>
                 <i className="ti ti-coin"></i>מענק מטבעות
@@ -641,10 +630,10 @@ export default function InstructorGroups() {
               <input className="task-send-btn" type="button" onClick={handleSendTask} value="שלח משימה" />
             </div>
 
-            {/* 🟢 פאנל חדש: טופס עריכת שם תצוגה בלבד ללא נגיעה ביוזרניים */}
+            {/* פאנל חדש: טופס עריכת שם תצוגה */}
             <div className={`edit-panel ${activePanel === 'edit' ? 'open' : ''}`}>
               <div style={{ fontSize: '11px', color: '#18c0a0', marginBottom: '6px', textAlign: 'right' }}>עדכן שם תצוגה מלא:</div>
-              <input className="minput" type="text" value={editNameInput} onChange={(e) => setEditNameInput(e.target.value)} style={{ background: '#0a0a18', borderColor: '#2a2a42', color: '#fff', textAlign: 'right' }} />
+              <input className="task-input" type="text" value={editNameInput} onChange={(e) => setEditNameInput(e.target.value)} style={{ borderColor: '#18c0a0' }} />
               <button className="task-send-btn" style={{ background: 'linear-gradient(135deg, rgba(24,192,160,0.2), rgba(24,192,160,0.05))', borderColor: '#18c0a0', color: '#18c0a0', marginTop: '10px' }} type="button" onClick={handleUpdateStudentName}>שמור שינויים ענן ✓</button>
             </div>
           </div>
