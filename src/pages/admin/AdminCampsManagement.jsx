@@ -212,34 +212,50 @@ export default function AdminCampsManagement() {
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         
         *{ box-sizing: border-box; margin: 0; padding: 0; }
-        .hq-global-wrapper { width: 100%; height: 100vh; background: #040b18; display: flex; font-family: 'Heebo', sans-serif; color: rgba(220,235,255,0.92); direction: rtl; overflow: hidden; }
+        .hq-global-wrapper { width: 100%; min-height: 100vh; background: #050812; display: flex; font-family: 'Heebo', sans-serif; color: #e0f0ff; direction: rtl; }
         
-        /* SIDEBAR */
-        .sidebar { width: 78px; background: #070f1e; border-left: 1px solid rgba(0,212,255,0.1); display: flex; flex-direction: column; align-items: center; padding: 18px 0 14px; gap: 4px; flex-shrink: 0; z-index: 10; }
-        .sb-logo { width: 38px; height: 38px; margin-bottom: 18px; cursor: pointer; }
-        .sb-logo img { width: 100%; height: 100%; object-fit: contain; }
+        /* 💻 סיידבר אדמין מאוחד (Aragon Center Style) */
+        .sidebar { width: 72px; background: #080f1e; border-left: 1px solid #1a2a4a; display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 8px; position: sticky; top: 0; height: 100vh; z-index: 10; flex-shrink: 0; }
+        .sidebar-logo { width: 42px; height: 42px; border-radius: 50%; border: 2px solid #00c8ff; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; position: relative; }
+        .sidebar-logo::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; border: 1px solid #7b2fbe; border-top-color: transparent; border-bottom-color: transparent; animation: hqSpin 4s linear infinite; }
+        .sidebar-logo-inner { width: 28px; height: 28px; background: linear-gradient(135deg, #1a6fff, #00c8ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Orbitron', monospace; font-size: 10px; font-weight: 700; color: white; }
         
-        .nb { width: 58px; height: 58px; border-radius: 12px; border: 1px solid transparent; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; transition: all 0.18s; color: rgba(160,185,215,0.5); font-size: 9.5px; font-weight: 500; }
-        .nb:hover { background: #111f35; color: #00d4ff; border-color: rgba(0,212,255,0.1); }
-        .nb.on { background: rgba(0,212,255,0.12); border-color: rgba(0,212,255,0.25); color: #00d4ff; }
-        .nb i { font-size: 20px; }
-        .nb-sep { width: 32px; height: 1px; background: rgba(0,212,255,0.1); margin: 4px 0; }
+        .nav-btn { width: 48px; height: 48px; border-radius: 10px; border: none; background: transparent; color: #4a6080; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; transition: all 0.2s; font-size: 10px; position: relative; }
+        .nav-btn i, .nav-btn svg { font-size: 20px; color: #4a6080; }
+        .nav-btn:hover { background: #0d1a30; color: #00c8ff; }
+        .nav-btn:hover i, .nav-btn:hover svg { color: #00c8ff; }
+        .nav-btn.active { background: linear-gradient(135deg, #0a1f3d, #0d2a50); color: #00c8ff; border: 1px solid #1a4a80; }
+        .nav-btn.active i, .nav-btn.active svg { color: #00c8ff; }
+        .nav-btn.active::before { content: ''; position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 20px; background: #00c8ff; border-radius: 2px 0 0 2px; }
+        .nav-label { font-size: 9px; font-family: 'Heebo', sans-serif; font-weight: 600; }
 
-        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; height: 100vh; max-height: 100vh; }
-        .topbar { height: 52px; background: #070f1e; border-bottom: 1px solid rgba(0,212,255,0.1); display: flex; align-items: center; justify-content: space-between; padding: 0 26px; flex-shrink: 0; }
-        .topbar-title { font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; color: #00d4ff; letter-spacing: 3px; text-transform: uppercase; }
-        .topbar-r { display: flex; align-items: center; gap: 18px; }
-        .live { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #00e5a0; letter-spacing: 1.5px; }
-        .ld { width: 7px; height: 7px; border-radius: 50%; background: #00e5a0; animation: lp 2s infinite; }
-        @keyframes lp { 0%,100% { box-shadow: 0 0 0 0 rgba(0,229,160,0.5); } 60% { box-shadow: 0 0 0 5px rgba(0,229,160,0); } }
-        .clk { font-family: 'Orbitron', monospace; font-size: 13px; color: #00d4ff; letter-spacing: 2px; font-weight: 600; }
+        /* 💻 מבנה קולונה מרכזית אדמין */
+        .main-col { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-width: 0; }
+        
+        /* 💻 טופבר אדמין מאוחד (Aragon Center Style) */
+        .top-bar { height: 64px; background: linear-gradient(90deg, #050812 0%, #080f22 30%, #0a0820 50%, #080f22 70%, #050812 100%); border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 20; flex-shrink: 0; }
+        .top-bar-brand { display: flex; align-items: center; gap: 14px; }
+        .brand-title { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: #00c8ff; }
+        .brand-sub { font-size: 10px; color: #4a6080; letter-spacing: 1px; margin-top: 1px; font-family: 'Heebo', sans-serif; }
+        
+        .top-bar-right { display: flex; align-items: center; gap: 12px; }
+        .status-pill { display: flex; align-items: center; gap: 6px; background: #040c18; border: 1px solid #0a2040; border-radius: 20px; padding: 5px 12px; font-size: 12px; color: #4a9060; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #00e676; animation: hqPulse 2s ease-in-out infinite; }
+        .top-bar-neon { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #00c8ff44, #7b2fbe66, #00c8ff44, transparent); }
 
-        .content { flex: 1; overflow: hidden; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; height: calc(100% - 52px); min-height: 0; }
+        .ring-wrap { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; z-index: 4; }
+        .ro { position: absolute; inset: 0; border-radius: 50%; border: 1.5px dashed rgba(0, 200, 255, 0.2); animation: hqSpin 14s linear infinite; }
+        .rm { position: absolute; inset: 4px; border-radius: 50%; border: 1px solid transparent; border-top-color: #6040ff; border-right-color: #00c8ff; animation: hqSpin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,0.3); }
+        .rm2 { position: absolute; inset: 8px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #00c8ff; animation: hqSpin 7s linear infinite reverse; box-shadow: inset 0 0 8px rgba(0,200,255,0.2); }
+        .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
+        .limg { width: 28px; height: 28px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 1px; box-shadow: 0 0 8px rgba(0,200,255,0.4); }
+
+        .content { flex: 1; overflow: hidden; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; height: calc(100% - 64px); min-height: 0; }
         
         /* TOOLBAR ACTION BUTTONS */
-        .camps-toolbar { display: flex; align-items: center; justify-content: space-between; background: #070e1c; padding: 12px 18px; border-radius: 12px; border: 1px solid rgba(0,212,255,0.1); flex-shrink: 0; }
+        .camps-toolbar { display: flex; align-items: center; justify-content: space-between; background: #070e1c; padding: 12px 18px; border-radius: 12px; border: 1px solid #1a2a4a; flex-shrink: 0; }
         .camps-toolbar-btn-group { display: flex; align-items: center; gap: 10px; }
-        .ct-btn { padding: 7px 16px; border-radius: 7px; border: 1px solid; font-family: 'Heebo', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.18s; }
+        .ct-btn { padding: 7px 16px; border-radius: 7px; border: 1px solid; font-family: 'Heebo', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.18s; }
         .btn-build-board { background: rgba(0, 212, 255, 0.08); border-color: rgba(0, 212, 255, 0.35); color: #00d4ff; }
         .btn-build-board:hover { background: rgba(0, 212, 255, 0.18); box-shadow: 0 0 12px rgba(0, 212, 255, 0.2); }
         .btn-add-camp { background: rgba(0, 229, 160, 0.06); border-color: rgba(0, 229, 160, 0.35); color: #00e5a0; }
@@ -248,31 +264,28 @@ export default function AdminCampsManagement() {
         .btn-reset-board:hover { background: rgba(255, 69, 96, 0.15); }
 
         /* WIDESCREEN TIMELINE TIMETABLE GRID */
-        .timeline-panel { background: #0c1729; border: 1px solid rgba(0,212,255,0.1); border-radius: 14px; overflow: hidden; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+        .timeline-panel { background: #070e1c; border: 1px solid #1a2a4a; border-radius: 14px; overflow: hidden; flex: 1; display: flex; flex-direction: column; min-height: 0; }
         .timeline-scroll-box { flex: 1; overflow-x: auto; overflow-y: auto; width: 100%; padding-bottom: 30px; }
         
-        /* המבנה השבועי המתרחב אופקית */
         .timeline-matrix-grid { display: grid; position: relative; min-width: max-content; }
-        .tm-header-row { display: flex; background: #070f1e; border-bottom: 1.5px solid rgba(0,212,255,0.2); position: sticky; top: 0; z-index: 8; }
-        .tm-track-header-cell { width: 120px; padding: 12px; font-size: 13px; font-weight: 800; color: #00d4ff; text-align: center; background: #070f1e; border-left: 1px solid rgba(0,212,255,0.15); position: sticky; right: 0; z-index: 9; }
-        .tm-week-header-cell { width: 260px; padding: 10px; text-align: center; border-left: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; gap: 2px; }
-        .tm-week-title { font-size: 13.5px; font-weight: 900; color: #ffffff; text-shadow: 0 0 6px rgba(255,255,255,0.2); }
+        .tm-header-row { display: flex; background: #080f1e; border-bottom: 1.5px solid #1a2a4a; position: sticky; top: 0; z-index: 8; }
+        .tm-track-header-cell { width: 120px; padding: 14px; font-size: 13.5px; font-weight: 800; color: #00c8ff; text-align: center; background: #080f1e; border-left: 1px solid #1a2a4a; position: sticky; right: 0; z-index: 9; }
+        .tm-week-header-cell { width: 260px; padding: 10px; text-align: center; border-left: 1px solid rgba(255,255,255,0.04); display: flex; flex-direction: column; gap: 2px; }
+        .tm-week-title { font-size: 13.5px; font-weight: 800; color: #ffffff; text-shadow: 0 0 6px rgba(255,255,255,0.2); }
         .tm-week-dates { font-size: 10.5px; color: rgba(160,185,215,0.5); font-family: 'Orbitron', monospace; font-weight: 600; }
 
-        /* שורות המסלולים */
-        .tm-track-row { display: flex; border-bottom: 1px solid rgba(255,255,255,0.04); min-height: 160px; }
-        .tm-track-lane-cell { width: 120px; background: #070f1e; border-left: 1px solid rgba(0,212,255,0.15); font-size: 13px; font-weight: 700; color: #ffffff; display: flex; align-items: center; justify-content: center; position: sticky; right: 0; z-index: 5; }
-        .tm-track-week-dropzone { width: 260px; padding: 10px; border-left: 1px solid rgba(255,255,255,0.03); background: rgba(255,255,255,0.005); display: flex; flex-direction: column; gap: 8px; justify-content: center; position: relative; }
-        .tm-track-week-dropzone:hover { background: rgba(0,212,255,0.01); }
+        .tm-track-row { display: flex; border-bottom: 1px solid rgba(255,255,255,0.03); min-height: 160px; }
+        .tm-track-lane-cell { width: 120px; background: #080f1e; border-left: 1px solid #1a2a4a; font-size: 13.5px; font-weight: 700; color: #ffffff; display: flex; align-items: center; justify-content: center; position: sticky; right: 0; z-index: 5; }
+        .tm-track-week-dropzone { width: 260px; padding: 10px; border-left: 1px solid rgba(255,255,255,0.02); background: rgba(255,255,255,0.003); display: flex; flex-direction: column; gap: 8px; justify-content: center; position: relative; }
+        .tm-track-week-dropzone:hover { background: rgba(0,200,255,0.01); }
 
-        /* 👑 בלוק קייטנה משובץ המציג את כל המתחמים וכח האדם בצורה לבנה וברורה */
-        .camp-block { background: linear-gradient(135deg, #111f35 0%, #0d1625 100%); border: 1px solid rgba(0,212,255,0.25); border-top: 3px solid #00d4ff; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 100%; transition: all 0.2s; }
-        .camp-block:hover { border-color: #00d4ff; transform: scale(1.02); box-shadow: 0 6px 20px rgba(0,212,255,0.15); }
+        /* CAMP BLOCK */
+        .camp-block { background: linear-gradient(135deg, #111f35 0%, #0d1625 100%); border: 1px solid rgba(0,200,255,0.25); border-top: 3px solid #00c8ff; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); width: 100%; transition: all 0.2s; }
+        .camp-block:hover { border-color: #00c8ff; transform: scale(1.02); box-shadow: 0 6px 20px rgba(0,200,255,0.15); }
         .camp-block-title { font-size: 14px; font-weight: 800; color: #ffffff; text-align: right; }
-        .camp-block-meta-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: rgba(180,200,230,0.8); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 5px; }
+        .camp-block-meta-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: rgba(180,200,230,0.8); border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 5px; }
         .camp-block-manager { font-weight: 700; color: #f5c842; }
         
-        /* מתחמי חומרה פנימיים לחוג בקייטנה */
         .camp-block-compounds-list { display: flex; flex-direction: column; gap: 5px; }
         .camp-block-room-tile { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 5px; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; }
         .camp-block-room-type { font-size: 11.5px; font-weight: 700; color: #00e5a0; display: flex; align-items: center; gap: 4px; }
@@ -280,42 +293,41 @@ export default function AdminCampsManagement() {
         .camp-block-staff-leader { display: flex; align-items: center; gap: 4px; opacity: 0.95; }
         .camp-block-staff-temp { display: flex; align-items: center; gap: 4px; color: #cbd5e1; opacity: 0.85; }
 
-        /* EMPTY PANEL PLACEHOLDER */
         .board-empty-placeholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: rgba(160,185,215,0.4); text-align: center; }
-        .board-empty-icon { font-size: 56px; color: rgba(0,212,255,0.15); animation: hqPulse 3s infinite; }
+        .board-empty-icon { font-size: 56px; color: rgba(0,200,255,0.1); }
 
         /* MODALS */
-        .modal-ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+        .modal-ov { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
         .modal-ov.open { display: flex; }
-        .modal-box { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 540px; max-width: 96vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 0 50px rgba(0,212,255,0.15); direction: rtl; position: relative; overflow-x: hidden; text-align: right; }
-        .modal-box::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent); }
+        .modal-box { background: #080f1e; border: 1px solid #1a2a4a; border-radius: 14px; padding: 26px; width: 540px; max-width: 96vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 0 50px rgba(0,200,255,0.12); direction: rtl; position: relative; text-align: right; }
+        .modal-box::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,200,255,0.4), transparent); }
         
-        .modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid rgba(0,212,255,0.12); }
+        .modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #1a2a4a; }
         .modal-title-text { font-family: 'Heebo', sans-serif; font-size: 15.5px; font-weight: 800; color: #ffffff; }
         .modal-subtitle-text { font-size: 12px; color: rgba(160,185,215,0.5); margin-top: 3px; }
-        .modal-close { position: absolute; left: 16px; top: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: rgba(160,185,215,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .modal-close { position: absolute; left: 16px; top: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: rgba(160,185,215,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .modal-close:hover { background: rgba(255,69,96,0.12); color: #ff4560; }
         
         .mfr { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
-        .mfl { font-size: 11.5px; color: rgba(0,212,255,0.55); font-weight: 700; text-transform: uppercase; }
-        .mfi, .mfs { width: 100%; background: #111f35; border: 1px solid rgba(0,212,255,0.25); border-radius: 7px; color: #ffffff; padding: 10px 13px; font-family: 'Heebo', sans-serif; font-size: 14px; direction: rtl; outline: none; }
-        .mfi:focus, .mfs:focus { border-color: #00d4ff; box-shadow: 0 0 8px rgba(0,212,255,0.15); }
+        .mfl { font-size: 11.5px; color: rgba(0,200,255,0.55); font-weight: 700; text-transform: uppercase; }
+        .mfi, .mfs { width: 100%; background: #060b18; border: 1px solid #1a2a4a; border-radius: 7px; color: #ffffff; padding: 10px 13px; font-family: 'Heebo', sans-serif; font-size: 14px; direction: rtl; outline: none; }
+        .mfi:focus, .mfs:focus { border-color: #00c8ff; box-shadow: 0 0 8px rgba(0,200,255,0.15); }
         
-        /* חלוקת חדרים אוטומטית לפי כמות הילדים */
-        .compounds-dynamic-container { background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.04); border-radius: 10px; padding: 12px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
-        .compound-form-block { background: #111f35; border: 1px solid rgba(0,212,255,0.15); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
-        .compound-form-title { font-size: 12.5px; font-weight: 800; color: #00e5a0; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 4px; }
+        .compounds-dynamic-container { background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 10px; padding: 12px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
+        .compound-form-block { background: #060b18; border: 1px solid #1a2a4a; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+        .compound-form-title { font-size: 12.5px; font-weight: 800; color: #00e5a0; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 4px; }
 
-        .update-btn { width: 100%; padding: 12px; background: rgba(0,212,255,0.12); border: 1px solid #00d4ff; border-radius: 8px; color: #00d4ff; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; outline: none; }
-        .update-btn:hover { background: rgba(0,212,255,0.22); box-shadow: 0 0 18px rgba(0,212,255,0.2); }
-        .mbtn-cancel { padding: 12px 18px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 8px; color: rgba(160,185,215,0.5); font-family: 'Heebo', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; }
+        .update-btn { width: 100%; padding: 12px; background: rgba(0,200,255,0.1); border: 1px solid #00c8ff; border-radius: 8px; color: #00c8ff; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; outline: none; }
+        .update-btn:hover { background: rgba(0,200,255,0.18); box-shadow: 0 0 18px rgba(0,200,255,0.2); }
+        .mbtn-cancel { padding: 12px 18px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: rgba(160,185,215,0.5); font-family: 'Heebo', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; }
         .mf2 { display: flex; gap: 10px; margin-top: 20px; }
 
         .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111f35; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 22px rgba(0,229,160,0.18); transition: transform 0.28s; z-index: 300; text-align: center; pointer-events: none; }
         .toast.show { transform: translateX(-50%) translateY(0); }
         
-        .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #162540; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; user-select: none; }
-        .player-toggle-btn { color: #00d4ff; font-size: 14px; display: flex; align-items: center; }
-        .player-toggle-btn.playing { color: #00e5a0; }
+        .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #1a3a6a; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; user-select: none; transition: all 0.2s; }
+        .cyber-music-player:hover { border-color: #00c8ff; }
+        .player-toggle-btn { color: #00c8ff; font-size: 14px; display: flex; align-items: center; }
         .player-station-text { font-size: 11px; font-family: 'Orbitron', monospace; color: rgba(160,185,215,0.5); letter-spacing: 1px; font-weight: bold; }
         .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
         .visualizer-bar { width: 2px; height: 3px; background: #00e5a0; }
@@ -325,41 +337,54 @@ export default function AdminCampsManagement() {
         @keyframes wavePulse { 0% { height: 3px; } 100% { height: 10px; } }
       `}</style>
 
-      {/* SIDEBAR NAVIGATION — קבוע ומעודכן לחלוטין עם לחצן קייטנות חדש */}
+      {/* 💻 סיידבר אדמין רשמי ומסונכרן (Aragon Center Hub Framework) */}
       <div className="sidebar">
-        <div className="sb-logo" onClick={() => navigate('/admin')}>
-          <img src={aragonLogo} alt="Aragon Platform Logo" />
-        </div>
-        <button className="nb" onClick={() => navigate('/admin/logistics')} title="בית"><i className="ti ti-home"></i>בית</button>
-        <button className="nb" onClick={() => navigate('/admin/logistics/updates')} title="עדכונים"><i className="ti ti-bell"></i>עדכונים</button>
-        <button className="nb" onClick={() => navigate('/admin/logistics/tasks')} title="משימות"><i className="ti ti-list-check"></i>Missions</button>
-        <div className="nb-sep"></div>
-        <button className="nb" onClick={() => navigate('/admin/logistics/classes')} title="חוגים"><i className="ti ti-device-laptop"></i>חוגים</button>
-        {/* 🟢 לחצן קייטנות האקטיבי והחדש של דרגי האדמין */}
-        <button className="nb on" title="קייטנות"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 17 22 12"/></svg>קייטנות</button>
-        <div className="nb-sep"></div>
-        <button className="nb" onClick={() => navigate('/admin/logistics/purchase')} title="רכש"><i className="ti ti-shopping-cart"></i>רכש</button>
+        <div className="sidebar-logo"><div className="sidebar-logo-inner">A</div></div>
+        <button className="nav-btn" type="button" onClick={() => navigate('/admin')}><i className="ti ti-layout-dashboard"></i><span className="nav-label">בית</span></button>
+        <button className="nav-btn" type="button" onClick={() => navigate('/admin/shop')}><i className="ti ti-shopping-bag"></i><span className="nav-label">חנות</span></button>
+        <button className="nav-btn" type="button" onClick={() => navigate('/admin/missions')}><i className="ti ti-sword"></i><span className="nav-label">משימות</span></button>
+        <button className="nav-btn" type="button" onClick={() => navigate('/admin/control')}><i className="ti ti-calendar"></i><span className="nav-label">לו"ז</span></button>
+        <button className="nav-btn" type="button" onClick={() => navigate('/admin/groups')}><i className="ti ti-table"></i><span className="nav-label">קבוצות</span></button>
+        <button className="nav-btn" type="button" onClick={() => navigate('/admin/team')}><i className="ti ti-users"></i><span className="nav-label">צוות</span></button>
+        <button className="nav-btn active" type="button">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+            <polyline points="2 17 12 22 22 17"/>
+            <polyline points="2 12 17 22 12"/>
+          </svg>
+          <span className="nav-label">קייטנות</span>
+        </button>
       </div>
 
-      <div className="main">
-        {/* TOPBAR */}
-        <div className="topbar">
-          <div className="topbar-title">ARAGON · CAMPS COMMAND HQ</div>
-          <div className="topbar-r">
+      <div className="main-col">
+        {/* 💻 טופבר אדמין מאוחד */}
+        <div className="top-bar">
+          <div className="top-bar-brand">
+            <div className="ring-wrap">
+              <div className="ro"></div><div className="rm"></div><div className="rm2"></div><div className="ric"></div>
+              <img className="limg" src={aragonLogo} alt="Aragon" />
+            </div>
+            <div>
+              <div className="brand-title">ARAGON CENTER</div>
+              <div className="brand-sub">MASTER CAMPS STAFF HUB</div>
+            </div>
+          </div>
+          <div className="top-bar-right">
             <div className={`cyber-music-player ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
-              <div className="player-toggle-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i ></div>
+              <div className="player-toggle-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i></div>
               <div className="player-station-text">HQ RADIO</div>
               <div className="audio-visualizer-wave"><div className="visualizer-bar"></div><div className="visualizer-bar"></div><div className="visualizer-bar"></div></div>
             </div>
-            <div className="live"><div className="ld"></div>LIVE MATRIX</div>
-            <div className="clk">{clk}</div>
+            <div className="status-pill"><div className="status-dot"></div>מערכת פעילה</div>
+            <div style={{ fontSize: '11px', color: '#4a6080', fontFamily: 'Orbitron', letterSpacing: '1px' }}>17.05.26</div>
           </div>
+          <div className="top-bar-neon"></div>
         </div>
 
         {/* WORKSPACE CONTENT ZONE */}
         <div className="content">
           
-          {/* סרגל לחצנים עליון מובנה */}
+          {/* סרגל לחצנים עליון */}
           <div className="camps-toolbar">
             <div className="camps-toolbar-btn-group">
               <button className="ct-btn btn-build-board" onClick={() => setIsSetupModalOpen(true)}>
@@ -370,7 +395,7 @@ export default function AdminCampsManagement() {
                   <button className="ct-btn btn-add-camp" onClick={handleOpenAddCampModal}>
                     <i className="ti ti-circle-plus"></i>הוסף קייטנה
                   </button>
-                  <button className="ct-btn btn-build-board" style={{ background: 'rgba(139, 92, 246, 0.08)', borderColor: 'rgba(139, 92, 246, 0.35)', color: '#a78bfa' }} onClick={handleAddNewTrackLane}>
+                  <button className="ct-btn btn-build-board" style={{ background: 'rgba(0, 200, 255, 0.05)', borderColor: 'rgba(0, 200, 255, 0.3)', color: '#00c8ff' }} onClick={handleAddNewTrackLane}>
                     <i className="ti ti-git-fork"></i>הוסף מסלול נוסף
                   </button>
                 </>
@@ -406,7 +431,6 @@ export default function AdminCampsManagement() {
                       <div className="tm-track-lane-cell">{track.label}</div>
                       
                       {boardWeeks.map(week => {
-                        // סינון הקייטנות ששייכות למסלול הנוכחי ונופלות בשבוע המחזור הזה
                         const activeCampsInCell = camps.filter(c => c.trackId === track.id && isCampInWeek(c, week));
                         
                         return (
@@ -422,7 +446,7 @@ export default function AdminCampsManagement() {
                                   🕒 נטו: {camp.netHours}
                                 </div>
                                 
-                                {/* רשימת מתחמי החומרה וכח האדם המשובץ בהם בלגו לבן וברור */}
+                                {/* רשימת מתחמי החומרה וכח האדם המשובץ */}
                                 <div className="camp-block-compounds-list">
                                   {camp.compounds.map((comp, idx) => (
                                     <div key={idx} className="camp-block-room-tile">
@@ -465,7 +489,7 @@ export default function AdminCampsManagement() {
           <div className="modal-box">
             <button className="modal-close" onClick={() => setIsSetupModalOpen(false)}>×</button>
             <div className="modal-head">
-              <div className="av av-temp" style={{ background: 'rgba(0, 212, 255, 0.15)', color: '#00d4ff' }}><i className="ti ti-calendar-plus" style={{ fontSize: '20px' }}></i></div>
+              <div className="av av-temp" style={{ background: 'rgba(0, 200, 255, 0.1)', color: '#00c8ff' }}><i className="ti ti-calendar-plus" style={{ fontSize: '20px' }}></i></div>
               <div>
                 <div className="modal-title-text">הקמת לוח מסלולי קייטנות ומחזורים</div>
                 <div className="modal-subtitle-text">הגדרת טווחי זמן וזרימת תורים לחופשות הקיץ</div>
@@ -493,7 +517,7 @@ export default function AdminCampsManagement() {
         </div>
       )}
 
-      {/* מודאל 2: חלונית "הוסף קייטנה" משוכללת עם מנוע חדרים אוטומטי */}
+      {/* מודאל 2: חלונית "הוסף קייטנה" משוכללת */}
       {isAddCampModalOpen && (
         <div className="modal-ov open" onClick={(e) => e.target.className === 'modal-ov open' && setIsAddCampModalOpen(false)}>
           <div className="modal-box" style={{ width: '560px' }}>
@@ -534,8 +558,8 @@ export default function AdminCampsManagement() {
                 </div>
               </div>
 
-              {/* 🟢 רכיב אוטומציה: רנדור דינמי של מתחמי כח האדם המשובץ לפי כמויות הילדים */}
-              <div style={{ fontSize: '11.5px', color: '#00d4ff', fontWeight: '700', marginBottom: '6px' }}>
+              {/* רכיב אוטומציה: רנדור דינמי של חדרים לפי כמות ילדים */}
+              <div style={{ fontSize: '11.5px', color: '#00c8ff', fontWeight: '700', marginBottom: '6px' }}>
                 🛠️ פריסת מתחמים וכח אדם מבוססת אלגוריתם קיבולת ({campCompounds.length} חדרים נדרשים)
               </div>
               <div className="compounds-dynamic-container">
@@ -568,7 +592,7 @@ export default function AdminCampsManagement() {
 
               <div className="mf2">
                 <button type="button" className="mbtn-cancel" onClick={() => setIsAddCampModalOpen(false)}>ביטול</button>
-                <button className="update-btn" type="submit" style={{ background: 'rgba(0, 229, 160, 0.12)', borderColor: '#00e5a0', color: '#00e5a0' }}>
+                <button className="update-btn" type="submit" style={{ background: 'rgba(0, 200, 255, 0.1)', borderColor: '#00c8ff', color: '#00c8ff' }}>
                   <i className="ti ti-calendar-check"></i>נעילת שיבוץ ושילוח ללו"ז
                 </button>
               </div>
