@@ -301,7 +301,7 @@ export default function AdminControlSchedule() {
   const handleSaveBulkStudents = async () => {
     if (!studentTargetGroupId) { triggerToast('נא לבחור קבוצת יעד משוייכת', true); return; }
     const filteredNames = studentRows.filter(n => n.trim());
-    if (!filteredNames.length) { triggerToast('נא להזין לפחות שם תלמיד אחד', true); return; }
+    if (!filteredNames.length) { triggerToast('נא להזין অন্তত שם תלמיד אחד', true); return; }
 
     try {
       const newStudentsBatch = filteredNames.map(name => {
@@ -347,12 +347,14 @@ export default function AdminControlSchedule() {
           borderBottom: `${borderIsFullHour ? '1.5px' : '1px'} solid ${borderIsFullHour ? '#1e3250' : '#0d1a2c'}`, 
           display: 'flex', 
           alignItems: 'flex-start', 
-          // 🟢 התיקון הקריטי כאן: המרת justify-content לפורמט camelCase תקין עבור React inline style
           justifyContent: 'center', 
           paddingTop: '3px', 
           fontFamily: 'Orbitron, monospace', 
-          fontSize: '9px', 
-          color: textIsFullHour ? '#2a4a6a' : 'transparent' 
+          // 🟢 תיקון ראות שעות: הגדלת גופן, הדגשה קשיחה והחלפת הצבע ללבן בוהק עם צל ניאון קל
+          fontSize: '11px', 
+          fontWeight: '700',
+          color: textIsFullHour ? '#ffffff' : 'transparent',
+          textShadow: textIsFullHour ? '0 0 6px rgba(255, 255, 255, 0.4)' : 'none'
         }}
       >
         {textIsFullHour ? minToStr(m + START_HOUR * 60) : ''}
@@ -363,10 +365,10 @@ export default function AdminControlSchedule() {
   return (
     <div className="hq-global-wrapper">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Heebo:wght@300;400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
 
-        .hq-global-wrapper { width: 100%; min-height: 100vh; background: #050812; display: flex; font-family: 'Rajdhani', sans-serif; color: #e0f0ff; direction: rtl; }
+        .hq-global-wrapper { width: 100%; min-height: 100vh; background: #050812; display: flex; font-family: 'Heebo', sans-serif; color: #e0f0ff; direction: rtl; overflow: hidden; }
         .sidebar { width: 72px; background: #080f1e; border-left: 1px solid #1a2a4a; display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 8px; position: sticky; top: 0; height: 100vh; z-index: 10; flex-shrink: 0; }
         .sidebar-logo { width: 42px; height: 42px; border-radius: 50%; border: 2px solid #00c8ff; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; position: relative; }
         .sidebar-logo::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; border: 1px solid #7b2fbe; border-top-color: transparent; border-bottom-color: transparent; animation: hqSpin 4s linear infinite; }
@@ -377,7 +379,7 @@ export default function AdminControlSchedule() {
         .nav-btn:hover { background: #0d1a30; color: #00c8ff; }
         .nav-btn.active { background: linear-gradient(135deg, #0a1f3d, #0d2a50); color: #00c8ff; border: 1px solid #1a4a80; }
         .nav-btn.active::before { content: ''; position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 20px; background: #00c8ff; border-radius: 2px 0 0 2px; }
-        .nav-label { font-size: 9px; font-family: 'Rajdhani', sans-serif; }
+        .nav-label { font-size: 9px; font-family: 'Heebo', sans-serif; font-weight: 600; }
         
         .main-col { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
         
@@ -387,12 +389,12 @@ export default function AdminControlSchedule() {
         .ring-wrap { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; z-index: 4; }
         .ro { position: absolute; inset: 0; border-radius: 50%; border: 1.5px dashed rgba(0, 200, 255, 0.2); animation: hqSpin 14s linear infinite; }
         .rm { position: absolute; inset: 4px; border-radius: 50%; border: 1px solid transparent; border-top-color: #6040ff; border-right-color: #00c8ff; animation: hqSpin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,.4); }
-        .rm2 { position: absolute; inset: 14px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #4060ff; animation: hqSpin 7s linear infinite reverse; box-shadow: inset 0 0 10px rgba(64,128,255,.3); }
+        .rm2 { position: absolute; inset: 8px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #4060ff; animation: hqSpin 7s linear infinite reverse; box-shadow: inset 0 0 10px rgba(64,128,255,.3); }
         .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
         .limg { width: 28px; height: 28px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 1px; box-shadow: 0 0 8px rgba(0,200,255,0.4); }
         
         .brand-title { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: #00c8ff; }
-        .brand-sub { font-size: 10px; color: #4a6080; letter-spacing: 1px; margin-top: 1px; font-family: 'Rajdhani', sans-serif; }
+        .brand-sub { font-size: 10px; color: #4a6080; letter-spacing: 1px; margin-top: 1px; font-family: 'Heebo', sans-serif; }
         
         .top-bar-right { display: flex; align-items: center; gap: 12px; }
         .status-pill { display: flex; align-items: center; gap: 6px; background: #040c18; border: 1px solid #0a2040; border-radius: 20px; padding: 5px 12px; font-size: 12px; color: #4a9060; }
@@ -408,10 +410,10 @@ export default function AdminControlSchedule() {
 
         .content { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; overflow: hidden; }
         .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
-        .tb-btn { display: flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 8px; border: 1px solid #1a2a4a; background: transparent; color: #4a6080; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+        .tb-btn { display: flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 8px; border: 1px solid #1a2a4a; background: transparent; color: #4a6080; font-family: 'Heebo', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
         .tb-btn:hover { border-color: #00c8ff33; color: #00c8ff; background: #070e1c; }
         .tb-btn.active { background: linear-gradient(135deg, #061828, #0a2040); border-color: #00c8ff55; color: #00c8ff; }
-        .tb-select { background: #060b18; border: 1px solid #1a2a4a; border-radius: 8px; padding: 7px 10px; color: #c0d8f0; font-family: 'Rajdhani', sans-serif; font-size: 12px; outline: none; cursor: pointer; }
+        .tb-select { background: #060b18; border: 1px solid #1a2a4a; border-radius: 8px; padding: 7px 10px; color: #c0d8f0; font-family: 'Heebo', sans-serif; font-size: 12px; outline: none; cursor: pointer; }
         .legend { display: flex; align-items: center; gap: 12px; margin-right: auto; }
         .legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #4a6080; }
         .leg-dot { width: 7px; height: 7px; border-radius: 50%; }
@@ -422,8 +424,11 @@ export default function AdminControlSchedule() {
         .grid-outer { flex: 1; overflow: auto; border-radius: 12px; border: 1px solid #1a2a4a; background: #060b18; position: relative; }
         
         .sched-wrap { display: grid; grid-template-columns: 56px repeat(5, 1fr); min-width: 720px; position: relative; }
-        .col-header { padding: 8px 4px; font-family: 'Orbitron', monospace; font-size: 10px; letter-spacing: 1.5px; color: #2a4a6a; text-align: center; border-bottom: 1px solid #0d1a2e; background: #050a14; position: sticky; top: 0; z-index: 6; white-space: nowrap; }
-        .col-header.time-hdr { position: sticky; top: 0; left: 0; z-index: 7; background: #050a14; }
+        
+        /* 🟢 תיקון ראות ימי השבוע: שדרוג לפונט Heebo מודגש, לבן בוהק, גופן 13px ומשקל 800 חסין רקע כהה */
+        .col-header { padding: 10px 4px; font-family: 'Heebo', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 0.5px; color: #ffffff; text-shadow: 0 0 8px rgba(255, 255, 255, 0.25); text-align: center; border-bottom: 1px solid #1e3250; background: #080f1e; position: sticky; top: 0; z-index: 6; white-space: nowrap; }
+        .col-header.time-hdr { position: sticky; top: 0; left: 0; z-index: 7; background: #080f1e; color: #00c8ff; text-shadow: 0 0 8px rgba(0, 200, 255, 0.3); }
+        
         .time-col-body { background: #050a14; border-left: 1px solid #0a1428; position: sticky; left: 0; z-index: 3; }
         .day-col-body { position: relative; border-left: 1px solid #0a1428; }
         
@@ -456,10 +461,10 @@ export default function AdminControlSchedule() {
         .mbody { padding: 16px 20px; }
         .mfield { margin-bottom: 12px; }
         .mfield label { display: block; font-size: 11px; color: #4a6080; letter-spacing: 1px; margin-bottom: 5px; }
-        .minput, .mselect, .mtextarea { width: 100%; background: #060b18; border: 1px solid #1a2a4a; border-radius: 8px; padding: 8px 11px; color: #c0d8f0; font-family: 'Rajdhani', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s; resize: none; text-align: right; }
+        .minput, .mselect, .mtextarea { width: 100%; background: #060b18; border: 1px solid #1a2a4a; border-radius: 8px; padding: 8px 11px; color: #c0d8f0; font-family: 'Heebo', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s; resize: none; text-align: right; }
         .mrow { display: flex; gap: 8px; margin-top: 6px; }
-        .msave { flex: 1; background: linear-gradient(135deg, #0a1f3d, #0d2a50); border: 1px solid #00c8ff44; color: #00c8ff; padding: 9px; border-radius: 8px; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
-        .mcancel { flex: 1; background: transparent; border: 1px solid #1a2a4a; color: #4a6080; padding: 9px; border-radius: 8px; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; }
+        .msave { flex: 1; background: linear-gradient(135deg, #0a1f3d, #0d2a50); border: 1px solid #00c8ff44; color: #00c8ff; padding: 9px; border-radius: 8px; font-family: 'Heebo', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+        .mcancel { flex: 1; background: transparent; border: 1px solid #1a2a4a; color: #4a6080; padding: 9px; border-radius: 8px; font-family: 'Heebo', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; }
         .block-info-row { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; flex-direction: row-reverse; justify-content: flex-end; }
         .info-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 6px; background: #0a1428; border: 1px solid #1a2a4a; font-size: 11px; color: #6080a0; }
         .status-chip { padding: 4px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
@@ -467,7 +472,7 @@ export default function AdminControlSchedule() {
         .sc-yellow { background: #1a1204; color: #f0a820; border: 1px solid #c8880033; }
         .sc-red { background: #1a0404; color: #ff5555; border: 1px solid #c8222233; }
         .tab-row { display: flex; margin-bottom: 14px; border-radius: 8px; overflow: hidden; border: 1px solid #1a2a4a; flex-direction: row-reverse; }
-        .tab-btn { flex: 1; padding: 8px; background: transparent; border: none; color: #4a6080; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .tab-btn { flex: 1; padding: 8px; background: transparent; border: none; color: #4a6080; font-family: 'Heebo', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .tab-btn.active { background: #0a1428; color: #00c8ff; }
         .grade-grid { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; flex-direction: row-reverse; }
         
@@ -483,7 +488,7 @@ export default function AdminControlSchedule() {
           pointer-events: none; 
           direction: rtl;
           text-align: right;
-          font-family: 'Rajdhani', sans-serif;
+          font-family: 'Heebo', sans-serif;
         }
         .tt-name { font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 900; color: #00c8ff; margin-bottom: 8px; border-bottom: 1px solid rgba(0, 200, 255, 0.2); padding-bottom: 6px; }
         .tt-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #b0c8e0; margin-bottom: 5px; flex-direction: row-reverse; justify-content: flex-end; }
@@ -536,9 +541,9 @@ export default function AdminControlSchedule() {
             <button className={`tb-btn ${currentFilter === 'unassigned' ? 'active' : ''}`} type="button" onClick={() => setCurrentFilter('unassigned')}><i className="ti ti-alert-triangle"></i> ללא שיוך</button>
             
             <div className="legend">
-              <div className="leg-item"><div className="leg-dot" style={{ background: '#00e676' }}></div>אושר</div>
-              <div className="leg-item"><div className="leg-dot" style={{ background: '#f0a820' }}></div>ממתין</div>
-              <div className="leg-item"><div className="leg-dot" style={{ background: '#ff5555' }}></div>ללא מדריך</div>
+              <div className="legend-item"><div className="leg-dot" style={{ background: '#00e676' }}></div>אושר</div>
+              <div className="legend-item"><div className="leg-dot" style={{ background: '#f0a820' }}></div>ממתין</div>
+              <div className="legend-item"><div className="leg-dot" style={{ background: '#ff5555' }}></div>ללא מדריך</div>
             </div>
           </div>
 
@@ -785,7 +790,7 @@ export default function AdminControlSchedule() {
             <div className="mhead"><div className="mtitle" style={{ color: '#00d8b0' }}><i className="ti ti-user-star"></i>הוספת חלוקת תלמידים מרובה לקבוצה</div><button className="mclose" type="button" onClick={() => setActiveModal(null)}><i className="ti ti-x"></i></button></div>
             <div className="mbody">
               <div className="mfield"><label>שמות התלמידים</label><div style={{ maxHeight: '140px', overflowY: 'auto', marginBottom: '6px' }}>{studentRows.map((row, idx) => <div className="student-row" key={idx}><input className="minput" type="text" placeholder="שם תלמיד מלא" value={row} onChange={(e) => { const updated = [...studentRows]; updated[idx] = e.target.value; setStudentRows(updated); }} /><button className="remove-row-btn" type="button" onClick={() => setStudentRows(studentRows.filter((_, i) => i !== idx))}><i className="ti ti-x"></i></button></div>)}</div><button className="add-row-btn" type="button" onClick={() => setStudentRows([...studentRows, ''])}><i className="ti ti-plus"></i> הוסף שורת תלמיד נוספת</button></div>
-              <div className="mfield"><label>שיוך קבוצה ממוינת</label><div className="group-search-wrap"><input className="minput" type="text" value={studentSearchQuery} onChange={(e) => setStudentSearchQuery(e.target.value)} /><i className="ti ti-search search-icon"></i></div><div className="group-select-list">{sortedGroupsForAllocation.map(g => <div className={`group-option ${g.id === studentTargetGroupId ? 'selected' : ''}`} key={g.id} onClick={() => setStudentTargetGroupId(g.id)}><div><div className="go-name">{g.name}</div><div className="go-meta">{g.city} · {g.venue}</div></div><i className="ti ti-check go-check"></i></div>)}</div></div>
+              <div className="mfield"><label>שיוך קבוצה ממוינת</label><div className="group-search-wrap"><input className="minput" type="text" value={studentSearchQuery} onChange={(e) => setSearchQuery(e.target.value)} /><i className="ti ti-search search-icon"></i></div><div className="group-select-list">{sortedGroupsForAllocation.map(g => <div className={`group-option ${g.id === studentTargetGroupId ? 'selected' : ''}`} key={g.id} onClick={() => setStudentTargetGroupId(g.id)}><div><div className="go-name">{g.name}</div><div className="go-meta">{g.city} · {g.venue}</div></div><i className="ti ti-check go-check"></i></div>)}</div></div>
               <div className="mrow" style={{ marginTop: '18px' }}><button className="msave" style={{ background: 'linear-gradient(135deg, #041818, #062828)', color: '#00d8b0' }} type="button" onClick={handleSaveBulkStudents}>אשר והוסף תלמידים לקבוצה</button><button className="mcancel" type="button" onClick={() => setActiveModal(null)}>ביטול</button></div>
             </div>
           </div>
