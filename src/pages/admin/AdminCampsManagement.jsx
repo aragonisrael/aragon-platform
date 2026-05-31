@@ -40,8 +40,8 @@ export default function AdminCampsManagement() {
 
   // שדות טופס הוספת קייטנה חדשה משוכללת
   const [campTitle, setCampTitle] = useState('');
-  const [campStartDate, setCampStartDate] = useState('2026-07-05');
-  const [campEndDate, setCampEndDate] = useState('2026-07-09');
+  const [campStartDate, setCampStartDate] = useState('2026-07-01');
+  const [campEndDate, setCampEndDate] = useState('2026-07-07');
   const [campNetHours, setCampNetHours] = useState('08:00 - 13:00');
   const [campManager, setCampManager] = useState('רוני אלוני');
   const [campChildrenCount, setCampChildrenCount] = useState(45); // ברירת מחדל שתפתח 2 חדרים
@@ -76,36 +76,81 @@ export default function AdminCampsManagement() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // מנגנון אסינכרוני חכם המפרק טווח תאריכים לעמודות שבועיות (א-ה) נקיות
+  // 🟢 תיקון 2: מנגנון אסינכרוני חכם המפרק טווח תאריכים לעמודות שבועיות (א-ה) אמיתיות לפי הלוח שנה
   const generateWeeklyColumns = (start, end) => {
     const weeks = [];
-    let current = new Date(start);
-    const stop = new Date(end);
+    const globalStart = new Date(start);
+    const globalEnd = new Date(end);
+
+    // מציאת יום ראשון הקלנדרי המדויק של השבוע שבו נמצא תאריך הפתיחה
+    let currentSunday = new Date(globalStart);
+    currentSunday.setDate(currentSunday.getDate() - currentSunday.getDay());
 
     let weekIndex = 1;
-    while (current <= stop) {
-      let startStr = current.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
+    while (currentSunday <= globalEnd) {
+      const workingDays = [];
       
-      // הוספת 4 ימים לחישוב סוף שבוע העבודה (חמישי)
-      let thursday = new Date(current);
-      thursday.setDate(thursday.getDate() + 4);
-      if (thursday > stop) thursday = new Date(stop);
-      
-      let endStr = thursday.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
-      
+      // יצירת 5 ימי עבודה קשיחים (ראשון עד חמישי) עבור אותו שבוע קלנדרי
+      for (let i = 0; i < 5; i++) {
+        const dayDate = new Date(currentSunday);
+        dayDate.setDate(dayDate.getDate() + i);
+        
+        // סימון האם היום נמצא מחוץ לטווח שהגדיר המשתמש (מצריך טשטוש)
+        const isOOB = dayDate < globalStart || dayDate > globalEnd;
+        
+        workingDays.push({
+          date: dayDate,
+          dateStr: dayDate.toISOString().split('T')[0],
+          isOOB: isOOB
+        });
+      }
+
+      // סינון הימים הפעילים בלבד לצורך כתיבת התאריכים בכותרת השבוע
+      const activeDays = workingDays.filter(d => !d.isOOB);
+      let datesLabel = '';
+      if (activeDays.length > 0) {
+        const fmt = (d) => d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
+        datesLabel = `${fmt(activeDays[0].date)} - ${fmt(activeDays[activeDays.length - 1].date)}`;
+      } else {
+        const fmt = (d) => d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
+        datesLabel = `${fmt(workingDays[0].date)} - ${fmt(workingDays[4].date)}`;
+      }
+
       weeks.push({
         id: 'w_' + weekIndex,
         label: `מחזור ${weekIndex}`,
-        dates: `${startStr} - ${endStr}`,
-        rawStart: new Date(current),
-        rawEnd: new Date(thursday)
+        dates: datesLabel,
+        workingDays: workingDays
       });
 
-      // קפיצה של 7 ימים ליום ראשון הבא
-      current.setDate(current.getDate() + 7);
+      // קפיצה של 7 ימים קדימה ליום ראשון של השבוע הבא
+      currentSunday.setDate(currentSunday.getDate() + 7);
       weekIndex++;
     }
     return weeks;
+  };
+
+  // 🟢 תיקון 2: מנוע חישוב מיקום ורוחב יחסי עבור משבצת הקייטנה על גבי ציר הימים האבסולוטי
+  const getCampPositionStyle = (camp) => {
+    const allDays = boardWeeks.flatMap(w => w.workingDays);
+    const dayWidth = 52; // 260px רוחב שבוע חלקי 5 ימי עבודה = 52px ליום
+
+    // מציאת יום ההתחלה והסיום המשובצים בלוח שנה האמיתי
+    let startIdx = allDays.findIndex(d => d.dateStr >= camp.startDate);
+    let endIdx = allDays.findLastIndex(d => d.dateStr <= camp.endDate);
+
+    if (startIdx === -1) startIdx = 0;
+    if (endIdx === -1) endIdx = allDays.length - 1;
+    if (endIdx < startIdx) endIdx = startIdx;
+
+    const totalDaysSpan = (endIdx - startIdx) + 1;
+
+    return {
+      position: 'absolute',
+      right: `${startIdx * dayWidth}px`,
+      width: `${totalDaysSpan * dayWidth - 4}px`, // פחות 4 פיקסלים למרווח אסתטי בין בלוקים
+      zIndex: 10
+    };
   };
 
   // פקודת בניית המסלולים והלוח הראשי
@@ -127,7 +172,7 @@ export default function AdminCampsManagement() {
 
     setBoardWeeks(computedWeeks);
     setTracks(initialTracksArray);
-    setCamps([]); // איפוס קייטנות ישנות בהקמת לוח חדש
+    setCamps([]); 
     if (initialTracksArray.length > 0) setCampTargetTrack(initialTracksArray[0].id);
 
     setIsSetupModalOpen(false);
@@ -151,13 +196,12 @@ export default function AdminCampsManagement() {
     showToast('🗑️ הלוח אופס ונמחק לחלוטין מחמ"ל האדמין');
   };
 
-  // 🟢 אוטומציית ניהול מתחמים/חדרים בהתאם לכמות הילדים (על כל 20-25 ילדים נפתח חדר נוסף)
+  // אוטומציית ניהול מתחמים/חדרים בהתאם לכמות הילדים (על כל 20-25 ילדים נפתח חדר נוסף)
   useEffect(() => {
     const requiredRooms = Math.max(1, Math.ceil(campChildrenCount / 25));
     
-    // בנייה מחדש של המתחמים תוך שמירה על ערכים קודמים ככל הניתן
     const nextCompounds = Array.from({ length: requiredRooms }).map((_, idx) => {
-      if (campCompounds[idx]) return campCompounds[idx]; // שמירת חדר קיים
+      if (campCompounds[idx]) return campCompounds[idx]; 
       return {
         id: 'comp_' + idx + '_' + Date.now(),
         label: `מתחם חומרה ${idx + 1}`,
@@ -198,13 +242,6 @@ export default function AdminCampsManagement() {
     showToast(`✓ קייטנת ${newCampObj.title} שובצה בהצלחה בלוח המשמרות!`);
   };
 
-  // פונקציית עזר לבדיקה האם קייטנה משויכת לשבוע (מחזור) מסוים לפי תאריכים
-  const isCampInWeek = (camp, week) => {
-    const cStart = new Date(camp.startDate);
-    const cEnd = new Date(camp.endDate);
-    return (cStart <= week.rawEnd && cEnd >= week.rawStart);
-  };
-
   return (
     <div className="hq-global-wrapper">
       <style>{`
@@ -212,9 +249,9 @@ export default function AdminCampsManagement() {
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         
         *{ box-sizing: border-box; margin: 0; padding: 0; }
-        .hq-global-wrapper { width: 100%; min-height: 100vh; background: #050812; display: flex; font-family: 'Heebo', sans-serif; color: #e0f0ff; direction: rtl; }
+        .hq-global-wrapper { width: 100%; min-height: 100vh; background: #050812; display: flex; font-family: 'Heebo', sans-serif; color: #e0f0ff; direction: rtl; overflow: hidden; }
         
-        /* 💻 סיידבר אדמין מאוחד (Aragon Center Style) */
+        /* 💻 סיידבר אדמין מאוחד */
         .sidebar { width: 72px; background: #080f1e; border-left: 1px solid #1a2a4a; display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 8px; position: sticky; top: 0; height: 100vh; z-index: 10; flex-shrink: 0; }
         .sidebar-logo { width: 42px; height: 42px; border-radius: 50%; border: 2px solid #00c8ff; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; position: relative; }
         .sidebar-logo::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; border: 1px solid #7b2fbe; border-top-color: transparent; border-bottom-color: transparent; animation: hqSpin 4s linear infinite; }
@@ -232,7 +269,7 @@ export default function AdminCampsManagement() {
         /* 💻 מבנה קולונה מרכזית אדמין */
         .main-col { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-width: 0; }
         
-        /* 💻 טופבר אדמין מאוחד (Aragon Center Style) */
+        /* 💻 טופבר אדמין מאוחד */
         .top-bar { height: 64px; background: linear-gradient(90deg, #050812 0%, #080f22 30%, #0a0820 50%, #080f22 70%, #050812 100%); border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 20; flex-shrink: 0; }
         .top-bar-brand { display: flex; align-items: center; gap: 14px; }
         .brand-title { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: #00c8ff; }
@@ -268,37 +305,51 @@ export default function AdminCampsManagement() {
         .timeline-scroll-box { flex: 1; overflow-x: auto; overflow-y: auto; width: 100%; padding-bottom: 30px; }
         
         .timeline-matrix-grid { display: grid; position: relative; min-width: max-content; }
-        .tm-header-row { display: flex; background: #080f1e; border-bottom: 1.5px solid #1a2a4a; position: sticky; top: 0; z-index: 8; }
-        .tm-track-header-cell { width: 120px; padding: 14px; font-size: 13.5px; font-weight: 800; color: #00c8ff; text-align: center; background: #080f1e; border-left: 1px solid #1a2a4a; position: sticky; right: 0; z-index: 9; }
-        .tm-week-header-cell { width: 260px; padding: 10px; text-align: center; border-left: 1px solid rgba(255,255,255,0.04); display: flex; flex-direction: column; gap: 2px; }
+        
+        /* 🟢 תיקון 1: שינוי קווי ההפרדה הראשיים לצבע לבן-סייבר זוהר ועדין ברמת ה-Header */
+        .tm-header-row { display: flex; background: #080f1e; border-bottom: 2px solid rgba(255, 255, 255, 0.15); position: sticky; top: 0; z-index: 8; }
+        .tm-track-header-cell { width: 120px; padding: 14px; font-size: 13.5px; font-weight: 800; color: #00c8ff; text-align: center; background: #080f1e; border-left: 2px solid rgba(255, 255, 255, 0.15); position: sticky; right: 0; z-index: 9; }
+        .tm-week-header-cell { width: 260px; padding: 10px; text-align: center; border-left: 2px solid rgba(255, 255, 255, 0.15); display: flex; flex-direction: column; gap: 2px; }
         .tm-week-title { font-size: 13.5px; font-weight: 800; color: #ffffff; text-shadow: 0 0 6px rgba(255,255,255,0.2); }
         .tm-week-dates { font-size: 10.5px; color: rgba(160,185,215,0.5); font-family: 'Orbitron', monospace; font-weight: 600; }
 
-        .tm-track-row { display: flex; border-bottom: 1px solid rgba(255,255,255,0.03); min-height: 160px; }
-        .tm-track-lane-cell { width: 120px; background: #080f1e; border-left: 1px solid #1a2a4a; font-size: 13.5px; font-weight: 700; color: #ffffff; display: flex; align-items: center; justify-content: center; position: sticky; right: 0; z-index: 5; }
-        .tm-track-week-dropzone { width: 260px; padding: 10px; border-left: 1px solid rgba(255,255,255,0.02); background: rgba(255,255,255,0.003); display: flex; flex-direction: column; gap: 8px; justify-content: center; position: relative; }
-        .tm-track-week-dropzone:hover { background: rgba(0,200,255,0.01); }
+        /* שורות המסלולים הראשיות */
+        .tm-track-row { display: flex; border-bottom: 2px solid rgba(255, 255, 255, 0.15); min-height: 180px; position: relative; }
+        .tm-track-lane-cell { width: 120px; background: #080f1e; border-left: 2px solid rgba(255, 255, 255, 0.15); font-size: 13.5px; font-weight: 700; color: #ffffff; display: flex; align-items: center; justify-content: center; position: sticky; right: 0; z-index: 5; }
+        
+        /* קונטיינר העל של הרקע והגריד המשולב בתוך כל שורה */
+        .tm-track-timeline-wrapper { position: relative; display: flex; height: 100%; min-height: 180px; }
+        .tm-week-grid-placeholder { width: 260px; height: 100%; border-left: 2px solid rgba(255, 255, 255, 0.15); display: flex; }
+        
+        /* 🟢 תיקון 1: קווי ההפרדה הפנימיים בין הימים בתוך עמודת המחזור */
+        .tm-day-sub-slot { width: 52px; height: 100%; border-left: 1px dashed rgba(255, 255, 255, 0.04); }
+        .tm-day-sub-slot:last-child { border-left: none; }
+        
+        /* עיצוב פסי טשטוש לימים שהם Out of Bounds */
+        .tm-day-sub-slot.oob-blurred {
+          background: repeating-linear-gradient(45deg, rgba(255, 69, 96, 0.03), rgba(255, 69, 96, 0.03) 4px, transparent 4px, transparent 8px);
+          opacity: 0.4;
+        }
 
-        /* CAMP BLOCK */
-        .camp-block { background: linear-gradient(135deg, #111f35 0%, #0d1625 100%); border: 1px solid rgba(0,200,255,0.25); border-top: 3px solid #00c8ff; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); width: 100%; transition: all 0.2s; }
-        .camp-block:hover { border-color: #00c8ff; transform: scale(1.02); box-shadow: 0 6px 20px rgba(0,200,255,0.15); }
+        /* 👑 CAMP BLOCK - הבלוק כעת יושב אבסולוטית ומעוצב בלבן ברור קריא וכיף לעין */
+        .camp-block { background: linear-gradient(135deg, #111f35 0%, #0d1625 100%); border: 1px solid rgba(0,200,255,0.3); border-top: 3px solid #00c8ff; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); box-sizing: border-box; top: 12px; bottom: 12px; }
+        .camp-block:hover { border-color: #00c8ff; box-shadow: 0 6px 20px rgba(0,200,255,0.25); }
         .camp-block-title { font-size: 14px; font-weight: 800; color: #ffffff; text-align: right; }
-        .camp-block-meta-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: rgba(180,200,230,0.8); border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 5px; }
-        .camp-block-manager { font-weight: 700; color: #f5c842; }
+        .camp-block-meta-row { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; color: #ffffff; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 5px; }
+        .camp-block-manager { font-weight: 800; color: #f5c842; }
         
         .camp-block-compounds-list { display: flex; flex-direction: column; gap: 5px; }
-        .camp-block-room-tile { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 5px; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; }
+        .camp-block-room-tile { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 5px; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; }
         .camp-block-room-type { font-size: 11.5px; font-weight: 700; color: #00e5a0; display: flex; align-items: center; gap: 4px; }
-        .camp-block-staff-row { display: flex; flex-direction: column; font-size: 11px; color: #ffffff; padding-right: 4px; }
-        .camp-block-staff-leader { display: flex; align-items: center; gap: 4px; opacity: 0.95; }
-        .camp-block-staff-temp { display: flex; align-items: center; gap: 4px; color: #cbd5e1; opacity: 0.85; }
+        .camp-block-staff-row { display: flex; flex-direction: column; font-size: 11.5px; color: #ffffff; padding-right: 4px; gap: 1px; }
+        .camp-block-staff-leader { display: flex; align-items: center; gap: 4px; }
+        .camp-block-staff-temp { display: flex; align-items: center; gap: 4px; opacity: 0.85; }
 
-        .board-empty-placeholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: rgba(160,185,215,0.4); text-align: center; }
+        .board-empty-placeholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: rgba(160,185,215,0.4); text-align: center; padding: 40px 0; }
         .board-empty-icon { font-size: 56px; color: rgba(0,200,255,0.1); }
 
         /* MODALS */
-        .modal-ov { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
-        .modal-ov.open { display: flex; }
+        .modal-ov { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
         .modal-box { background: #080f1e; border: 1px solid #1a2a4a; border-radius: 14px; padding: 26px; width: 540px; max-width: 96vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 0 50px rgba(0,200,255,0.12); direction: rtl; position: relative; text-align: right; }
         .modal-box::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,200,255,0.4), transparent); }
         
@@ -309,7 +360,7 @@ export default function AdminCampsManagement() {
         .modal-close:hover { background: rgba(255,69,96,0.12); color: #ff4560; }
         
         .mfr { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
-        .mfl { font-size: 11.5px; color: rgba(0,200,255,0.55); font-weight: 700; text-transform: uppercase; }
+        .mfl { font-size: 11.5px; color: rgba(0,212,255,0.55); font-weight: 700; text-transform: uppercase; }
         .mfi, .mfs { width: 100%; background: #060b18; border: 1px solid #1a2a4a; border-radius: 7px; color: #ffffff; padding: 10px 13px; font-family: 'Heebo', sans-serif; font-size: 14px; direction: rtl; outline: none; }
         .mfi:focus, .mfs:focus { border-color: #00c8ff; box-shadow: 0 0 8px rgba(0,200,255,0.15); }
         
@@ -337,7 +388,7 @@ export default function AdminCampsManagement() {
         @keyframes wavePulse { 0% { height: 3px; } 100% { height: 10px; } }
       `}</style>
 
-      {/* 💻 סיידבר אדמין רשמי ומסונכרן (Aragon Center Hub Framework) */}
+      {/* סיידבר אדמין רשמי */}
       <div className="sidebar">
         <div className="sidebar-logo"><div className="sidebar-logo-inner">A</div></div>
         <button className="nav-btn" type="button" onClick={() => navigate('/admin')}><i className="ti ti-layout-dashboard"></i><span className="nav-label">בית</span></button>
@@ -357,7 +408,7 @@ export default function AdminCampsManagement() {
       </div>
 
       <div className="main-col">
-        {/* 💻 טופבר אדמין מאוחד */}
+        {/* טופבר אדמין */}
         <div className="top-bar">
           <div className="top-bar-brand">
             <div className="ring-wrap">
@@ -383,8 +434,6 @@ export default function AdminCampsManagement() {
 
         {/* WORKSPACE CONTENT ZONE */}
         <div className="content">
-          
-          {/* סרגל לחצנים עליון */}
           <div className="camps-toolbar">
             <div className="camps-toolbar-btn-group">
               <button className="ct-btn btn-build-board" onClick={() => setIsSetupModalOpen(true)}>
@@ -408,7 +457,6 @@ export default function AdminCampsManagement() {
             )}
           </div>
 
-          {/* לוח ציר הזמן השבועי והמסלולים */}
           <div className="timeline-panel">
             {boardConfig ? (
               <div className="timeline-scroll-box">
@@ -425,51 +473,65 @@ export default function AdminCampsManagement() {
                     ))}
                   </div>
 
-                  {/* שורות המסלולים והקייטנות המשובצות */}
+                  {/* שורות המסלולים והקייטנות המשובצות אבסולוטית */}
                   {tracks.map(track => (
                     <div key={track.id} className="tm-track-row">
                       <div className="tm-track-lane-cell">{track.label}</div>
                       
-                      {boardWeeks.map(week => {
-                        const activeCampsInCell = camps.filter(c => c.trackId === track.id && isCampInWeek(c, week));
-                        
-                        return (
-                          <div key={week.id} className="tm-track-week-dropzone">
-                            {activeCampsInCell.map(camp => (
-                              <div key={camp.id} className="camp-block">
-                                <div className="camp-block-title">⛺ {camp.title}</div>
-                                <div className="camp-block-meta-row">
-                                  <span>👤 מנהל: <span className="camp-block-manager">{camp.manager}</span></span>
-                                  <span>🧒 {camp.childrenCount} ילדים</span>
-                                </div>
-                                <div style={{ fontSize: '11px', color: '#00d4ff', fontFamily: 'Orbitron, monospace', fontWeight: 600 }}>
-                                  🕒 נטו: {camp.netHours}
-                                </div>
-                                
-                                {/* רשימת מתחמי החומרה וכח האדם המשובץ */}
-                                <div className="camp-block-compounds-list">
-                                  {camp.compounds.map((comp, idx) => (
-                                    <div key={idx} className="camp-block-room-tile">
-                                      <div className="camp-block-room-type">🎮 {comp.roomType}</div>
-                                      <div className="camp-block-staff-row">
-                                        <span className="camp-block-staff-leader">👨‍🏫 בכיר: {comp.seniorInstructor}</span>
-                                        <span className="camp-block-staff-temp">🧑‍💻 זמני: {comp.tempInstructor}</span>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
+                      {/* אשכול ציר הזמן האחיד והמשולב לשורה הנוכחית */}
+                      <div className="tm-track-timeline-wrapper">
+                        {/* שכבת גריד הרקע הסייבר-לבן המפוצלת לימים בודדים */}
+                        {boardWeeks.map(week => (
+                          <div key={week.id} className="tm-week-grid-placeholder">
+                            {week.workingDays.map((day, dIdx) => (
+                              <div 
+                                key={dIdx} 
+                                className={`tm-day-sub-slot ${day.isOOB ? 'oob-blurred' : ''}`}
+                                title={day.dateStr}
+                              />
                             ))}
                           </div>
-                        );
-                      })}
+                        ))}
+
+                        {/* שכבת הקייטנות המשובצות יחסית על גבי ציר הזמן */}
+                        {camps
+                          .filter(c => c.trackId === track.id)
+                          .map(camp => (
+                            <div 
+                              key={camp.id} 
+                              className="camp-block" 
+                              style={getCampPositionStyle(camp)}
+                            >
+                              <div className="camp-block-title">⛺ {camp.title}</div>
+                              <div className="camp-block-meta-row">
+                                <span>👤 מנהל: <span className="camp-block-manager">{camp.manager}</span></span>
+                                <span>🧒 {camp.childrenCount} ילדים</span>
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#00d4ff', fontFamily: 'Orbitron, monospace', fontWeight: 600 }}>
+                                🕒 נטו: {camp.netHours}
+                              </div>
+                              
+                              <div className="camp-block-compounds-list">
+                                {camp.compounds.map((comp, idx) => (
+                                  <div key={idx} className="camp-block-room-tile">
+                                    <div className="camp-block-room-type">🎮 {comp.roomType}</div>
+                                    <div className="camp-block-staff-row">
+                                      <span className="camp-block-staff-leader">👨‍🏫 בכיר: {comp.seniorInstructor}</span>
+                                      <span className="camp-block-staff-temp">🧑‍💻 זמני: {comp.tempInstructor}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+
                     </div>
                   ))}
 
                 </div>
               </div>
             ) : (
-              /* פלייסהולדר ללוח ריק */
               <div className="board-empty-placeholder">
                 <i className="ti ti-calendar-stats board-empty-icon"></i>
                 <div style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>חמ"ל ניהול כח אדם לקייטנות ריק</div>
@@ -485,7 +547,7 @@ export default function AdminCampsManagement() {
 
       {/* מודאל 1: חלונית "הקם מסלול קייטנות" */}
       {isSetupModalOpen && (
-        <div className="modal-ov open" onClick={(e) => e.target.className === 'modal-ov open' && setIsSetupModalOpen(false)}>
+        <div className="modal-ov open" onClick={(e) => e.target.className === 'modal-ov' && setIsSetupModalOpen(false)}>
           <div className="modal-box">
             <button className="modal-close" onClick={() => setIsSetupModalOpen(false)}>×</button>
             <div className="modal-head">
@@ -519,7 +581,7 @@ export default function AdminCampsManagement() {
 
       {/* מודאל 2: חלונית "הוסף קייטנה" משוכללת */}
       {isAddCampModalOpen && (
-        <div className="modal-ov open" onClick={(e) => e.target.className === 'modal-ov open' && setIsAddCampModalOpen(false)}>
+        <div className="modal-ov open" onClick={(e) => e.target.className === 'modal-ov' && setIsAddCampModalOpen(false)}>
           <div className="modal-box" style={{ width: '560px' }}>
             <button className="modal-close" onClick={() => setIsAddCampModalOpen(false)}>×</button>
             <div className="modal-head">
