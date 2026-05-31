@@ -52,6 +52,11 @@ export default function AdminCampsManagement() {
   const [campTargetTrack, setCampTargetTrack] = useState('');
   const [campCompounds, setCampCompounds] = useState([]);
 
+  // 🟢 סטייט ייעודי לבחירת 3 חברי צוות הקמה ופירוק
+  const [campStaff1, setCampStaff1] = useState('');
+  const [campStaff2, setCampStaff2] = useState('');
+  const [campStaff3, setCampStaff3] = useState('');
+
   const ROOM_TYPES = ['חדר גיימינג', 'חדר מחשבים', 'חדר רובוטיקה', 'חדר מדע וחלל', 'חדר פיננסי', 'חדר משפטים'];
 
   const showToast = (msg) => {
@@ -216,7 +221,7 @@ export default function AdminCampsManagement() {
     showToast('🗑️ הלוח אופס ונמחק לחלוטין מחמ"ל האדמין');
   };
 
-  // אוטומציית ניהול מתחמים/חדרים בהתאם לכמות הילדים (על כל 20-25 ילדים נפתח חדר נוסף) - עבור טופס יצירה
+  // 🟢 תיקון 2: חדרים נפתחים ריקים לחלוטין כברירת מחדל ("ללא מדריך") כדי לאפשר גמישות וריון מלא משתמש
   useEffect(() => {
     const requiredRooms = Math.max(1, Math.ceil(campChildrenCount / 25));
     
@@ -226,33 +231,31 @@ export default function AdminCampsManagement() {
         id: 'comp_' + idx + '_' + Date.now(),
         label: `מתחם חומרה ${idx + 1}`,
         roomType: ROOM_TYPES[idx % ROOM_TYPES.length],
-        seniorInstructor: seniorInstructors[idx % seniorInstructors.length],
-        tempInstructor: tempInstructors[idx % tempInstructors.length]
+        seniorInstructor: '', // ריק בדיפולט
+        tempInstructor: ''    // ריק בדיפולט
       };
     });
     
     setCampCompounds(nextCompounds);
   }, [campChildrenCount]);
 
-  // 🟢 תיקון 1: מנוע אוטומציה מובנה עבור מסך העריכה - משנה דינמית את כמות החדרים והמדריכים כשהמשתמש משנה את כמות הילדים בעיפרון
+  // מנוע אוטומציה מובנה עבור מסך העריכה - משנה דינמית את כמות החדרים ומושיב אותם ריקים
   const handleEditChildrenCountChange = (val) => {
     const count = parseInt(val, 10) || 0;
     const requiredRooms = Math.max(1, Math.ceil(count / 25));
     let currentCompounds = [...selectedViewCamp.compounds];
 
     if (currentCompounds.length < requiredRooms) {
-      // הרחבת חדרים אוטומטית לקיבולת החדשה
       for (let i = currentCompounds.length; i < requiredRooms; i++) {
         currentCompounds.push({
           id: 'comp_edit_' + i + '_' + Date.now(),
           label: `מתחם חומרה ${i + 1}`,
           roomType: ROOM_TYPES[i % ROOM_TYPES.length],
-          seniorInstructor: seniorInstructors[i % seniorInstructors.length],
-          tempInstructor: tempInstructors[i % tempInstructors.length]
+          seniorInstructor: '', // ריק בדיפולט
+          tempInstructor: ''    // ריק בדיפולט
         });
       }
     } else if (currentCompounds.length > requiredRooms) {
-      // צמצום חדרים עודפים במידה וכמות הילדים קטנה משמעותית
       currentCompounds = currentCompounds.slice(0, requiredRooms);
     }
 
@@ -263,9 +266,12 @@ export default function AdminCampsManagement() {
     });
   };
 
-  // פתיחת מודאל הוספת קייטנה חדשה
+  // פתיחת מודאל הוספת קייטנה חדשה ואיפוס סטייט לוגיסטיקה
   const handleOpenAddCampModal = () => {
     setCampTitle('');
+    setCampStaff1('');
+    setCampStaff2('');
+    setCampStaff3('');
     setIsAddCampModalOpen(true);
   };
 
@@ -283,7 +289,9 @@ export default function AdminCampsManagement() {
       manager: campManager,
       childrenCount: campChildrenCount,
       trackId: campTargetTrack,
-      compounds: [...campCompounds]
+      compounds: [...campCompounds],
+      // 🟢 שמירת מערך 3 חברי הצוות הלוגיסטי
+      setupStaff: [campStaff1, campStaff2, campStaff3]
     };
 
     setCamps([...camps, newCampObj]);
@@ -356,6 +364,7 @@ export default function AdminCampsManagement() {
 
         .content { flex: 1; overflow: hidden; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; height: calc(100% - 64px); min-height: 0; }
         
+        /* TOOLBAR ACTION BUTTONS */
         .camps-toolbar { display: flex; align-items: center; justify-content: space-between; background: #070e1c; padding: 12px 18px; border-radius: 12px; border: 1px solid #1a2a4a; flex-shrink: 0; }
         .camps-toolbar-btn-group { display: flex; align-items: center; gap: 10px; }
         .ct-btn { padding: 7px 16px; border-radius: 7px; border: 1px solid; font-family: 'Heebo', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.18s; }
@@ -408,8 +417,8 @@ export default function AdminCampsManagement() {
         .sub-timeline-cell-staff-tile { background: rgba(0, 229, 160, 0.03); border: 1px solid rgba(0, 229, 160, 0.15); border-radius: 6px; padding: 6px; display: flex; flex-direction: column; gap: 2px; align-items: center; justify-content: center; min-width: 90px; }
         .sub-timeline-cell-staff-text { font-size: 11.5px; color: #ffffff; font-weight: 500; }
 
-        /* 👑 בלוק סיכום צוות הקמה ופירוק בתחתית חלונית הלו"ז */
-        .camps-logistics-crew-footer-panel { marginTop: 18px; background: rgba(0, 200, 255, 0.03); border: 1px dashed rgba(0, 200, 255, 0.25); border-radius: 8px; padding: 12px 16px; font-size: 13px; line-height: 1.5; text-align: right; }
+        /* CAMP LOGISTICS CREW FOOTER PANEL */
+        .camps-logistics-crew-footer-panel { margin-top: 18px; background: rgba(0, 200, 255, 0.03); border: 1px dashed rgba(0, 200, 255, 0.25); border-radius: 8px; padding: 12px 16px; font-size: 13px; line-height: 1.5; text-align: right; }
         .clc-footer-title { font-size: 13.5px; font-weight: 800; color: #00c8ff; margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
 
         .board-empty-placeholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: rgba(160,185,215,0.4); text-align: center; padding: 40px 0; }
@@ -443,6 +452,11 @@ export default function AdminCampsManagement() {
 
         .edit-icon-trigger-btn { background: transparent; border: none; color: #f5c842; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
         .edit-icon-trigger-btn:hover { transform: scale(1.15); color: #ffffff; }
+
+        /* 🟢 תיקון 1: בידוד ה-Toast לקבוצת מניעת קריסות והסתרת רכיבי הגלילה הראשיים ברקע */
+        .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(0); background: #080f1e; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 30px rgba(0,229,160,0.3); z-index: 999; text-align: center; pointer-events: none; display: none; }
+        .toast.show { display: block; animation: fadeInToast 0.2s ease-out; }
+        @keyframes fadeInToast { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
         @keyframes hqSpin { to { transform: rotate(360deg); } }
       `}</style>
@@ -555,7 +569,7 @@ export default function AdminCampsManagement() {
                         {camps
                           .filter(c => c.trackId === track.id)
                           .map(camp => {
-                            const instructorsInitialsList = camp.compounds.map(comp => comp.seniorInstructor.split(' ')[0]);
+                            const instructorsInitialsList = camp.compounds.filter(comp => comp.seniorInstructor).map(comp => comp.seniorInstructor.split(' ')[0]);
                             const uniqueStaffRowStr = [camp.manager + ' (מ)', ...instructorsInitialsList].join(' · ');
 
                             return (
@@ -672,6 +686,28 @@ export default function AdminCampsManagement() {
                 </div>
               </div>
 
+              {/* 🟢 תיקון 3: בחירת 3 עובדים מצוות המפקדה/השטח לטובת משימות ההקמה והפירוק של הציוד */}
+              <div style={{ fontSize: '11.5px', color: '#00c8ff', fontWeight: '700', marginBottom: '6px', marginTop: '10px' }}>
+                🔧 צוות פריסה, הקמה ופירוק חומרה (בחר 3 עובדים)
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '14px' }}>
+                <select className="mfs" value={campStaff1} onChange={(e) => setCampStaff1(e.target.value)}>
+                  <option value="">— ללא עובד —</option>
+                  {seniorInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                  {tempInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                </select>
+                <select className="mfs" value={campStaff2} onChange={(e) => setCampStaff2(e.target.value)}>
+                  <option value="">— ללא עובד —</option>
+                  {seniorInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                  {tempInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                </select>
+                <select className="mfs" value={campStaff3} onChange={(e) => setCampStaff3(e.target.value)}>
+                  <option value="">— ללא עובד —</option>
+                  {seniorInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                  {tempInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                </select>
+              </div>
+
               <div style={{ fontSize: '11.5px', color: '#00c8ff', fontWeight: '700', marginBottom: '6px' }}>
                 🛠️ פריסת מתחמים וכח אדם מבוססת אלגוריתם קיבולת ({campCompounds.length} חדרים נדרשים)
               </div>
@@ -689,12 +725,14 @@ export default function AdminCampsManagement() {
                       <div>
                         <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך בכיר (קבוע)</label>
                         <select className="mfs" style={{ padding: '6px 8px', fontSize: '12.5px' }} value={comp.seniorInstructor} onChange={(e) => setCampCompounds(campCompounds.map((c, i) => i === idx ? { ...c, seniorInstructor: e.target.value } : c))}>
+                          <option value="">— ללא מדריך —</option>
                           {seniorInstructors.map(si => <option key={si} value={si}>{si}</option>)}
                         </select>
                       </div>
                       <div>
                         <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך בזק (זמני)</label>
                         <select className="mfs" style={{ padding: '6px 8px', fontSize: '12.5px' }} value={comp.tempInstructor} onChange={(e) => setCampCompounds(campCompounds.map((c, i) => i === idx ? { ...c, tempInstructor: e.target.value } : c))}>
+                          <option value="">— ללא מדריך —</option>
                           {tempInstructors.map(ti => <option key={ti} value={ti}>{ti}</option>)}
                         </select>
                       </div>
@@ -705,7 +743,7 @@ export default function AdminCampsManagement() {
 
               <div className="mf2">
                 <button type="button" className="mbtn-cancel" onClick={() => setIsAddCampModalOpen(false)}>ביטול</button>
-                <button className="update-btn" type="submit" style={{ background: 'rgba(0, 200, 255, 0.1)', borderColor: '#00c8ff', color: '#00c8ff' }}>
+                <button className="update-btn" type="submit">
                   <i className="ti ti-calendar-check"></i>נעילת שיבוץ ושילוח ללו"ז
                 </button>
               </div>
@@ -744,7 +782,7 @@ export default function AdminCampsManagement() {
                     <tr>
                       <th>מתחם חומרה</th>
                       {getCampDaysList(selectedViewCamp.startDate, selectedViewCamp.endDate).map((day, idx) => {
-                        // 🟢 תיקון 2: מנגנון בדיקה חכם המשבץ לכל יום את שעות העבודה המדויקות שלו
+                        // 🟢 תיקון 2: הצגת שעות עבודה מובנות ומפורשות לכל יום בנפרד ללא עיוותים
                         const isFirstDay = idx === 0;
                         const workHoursLabel = isFirstDay ? '7:15 - 13:15' : '07:40 - 13:10';
                         
@@ -752,7 +790,6 @@ export default function AdminCampsManagement() {
                           <th key={idx}>
                             <div>{day.dayName}</div>
                             <div style={{ fontSize: '10.5px', color: 'rgba(160,185,215,0.5)', fontFamily: 'Orbitron' }}>{day.formattedDate}</div>
-                            {/* שעות העבודה המדויקות והלבנות */}
                             <div style={{ fontSize: '11px', color: '#ffffff', fontWeight: '500', marginTop: '3px', background: 'rgba(255,255,255,0.04)', padding: '2px 4px', borderRadius: '4px' }}>
                               🕒 {workHoursLabel}
                             </div>
@@ -768,8 +805,12 @@ export default function AdminCampsManagement() {
                         {getCampDaysList(selectedViewCamp.startDate, selectedViewCamp.endDate).map((day, dIdx) => (
                           <td key={dIdx}>
                             <div className="sub-timeline-cell-staff-tile">
-                              <span className="sub-timeline-cell-staff-text" style={{ fontWeight: 700, color: '#00e5a0' }}>👤 {comp.seniorInstructor}</span>
-                              <span className="sub-timeline-cell-staff-text" style={{ opacity: 0.75, fontSize: '10.5px' }}>🧑‍💻 {comp.tempInstructor}</span>
+                              <span className="sub-timeline-cell-staff-text" style={{ fontWeight: 700, color: comp.seniorInstructor ? '#00e5a0' : 'rgba(255,255,255,0.2)' }}>
+                                {comp.seniorInstructor ? `👤 ${comp.seniorInstructor}` : '—'}
+                              </span>
+                              <span className="sub-timeline-cell-staff-text" style={{ opacity: comp.tempInstructor ? 0.75 : 0.2, fontSize: '10.5px' }}>
+                                {comp.tempInstructor ? `🧑‍💻 ${comp.tempInstructor}` : '—'}
+                              </span>
                             </div>
                           </td>
                         ))}
@@ -778,23 +819,19 @@ export default function AdminCampsManagement() {
                   </tbody>
                 </table>
 
-                {/* 🟢 תיקון 3: בלוק לוגיסטיקה חזותי בתחתית המסך המפרט מי הצוות המרכיב ומפרק את הקייטנה */}
+                {/* 🟢 תיקון 3: הצגת רשימת 3 העובדים שנבחרו ידנית למעטה הלוגיסטי של ההקמה והפירוק */}
                 <div className="camps-logistics-crew-footer-panel">
                   <div className="clc-footer-title">
                     <i className="ti ti-tool" style={{ fontSize: '16px' }}></i>
-                    צוות הקמה, פריסה ופירוק חומרה (משלחת חמ"ל)
+                    צוות הקמה, פריסה ופירוק חומרה מוסמך
                   </div>
                   <div style={{ color: 'rgba(224, 240, 255, 0.85)' }}>
-                    פריסת התשתית, הרכבת עמדות המחשב ובדיקת הראוטרים בבוקר הראשון תבוצע באחריות המדריכים הבכירים:{' '} 
-                    <span style={{ color: '#00e5a0', fontWeight: 'bold' }}>
-                      {Array.from(new Set(selectedViewCamp.compounds.map(c => c.seniorInstructor.split(' ')[0]))).join(' · ')}
-                    </span>
-                    {' '}ובשילוח כוח העזר של המדריכים הזמניים:{' '}
-                    <span style={{ color: '#ffffff', fontWeight: '500' }}>
-                      {Array.from(new Set(selectedViewCamp.compounds.map(c => c.tempInstructor.split(' ')[0]))).join(' · ')}
+                    פעולות שינוע הלפטופים, הקמת מתחמי המשרד הממוחשבים ופריסת התשתית יבוצעו בריאל-טיים ע"י הצוות הנבחר:{' '}
+                    <span style={{ color: '#00c8ff', fontWeight: 'bold' }}>
+                      {selectedViewCamp.setupStaff?.filter(x => x).join(' · ') || 'טרם שובצו עובדי מפקדה לקבוצה זו'}
                     </span>.
                     <br />
-                    פירוק מתחמי הלגו, ספירת הציוד הידנית ונעילת ארגזי החומרה יבוצעו בסיום המחזור בתיאום אבסולוטי מול מנהל הקייטנה המוסמך ({' '}
+                    פירוק החומרה, ספירת הציוד הידנית ונעילת המזוודות יבוצעו בתיאום אבסולוטי מול מנהל הקייטנה המוסמך ({' '}
                     <span style={{ color: '#f5c842', fontWeight: 'bold' }}>{selectedViewCamp.manager}</span>).
                   </div>
                 </div>
@@ -804,7 +841,7 @@ export default function AdminCampsManagement() {
                 </div>
               </div>
             ) : (
-              /* מצב עריכה (עיפרון): טופס עדכון דינמי מלא */
+              /* מצב עריכה (עיפרון): טופס עדכון דינמי מלא כולל עדכון 3 עובדי צוות לוגיסטיקה */
               <form onSubmit={handleUpdateCampDetailsInfo}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="mfr">
@@ -815,7 +852,6 @@ export default function AdminCampsManagement() {
                   </div>
                   <div className="mfr">
                     <label className="mfl">כמות ילדים מעודכנת (מפעיל הרחבת חדרים אוטומטית)</label>
-                    {/* 🟢 תיקון 1: שינוי השדה לפונקציית עדכון חכמה המשנה את כמות המתחמים בלייב גם בעריכה */}
                     <input 
                       className="mfi" 
                       type="number" 
@@ -823,6 +859,40 @@ export default function AdminCampsManagement() {
                       onChange={(e) => handleEditChildrenCountChange(e.target.value)} 
                     />
                   </div>
+                </div>
+
+                {/* 🟢 תיקון 3: עריכת 3 אנשי צוות ההקמה והפירוק גם מתוך מסך העיפרון של הקייטנה */}
+                <div style={{ fontSize: '11.5px', color: '#00c8ff', fontWeight: '700', marginBottom: '6px', marginTop: '10px' }}>
+                  🔧 ערוך צוות פריסה והקמת חומרה (3 עובדים)
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '14px' }}>
+                  <select className="mfs" value={selectedViewCamp.setupStaff?.[0] || ''} onChange={(e) => {
+                    const nextStaff = [...(selectedViewCamp.setupStaff || ['', '', ''])];
+                    nextStaff[0] = e.target.value;
+                    setSelectedViewCamp({ ...selectedViewCamp, setupStaff: nextStaff });
+                  }}>
+                    <option value="">— ללא עובד —</option>
+                    {seniorInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                    {tempInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                  </select>
+                  <select className="mfs" value={selectedViewCamp.setupStaff?.[1] || ''} onChange={(e) => {
+                    const nextStaff = [...(selectedViewCamp.setupStaff || ['', '', ''])];
+                    nextStaff[1] = e.target.value;
+                    setSelectedViewCamp({ ...selectedViewCamp, setupStaff: nextStaff });
+                  }}>
+                    <option value="">— ללא עובד —</option>
+                    {seniorInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                    {tempInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                  </select>
+                  <select className="mfs" value={selectedViewCamp.setupStaff?.[2] || ''} onChange={(e) => {
+                    const nextStaff = [...(selectedViewCamp.setupStaff || ['', '', ''])];
+                    nextStaff[2] = e.target.value;
+                    setSelectedViewCamp({ ...selectedViewCamp, setupStaff: nextStaff });
+                  }}>
+                    <option value="">— ללא עובד —</option>
+                    {seniorInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                    {tempInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                  </select>
                 </div>
 
                 <div style={{ fontSize: '12px', color: '#f5c842', fontWeight: '700', marginBottom: '8px', marginTop: '10px' }}>⚙️ שינוי ושיבוץ מחדש של צוותי המתחמים</div>
@@ -846,6 +916,7 @@ export default function AdminCampsManagement() {
                             const updatedComp = selectedViewCamp.compounds.map((c, i) => i === idx ? { ...c, seniorInstructor: e.target.value } : c);
                             setSelectedViewCamp({ ...selectedViewCamp, compounds: updatedComp });
                           }}>
+                            <option value="">— ללא מדריך —</option>
                             {seniorInstructors.map(si => <option key={si} value={si}>{si}</option>)}
                           </select>
                         </div>
@@ -855,6 +926,7 @@ export default function AdminCampsManagement() {
                             const updatedComp = selectedViewCamp.compounds.map((c, i) => i === idx ? { ...c, tempInstructor: e.target.value } : c);
                             setSelectedViewCamp({ ...selectedViewCamp, compounds: updatedComp });
                           }}>
+                            <option value="">— ללא מדריך —</option>
                             {tempInstructors.map(ti => <option key={ti} value={ti}>{ti}</option>)}
                           </select>
                         </div>
@@ -864,7 +936,7 @@ export default function AdminCampsManagement() {
                 </div>
 
                 <div className="mf2">
-                  <button type="button" className="mbtn-cancel" onClick={() => setIsEditMode(false)}>חזור לצפייה</button>
+                  <button type="button" className="mbtn-cancel" onClick={() => setIsEditMode(false)}>הולך אחורה</button>
                   <button className="update-btn" type="submit" style={{ background: 'rgba(245, 200, 66, 0.1)', borderColor: '#f5c842', color: '#f5c842' }}>
                     <i className="ti ti-device-floppy"></i>שמור שינויים בענן
                   </button>
