@@ -28,13 +28,14 @@ import AdminMissionsIncentives from './pages/admin/AdminMissionsIncentives';
 import AdminControlSchedule from './pages/admin/AdminControlSchedule';
 import AdminGroupsList from './pages/admin/AdminGroupsList';
 import AdminInstructors from './pages/admin/AdminInstructors';
+// 🟢 ייבוא חמ"ל ניהול וכח אדם לקייטנות החדש של האדמין
+import AdminCampsManagement from './pages/admin/AdminCampsManagement';
 
 // עמודי מערך הלוגיסטיקה והחמ"ל המשרדי המבוזר (Matrix HQ) 🚚
 import LogisticsDashboard from './pages/logistics/LogisticsDashboard';
 import LogisticsUpdates from './pages/logistics/LogisticsUpdates';
 import LogisticsTasks from './pages/logistics/LogisticsTasks';
 import LogisticsClasses from './pages/logistics/LogisticsClasses';
-import LogisticsCamps from './pages/logistics/LogisticsCamps';
 import LogisticsPurchase from './pages/logistics/LogisticsPurchase';
 
 export default function App() {
@@ -66,20 +67,4 @@ export default function App() {
         
         {/* 💻 עולם האדמין הראשי - נעול הרמטית אך ורק עבור רול admin */}
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/admin/shop" element={<ProtectedRoute allowedRoles={['admin']}><AdminShopLogistics /></ProtectedRoute>} />
-        <Route path="/admin/missions" element={<ProtectedRoute allowedRoles={['admin']}><AdminMissionsIncentives /></ProtectedRoute>} />
-        <Route path="/admin/control" element={<ProtectedRoute allowedRoles={['admin']}><AdminControlSchedule /></ProtectedRoute>} />
-        <Route path="/admin/team" element={<ProtectedRoute allowedRoles={['admin']}><AdminInstructors /></ProtectedRoute>} />
-        <Route path="/admin/groups" element={<ProtectedRoute allowedRoles={['admin']}><AdminGroupsList /></ProtectedRoute>} />
-
-        {/* 🚚 מערך הלוגיסטיקה - פתוח כעת רשמית גם לאדמינים וגם למשתמשים עם רול logistics ייעודי! */}
-        <Route path="/admin/logistics" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsDashboard /></ProtectedRoute>} />
-        <Route path="/admin/logistics/updates" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsUpdates /></ProtectedRoute>} />
-        <Route path="/admin/logistics/tasks" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsTasks /></ProtectedRoute>} />
-        <Route path="/admin/logistics/classes" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsClasses /></ProtectedRoute>} />
-        <Route path="/admin/logistics/camps" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsCamps /></ProtectedRoute>} />
-        <Route path="/admin/logistics/purchase" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsPurchase /></ProtectedRoute>} />
-      </Routes>
-    </AuthProvider>
-  );
-}
+        <Route path="/admin/shop" element={<ProtectedRoute allowedRoles={
