@@ -134,18 +134,18 @@ export default function AdminControlSchedule() {
     return bs;
   };
 
-  const getOpacity = (g) => {
-    if (currentFilter === 'unassigned') return g.status === 'red' ? 1 : 0;
+  const getOpacity = (b) => {
+    if (currentFilter === 'unassigned') return b.status === 'red' ? 1 : 0;
     if (currentFilter === 'city') {
-      if (selectedCity) { return g.city === selectedCity ? (dimmedFilters[g.status] ? 1 : 0) : 0; }
-      return dimmedFilters[g.status] ? 1 : 0;
+      if (selectedCity) { return b.city === selectedCity ? (dimmedFilters[b.status] ? 1 : 0) : 0; }
+      return dimmedFilters[b.status] ? 1 : 0;
     }
     if (currentFilter === 'inst' && selectedInstructor) {
-      if (g.instructor === selectedInstructor) { return 1; }
-      if (g.status === 'red' && dimmedFilters.red) { return 1; }
+      if (b.instructor === selectedInstructor) { return 1; }
+      if (b.status === 'red' && dimmedFilters.red) { return 1; }
       return 0;
     }
-    return dimmedFilters[g.status] ? 1 : 0;
+    return dimmedFilters[b.status] ? 1 : 0;
   };
 
   const toEng = (n) => {
@@ -301,7 +301,7 @@ export default function AdminControlSchedule() {
   const handleSaveBulkStudents = async () => {
     if (!studentTargetGroupId) { triggerToast('נא לבחור קבוצת יעד משוייכת', true); return; }
     const filteredNames = studentRows.filter(n => n.trim());
-    if (!filteredNames.length) { triggerToast('נא להזין অন্তত שם תלמיד אחד', true); return; }
+    if (!filteredNames.length) { triggerToast('נא להזין לפחות שם תלמיד אחד', true); return; }
 
     try {
       const newStudentsBatch = filteredNames.map(name => {
@@ -350,7 +350,6 @@ export default function AdminControlSchedule() {
           justifyContent: 'center', 
           paddingTop: '3px', 
           fontFamily: 'Orbitron, monospace', 
-          // 🟢 תיקון ראות שעות: הגדלת גופן, הדגשה קשיחה והחלפת הצבע ללבן בוהק עם צל ניאון קל
           fontSize: '11px', 
           fontWeight: '700',
           color: textIsFullHour ? '#ffffff' : 'transparent',
@@ -365,7 +364,7 @@ export default function AdminControlSchedule() {
   return (
     <div className="hq-global-wrapper">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Heebo:wght@300;400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
 
         .hq-global-wrapper { width: 100%; min-height: 100vh; background: #050812; display: flex; font-family: 'Heebo', sans-serif; color: #e0f0ff; direction: rtl; overflow: hidden; }
@@ -389,7 +388,7 @@ export default function AdminControlSchedule() {
         .ring-wrap { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; z-index: 4; }
         .ro { position: absolute; inset: 0; border-radius: 50%; border: 1.5px dashed rgba(0, 200, 255, 0.2); animation: hqSpin 14s linear infinite; }
         .rm { position: absolute; inset: 4px; border-radius: 50%; border: 1px solid transparent; border-top-color: #6040ff; border-right-color: #00c8ff; animation: hqSpin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,.4); }
-        .rm2 { position: absolute; inset: 8px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #4060ff; animation: hqSpin 7s linear infinite reverse; box-shadow: inset 0 0 10px rgba(64,128,255,.3); }
+        .rm2 { position: absolute; inset: 8px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #00c8ff; animation: hqSpin 7s linear infinite reverse; box-shadow: inset 0 0 10px rgba(64,128,255,.3); }
         .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
         .limg { width: 28px; height: 28px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 1px; box-shadow: 0 0 8px rgba(0,200,255,0.4); }
         
@@ -425,14 +424,13 @@ export default function AdminControlSchedule() {
         
         .sched-wrap { display: grid; grid-template-columns: 56px repeat(5, 1fr); min-width: 720px; position: relative; }
         
-        /* 🟢 תיקון ראות ימי השבוע: שדרוג לפונט Heebo מודגש, לבן בוהק, גופן 13px ומשקל 800 חסין רקע כהה */
         .col-header { padding: 10px 4px; font-family: 'Heebo', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 0.5px; color: #ffffff; text-shadow: 0 0 8px rgba(255, 255, 255, 0.25); text-align: center; border-bottom: 1px solid #1e3250; background: #080f1e; position: sticky; top: 0; z-index: 6; white-space: nowrap; }
         .col-header.time-hdr { position: sticky; top: 0; left: 0; z-index: 7; background: #080f1e; color: #00c8ff; text-shadow: 0 0 8px rgba(0, 200, 255, 0.3); }
         
         .time-col-body { background: #050a14; border-left: 1px solid #0a1428; position: sticky; left: 0; z-index: 3; }
         .day-col-body { position: relative; border-left: 1px solid #0a1428; }
         
-        .block { position: absolute; border-radius: 6px; cursor: pointer; overflow: hidden; padding: 3px 5px; display: flex; flex-direction: column; justify-content: space-between; transition: filter 0.15s, box-shadow 0.15s; text-align: right; }
+        .block { position: absolute; border-radius: 6px; cursor: pointer; overflow: hidden; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; transition: filter 0.15s, box-shadow 0.15s; text-align: right; }
         .block:hover { filter: brightness(1.25) saturate(1.2) !important; box-shadow: 0 2px 12px rgba(0,0,0,0.4); }
         .block-green { background: rgba(0,200,80,0.13); border: 1px solid rgba(0,200,80,0.3); border-top: 2px solid #00e676; }
         .block-yellow { background: rgba(200,136,0,0.13); border: 1px solid rgba(200,136,0,0.3); border-top: 2px solid #f0a820; }
@@ -440,12 +438,10 @@ export default function AdminControlSchedule() {
         .block-turquoise { background: rgba(0, 206, 209, 0.12); border: 1px solid rgba(0, 206, 209, 0.35); border-top: 2px solid #00ced1; }
         .block-turquoise .bname { color: #00ced1; font-weight: 800; }
 
-        .bname { font-size: 11.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .block-green .bname { color: #00e676; }
-        .block-yellow .bname { color: #f0a820; }
-        .block-red .bname { color: #ff5555; }
-        .bmeta { font-size: 10px !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff !important; opacity: 0.9 !important; }
-        .btime { font-size: 10px; color: #a0b0d0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* 👑 שדרוג הנראות בתוך הבלוקים: גודל גופן אחיד 12px וצבע לבן נקי להכל */
+        .bname { font-size: 12px; font-weight: 700; color: #ffffff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bmeta { font-size: 12px; color: #ffffff; opacity: 0.95; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .btime { font-size: 12px; color: #ffffff; opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         
         .bottom-bar { display: flex; gap: 10px; padding: 10px 16px; border-top: 1px solid #1a2a4a; background: #060b18; flex-shrink: 0; flex-wrap: wrap; direction: rtl; }
         .bot-btn { display: flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 9px; font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 1px; font-weight: 700; cursor: pointer; transition: all 0.2s; border: none; white-space: nowrap; flex-direction: row-reverse; }
@@ -541,9 +537,9 @@ export default function AdminControlSchedule() {
             <button className={`tb-btn ${currentFilter === 'unassigned' ? 'active' : ''}`} type="button" onClick={() => setCurrentFilter('unassigned')}><i className="ti ti-alert-triangle"></i> ללא שיוך</button>
             
             <div className="legend">
-              <div className="legend-item"><div className="leg-dot" style={{ background: '#00e676' }}></div>אושר</div>
-              <div className="legend-item"><div className="leg-dot" style={{ background: '#f0a820' }}></div>ממתין</div>
-              <div className="legend-item"><div className="leg-dot" style={{ background: '#ff5555' }}></div>ללא מדריך</div>
+              <div className="leg-item"><div className="leg-dot" style={{ background: '#00e676' }}></div>אושר</div>
+              <div className="leg-item"><div className="leg-dot" style={{ background: '#f0a820' }}></div>ממתין</div>
+              <div className="leg-item"><div className="leg-dot" style={{ background: '#ff5555' }}></div>ללא מדריך</div>
             </div>
           </div>
 
@@ -679,8 +675,18 @@ export default function AdminControlSchedule() {
                           ) : (
                             <>
                               <div className="bname">{b.name}</div>
-                              {hPx > 30 && <div className="bmeta">{b.city}{b.instructor ? ` · ${b.instructor.split(' ')[0]}` : ''}</div>}
-                              {hPx > 20 && <div className="btime">{minToStr(b.startMin)}–{minToStr(b.startMin + b.dur)}</div>}
+                              {/* 👑 שינוי ראות: הוספת מוקד וצביעת כל המידע בלבן אחיד ובגודל 12px */}
+                              {hPx > 45 && (
+                                <div className="bmeta">
+                                  {b.venue}
+                                </div>
+                              )}
+                              {hPx > 65 && (
+                                <div className="bmeta">
+                                  {b.city}{b.instructor ? ` · ${b.instructor.split(' ')[0]}` : ''}
+                                </div>
+                              )}
+                              {hPx > 25 && <div className="btime">{minToStr(b.startMin)}–{minToStr(b.startMin + b.dur)}</div>}
                             </>
                           )}
                         </div>
@@ -790,7 +796,7 @@ export default function AdminControlSchedule() {
             <div className="mhead"><div className="mtitle" style={{ color: '#00d8b0' }}><i className="ti ti-user-star"></i>הוספת חלוקת תלמידים מרובה לקבוצה</div><button className="mclose" type="button" onClick={() => setActiveModal(null)}><i className="ti ti-x"></i></button></div>
             <div className="mbody">
               <div className="mfield"><label>שמות התלמידים</label><div style={{ maxHeight: '140px', overflowY: 'auto', marginBottom: '6px' }}>{studentRows.map((row, idx) => <div className="student-row" key={idx}><input className="minput" type="text" placeholder="שם תלמיד מלא" value={row} onChange={(e) => { const updated = [...studentRows]; updated[idx] = e.target.value; setStudentRows(updated); }} /><button className="remove-row-btn" type="button" onClick={() => setStudentRows(studentRows.filter((_, i) => i !== idx))}><i className="ti ti-x"></i></button></div>)}</div><button className="add-row-btn" type="button" onClick={() => setStudentRows([...studentRows, ''])}><i className="ti ti-plus"></i> הוסף שורת תלמיד נוספת</button></div>
-              <div className="mfield"><label>שיוך קבוצה ממוינת</label><div className="group-search-wrap"><input className="minput" type="text" value={studentSearchQuery} onChange={(e) => setSearchQuery(e.target.value)} /><i className="ti ti-search search-icon"></i></div><div className="group-select-list">{sortedGroupsForAllocation.map(g => <div className={`group-option ${g.id === studentTargetGroupId ? 'selected' : ''}`} key={g.id} onClick={() => setStudentTargetGroupId(g.id)}><div><div className="go-name">{g.name}</div><div className="go-meta">{g.city} · {g.venue}</div></div><i className="ti ti-check go-check"></i></div>)}</div></div>
+              <div className="mfield"><label>שיוך קבוצה ממוינת</label><div className="group-search-wrap"><input className="minput" type="text" value={studentSearchQuery} onChange={(e) => setStudentSearchQuery(e.target.value)} /><i className="ti ti-search search-icon"></i></div><div className="group-select-list">{sortedGroupsForAllocation.map(g => <div className={`group-option ${g.id === studentTargetGroupId ? 'selected' : ''}`} key={g.id} onClick={() => setStudentTargetGroupId(g.id)}><div><div className="go-name">{g.name}</div><div className="go-meta">{g.city} · {g.venue}</div></div><i className="ti ti-check go-check"></i></div>)}</div></div>
               <div className="mrow" style={{ marginTop: '18px' }}><button className="msave" style={{ background: 'linear-gradient(135deg, #041818, #062828)', color: '#00d8b0' }} type="button" onClick={handleSaveBulkStudents}>אשר והוסף תלמידים לקבוצה</button><button className="mcancel" type="button" onClick={() => setActiveModal(null)}>ביטול</button></div>
             </div>
           </div>
