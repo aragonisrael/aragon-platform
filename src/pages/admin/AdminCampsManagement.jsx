@@ -35,6 +35,9 @@ export default function AdminCampsManagement() {
   const [selectedViewCamp, setSelectedViewCamp] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
+  // 🟢 סטייט חדש עבור מודאל פופ-אפ המידע של תקן כוח אדם
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+
   // שדות טופס הקמת לוח/מסלול ("הקם מסלול קייטנות")
   const [setupStartDate, setSetupStartDate] = useState('2026-07-01');
   const [setupEndDate, setSetupEndDate] = useState('2026-08-20');
@@ -52,7 +55,7 @@ export default function AdminCampsManagement() {
   const [campTargetTrack, setCampTargetTrack] = useState('');
   const [campCompounds, setCampCompounds] = useState([]);
 
-  // 🟢 סטייט ייעודי לבחירת 3 חברי צוות הקמה ופירוק
+  // סטייט ייעודי לבחירת 3 חברי צוות הקמה ופירוק
   const [campStaff1, setCampStaff1] = useState('');
   const [campStaff2, setCampStaff2] = useState('');
   const [campStaff3, setCampStaff3] = useState('');
@@ -221,7 +224,7 @@ export default function AdminCampsManagement() {
     showToast('🗑️ הלוח אופס ונמחק לחלוטין מחמ"ל האדמין');
   };
 
-  // 🟢 תיקון 2: חדרים נפתחים ריקים לחלוטין כברירת מחדל ("ללא מדריך") כדי לאפשר גמישות וריון מלא משתמש
+  // חדרים נפתחים ריקים לחלוטין כברירת מחדל ("ללא מדריך")
   useEffect(() => {
     const requiredRooms = Math.max(1, Math.ceil(campChildrenCount / 25));
     
@@ -231,8 +234,8 @@ export default function AdminCampsManagement() {
         id: 'comp_' + idx + '_' + Date.now(),
         label: `מתחם חומרה ${idx + 1}`,
         roomType: ROOM_TYPES[idx % ROOM_TYPES.length],
-        seniorInstructor: '', // ריק בדיפולט
-        tempInstructor: ''    // ריק בדיפולט
+        seniorInstructor: '', 
+        tempInstructor: ''    
       };
     });
     
@@ -251,8 +254,8 @@ export default function AdminCampsManagement() {
           id: 'comp_edit_' + i + '_' + Date.now(),
           label: `מתחם חומרה ${i + 1}`,
           roomType: ROOM_TYPES[i % ROOM_TYPES.length],
-          seniorInstructor: '', // ריק בדיפולט
-          tempInstructor: ''    // ריק בדיפולט
+          seniorInstructor: '', 
+          tempInstructor: ''    
         });
       }
     } else if (currentCompounds.length > requiredRooms) {
@@ -290,7 +293,6 @@ export default function AdminCampsManagement() {
       childrenCount: campChildrenCount,
       trackId: campTargetTrack,
       compounds: [...campCompounds],
-      // 🟢 שמירת מערך 3 חברי הצוות הלוגיסטי
       setupStaff: [campStaff1, campStaff2, campStaff3]
     };
 
@@ -355,12 +357,17 @@ export default function AdminCampsManagement() {
         .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #00e676; animation: hqPulse 2s ease-in-out infinite; }
         .top-bar-neon { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #00c8ff44, #7b2fbe66, #00c8ff44, transparent); }
 
-        .ring-wrap { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; z-index: 4; }
-        .ro { position: absolute; inset: 0; border-radius: 50%; border: 1.5px dashed rgba(0, 200, 255, 0.2); animation: hqSpin 14s linear infinite; }
-        .rm { position: absolute; inset: 4px; border-radius: 50%; border: 1px solid transparent; border-top-color: #6040ff; border-right-color: #00c8ff; animation: hqSpin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,0.3); }
-        .rm2 { position: absolute; inset: 8px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #00c8ff; animation: hqSpin 7s linear infinite reverse; box-shadow: inset 0 0 8px rgba(0,200,255,0.2); }
-        .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
-        .limg { width: 28px; height: 28px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 1px; box-shadow: 0 0 8px rgba(0,200,255,0.4); }
+        /* 🟢 תיקון הרדיו: יישור וייצוב המבנה של הנגן הגלובלי בתוך שורת הסטטוסים העליונה */
+        .cyber-music-player { display: flex; align-items: center; justify-content: center; gap: 10px; background: #040c18; border: 1px solid #1a3a6a; border-radius: 20px; padding: 0 16px; margin-left: 12px; height: 32px; cursor: pointer; user-select: none; transition: all 0.2s; box-sizing: border-box; }
+        .cyber-music-player:hover { border-color: #00c8ff; box-shadow: 0 0 10px rgba(0, 200, 255, 0.2); }
+        .cyber-music-player.playing { border-color: #00e5a0; box-shadow: 0 0 10px rgba(0,229,160,0.15); }
+        .player-toggle-btn { color: #00c8ff; font-size: 13px; display: flex; align-items: center; justify-content: center; height: 100%; }
+        .cyber-music-player.playing .player-toggle-btn { color: #00e5a0; }
+        .player-station-text { font-size: 11px; font-family: 'Orbitron', monospace; color: rgba(160,185,215,0.6); letter-spacing: 1px; font-weight: bold; }
+        .cyber-music-player.playing .player-station-text { color: #00e5a0; }
+        .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2.5px; height: 11px; margin-bottom: 2px; }
+        .visualizer-bar { width: 2px; height: 3px; background: #00c8ff; }
+        .cyber-music-player.playing .visualizer-bar { background: #00e5a0; animation: wavePulse 0.6s ease-in-out infinite alternate; }
 
         .content { flex: 1; overflow: hidden; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; height: calc(100% - 64px); min-height: 0; }
         
@@ -430,6 +437,13 @@ export default function AdminCampsManagement() {
         .modal-box::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,200,255,0.4), transparent); }
         .modal-box.wide-console { width: 880px; } 
 
+        /* 🟢 פקודות עיצוב עבור מודאל תקן כוח האדם החדש */
+        .modal-box.info-pane-style { width: 580px; border-color: #f5c842; box-shadow: 0 0 40px rgba(245, 200, 66, 0.15); }
+        .info-pane-grid { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+        .info-pane-card { background: #060b18; border: 1px solid rgba(255,255,255,0.04); border-right: 3px solid #f5c842; border-radius: 6px; padding: 12px 14px; }
+        .info-pane-card-title { font-size: 13.5px; font-weight: 800; color: #f5c842; margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
+        .info-pane-card-text { font-size: 12.5px; color: rgba(220, 235, 255, 0.85); line-height: 1.6; }
+
         .modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #1a2a4a; }
         .modal-title-text { font-family: 'Heebo', sans-serif; font-size: 15.5px; font-weight: 800; color: #ffffff; }
         .modal-subtitle-text { font-size: 12px; color: rgba(160,185,215,0.5); margin-top: 3px; }
@@ -443,22 +457,21 @@ export default function AdminCampsManagement() {
         
         .compounds-dynamic-container { background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 10px; padding: 12px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
         .compound-form-block { background: #060b18; border: 1px solid #1a2a4a; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
-        .compound-form-title { font-size: 12.5px; font-weight: 800; color: #00e5a0; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 4px; }
+        .compound-form-title { font-size: 12.5px; font-weight: 800; color: #00e5a0; border-bottom: 1px solid #1a2a4a; padding-bottom: 4px; }
 
         .update-btn { width: 100%; padding: 12px; background: rgba(0,200,255,0.1); border: 1px solid #00c8ff; border-radius: 8px; color: #00c8ff; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; outline: none; }
         .update-btn:hover { background: rgba(0,200,255,0.18); box-shadow: 0 0 18px rgba(0,200,255,0.2); }
         .mbtn-cancel { padding: 12px 18px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: rgba(160,185,215,0.5); font-family: 'Heebo', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; }
         .mf2 { display: flex; gap: 10px; margin-top: 20px; }
 
-        .edit-icon-trigger-btn { background: transparent; border: none; color: #f5c842; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
+        .edit-icon-trigger-btn { background: transparent; border: none; color: #f5c842; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; margin-right: 6px; }
         .edit-icon-trigger-btn:hover { transform: scale(1.15); color: #ffffff; }
 
-        /* 🟢 תיקון 1: בידוד ה-Toast לקבוצת מניעת קריסות והסתרת רכיבי הגלילה הראשיים ברקע */
         .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(0); background: #080f1e; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 30px rgba(0,229,160,0.3); z-index: 999; text-align: center; pointer-events: none; display: none; }
         .toast.show { display: block; animation: fadeInToast 0.2s ease-out; }
-        @keyframes fadeInToast { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
         @keyframes hqSpin { to { transform: rotate(360deg); } }
+        @keyframes wavePulse { 0% { height: 3px; } 100% { height: 11px; } }
       `}</style>
 
       {/* סיידבר אדמין רשמי */}
@@ -520,6 +533,10 @@ export default function AdminCampsManagement() {
                   <button className="ct-btn btn-build-board" style={{ background: 'rgba(0, 200, 255, 0.05)', borderColor: 'rgba(0, 200, 255, 0.3)', color: '#00c8ff' }} onClick={handleAddNewTrackLane}>
                     <i className="ti ti-git-fork"></i>הוסף מסלול נוסף
                   </button>
+                  {/* 🟢 כפתור "תקן כוח אדם" החדש הממוקם בסרגל הכלים הראשי */}
+                  <button className="ct-btn" style={{ background: 'rgba(245, 200, 66, 0.06)', borderColor: 'rgba(245, 200, 66, 0.35)', color: '#f5c842' }} onClick={() => setIsInfoModalOpen(true)}>
+                    <i className="ti ti-info-circle"></i>תקן כח אדם
+                  </button>
                 </>
               )}
             </div>
@@ -552,7 +569,7 @@ export default function AdminCampsManagement() {
                       <div className="tm-track-lane-cell">{track.label}</div>
                       
                       <div className="tm-track-timeline-wrapper">
-                        {/* גריד הרקע הסייבר-לבן המפוצלת לימים בודדים */}
+                        {/* גריד הרקע הסייבר-לבן المפוצלת לימים בודדים */}
                         {boardWeeks.map(week => (
                           <div key={week.id} className="tm-week-grid-placeholder">
                             {week.workingDays.map((day, dIdx) => (
@@ -648,7 +665,7 @@ export default function AdminCampsManagement() {
       {/* מודאל 2: חלונית "הוסף קייטנה" */}
       {isAddCampModalOpen && (
         <div className="modal-ov open" onClick={(e) => e.target.className === 'modal-ov open' && setIsAddCampModalOpen(false)}>
-          <div className="modal-box" style={{ width: '560px' }}>
+          <div className="modal-box">
             <button className="modal-close" onClick={() => setIsAddCampModalOpen(false)}>×</button>
             <div className="modal-head">
               <div className="av av-temp" style={{ background: 'rgba(0, 229, 160, 0.12)', color: '#00e5a0' }}><i className="ti ti-circle-plus" style={{ fontSize: '20px' }}></i></div>
@@ -686,7 +703,6 @@ export default function AdminCampsManagement() {
                 </div>
               </div>
 
-              {/* 🟢 תיקון 3: בחירת 3 עובדים מצוות המפקדה/השטח לטובת משימות ההקמה והפירוק של הציוד */}
               <div style={{ fontSize: '11.5px', color: '#00c8ff', fontWeight: '700', marginBottom: '6px', marginTop: '10px' }}>
                 🔧 צוות פריסה, הקמה ופירוק חומרה (בחר 3 עובדים)
               </div>
@@ -768,6 +784,12 @@ export default function AdminCampsManagement() {
                   <span style={{ fontSize: '12px', color: '#00e5a0', fontFamily: 'Orbitron' }}>🕒 שעות פעילות: {selectedViewCamp.netHours}</span>
                 </div>
               </div>
+              
+              {/* 🟢 כפתור "תקן כוח אדם" המשובץ בתוך כותרת קוקפיט הלו"ז הפנימי */}
+              <button className="edit-icon-trigger-btn" style={{ color: '#f5c842' }} title="צפה בתקן כוח אדם" onClick={() => setIsInfoModalOpen(true)}>
+                <i className="ti ti-info-circle"></i>
+              </button>
+              
               <button className="edit-icon-trigger-btn" title="ערוך מתחמים וכח אדם" onClick={() => setIsEditMode(!isEditMode)}>
                 <i className={isEditMode ? "ti ti-eye" : "ti ti-edit"}></i>
               </button>
@@ -782,7 +804,6 @@ export default function AdminCampsManagement() {
                     <tr>
                       <th>מתחם חומרה</th>
                       {getCampDaysList(selectedViewCamp.startDate, selectedViewCamp.endDate).map((day, idx) => {
-                        // 🟢 תיקון 2: הצגת שעות עבודה מובנות ומפורשות לכל יום בנפרד ללא עיוותים
                         const isFirstDay = idx === 0;
                         const workHoursLabel = isFirstDay ? '7:15 - 13:15' : '07:40 - 13:10';
                         
@@ -819,7 +840,6 @@ export default function AdminCampsManagement() {
                   </tbody>
                 </table>
 
-                {/* 🟢 תיקון 3: הצגת רשימת 3 העובדים שנבחרו ידנית למעטה הלוגיסטי של ההקמה והפירוק */}
                 <div className="camps-logistics-crew-footer-panel">
                   <div className="clc-footer-title">
                     <i className="ti ti-tool" style={{ fontSize: '16px' }}></i>
@@ -841,7 +861,7 @@ export default function AdminCampsManagement() {
                 </div>
               </div>
             ) : (
-              /* מצב עריכה (עיפרון): טופס עדכון דינמי מלא כולל עדכון 3 עובדי צוות לוגיסטיקה */
+              /* מצב עריכה (עיפרון): טופס עדכון דינמי מלא */
               <form onSubmit={handleUpdateCampDetailsInfo}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="mfr">
@@ -861,7 +881,6 @@ export default function AdminCampsManagement() {
                   </div>
                 </div>
 
-                {/* 🟢 תיקון 3: עריכת 3 אנשי צוות ההקמה והפירוק גם מתוך מסך העיפרון של הקייטנה */}
                 <div style={{ fontSize: '11.5px', color: '#00c8ff', fontWeight: '700', marginBottom: '6px', marginTop: '10px' }}>
                   🔧 ערוך צוות פריסה והקמת חומרה (3 עובדים)
                 </div>
@@ -936,13 +955,75 @@ export default function AdminCampsManagement() {
                 </div>
 
                 <div className="mf2">
-                  <button type="button" className="mbtn-cancel" onClick={() => setIsEditMode(false)}>הולך אחורה</button>
+                  <button type="button" className="mbtn-cancel" onClick={() => setIsEditMode(false)}>חזור לצפייה</button>
                   <button className="update-btn" type="submit" style={{ background: 'rgba(245, 200, 66, 0.1)', borderColor: '#f5c842', color: '#f5c842' }}>
                     <i className="ti ti-device-floppy"></i>שמור שינויים בענן
                   </button>
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 🟢 מודאל 4 חדש: פופ-אפ חלונית המידע והחוקים הרשמיים של תקן כוח אדם ופיננסים קייטנה */}
+      {isInfoModalOpen && (
+        <div className="modal-ov open" onClick={(e) => e.target.className === 'modal-ov open' && setIsInfoModalOpen(false)}>
+          <div className="modal-box info-pane-style">
+            <button className="modal-close" onClick={() => setIsInfoModalOpen(false)}>×</button>
+            
+            <div className="modal-head" style={{ borderBottomColor: 'rgba(245, 200, 66, 0.2)' }}>
+              <div className="av av-temp" style={{ background: 'rgba(245, 200, 66, 0.12)', color: '#f5c842' }}><i className="ti ti-gavel" style={{ fontSize: '20px' }}></i></div>
+              <div>
+                <div className="modal-title-text" style={{ color: '#f5c842' }}>תקן כח אדם ורגולציית קייטנות רשמית</div>
+                <div className="modal-subtitle-text">חוקי העסקה, קיבולת חדרים ותקציבי חומרה לחמ"ל האופרטיבי</div>
+              </div>
+            </div>
+
+            <div className="info-pane-grid">
+              
+              <div className="info-pane-card">
+                <div className="info-pane-card-title"><i className="ti ti-user-check"></i>תקן מנהל קייטנה (דרג מפקדה)</div>
+                <div className="info-pane-card-text">
+                  מנהל קייטנה רשאי לעבוד **עד 6 שעות ביום לכל היותר**. 
+                  <br />
+                  טווח תקציב שכר שעתי מוגדר: **60 ש״ח עד 70 ש״ח לשעה** בהתאם לוותק הניהולי.
+                </div>
+              </div>
+
+              <div className="info-pane-card">
+                <div className="info-pane-card-title"><i className="ti ti-users"></i>תקן קיבולת חדרים וקבוצות (לפי 50 ילדים)</div>
+                <div className="info-pane-card-text">
+                  קייטנה בעלת **50 חניכים רשומים מתחלקת באופן קשיח ל-2 קבוצות** פרונטליות של 25 תלמידים לכל מתחם. 
+                  מערך השיבוץ הפיננסי לכל חדר מחייב בחירה באחד משני המודלים הבאים:
+                  <br />
+                  • **מודל א':** 2 מדריכים בשכר יסוד של **60 ש״ח לשעה** + עוזר מדריך בשכר של **35 ש״ח לשעה**.
+                  <br />
+                  • **מודל ב':** מדריך מוביל אחד בשכר של **60 ש״ח לשעה** + 2 מדריכים משניים (אחד מקבל **עד 45 ש״ח לשעה** והשני מקבל **עד 40 ש״ח לשעה**).
+                </div>
+              </div>
+
+              <div className="info-pane-card">
+                <div className="info-pane-card-title"><i className="ti ti-truck"></i>תקן לוגיסטיקה, הרכבה ופירוק</div>
+                <div className="info-pane-card-text">
+                  עבור יום ההרכבה והקמת התשתית (שלב Setup) או יום פירוק ואיסוף החומרה (שלב Cleanup) מוגדר תקן עבודה קשיח של **3 שעות עבור 3 מדריכים**.
+                  <br />
+                  שכר היסוד לפעילות לוגיסטית זו עומד על **40 ש״ח לשעה** לכל חבר משלחת.
+                </div>
+              </div>
+
+              <div className="info-pane-card" style={{ borderRightColor: '#00c8ff' }}>
+                <div className="info-pane-card-title" style={{ color: '#00c8ff' }}><i className="ti ti-car"></i>רכיבי נסיעות והחזרי שטח</div>
+                <div className="info-pane-card-text">
+                  כלל החזרי הנסיעות, הדלק, רכיבי הקילומטראז' ונסיעות השטח המיוחדות ישולמו לצוותי ההדרכה והלוגיסטיקה **במלואם כחוק** ובהתאם לצו ההרחבה העדכני במדינה.
+                </div>
+              </div>
+
+            </div>
+
+            <div className="mrow" style={{ marginTop: '22px' }}>
+              <button className="msave" style={{ background: 'linear-gradient(135deg, #1b1604, #3a2e0a)', borderColor: '#f5c842', color: '#f5c842' }} type="button" onClick={() => setIsInfoModalOpen(false)}>הבנתי, סגור פופאפ</button>
+            </div>
           </div>
         </div>
       )}
