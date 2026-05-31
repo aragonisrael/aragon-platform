@@ -35,7 +35,7 @@ export default function AdminCampsManagement() {
   const [selectedViewCamp, setSelectedViewCamp] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  // 🟢 סטייט חדש עבור מודאל פופ-אפ המידע של תקן כוח אדם
+  // סטייט עבור מודאל פופ-אפ המידע של תקן כוח אדם
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
   // שדות טופס הקמת לוח/מסלול ("הקם מסלול קייטנות")
@@ -357,7 +357,15 @@ export default function AdminCampsManagement() {
         .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #00e676; animation: hqPulse 2s ease-in-out infinite; }
         .top-bar-neon { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #00c8ff44, #7b2fbe66, #00c8ff44, transparent); }
 
-        /* 🟢 תיקון הרדיו: יישור וייצוב המבנה של הנגן הגלובלי בתוך שורת הסטטוסים העליונה */
+        /* 🔒 תיקון קריטי: הגדרות ה-CSS הנעולות מחדש עבור הלוגו הדינמי וההילה של הטופבר */
+        .ring-wrap { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; z-index: 4; flex-shrink: 0; }
+        .ro { position: absolute; inset: 0; border-radius: 50%; border: 1.5px dashed rgba(0, 200, 255, 0.2); animation: hqSpin 14s linear infinite; }
+        .rm { position: absolute; inset: 4px; border-radius: 50%; border: 1px solid transparent; border-top-color: #6040ff; border-right-color: #00c8ff; animation: hqSpin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,0.3); }
+        .rm2 { position: absolute; inset: 8px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #00c8ff; animation: hqSpin 7s linear infinite reverse; box-shadow: inset 0 0 8px rgba(0,200,255,0.2); }
+        .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
+        .limg { width: 28px; height: 28px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 1px; box-shadow: 0 0 8px rgba(0,200,255,0.4); flex-shrink: 0; }
+
+        /* נגן הרדיו הגלובלי */
         .cyber-music-player { display: flex; align-items: center; justify-content: center; gap: 10px; background: #040c18; border: 1px solid #1a3a6a; border-radius: 20px; padding: 0 16px; margin-left: 12px; height: 32px; cursor: pointer; user-select: none; transition: all 0.2s; box-sizing: border-box; }
         .cyber-music-player:hover { border-color: #00c8ff; box-shadow: 0 0 10px rgba(0, 200, 255, 0.2); }
         .cyber-music-player.playing { border-color: #00e5a0; box-shadow: 0 0 10px rgba(0,229,160,0.15); }
@@ -437,7 +445,7 @@ export default function AdminCampsManagement() {
         .modal-box::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,200,255,0.4), transparent); }
         .modal-box.wide-console { width: 880px; } 
 
-        /* 🟢 פקודות עיצוב עבור מודאל תקן כוח האדם החדש */
+        /* פקודות עיצוב עבור מודאל תקן כוח האדם החדש */
         .modal-box.info-pane-style { width: 580px; border-color: #f5c842; box-shadow: 0 0 40px rgba(245, 200, 66, 0.15); }
         .info-pane-grid { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
         .info-pane-card { background: #060b18; border: 1px solid rgba(255,255,255,0.04); border-right: 3px solid #f5c842; border-radius: 6px; padding: 12px 14px; }
@@ -469,6 +477,7 @@ export default function AdminCampsManagement() {
 
         .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(0); background: #080f1e; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 30px rgba(0,229,160,0.3); z-index: 999; text-align: center; pointer-events: none; display: none; }
         .toast.show { display: block; animation: fadeInToast 0.2s ease-out; }
+        @keyframes fadeInToast { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
         @keyframes hqSpin { to { transform: rotate(360deg); } }
         @keyframes wavePulse { 0% { height: 3px; } 100% { height: 11px; } }
@@ -533,7 +542,6 @@ export default function AdminCampsManagement() {
                   <button className="ct-btn btn-build-board" style={{ background: 'rgba(0, 200, 255, 0.05)', borderColor: 'rgba(0, 200, 255, 0.3)', color: '#00c8ff' }} onClick={handleAddNewTrackLane}>
                     <i className="ti ti-git-fork"></i>הוסף מסלול נוסף
                   </button>
-                  {/* 🟢 כפתור "תקן כוח אדם" החדש הממוקם בסרגל הכלים הראשי */}
                   <button className="ct-btn" style={{ background: 'rgba(245, 200, 66, 0.06)', borderColor: 'rgba(245, 200, 66, 0.35)', color: '#f5c842' }} onClick={() => setIsInfoModalOpen(true)}>
                     <i className="ti ti-info-circle"></i>תקן כח אדם
                   </button>
@@ -569,7 +577,7 @@ export default function AdminCampsManagement() {
                       <div className="tm-track-lane-cell">{track.label}</div>
                       
                       <div className="tm-track-timeline-wrapper">
-                        {/* גריד הרקע הסייבר-לבן المפוצלת לימים בודדים */}
+                        {/* גריד הרקע המפוצל לימים בודדים */}
                         {boardWeeks.map(week => (
                           <div key={week.id} className="tm-week-grid-placeholder">
                             {week.workingDays.map((day, dIdx) => (
@@ -785,7 +793,6 @@ export default function AdminCampsManagement() {
                 </div>
               </div>
               
-              {/* 🟢 כפתור "תקן כוח אדם" המשובץ בתוך כותרת קוקפיט הלו"ז הפנימי */}
               <button className="edit-icon-trigger-btn" style={{ color: '#f5c842' }} title="צפה בתקן כוח אדם" onClick={() => setIsInfoModalOpen(true)}>
                 <i className="ti ti-info-circle"></i>
               </button>
@@ -966,7 +973,7 @@ export default function AdminCampsManagement() {
         </div>
       )}
 
-      {/* 🟢 מודאל 4 חדש: פופ-אפ חלונית המידע והחוקים הרשמיים של תקן כוח אדם ופיננסים קייטנה */}
+      {/* מודאל 4: פופ-אפ חלונית המידע והחוקים הרשמיים של תקן כוח אדם ופיננסים קייטנה */}
       {isInfoModalOpen && (
         <div className="modal-ov open" onClick={(e) => e.target.className === 'modal-ov open' && setIsInfoModalOpen(false)}>
           <div className="modal-box info-pane-style">
