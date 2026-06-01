@@ -55,14 +55,14 @@ export default function App() {
         <Route path="/student/updates" element={<ProtectedRoute allowedRoles={['student']}><StudentUpdates /></ProtectedRoute>} />
         <Route path="/student/game" element={<ProtectedRoute allowedRoles={['student']}><StudentHomeGame /></ProtectedRoute>} />
         
-        {/* 👨‍🏫 עולם המדריך */}
-        <Route path="/instructor" element={<ProtectedRoute allowedRoles={['instructor']}><InstructorHome /></ProtectedRoute>} />
-        <Route path="/instructor/tasks" element={<ProtectedRoute allowedRoles={['instructor']}><InstructorTasks /></ProtectedRoute>} />
-        <Route path="/instructor/groups" element={<ProtectedRoute allowedRoles={['instructor']}><InstructorGroups /></ProtectedRoute>} />
-        <Route path="/instructor/benefits" element={<ProtectedRoute allowedRoles={['instructor']}><InstructorBenefits /></ProtectedRoute>} />
-        <Route path="/instructor/updates" element={<ProtectedRoute allowedRoles={['instructor']}><InstructorUpdates /></ProtectedRoute>} />
-        <Route path="/instructor/schedule" element={<ProtectedRoute allowedRoles={['instructor']}><InstructorSchedule /></ProtectedRoute>} />
-        <Route path="/instructor/profile" element={<ProtectedRoute allowedRoles={['instructor']}><InstructorProfile /></ProtectedRoute>} />
+        {/* 👨‍🏫 עולם המדריך - פתוח כעת רשמית גם למדריכים קבועים וגם למדריכים זמניים (temp_instructor) */}
+        <Route path="/instructor" element={<ProtectedRoute allowedRoles={['instructor', 'temp_instructor']}><InstructorHome /></ProtectedRoute>} />
+        <Route path="/instructor/tasks" element={<ProtectedRoute allowedRoles={['instructor', 'temp_instructor']}><InstructorTasks /></ProtectedRoute>} />
+        <Route path="/instructor/groups" element={<ProtectedRoute allowedRoles={['instructor', 'temp_instructor']}><InstructorGroups /></ProtectedRoute>} />
+        <Route path="/instructor/benefits" element={<ProtectedRoute allowedRoles={['instructor', 'temp_instructor']}><InstructorBenefits /></ProtectedRoute>} />
+        <Route path="/instructor/updates" element={<ProtectedRoute allowedRoles={['instructor', 'temp_instructor']}><InstructorUpdates /></ProtectedRoute>} />
+        <Route path="/instructor/schedule" element={<ProtectedRoute allowedRoles={['instructor', 'temp_instructor']}><InstructorSchedule /></ProtectedRoute>} />
+        <Route path="/instructor/profile" element={<ProtectedRoute allowedRoles={['instructor', 'temp_instructor']}><InstructorProfile /></ProtectedRoute>} />
         
         {/* 💻 עולם האדמין הראשי - כעת כולל את מסך ניהול כח האדם של הקייטנות */}
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />

@@ -88,10 +88,10 @@ export default function Login() {
 
       loginContext(dbUser.username, dbUser.role);
 
-      // חיווט הניתובים הראשיים של אראגון לפי רולים קשיחים
+      // 🟢 חיווט הניתובים הראשיים של אראגון לפי רולים קשיחים - כולל תמיכה מלאה במדריך זמני
       if (dbUser.role === 'admin') navigate('/admin');
-      else if (dbUser.role === 'logistics') navigate('/admin/logistics'); // 🚚 הזרקה אוטומטית ישירות לחמ"ל הלוגיסטי הראשי!
-      else if (dbUser.role === 'instructor') navigate('/instructor');
+      else if (dbUser.role === 'logistics') navigate('/admin/logistics'); 
+      else if (dbUser.role === 'instructor' || dbUser.role === 'temp_instructor') navigate('/instructor');
       else navigate('/student'); 
 
     } catch (err) {
@@ -122,7 +122,6 @@ export default function Login() {
           width: 100%;
         }
 
-        /* ─── הנעילה הדינמית מפני זליגת העתקות במובייל ─── */
         .card-title, 
         .card-subtitle, 
         .form-label, 
@@ -135,7 +134,6 @@ export default function Login() {
           user-select: none;
         }
 
-        /* ─── Particles ─── */
         .particle {
           position: absolute;
           border-radius: 50%;
@@ -151,7 +149,6 @@ export default function Login() {
           100% { transform: translateY(-10vh) scale(1); opacity: 0; }
         }
 
-        /* ─── Floating tech icons ─── */
         .float-icon {
           position: absolute;
           font-size: 28px;
@@ -167,7 +164,6 @@ export default function Login() {
           50%       { transform: translateY(-20px) rotate(5deg); }
         }
 
-        /* ─── TOP BRANDING BAR ─── */
         .brand-bar {
           width: 100%;
           height: 120px;
@@ -202,7 +198,6 @@ export default function Login() {
         .brand-line-left  { left: 0; background: linear-gradient(90deg, transparent, #3b82f6, #7c3aed55); }
         .brand-line-right { right: 0; background: linear-gradient(270deg, transparent, #3b82f6, #7c3aed55); }
 
-        /* ─── SPINNING RING ─── */
         .ring-container {
           position: relative;
           width: 80px;
@@ -263,10 +258,8 @@ export default function Login() {
         .tech-dot:nth-child(4) { background: #7c3aed; animation-delay: 0.9s; }
         @keyframes pulseDot { 0%, 100% { opacity: 0.3; transform: scale(1); } 50% { opacity: 1; transform: scale(1.5); } }
 
-        /* ─── MAIN CONTENT ─── */
         .main-content { flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; width: 100%; position: relative; z-index: 1; }
 
-        /* ─── LOGIN CARD ─── */
         .login-card {
           width: 100%;
           max-width: 420px;
@@ -288,7 +281,6 @@ export default function Login() {
         .card-title { text-align: center; font-family: 'Orbitron', sans-serif; font-size: 1.5rem; font-weight: 900; color: #e2e8f0; margin-bottom: 0.4rem; letter-spacing: 2px; }
         .card-subtitle { text-align: center; font-size: 0.85rem; color: #a78bfa; letter-spacing: 1px; font-weight: 600; margin-bottom: 2rem; direction: rtl; }
 
-        /* ─── FORM CENTERED ─── */
         .form-group { margin-bottom: 1.4rem; position: relative; text-align: center; direction: rtl; }
         .form-label { display: block; font-size: 0.8rem; color: #a78bfa; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600; text-align: center; }
         
@@ -309,7 +301,6 @@ export default function Login() {
         .cyber-checkbox.checked i { display: block; }
         .remember-text { font-size: 0.8rem; color: #64748b; font-weight: 500; }
 
-        /* ─── LOGIN BUTTON ─── */
         .login-btn {
           width: 100%;
           padding: 1.05rem; 
@@ -344,7 +335,6 @@ export default function Login() {
         }
         @keyframes shineBtn { 0% { left: -60%; } 45%, 100% { left: 120%; } }
 
-        /* ─── 🟢 מלבן זוהר להוספת האפליקציה למסך הבית ─── */
         .add-app-btn {
           width: 100%;
           padding: 0.8rem 1rem;
@@ -500,7 +490,6 @@ export default function Login() {
               {loading ? 'AUTHENTICATING...' : 'לממלכה שלך ✓'}
             </button>
 
-            {/* ─── 🟢 מלבן הוספה כאפליקציה החדש עם הסמל בצד ימין ─── */}
             <button 
               className="add-app-btn" 
               type="button"
