@@ -14,7 +14,7 @@ export default function InstructorGroups() {
   const [activePanel, setActivePanel] = useState(''); // '' | 'coins' | 'task' | 'edit'
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [taskInputText, setTaskInputText] = useState('');
-  const [editNameInput, setEditNameInput] = useState(''); // 🟢 סטייט חדש לעריכת שם תצוגה
+  const [editNameInput, setEditNameInput] = useState(''); // סטייט חדש לעריכת שם תצוגה
   
   // שם המדריך המחובר והשם המלא שלו מהענן
   const [instructorName, setInstructorName] = useState('');
@@ -33,6 +33,9 @@ export default function InstructorGroups() {
 
   // בסיס נתוני הקבוצות המרכזי - ייטען דינמית מהשרת בלייב!
   const [groupsData, setGroupsData] = useState([]);
+
+  // 🟢 סטייט חדש לשמירת נתוני הקייטנות המשובצות למדריך מהענן
+  const [campsData, setCampsData] = useState([]);
 
   // שם המדריך המחובר כרגע במערכת
   const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'guide1';
@@ -116,6 +119,26 @@ export default function InstructorGroups() {
 
         setGroupsData(liveGroups);
       }
+
+      // 🟢 4. סעיף חדש: שליפת קייטנות ומחזורי קיץ משובצים למדריך זה (עבודה בריאל-טיים מול טבלת camp_compounds)
+      const { data: dbCamps } = await supabase
+        .from('camp_compounds')
+        .select('room_type, camps (*)')
+        .or(`senior_instructor.eq."${userData.full_name}",temp_instructor.eq."${userData.full_name}"`);
+
+      if (dbCamps) {
+        const mappedCamps = dbCamps.filter(c => c.camps).map(c => ({
+          id: c.camps.id,
+          title: c.camps.title,
+          roomType: c.room_type,
+          startDate: new Date(c.camps.start_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
+          endDate: new Date(c.camps.end_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
+          netHours: c.camps.net_hours,
+          manager: c.camps.manager
+        }));
+        setCampsData(mappedCamps);
+      }
+
     } catch (err) {
       console.error("Unexpected sync error:", err);
     }
@@ -147,17 +170,14 @@ export default function InstructorGroups() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // 🟢 מנוע יצירת שמות משתמש בעברית מלאה חסין כפילויות (החלפת הלוגיקה הישנה באנגלית)
+  // מנוע יצירת שמות משתמש בעברית מלאה חסין כפילויות
   const generateUniqueUsername = (fullName, takenUsernames) => {
-    // ניקוי רווחים מיותרים וחיבור השם הפרטי ושם המשפחה באמצעות נקודה
     const baseUsername = fullName.trim().replace(/\s+/g, '.');
-    
     let finalUsername = baseUsername;
     let counter = 1;
     
-    // בדיקה בלולאה האם שם המשתמש העברי כבר קיים במאגר הזמני או האבסולוטי בענן
     while (takenUsernames.includes(finalUsername)) {
-      finalUsername = `${baseUsername}${counter}`; // הצמדת ספרת כפילות (הדס.ואקנין1, הדס.ואקנין2...)
+      finalUsername = `${baseUsername}${counter}`; 
       counter++;
     }
     
@@ -229,7 +249,7 @@ export default function InstructorGroups() {
 
   const handleOpenModal = (student) => {
     setSelectedStudent(student); 
-    setEditNameInput(student.name); // אתחול אינפוט עריכת השם עם ערכו הנוכחי
+    setEditNameInput(student.name); 
     setActivePanel('');
     setTaskInputText('');
     setIsOpen(true);
@@ -251,7 +271,7 @@ export default function InstructorGroups() {
       const { error } = await supabase
         .from('users')
         .update({ coins: newCoinsTotal })
-        .eq('id', selectedStudent.id); // החלפה ל-id לזיהוי אבסולוטי ומאובטח
+        .eq('id', selectedStudent.id); 
 
       if (error) {
         console.error("Error awarding coins:", error.message);
@@ -517,7 +537,37 @@ export default function InstructorGroups() {
             <i className="ti ti-search search-icon"></i>
             <input className="search-input" type="text" placeholder="חיפוש קבוצה..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
-          <div className="results-count">{filteredGroups.length} קבוצות</div>
+
+          {/* 🟢 רנדור דינמי של קייטנות קיץ אקטיביות בראש הרשימה במידה והמדריך שובץ אליהן באחד החדרים באדמין */}
+          {campsData.length > 0 && (
+            <>
+              <div className="results-count" style={{ color: '#00c8ff', fontWeight: 'bold', marginTop: '4px', fontSize: '11.5px' }}>
+                ⛺ קייטנות ומתחמי קיץ באחריותך ({campsData.length})
+              </div>
+              <div className="groups-list" style={{ marginBottom: '14px' }}>
+                {campsData.map(c => (
+                  <div key={c.id} className="group-card open" style={{ borderRight: '3.5px solid #00c8ff', background: 'linear-gradient(145deg, #091324, #060b14)' }}>
+                    <div className="gc-header" style={{ padding: '12px 14px' }}>
+                      <div className="gc-dot blue" style={{ background: '#00c8ff', boxShadow: '0 0 8px #00c8ff', width: '9px', height: '9px' }}></div>
+                      <div className="gc-info">
+                        <div className="gc-name" style={{ color: '#ffffff', fontSize: '13.5px', fontWeight: '800' }}>{c.title}</div>
+                        <div className="gc-meta" style={{ marginTop: '4px' }}>
+                          <span className="gc-tag" style={{ color: '#00e5a0', borderColor: 'rgba(0,229,160,0.25)', background: 'rgba(0,229,160,0.03)', fontWeight: '700' }}>🎮 {c.roomType}</span>
+                          <span className="gc-tag" style={{ fontFamily: 'Orbitron, monospace' }}>🗓️ {c.startDate} - {c.endDate}</span>
+                          <span className="gc-tag" style={{ fontFamily: 'Orbitron, monospace' }}>🕒 {c.netHours}</span>
+                        </div>
+                      </div>
+                      <div className="gc-right" style={{ fontSize: '10.5px', color: '#f5c842', fontWeight: '800', background: 'rgba(245,200,66,0.06)', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(245,200,66,0.15)' }}>
+                        מנהל: {c.manager?.split(' ')[0]}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          <div className="results-count">{filteredGroups.length} קבוצות חוגים קבועות</div>
           
           <div className="groups-list">
             {filteredGroups.map(g => {
