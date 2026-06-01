@@ -681,21 +681,7 @@ export default function AdminCampsManagement() {
           <div className="top-bar-brand">
             <div className="ring-wrap">
               <div className="ro"></div><div className="rm"></div><div className="rm2"></div><div className="ric"></div>
-              <img 
-                src={aragonLogo} 
-                alt="Aragon" 
-                style={{ 
-                  width: '28px', 
-                  height: '28px', 
-                  borderRadius: '50%', 
-                  objectFit: 'cover', 
-                  display: 'block',
-                  position: 'relative',
-                  zIndex: 5,
-                  background: 'rgba(255,255,255,0.9)',
-                  padding: '1px',
-                  boxShadow: '0 0 8px rgba(0,200,255,0.4)'
-                }} 
+              <img className="limg" src={aragonLogo} alt="Aragon" />
               />
             </div>
             <div>
