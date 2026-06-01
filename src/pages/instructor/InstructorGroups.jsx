@@ -121,7 +121,7 @@ export default function InstructorGroups() {
         setGroupsData(liveGroups);
       }
 
-      // 🟢 4. סעיף מעודכן וחסין: שליפת קייטנות ומחזורי קיץ משובצים למדריך באמצעות סינון צד-לקוח מאובטח
+      // 4. סעיף מעודכן וחסין: שליפת קייטנות ומחזורי קיץ משובצים למדריך באמצעות סינון צד-לקוח מאובטח
       const { data: dbCamps } = await supabase
         .from('camp_compounds')
         .select('room_type, senior_instructor, temp_instructor, camps (*)');
@@ -202,7 +202,8 @@ export default function InstructorGroups() {
     const { data: allUsers } = await supabase.from('users').select('username');
     const allExistingUsernames = allUsers?.map(u => u.username) || [];
 
-    const newStudentsPool ForDB = [];
+    // 🟢 תיקון: סגירת הרווח המלחיץ במשתנה פריסת ה-Database לנעילת ה-Vercel Build
+    const newStudentsPoolForDB = [];
     const localResultsToShow = [];
 
     lines.forEach(fullName => {
@@ -262,8 +263,19 @@ export default function InstructorGroups() {
     setActivePanel('');
   };
 
-  const handleTogglePanel = (panelType) => {
-    setActivePanel(activePanel === panelType ? '' : panelType);
+  const handleToggleGroupAssignment = async (group) => {
+    const isCurrentlyAssigned = group.instructor === selectedInstructor.name;
+    const nextInstructor = isCurrentlyAssigned ? '' : selectedInstructor.name;
+    const nextStatus = isCurrentlyAssigned ? 'red' : 'green';
+
+    try {
+      const { error } = await supabase.from('groups').update({ instructor: nextInstructor, status: nextStatus }).eq('id', group.id);
+      if (error) throw error;
+      await fetchLiveInstructorsMatrix();
+      triggerToast(`הקבוצה ${group.venue} שונתה בהצלחה`);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleGiveCoins = async (amount, emoji) => {
@@ -540,11 +552,11 @@ export default function InstructorGroups() {
             <input className="search-input" type="text" placeholder="חיפוש קבוצה..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
 
-          {/* 🟢 רנדור דינמי של קייטנות קיץ אקטיביות בראש הרשימה במידה והמדריך שובץ אליהן באחד החדרים באדמין */}
+          {/* רנדור דינמי של קייטנות קיץ אקטיביות */}
           {campsData.length > 0 && (
             <>
               <div className="results-count" style={{ color: '#00c8ff', fontWeight: 'bold', marginTop: '4px', fontSize: '11.5px' }}>
-                ⛺ קייטנות ומתחמי קיץ באחריותך ({campsData.length})
+                Context ⛺ קייטנות ומתחמי קיץ באחריותך ({campsData.length})
               </div>
               <div className="groups-list" style={{ marginBottom: '14px' }}>
                 {campsData.map(c => (
