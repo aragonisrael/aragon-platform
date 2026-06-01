@@ -163,6 +163,11 @@ export default function AdminCampsManagement() {
   };
 
   // ── פונקציות סנכרון ותקשורת ענן ──
+  // פונקציית שירות להצגת התראות טוסט במסך
+  const showToast = (msg) => {
+    setToast({ show: true, message: msg });
+    setTimeout(() => setToast({ show: false, message: '' }), 3200);
+  };
   const fetchLiveCampsDataFromCloud = async () => {
     try {
       const { data: dbCamps, error: campsErr } = await supabase.from('camps').select('*');
