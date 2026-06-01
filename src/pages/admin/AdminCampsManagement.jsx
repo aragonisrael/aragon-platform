@@ -6,6 +6,13 @@ import { supabase } from '../../supabaseClient';
 // ייבוא הלוגו הרשמי של אראגון
 import aragonLogo from '../../assets/aragonlogo.png';
 
+// 🟢 העברת פונקציית העזר לראש הקובץ (Top-Level) למניעת קריסות scope ובעיות ReferenceError ברענונים
+const fmtDateLabelStr = (dateStr) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
+};
+
 export default function AdminCampsManagement() {
   const navigate = useNavigate();
 
@@ -19,7 +26,7 @@ export default function AdminCampsManagement() {
   const [tempInstructors, setTempInstructors] = useState(['אופק שבתאי (זמני)', 'מאי לוגסי (זמנית)', 'גל רותם (זמני)', 'ליאור פרידמן (זמנית)']);
   const [campManagers, setCampManagers] = useState(['רוני אלוני', 'גיא דותן', 'אביב גל', 'מנהל לוגיסטיקה']);
 
-  // 🟢 תיקון חסינות רענון: טעינה אוטומטית של תצורת הלוח מהזיכרון הקשיח של הדפדפן אם קיים
+  // תצורת הלוח האקטיבי עם חסינות רענון (localStorage persistence)
   const [boardConfig, setBoardConfig] = useState(() => {
     const saved = localStorage.getItem('aragon_camp_board_config');
     return saved ? JSON.parse(saved) : null;
@@ -117,7 +124,7 @@ export default function AdminCampsManagement() {
     }
   };
 
-  // משיכת כל המדריכים (קבועים + זמניים) מ-Supabase בזמן אמת להפקה מלאה
+  // משיכת כל המדריכים (קבועים + זמניים) מ-Supabase בזמן אמת
   const fetchLiveWorkforcePool = async () => {
     try {
       const { data: seniors } = await supabase.from('users').select('full_name').eq('role', 'instructor');
@@ -134,7 +141,6 @@ export default function AdminCampsManagement() {
     }
   };
 
-  // סנכרון ראשוני בעליית המסך
   useEffect(() => {
     fetchLiveWorkforcePool();
     fetchLiveCampsDataFromCloud();
@@ -283,7 +289,6 @@ export default function AdminCampsManagement() {
     return days;
   };
 
-  // פקודת בניית המסלולים והלוח הראשי
   const handleBuildBoardRoute = (e) => {
     e.preventDefault();
     const computedWeeks = generateWeeklyColumns(setupStartDate, setupEndDate);
@@ -304,7 +309,6 @@ export default function AdminCampsManagement() {
     setBoardWeeks(computedWeeks);
     setTracks(initialTracksArray);
 
-    // 🟢 שמירה בלוקאלית בדפדפן למניעת מחיקה ברענון
     localStorage.setItem('aragon_camp_board_config', JSON.stringify(configObj));
     localStorage.setItem('aragon_camp_board_weeks', JSON.stringify(computedWeeks));
     localStorage.setItem('aragon_camp_tracks', JSON.stringify(initialTracksArray));
@@ -314,17 +318,14 @@ export default function AdminCampsManagement() {
     showToast('🚀 לוח מסלולי קייטנות ומחזורים שבועיים נוצר בהצלחה!');
   };
 
-  // הוספת שורת מסלול/תור נוסף ללוח בריאל-טיים
   const handleAddNewTrackLane = () => {
     const nextIndex = tracks.length + 1;
     const nextTracks = [...tracks, { id: 'track_' + nextIndex, label: `מסלול ${nextIndex}` }];
     setTracks(nextTracks);
-    // 🟢 עדכון השמירה הלוקאלית
     localStorage.setItem('aragon_camp_tracks', JSON.stringify(nextTracks));
     showToast(`➕ מסלול ${nextIndex} נוסף כמערך תור אקטיבי בלוח`);
   };
 
-  // אקשן מחיקת הלוח כולו מהמערכת
   const handleResetEntireBoard = () => {
     if (!window.confirm('⚠️ אזהרה! האם למחוק לחלוטין את לוח הקייטנות האקטיבי וכל השיבוצים בתוכו?')) return;
     setBoardConfig(null);
@@ -333,7 +334,6 @@ export default function AdminCampsManagement() {
     setCamps([]);
     setSelectedViewCamp(null);
 
-    // 🟢 מחיקת השמירה הלוקאלית ברענון
     localStorage.removeItem('aragon_camp_board_config');
     localStorage.removeItem('aragon_camp_board_weeks');
     localStorage.removeItem('aragon_camp_tracks');
@@ -341,7 +341,6 @@ export default function AdminCampsManagement() {
     showToast('🗑️ הלוח אופס ונמחק לחלוטין מחמ"ל האדמין');
   };
 
-  // אוטומציית ניהול מתחמים/חדרים בהתאם לכמות הילדים
   useEffect(() => {
     const requiredRooms = Math.max(1, Math.ceil(campChildrenCount / 25));
     
@@ -385,7 +384,6 @@ export default function AdminCampsManagement() {
     });
   };
 
-  // פתיחת מודאל הוספת קייטנה חדשה
   const handleOpenAddCampModal = () => {
     setCampTitle('');
     setCampStaff1('');
@@ -394,7 +392,6 @@ export default function AdminCampsManagement() {
     setIsAddCampModalOpen(true);
   };
 
-  // שמירת הקייטנה ושיבוצה בתוך קו הזמן
   const handleSaveCampToTrack = async (e) => {
     e.preventDefault();
     if (!campTitle.trim()) { alert('נא להזין את שם הקייטנה/בית הספר'); return; }
@@ -447,6 +444,11 @@ export default function AdminCampsManagement() {
       console.error(err);
       alert('שגיאת שרת בשמירת הקייטנה: ' + err.message);
     }
+  };
+
+  const handleOpenCampDashboardConsole = (camp) => {
+    setSelectedViewCamp(camp);
+    setIsEditMode(false);
   };
 
   const handleUpdateCampDetailsInfo = async (e) => {
@@ -535,7 +537,7 @@ export default function AdminCampsManagement() {
         *{ box-sizing: border-box; margin: 0; padding: 0; }
         .hq-global-wrapper { width: 100%; min-height: 100vh; background: #050812; display: flex; font-family: 'Heebo', sans-serif; color: #e0f0ff; direction: rtl; overflow: hidden; }
         
-        /* SIDEBAR */
+        /* 💻 סיידבר אדמין מאוחד */
         .sidebar { width: 72px; background: #080f1e; border-left: 1px solid #1a2a4a; display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 8px; position: sticky; top: 0; height: 100vh; z-index: 10; flex-shrink: 0; }
         .sidebar-logo { width: 42px; height: 42px; border-radius: 50%; border: 2px solid #00c8ff; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; position: relative; }
         .sidebar-logo::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; border: 1px solid #7b2fbe; border-top-color: transparent; border-bottom-color: transparent; animation: hqSpin 4s linear infinite; }
@@ -554,14 +556,7 @@ export default function AdminCampsManagement() {
         
         .top-bar { height: 64px; background: linear-gradient(90deg, #050812 0%, #080f22 30%, #0a0820 50%, #080f22 70%, #050812 100%); border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 20; flex-shrink: 0; }
         .top-bar-brand { display: flex; align-items: center; gap: 14px; }
-        .brand-title { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: #00c8ff; }
-        .brand-sub { font-size: 10px; color: #4a6080; letter-spacing: 1px; margin-top: 1px; font-family: 'Heebo', sans-serif; }
         
-        .top-bar-right { display: flex; align-items: center; gap: 12px; }
-        .status-pill { display: flex; align-items: center; gap: 6px; background: #040c18; border: 1px solid #0a2040; border-radius: 20px; padding: 5px 12px; font-size: 12px; color: #4a9060; }
-        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #00e676; animation: hqPulse 2s ease-in-out infinite; }
-        .top-bar-neon { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #00c8ff44, #7b2fbe66, #00c8ff44, transparent); }
-
         .ring-wrap { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; z-index: 4; flex-shrink: 0; }
         .ro { position: absolute; inset: 0; border-radius: 50%; border: 1.5px dashed rgba(0, 200, 255, 0.2); animation: hqSpin 14s linear infinite; }
         .rm { position: absolute; inset: 4px; border-radius: 50%; border: 1px solid transparent; border-top-color: #6040ff; border-right-color: #00c8ff; animation: hqSpin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,0.3); }
@@ -681,7 +676,6 @@ export default function AdminCampsManagement() {
 
         .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(0); background: #080f1e; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 30px rgba(0,229,160,0.3); z-index: 999; text-align: center; pointer-events: none; display: none; }
         .toast.show { display: block; animation: fadeInToast 0.2s ease-out; }
-        @keyframes fadeInToast { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
         @keyframes hqSpin { to { transform: rotate(360deg); } }
         @keyframes wavePulse { 0% { height: 3px; } 100% { height: 11px; } }
@@ -696,12 +690,9 @@ export default function AdminCampsManagement() {
         <button className="nav-btn" type="button" onClick={() => navigate('/admin/control')}><i className="ti ti-calendar"></i><span className="nav-label">לו"ז</span></button>
         <button className="nav-btn" type="button" onClick={() => navigate('/admin/groups')}><i className="ti ti-table"></i><span className="nav-label">קבוצות</span></button>
         <button className="nav-btn" type="button" onClick={() => navigate('/admin/team')}><i className="ti ti-users"></i><span className="nav-label">צוות</span></button>
+        {/* 🟢 תיקון 2: החלפת ה-SVG השבור באייקון רשמי וחסין קריסות של Tabler למניעת מסך לבן */}
         <button className="nav-btn active" type="button">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
-            <polyline points="2 17 12 22 22 17"/>
-            <polyline points="2 12 17 22 12"/>
-          </svg>
+          <i className="ti ti-tent" style={{ fontSize: '20px' }}></i>
           <span className="nav-label">קייטנות</span>
         </button>
       </div>
@@ -1000,7 +991,6 @@ export default function AdminCampsManagement() {
                 </div>
               </div>
               
-              {/* כפתור "תקן כוח אדם" פנימי */}
               <button className="edit-icon-trigger-btn" style={{ color: '#f5c842' }} title="צפה בתקן כוח אדם" onClick={() => setIsInfoModalOpen(true)}>
                 <i className="ti ti-info-circle"></i>
               </button>
