@@ -13,14 +13,14 @@ const fmtDateLabelStr = (dateStr) => {
   return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
 };
 
-//  green 🟢 פונקציית זיקוק אטומית חסינת תקלות - מקלפת את כל הסוגריים והמילים "זמני" מהשורש ומחזירה תיוג יחיד ומדויק
+//  green 🟢 פונקציית זיקוק אטומית - מנקה כל סוג סוגריים ומילים כפולות מה-Database ומאלצת תיוג יחיד ותקין
 const cleanInstructorName = (name, isTemp = true) => {
   if (!name) return '';
   let cleanRaw = String(name)
-    .replace(/[\(\)]/g, '')    // מסיר פיזית את כל הסוגריים פתח וסגור מהמחרוזת לחלוטין
+    .replace(/[\(\)]/g, '')    // מוחק אבסולוטית את כל סוגי הסוגריים (פתח וסגור) מהמחרוזת
     .replace(/זמני/g, '')      // מוחק לחלוטין את המילה זמני
     .replace(/זמנית/g, '')     // מוחק לחלוטין את המילה זמנית
-    .replace(/\s+/g, ' ')      // מאחד כפילויות של רווחים לרווח בודד
+    .replace(/\s+/g, ' ')      // מאחד כפילויות של רווחים לרווח יחיד
     .trim();                   // מנקה שוליים
   return isTemp ? `${cleanRaw} (זמני)` : cleanRaw;
 };
@@ -59,11 +59,6 @@ export default function AdminCampsManagement() {
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [isAddCampModalOpen, setIsAddCampModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
-  
-  // סטייט מודאל להקמת מדריך זמני חדש במערכת
-  const [isAddTempInstructorModalOpen, setIsAddTempInstructorModalOpen] = useState(false);
-  const [newTempName, setNewTempName] = useState('');
-  const [newTempPhone, setNewTempPhone] = useState('');
 
   // סטייט עבור מודאל קוקפיט הלו"ז של קייטנה נבחרת
   const [selectedViewCamp, setSelectedViewCamp] = useState(null);
@@ -177,56 +172,6 @@ export default function AdminCampsManagement() {
     if (!globalAudio) return;
     globalAudio.paused ? globalAudio.play().catch(err => console.log(err)) : globalAudio.pause();
     setIsPlaying(!globalAudio.paused);
-  };
-
-  const toEng = (n) => {
-    const m = { 'א': 'a', 'ב': 'b', 'ג': 'g', 'ד': 'd', 'ה': 'h', 'ו': 'v', 'ז': 'z', 'ח': 'ch', 'ט': 't', 'י': 'y', 'כ': 'k', 'ל': 'l', 'מ': 'm', 'נ': 'n', 'ס': 's', 'ע': 'a', 'פ': 'p', 'צ': 'tz', 'ק': 'k', 'ר': 'r', 'ש': 'sh', 'ת': 't', 'ך': 'k', 'ם': 'm', 'ן': 'n', 'ף': 'p', 'ץ': 'tz' };
-    return n.split('').map(c => m[c] || c).join('').replace(/\s+/g, '.');
-  };
-
-  // פונקציית שיגור והקמת מדריך זמני חדש ישירות ל-Supabase
-  const handleCreateTempInstructorSubmit = async (e) => {
-    e.preventDefault();
-    if (!newTempName.trim()) { alert('נא להזין שם מלא'); return; }
-
-    const baseUsername = newTempName.trim().replace(/\s+/g, '.');
-
-    try {
-      const { data: matchedUsers } = await supabase
-        .from('users')
-        .select('username')
-        .ilike('username', `${baseUsername}%`);
-
-      const takenPool = matchedUsers ? matchedUsers.map(u => u.username) : [];
-      let generatedUsername = baseUsername;
-      let counter = 1;
-
-      while (takenPool.includes(generatedUsername)) {
-        generatedUsername = `${baseUsername}${counter}`;
-        counter++;
-      }
-
-      const { error } = await supabase.from('users').insert([{
-        username: generatedUsername,
-        password: '12345678',
-        role: 'temp_instructor',
-        full_name: cleanInstructorName(newTempName.trim(), true), 
-        ils_balance: 0,
-        coins: 0,
-        is_active: true
-      }]);
-
-      if (error) throw error;
-
-      showToast(`✓ המדריך הזמני "${newTempName}" הוקם וסונכרן לענן!`);
-      setNewTempName('');
-      setNewTempPhone('');
-      setIsAddTempInstructorModalOpen(false);
-      await fetchLiveWorkforcePool(); 
-    } catch (err) {
-      console.error(err);
-      alert('שגיאה ביצירת משתמש בענן: ' + err.message);
-    }
   };
 
   const generateWeeklyColumns = (start, end) => {
@@ -480,7 +425,6 @@ export default function AdminCampsManagement() {
   };
 
   const handleOpenCampDashboardConsole = (camp) => {
-    //  green 🟢 זיקוק וניקוי מוחלט של נתוני הקייטנה הספציפית בעת פתיחת המודאל
     const sanitizedCamp = {
       ...camp,
       compounds: camp.compounds.map(comp => ({
@@ -595,25 +539,32 @@ export default function AdminCampsManagement() {
 
         .main-col { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-width: 0; }
         
+        /* ── 🟢 שדרוג ויישור מוחלט של ה-Top Bar למבנה הסינכרוני המנצח של האפליקציה ── */
         .top-bar { height: 64px; background: linear-gradient(90deg, #050812 0%, #080f22 30%, #0a0820 50%, #080f22 70%, #050812 100%); border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 20; flex-shrink: 0; }
         .top-bar-brand { display: flex; align-items: center; gap: 14px; }
+        .brand-title { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: #00c8ff; }
+        .brand-sub { font-size: 10px; color: #4a6080; letter-spacing: 1px; margin-top: 1px; font-family: 'Heebo', sans-serif; }
         
+        .top-bar-right { display: flex; align-items: center; gap: 12px; }
+        .status-pill { display: flex; align-items: center; gap: 6px; background: #040c18; border: 1px solid #0a2040; border-radius: 20px; padding: 5px 12px; font-size: 12px; color: #4a9060; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #00e676; animation: hqPulse 2s ease-in-out infinite; }
+        .top-bar-neon { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #00c8ff44, #7b2fbe66, #00c8ff44, transparent); }
+
+        .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #1a3a6a; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; transition: all 0.2s; user-select: none; }
+        .cyber-music-player:hover { border-color: #00c8ff; box-shadow: 0 0 10px rgba(0, 200, 255, 0.2); }
+        .player-toggle-btn { color: #00c8ff; font-size: 14px; display: flex; align-items: center; }
+        .player-station-text { font-size: 11px; font-family: 'Orbitron', monospace; color: #4a6080; letter-spacing: 1px; font-weight: bold; }
+        .cyber-music-player.playing .player-station-text { color: #00e5a0; text-shadow: 0 0 8px rgba(0, 229, 160, 0.4); }
+        .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2.5px; height: 11px; margin-bottom: 2px; }
+        .visualizer-bar { width: 2px; height: 3px; background: #00c8ff; }
+        .cyber-music-player.playing .visualizer-bar { background: #00e5a0; animation: wavePulse 0.6s ease-in-out infinite alternate; }
+
         .ring-wrap { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; z-index: 4; flex-shrink: 0; }
         .ro { position: absolute; inset: 0; border-radius: 50%; border: 1.5px dashed rgba(0, 200, 255, 0.2); animation: hqSpin 14s linear infinite; }
         .rm { position: absolute; inset: 4px; border-radius: 50%; border: 1px solid transparent; border-top-color: #6040ff; border-right-color: #00c8ff; animation: hqSpin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,0.3); }
         .rm2 { position: absolute; inset: 8px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #00c8ff; animation: hqSpin 7s linear infinite reverse; box-shadow: inset 0 0 8px rgba(0,200,255,0.2); }
         .limg { width: 28px; height: 28px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 1px; box-shadow: 0 0 8px rgba(0,200,255,0.4); flex-shrink: 0; }
         .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
-
-        .cyber-music-player { display: flex; align-items: center; justify-content: center; gap: 10px; background: #040c18; border: 1px solid #1a3a6a; border-radius: 20px; padding: 0 16px; margin-left: 12px; height: 32px; cursor: pointer; user-select: none; transition: all 0.2s; box-sizing: border-box; }
-        .cyber-music-player:hover { border-color: #00c8ff; box-shadow: 0 0 10px rgba(0, 200, 255, 0.2); }
-        .cyber-music-player.playing { border-color: #00e5a0; box-shadow: 0 0 10px rgba(0,229,160,0.15); }
-        .player-toggle-btn { color: #00c8ff; font-size: 13px; display: flex; align-items: center; justify-content: center; height: 100%; }
-        .cyber-music-player.playing .player-toggle-btn { color: #00e5a0; }
-        .brand-title { font-size: 11px; color: rgba(160,185,215,0.6); font-family: 'Orbitron'; font-weight: bold; }
-        .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2.5px; height: 11px; margin-bottom: 2px; }
-        .visualizer-bar { width: 2px; height: 3px; background: #00c8ff; }
-        .cyber-music-player.playing .visualizer-bar { background: #00e5a0; animation: wavePulse 0.6s ease-in-out infinite alternate; }
 
         .content { flex: 1; overflow: hidden; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; height: calc(100% - 64px); min-height: 0; }
         
@@ -710,7 +661,6 @@ export default function AdminCampsManagement() {
         .mdelete-warning-btn:hover { background: rgba(255, 59, 48, 0.16); border-color: #ff3b30; color: #ff3b30; box-shadow: 0 0 15px rgba(255, 59, 48, 0.25); }
 
         .mf2 { display: flex; gap: 10px; margin-top: 20px; }
-
         .edit-icon-trigger-btn { background: transparent; border: none; color: #f5c842; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; margin-right: 6px; }
         .edit-icon-trigger-btn:hover { transform: scale(1.15); color: #ffffff; }
 
@@ -737,7 +687,7 @@ export default function AdminCampsManagement() {
       </div>
 
       <div className="main-col">
-        {/* טופבר אדמין */}
+        {/* טופבר אדמין - מתוקן פיקסל פרפקט */}
         <div className="top-bar">
           <div className="top-bar-brand">
             <div className="ring-wrap">
@@ -752,7 +702,7 @@ export default function AdminCampsManagement() {
           <div className="top-bar-right">
             <div className={`cyber-music-player ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
               <div className="player-toggle-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i ></div>
-              <div className="brand-title" style={{ fontSize: '11px', color: 'rgba(160,185,215,0.6)', fontFamily: 'Orbitron' }}>HQ RADIO</div>
+              <div className="player-station-text">HQ RADIO</div>
               <div className="audio-visualizer-wave"><div className="visualizer-bar"></div><div className="visualizer-bar"></div><div className="visualizer-bar"></div></div>
             </div>
             <div className="status-pill"><div className="status-dot"></div>מערכת פעילה</div>
@@ -778,9 +728,6 @@ export default function AdminCampsManagement() {
                   </button>
                   <button className="ct-btn" style={{ background: 'rgba(245, 200, 66, 0.06)', borderColor: 'rgba(245, 200, 66, 0.35)', color: '#f5c842' }} onClick={() => setIsInfoModalOpen(true)}>
                     <i className="ti ti-info-circle"></i>תקן כח אדם
-                  </button>
-                  <button className="ct-btn" style={{ background: 'rgba(123, 47, 190, 0.06)', borderColor: 'rgba(123, 47, 190, 0.35)', color: '#a060e0' }} onClick={() => setIsAddTempInstructorModalOpen(true)}>
-                    <i className="ti ti-user-plus"></i>הוסף מדריך זמני
                   </button>
                 </>
               )}
@@ -1270,45 +1217,6 @@ export default function AdminCampsManagement() {
             <div className="mrow" style={{ marginTop: '22px' }}>
               <button className="msave" style={{ background: 'linear-gradient(135deg, #1b1604, #3a2e0a)', borderColor: '#f5c842', color: '#f5c842' }} type="button" onClick={() => setIsInfoModalOpen(false)}>הבנתי, סגור פופאפ</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* מודאל 5: טופס הפקה והקמת מדריך זמני חדש */}
-      {isAddTempInstructorModalOpen && (
-        <div className="modal-ov open" onClick={(e) => e.target.className === 'modal-ov open' && setIsAddTempInstructorModalOpen(false)}>
-          <div className="modal-box" style={{ width: '480px' }}>
-            <button className="modal-close" onClick={() => setIsAddTempInstructorModalOpen(false)}>×</button>
-            
-            <div className="modal-head" style={{ borderBottomColor: 'rgba(123, 47, 190, 0.2)' }}>
-              <div className="av av-temp" style={{ background: 'rgba(123, 47, 190, 0.12)', color: '#a060e0' }}><i className="ti ti-user-plus" style={{ fontSize: '20px' }}></i></div>
-              <div>
-                <div className="modal-title-text" style={{ color: '#a060e0' }}>הקמת מדריך בזק (סגל זמני)</div>
-                <div className="modal-subtitle-text">הזרקת עובד קייטנות חדש ישירות ל-Database המרכזי של הרשת</div>
-              </div>
-            </div>
-
-            <form onSubmit={handleCreateTempInstructorSubmit}>
-              <div className="mfr">
-                <label className="mfl">שם מלא (עברית)</label>
-                <input className="mfi" type="text" placeholder="למשל: דניאל לוי" value={newTempName} onChange={(e) => setNewTempName(e.target.value)} />
-              </div>
-              <div className="mfr">
-                <label className="mfl">מספר טלפון נייד</label>
-                <input className="mfi" type="text" placeholder="למשל: 0541234567" value={newTempPhone} onChange={(e) => setNewTempPhone(e.target.value)} />
-              </div>
-
-              <div style={{ fontSize: '11px', color: '#a060e0', opacity: 0.8, background: 'rgba(123, 47, 190, 0.05)', padding: '8px 10px', borderRadius: '6px', marginBottom: '14px', lineHeight: 1.4 }}>
-                💡 מערכת אראגון תפיק עבורו שם משתמש אוטומטי בעברית (למשל: temp.דניאל.לוי) וסיסמת ברירת מחדל 12345678 לצורך כניסה ישירה לאפליקציית המדריכים המצומצמת שלו.
-              </div>
-
-              <div className="mf2">
-                <button type="button" className="mbtn-cancel" onClick={() => setIsAddTempInstructorModalOpen(false)}>ביטול</button>
-                <button className="update-btn" type="submit" style={{ background: 'rgba(123, 47, 190, 0.12)', borderColor: '#a060e0', color: '#a060e0' }}>
-                  <i className="ti ti-bolt"></i>הנפק משתמש וסנכרן לענן
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
