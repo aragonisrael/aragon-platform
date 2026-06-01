@@ -59,11 +59,28 @@ export default function InstructorSchedule() {
         setInstructorName(userData.full_name);
         setCurrentCoins(userData.coins || 0);
 
+        // חישוב ימי השבוע הנוכחי בתוך הפונקציה לצורך בדיקה תאריכית מול טבלת הקייטנות
+        const now = new Date(2026, 4, 17); 
+        const base = new Date(now);
+        base.setDate(base.getDate() + weekOffset * 7);
+        const currentWeekDaysList = [];
+        for (let i = 0; i < 6; i++) {
+          const d = new Date(base);
+          d.setDate(d.getDate() + i);
+          currentWeekDaysList.push(d.toISOString().split('T')[0]);
+        }
+
         // 1. שליפת הקבוצות המשויכות למדריך הנוכחי
         const { data: dbGroups } = await supabase
           .from('groups')
           .select('*')
           .eq('instructor', userData.full_name);
+
+        // 🟢 2. שליפת קייטנות ומחזורי קיץ משובצים למדריך זה (עבודה בריאל-טיים מול טבלת camp_compounds)
+        const { data: dbCamps } = await supabase
+          .from('camp_compounds')
+          .select('room_type, camps (*)')
+          .or(`senior_instructor.eq."${userData.full_name}",temp_instructor.eq."${userData.full_name}"`);
 
         if (dbGroups) {
           const matrix = [[], [], [], [], [], []];
@@ -79,98 +96,123 @@ export default function InstructorSchedule() {
 
           // חישוב והזרקת בלוקי הקמה, פירוק ונסיעה לתוך הלו"ז של המדריך
           for (let dayIdx = 0; dayIdx <= 5; dayIdx++) {
+            const dayDateStr = currentWeekDaysList[dayIdx]; // התאריך הקלנדרי של היום הנוכחי בלולאה
+            const dayTimelineBlocks = [];
+
+            // 🟢 א׳. סריקה והזרקת קייטנות השייכות לתאריך הספציפי הזה בלוח השנה
+            if (dbCamps) {
+              const activeCampsToday = dbCamps.filter(c => c.camps && dayDateStr >= c.camps.start_date && dayDateStr <= c.camps.end_date);
+              
+              activeCampsToday.forEach(c => {
+                // בדיקה האם מדובר ביום הראשון של הקייטנה לצורך קביעת שעות עבודה (7:15 מול 7:40)
+                const isFirstDay = dayDateStr === c.camps.start_date;
+                const hoursRangeStr = isFirstDay ? '07:15–13:15' : '07:40–13:10';
+                const sortingMin = isFirstDay ? (7 * 60 + 15) : (7 * 60 + 40);
+
+                dayTimelineBlocks.push({
+                  startMin: sortingMin,
+                  time: hoursRangeStr,
+                  name: `⛺ קייטנה: ${c.camps.title}`,
+                  school: `מתחם: ${c.room_type}`,
+                  city: `מנהל: ${c.camps.manager}`,
+                  status: 'green',
+                  type: 'camp' // רכיב פריסה ייחודי
+                });
+              });
+            }
+
+            // ב׳. סינון חוגי השנה הרגילים שנופלים ביום הזה בשבוע
             const dayGroups = dbGroups
               .filter(g => Number(g.day) === dayIdx)
               .sort((a, b) => Number(a.start_min) - Number(b.start_min));
 
-            if (dayGroups.length === 0) continue;
+            if (dayGroups.length > 0) {
+              const sessions = [];
+              let currentSession = {
+                venue: dayGroups[0].venue,
+                city: dayGroups[0].city,
+                status: dayGroups[0].status,
+                classes: [dayGroups[0]]
+              };
 
-            const sessions = [];
-            let currentSession = {
-              venue: dayGroups[0].venue,
-              city: dayGroups[0].city,
-              status: dayGroups[0].status,
-              classes: [dayGroups[0]]
-            };
-
-            for (let i = 1; i < dayGroups.length; i++) {
-              const g = dayGroups[i];
-              if (g.venue === currentSession.venue) {
-                currentSession.classes.push(g);
-              } else {
-                sessions.push(currentSession);
-                currentSession = { venue: g.venue, city: g.city, status: g.status, classes: [g] };
+              for (let i = 1; i < dayGroups.length; i++) {
+                const g = dayGroups[i];
+                if (g.venue === currentSession.venue) {
+                  currentSession.classes.push(g);
+                } else {
+                  sessions.push(currentSession);
+                  currentSession = { venue: g.venue, city: g.city, status: g.status, classes: [g] };
+                }
               }
-            }
-            sessions.push(currentSession);
+              sessions.push(currentSession);
 
-            const computedSessions = sessions.map(sess => {
-              const startMin = Math.min(...sess.classes.map(c => Number(c.start_min)));
-              const endMin = Math.max(...sess.classes.map(c => Number(c.start_min) + Number(c.dur)));
-              return { ...sess, startMin, endMin };
-            });
-
-            const dayTimelineBlocks = [];
-
-            computedSessions.forEach(sess => {
-              // א׳. בלוק התארגנות והקמה (15 דקות לפני)
-              dayTimelineBlocks.push({
-                startMin: sess.startMin - 15,
-                time: `${minToHourStr(sess.startMin - 15)}–${minToHourStr(sess.startMin)}`,
-                name: '⚙️ התארגנות והקמה',
-                school: sess.venue,
-                city: sess.city,
-                status: sess.status,
-                type: 'setup'
+              const computedSessions = sessions.map(sess => {
+                const startMin = Math.min(...sess.classes.map(c => Number(c.start_min)));
+                const endMin = Math.max(...sess.classes.map(c => Number(c.start_min) + Number(c.dur)));
+                return { ...sess, startMin, endMin };
               });
 
-              // ב׳. החוגים עצמם באותו המוקד
-              sess.classes.forEach(g => {
+              computedSessions.forEach(sess => {
+                // בלוק התארגנות והקמה (15 דקות לפני)
                 dayTimelineBlocks.push({
-                  startMin: Number(g.start_min),
-                  time: `${minToHourStr(g.start_min)}–${minToHourStr(Number(g.start_min) + Number(g.dur))}`,
-                  name: g.name,
-                  school: g.venue,
-                  city: g.city,
-                  status: g.status,
-                  type: 'class'
+                  startMin: sess.startMin - 15,
+                  time: `${minToHourStr(sess.startMin - 15)}–${minToHourStr(sess.startMin)}`,
+                  name: '⚙️ התארגנות והקמה',
+                  school: sess.venue,
+                  city: sess.city,
+                  status: sess.status,
+                  type: 'setup'
+                });
+
+                // החוגים עצמם באותו המוקד
+                sess.classes.forEach(g => {
+                  dayTimelineBlocks.push({
+                    startMin: Number(g.start_min),
+                    time: `${minToHourStr(g.start_min)}–${minToHourStr(Number(g.start_min) + Number(g.dur))}`,
+                    name: g.name,
+                    school: g.venue,
+                    city: g.city,
+                    status: g.status,
+                    type: 'class'
+                  });
+                });
+
+                // בלוק פירוק כיתה (15 דקות אחרי)
+                dayTimelineBlocks.push({
+                  startMin: sess.endMin,
+                  time: `${minToHourStr(sess.endMin)}–${minToHourStr(sess.endMin + 15)}`,
+                  name: '📦 פירוק כיתה',
+                  school: sess.venue,
+                  city: sess.city,
+                  status: sess.status,
+                  type: 'cleanup'
                 });
               });
 
-              // ג׳. בלוק פירוק כיתה (15 דקות אחרי)
-              dayTimelineBlocks.push({
-                startMin: sess.endMin,
-                time: `${minToHourStr(sess.endMin)}–${minToHourStr(sess.endMin + 15)}`,
-                name: '📦 פירוק כיתה',
-                school: sess.venue,
-                city: sess.city,
-                status: sess.status,
-                type: 'cleanup'
-              });
-            });
+              // חישוב והזרקת בלוק המעבר הטורקיז (עד 40 דקות)
+              for (let i = 0; i < computedSessions.length - 1; i++) {
+                const currSess = computedSessions[i];
+                const nextSess = computedSessions[i + 1];
+                const endOfCleanup = currSess.endMin + 15;
+                const startOfSetup = nextSess.startMin - 15;
+                const travelGap = startOfSetup - endOfCleanup;
 
-            // ד׳. חישוב והזרקת בלוק המעבר הטורקיז (עד 40 דקות)
-            for (let i = 0; i < computedSessions.length - 1; i++) {
-              const currSess = computedSessions[i];
-              const nextSess = computedSessions[i + 1];
-              const endOfCleanup = currSess.endMin + 15;
-              const startOfSetup = nextSess.startMin - 15;
-              const travelGap = startOfSetup - endOfCleanup;
-
-              if (travelGap > 0) {
-                const travelDuration = Math.min(travelGap, 40);
-                dayTimelineBlocks.push({
-                  startMin: endOfCleanup,
-                  time: `${minToHourStr(endOfCleanup)}–${minToHourStr(endOfCleanup + travelDuration)}`,
-                  name: '🚗 מעבר בין מוקדים',
-                  school: `${currSess.venue} ➔ ${nextSess.venue}`,
-                  city: `${currSess.city} ➔ ${nextSess.city}`,
-                  status: 'turquoise',
-                  type: 'travel'
-                });
+                if (travelGap > 0) {
+                  const travelDuration = Math.min(travelGap, 40);
+                  dayTimelineBlocks.push({
+                    startMin: endOfCleanup,
+                    time: `${minToHourStr(endOfCleanup)}–${minToHourStr(endOfCleanup + travelDuration)}`,
+                    name: '🚗 מעבר בין מוקדים',
+                    school: `${currSess.venue} ➔ ${nextSess.venue}`,
+                    city: `${currSess.city} ➔ ${nextSess.city}`,
+                    status: 'turquoise',
+                    type: 'travel'
+                  });
+                }
               }
             }
 
+            // מיון אבסולוטי כרונולוגי של כלל הבלוקים (קייטנות + חוגים) לאותו היום
             dayTimelineBlocks.sort((a, b) => a.startMin - b.startMin);
             matrix[dayIdx] = dayTimelineBlocks;
           }
@@ -192,9 +234,10 @@ export default function InstructorSchedule() {
     }
   };
 
+  // 🟢 תיקון קריטי: הוספת weekOffset למערך ה-Dependencies כדי שהחלפת שבועות תרענן את הקייטנות התאריכיות בעמוד בלייב
   useEffect(() => {
     fetchLiveInstructorSchedule();
-  }, [loggedUser]);
+  }, [loggedUser, weekOffset]);
 
   useEffect(() => {
     const globalAudio = document.getElementById('hq-cyber-radio');
@@ -281,7 +324,6 @@ export default function InstructorSchedule() {
 
       if (!currentTaskCheck || currentTaskCheck.category !== 'sub_request') {
         alert("⚠️ בקשת ההחלפה הזו כבר אושרה על ידי מדריך אחר ברשת!");
-        await fetchLiveScheduleData();
         return;
       }
 
@@ -332,11 +374,11 @@ export default function InstructorSchedule() {
   return (
     <div className="schedule-main-container">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Exo+2:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Heebo:wght@300;400;500;600;700;800&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         
         .schedule-main-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #050a14; width: 100%; }
-        .app { width: 390px; min-height: 860px; background: #08080f; font-family: 'Exo 2',sans-serif; position: relative; overflow: hidden; border-radius: 36px; border: 1.5px solid #1c1c30; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
+        .app { width: 390px; min-height: 860px; background: #08080f; font-family: 'Heebo', sans-serif; position: relative; overflow: hidden; border-radius: 36px; border: 1.5px solid #1c1c30; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
         .hero { width: 100%; height: 190px; position: relative; overflow: hidden; border-radius: 36px 36px 0 0; background: #060610; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
         .hg { position: absolute; inset: 0; background-image: linear-gradient(rgba(80,60,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(80,60,255,.05) 1px,transparent 1px); background-size: 28px 28px; }
         .hs { position: absolute; inset: 0; background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(60,80,255,.013) 3px,rgba(60,80,255,.013) 4px); }
@@ -348,30 +390,26 @@ export default function InstructorSchedule() {
         .tc.tr { top: 12px; right: 14px; border-top: 1.5px solid rgba(100,140,255,.44); border-right: 1.5px solid rgba(100,140,255,.44); }
         .tc.bl { bottom: 16px; left: 14px; border-bottom: 1.5px solid rgba(100,140,255,.26); border-left: 1.5px solid rgba(100,140,255,.26); }
         .tc.br { bottom: 16px; right: 14px; border-bottom: 1.5px solid rgba(100,140,255,.26); border-right: 1.5px solid rgba(100,140,255,.26); }
-        .dbars { position: absolute; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 5px; }
-        .dbars.l { left: 16px; }
-        .dbars.r { right: 16px; }
-        .dbar { height: 3px; border-radius: 2px; background: rgba(80,120,255,.27); }
-        .hdot { position: absolute; width: 6px; height: 6px; border-radius: 50%; }
+        
         .rw { position: relative; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center; z-index: 4; }
         .ro { position: absolute; inset: 0; border-radius: 50%; border: 2px dashed rgba(80,120,255,.2); animation: spin 14s linear infinite; }
-        .rm { position: absolute; inset: 8px; border-radius: 50%; border: 1.5px solid transparent; border-top-color: #6040ff; border-right-color: #4080ff; animation: spin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,.4); }
-        .rm2 { position: absolute; inset: 14px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #4060ff; animation: spin 7s linear infinite reverse; box-shadow: inset 0 0 10px rgba(64,128,255,.3); }
-        .ric { position: absolute; inset: 22px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(80,100,255,.18); }
+        .rm { position: absolute; inset: 8px; border-radius: 50%; border: 1.5px solid transparent; border-top-color: #6040ff; border-right-color: #00c8ff; animation: spin 5s linear infinite; box-shadow: 0 0 10px rgba(0,200,255,.4); }
+        .rm2 { position: absolute; inset: 14px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #00c8ff; animation: spin 7s linear infinite reverse; box-shadow: inset 0 0 10px rgba(64,128,255,.3); }
+        .ric { position: absolute; inset: 22px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.18); }
         .rp { position: absolute; inset: 22px; border-radius: 50%; background: radial-gradient(circle,rgba(60,80,255,.13) 0%,transparent 70%); animation: pulse 2.5s ease-in-out infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:.4;transform:scale(.9)} 50%{opacity:1;transform:scale(1.05)} }
         .limg { width: 50px; height: 50px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 2px; box-shadow: 0 0 10px rgba(64,128,255,0.4); }
         
         .cyber-dots-purple, .cyber-dots-blue { position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; }
-        .cyber-dots-purple { animation: cyberSpinPurple 3s linear infinite; z-index: 6; }
-        .cyber-dots-blue { animation: cyberSpinBlue 5s linear infinite reverse; z-index: 6; }
+        .cyber-dots-purple { animation: hqSpin 3s linear infinite; z-index: 6; }
+        .cyber-dots-blue { animation: hqSpin 5s linear infinite reverse; z-index: 6; }
         .cyber-dots-purple::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #8050ff; border-radius: 50%; box-shadow: 0 0 15px #8050ff, 0 0 30px #8050ff; }
-        .cyber-dots-blue::before { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #4080ff; border-radius: 50%; box-shadow: 0 0 15px #4080ff, 0 0 30px #4080ff; }
+        .cyber-dots-blue::before { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #00c8ff; border-radius: 50%; box-shadow: 0 0 15px #00c8ff, 0 0 30px #00c8ff; }
         
         .page-label { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; font-family: 'Orbitron',monospace; font-size: 11px; letter-spacing: 3px; color: #5060aa; }
+        
         .hero-radio-capsule { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; align-items: center; justify-content: space-between; width: 115px; background: rgba(8, 8, 20, 0.6); border: 1px solid rgba(80, 100, 255, 0.2); border-radius: 20px; padding: 4px 10px; cursor: pointer; user-select: none; transition: all 0.2s ease; }
-        .hero-radio-capsule:hover { border-color: rgba(80, 120, 255, 0.5); background: rgba(8, 8, 20, 0.85); }
         .hero-radio-capsule.playing { border-color: #18b090; background: rgba(5, 20, 16, 0.6); }
         .capsule-left { display: flex; align-items: center; gap: 6px; }
         .capsule-play-btn { color: #5070ff; font-size: 11px; display: flex; align-items: center; }
@@ -390,12 +428,11 @@ export default function InstructorSchedule() {
         .warrow { width: 28px; height: 28px; border-radius: 7px; border: 1px solid #2a2a42; background: #0d0d1a; color: #5a5a8a; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .18s; }
         .warrow:hover { border-color: #4030aa; color: #9070ee; }
         
-        .approve-week-btn { margin: 0 16px 12px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; padding: 11px 16px; font-family: 'Exo 2', sans-serif; font-size: 12.5px; font-weight: 600; cursor: pointer; width: calc(100% - 32px); transition: all .25s ease; direction: rtl; border: none; }
+        .approve-week-btn { margin: 0 16px 12px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; padding: 11px 16px; font-family: 'Heebo', sans-serif; font-size: 12.5px; font-weight: 600; cursor: pointer; width: calc(100% - 32px); transition: all .25s ease; direction: rtl; border: none; }
         .approve-week-btn.pending { background: linear-gradient(135deg, rgba(224,144,32,0.15), rgba(160,100,5,0.08)); border: 1px dashed #e09020; color: #f0b040; box-shadow: 0 0 10px rgba(224,144,32,0.05); }
         .approve-week-btn.pending:hover { border-style: solid; border-color: #ffe060; color: #ffe060; box-shadow: 0 0 15px rgba(224,144,32,0.2); }
         .approve-week-btn.approved { background: linear-gradient(135deg, rgba(24,192,160,0.15), rgba(10,128,96,0.08)); border: 1px solid #18c0a0; color: #20c070; cursor: default; }
         
-        /* החזרת הטאבים העליונים של הניווט למצבם הדינמי והמקורי */
         .day-pills { display: flex; gap: 5px; padding: 0 16px 8px; overflow-x: auto; scrollbar-width: none; direction: rtl; }
         .day-pills::-webkit-scrollbar { display: none; }
         .dpill { padding: 5px 10px; border-radius: 8px; border: 1px solid #1e1e38; background: #0d0d1a; font-size: 11px; color: #5a5a8a; cursor: pointer; white-space: nowrap; transition: all .18s; flex-shrink: 0; }
@@ -405,21 +442,18 @@ export default function InstructorSchedule() {
         .sched-grid { padding: 0 16px 4px; direction: rtl; }
         .sched-day { margin-bottom: 8px; }
         
-        /* ─── 🟢 שדרוג קריטי: מרכוז, יישור מוחלט לימין והגדלת כותרות הימים בלו"ז ─── */
         .sday-hdr { 
-          font-family: 'Exo 2', sans-serif;
-          font-size: 13.5px; /* הגדלת הפונט בהתאם לבקשה */
-          font-weight: 700; /* הפיכה לעבה ובולט */
-          color: #7362aa; /* צבע מותאם ומנצנץ */
+          font-family: 'Heebo', sans-serif;
+          font-size: 13.5px; 
+          font-weight: 700; 
+          color: #7362aa; 
           letter-spacing: 0.5px; 
           padding: 8px 4px 6px; 
           display: flex; 
           align-items: center; 
           gap: 10px; 
-          direction: rtl; /* אילוץ יישור ימני מושלם */
+          direction: rtl; 
         }
-        
-        /* מתיחת קו ההפרדה הזוהר מהטקסט שמאלה עם אפקט דהייה אלגנטי */
         .sday-hdr .sday-line { 
           flex: 1; 
           height: 1px; 
@@ -429,7 +463,13 @@ export default function InstructorSchedule() {
         .sday-slots { display: flex; flex-direction: column; gap: 5px; }
         
         .slot { border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; position: relative; overflow: hidden; flex-direction: row-reverse; }
-        
+        .slot-time { font-family: 'Orbitron',monospace; font-size: 11.5px; color: #8a9fc4; white-space: nowrap; flex-shrink: 0; }
+        .slot-info { flex: 1; min-width: 0; text-align: right; }
+        .slot-name { font-size: 12.5px; color: #b0c0e8; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .slot-meta { font-size: 11px; color: #5a6a9a; margin-top: 1px; }
+        .slot-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .slot-tag { font-size: 9px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; font-weight: bold; }
+
         .slot.type-class { min-height: 54px; }
         .slot.type-class.pending { background: linear-gradient(135deg,rgba(224,144,32,.14),rgba(160,100,5,.08)); border: 1px solid rgba(224,144,32,.25); }
         .slot.type-class.pending .slot-dot { background: #e09020; box-shadow: 0 0 6px rgba(224,144,32,.6); }
@@ -437,6 +477,14 @@ export default function InstructorSchedule() {
         .slot.type-class.approved { background: linear-gradient(135deg,rgba(24,192,160,.16),rgba(10,128,96,.1)); border: 1px solid rgba(24,192,160,.32); }
         .slot.type-class.approved .slot-dot { background: #18c0a0; box-shadow: 0 0 6px rgba(24,192,160,.6); }
         .slot.type-class.approved .slot-tag { background: rgba(24,192,160,.12); color: #18c0a0; border: 1px solid rgba(24,192,160,.2); }
+
+        /* 🟢 תיקון: הגדרות עיצוב הייטקיות, זוהרות ונקיות בצבע ניאון-כחול מובחן עבור בלוקי הקייטנה החדשים בלו"ז */
+        .slot.type-camp { min-height: 56px; background: linear-gradient(135deg, rgba(0, 200, 255, 0.15), rgba(0, 100, 255, 0.06)); border: 1px solid #00c8ff55; box-shadow: 0 0 10px rgba(0,200,255,0.05); }
+        .slot.type-camp .slot-dot { background: #00c8ff; box-shadow: 0 0 8px #00c8ff; }
+        .slot.type-camp .slot-name { color: #ffffff; font-weight: 800; }
+        .slot.type-camp .slot-time { color: #00c8ff; font-weight: bold; }
+        .slot.type-camp .slot-meta { color: rgba(220, 235, 255, 0.85); font-weight: 500; }
+        .slot.type-camp .slot-tag { background: rgba(0, 200, 255, 0.15); color: #00c8ff; border: 1px solid rgba(0, 200, 255, 0.25); }
 
         .slot.type-setup, .slot.type-cleanup { min-height: 32px; padding: 6px 12px; }
         .slot.type-setup.pending, .slot.type-cleanup.pending { background: rgba(224,144,32,0.05); border: 1px dashed rgba(224,144,32,0.35); }
@@ -452,18 +500,11 @@ export default function InstructorSchedule() {
         .slot.type-travel .slot-time { color: #00ced1; font-family: 'Orbitron', monospace; font-size: 10px; }
         .slot.type-travel .slot-tag { background: rgba(0, 206, 209, 0.12); color: #00ced1; border: 1px solid rgba(0, 206, 209, 0.2); }
         
-        .slot-time { font-family: 'Orbitron',monospace; font-size: 10px; color: #8a9fc4; white-space: nowrap; flex-shrink: 0; }
-        .slot-info { flex: 1; min-width: 0; text-align: right; }
-        .slot-name { font-size: 12px; color: #b0c0e8; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .slot-meta { font-size: 10px; color: #4a5a8a; margin-top: 1px; }
-        .slot-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-        .slot-tag { font-size: 9px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
-        
-        .empty-day { font-size: 11px; color: #2a2a4a; padding: 6px 2px; font-style: italic; text-align: right; }
+        .empty-day { font-size: 11px; color: #3a3a5a; padding: 6px 2px; font-style: italic; text-align: right; }
         .sub-section { margin: 6px 16px 0; direction: rtl; }
         .sub-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
         .sub-title { font-family: 'Orbitron',monospace; font-size: 10px; letter-spacing: 2px; color: #8060aa; }
-        .sub-ping { width: 8px; height: 8px; border-radius: 50%; background: #9060ff; box-shadow: 0 0 8px rgba(144,96,255,.6); animation: ping 1.5s ease-in-out infinite; }
+        .sub-ping { width: 8px; height: 8px; border-radius: 50%; background: #9060ff; box-shadow: 0 0 8px rgba(144,96,255,.6); animation: pulse 1.5s ease-in-out infinite; }
         .sub-card { background: linear-gradient(145deg,#111128,#0d0d1e); border: 1px solid #2a2a48; border-radius: 14px; padding: 14px; margin-bottom: 10px; text-align: right; }
         .sub-card-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
         .sub-badge-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
@@ -475,11 +516,11 @@ export default function InstructorSchedule() {
         .sub-detail { display: flex; align-items: center; gap: 4px; flex-direction: row-reverse; justify-content: flex-end; font-size: 11px; color: #5a5a8a; }
         .sub-bonus { display: flex; align-items: center; gap: 4px; flex-direction: row-reverse; justify-content: flex-end; font-size: 11px; color: #d0a030; font-weight: 500; }
         .sub-actions { display: flex; gap: 8px; }
-        .sub-yes { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid rgba(30,180,100,.4); background: rgba(30,180,100,.1); color: #20c070; font-family: 'Exo 2',sans-serif; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; }
-        .sub-no { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid rgba(160,40,30,.25); background: rgba(160,40,30,.07); color: #c04040; font-family: 'Exo 2',sans-serif; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .sub-yes { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid rgba(30,180,100,.4); background: rgba(30,180,100,.1); color: #20c070; font-family: 'Heebo',sans-serif; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; }
+        .sub-no { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid rgba(160,40,30,.25); background: rgba(160,40,30,.07); color: #c04040; font-family: 'Heebo',sans-serif; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
         .no-subs { padding: 20px; text-align: center; color: #3a3a5a; font-size: 13px; border: 1px dashed #1e1e38; border-radius: 12px; }
 
-        .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg,#1a2a18,#102010); border: 1px solid #20a060; border-radius: 12px; padding: 9px 16px; color: #30d090; font-size: 12px; font-family: 'Exo 2',sans-serif; white-space: nowrap; z-index: 200; opacity: 0; pointer-events: none; transition: all .3s; display: flex; align-items: center; gap: 6px; direction: rtl; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+        .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg,#1a2a18,#102010); border: 1px solid #20a060; border-radius: 12px; padding: 9px 16px; color: #30d090; font-size: 12px; font-family: 'Heebo',sans-serif; white-space: nowrap; z-index: 200; opacity: 0; pointer-events: none; transition: all .3s; display: flex; align-items: center; gap: 6px; direction: rtl; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
         .toast.show { opacity: 1; transform: translate(-50%, -50%); }
 
         .navbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 390px; max-width: 100%; background: #060610; border-top: 1px solid #14142a; padding: 9px 0 22px; display: flex; justify-content: space-around; align-items: center; z-index: 100; border-radius: 0 0 36px 36px; direction: rtl; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7); }
@@ -561,7 +602,6 @@ export default function InstructorSchedule() {
                 if (activeDay !== 0) {
                   return (
                     <div key={di} className="sched-day">
-                      {/* 🟢 שדרוג: יישור ימני קשיח, הדגשה ומתיחת קו ההפרדה לשמאל כפי שביקשת בדיוק */}
                       <div className="sday-hdr">
                         <span>יום {daysHe[di]} · {d.getDate()}</span>
                         <div className="sday-line"></div>
@@ -575,7 +615,6 @@ export default function InstructorSchedule() {
 
               return (
                 <div key={di} className="sched-day">
-                  {/* 🟢 שדרוג: יישור ימני קשיח, הדגשה ומתיחת קו ההפרדה לשמאל כפי שביקשת בדיוק */}
                   <div className="sday-hdr">
                     <span>יום {daysHe[di]} · {d.getDate()}</span>
                     <div className="sday-line"></div>
@@ -587,21 +626,22 @@ export default function InstructorSchedule() {
                       
                       const isHelper = s.type === 'setup' || s.type === 'cleanup';
                       const isTravel = s.type === 'travel';
+                      const isCamp = s.type === 'camp';
 
                       return (
                         <div 
                           key={idx} 
-                          className={`slot type-${s.type} ${statusClass}`}
+                          className={`slot type-${s.type} ${isCamp ? '' : statusClass}`}
                         >
                           <div className="slot-dot"></div>
                           <div className="slot-time">{s.time}</div>
                           <div className="slot-info">
                             <div className="slot-name">{s.name}</div>
-                            {!isHelper && !isTravel && <div className="slot-meta">{s.school} · {s.city}</div>}
+                            <div className="slot-meta">{s.school} · {s.city}</div>
                           </div>
                           
                           <span className="slot-tag">
-                            {isTravel ? 'מעבר' : (isHelper ? 'עזר' : (isApprovedSlot ? 'מאושר' : 'ממתין'))}
+                            {isCamp ? 'קייטנה' : (isTravel ? 'מעבר' : (isHelper ? 'עזר' : (isApprovedSlot ? 'מאושר' : 'ממתין')))}
                           </span>
                         </div>
                       );
