@@ -19,10 +19,19 @@ export default function AdminCampsManagement() {
   const [tempInstructors, setTempInstructors] = useState(['אופק שבתאי (זמני)', 'מאי לוגסי (זמנית)', 'גל רותם (זמני)', 'ליאור פרידמן (זמנית)']);
   const [campManagers, setCampManagers] = useState(['רוני אלוני', 'גיא דותן', 'אביב גל', 'מנהל לוגיסטיקה']);
 
-  // סטייט תצורת הלוח האקטיבי (Board Configuration State)
-  const [boardConfig, setBoardConfig] = useState(null); 
-  const [boardWeeks, setBoardWeeks] = useState([]);
-  const [tracks, setTracks] = useState([]); 
+  // 🟢 תיקון חסינות רענון: טעינה אוטומטית של תצורת הלוח מהזיכרון הקשיח של הדפדפן אם קיים
+  const [boardConfig, setBoardConfig] = useState(() => {
+    const saved = localStorage.getItem('aragon_camp_board_config');
+    return saved ? JSON.parse(saved) : null;
+  }); 
+  const [boardWeeks, setBoardWeeks] = useState(() => {
+    const saved = localStorage.getItem('aragon_camp_board_weeks');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [tracks, setTracks] = useState(() => {
+    const saved = localStorage.getItem('aragon_camp_tracks');
+    return saved ? JSON.parse(saved) : [];
+  }); 
 
   // מאגר הקייטנות המשובצות בלוח
   const [camps, setCamps] = useState([]);
@@ -70,7 +79,7 @@ export default function AdminCampsManagement() {
     setTimeout(() => setToast({ show: false, message: '' }), 3200);
   };
 
-  // 🟢 פונקציה מסונכרנת למשיכת כל הקייטנות והמתחמים הקיימים ב-Database
+  // פונקציה מסונכרנת למשיכת כל הקייטנות והמתחמים הקיימים ב-Database
   const fetchLiveCampsDataFromCloud = async () => {
     try {
       const { data: dbCamps, error: campsErr } = await supabase.from('camps').select('*');
@@ -185,7 +194,6 @@ export default function AdminCampsManagement() {
     }
   };
 
-  // מנגנון אסינכרוני חכם המפרק טווח תאריכים לעמודות שבועיות (א-ה) נקיות לפי הלוח שנה
   const generateWeeklyColumns = (start, end) => {
     const weeks = [];
     const globalStart = new Date(start);
@@ -233,7 +241,6 @@ export default function AdminCampsManagement() {
     return weeks;
   };
 
-  // מנוע חישוב מיקום ורוחב יחסי עבור משבצת הקייטנה על גבי ציר הימים האבסולוטי
   const getCampPositionStyle = (camp) => {
     const allDays = boardWeeks.flatMap(w => w.workingDays);
     const dayWidth = 52; 
@@ -255,7 +262,6 @@ export default function AdminCampsManagement() {
     };
   };
 
-  // פונקציית עזר המפיקה את רשימת הימים הפעילים הספציפיים של קייטנה נבחרת לצורך רנדור המטריצה הפנימית במודאל
   const getCampDaysList = (startDate, endDate) => {
     const days = [];
     let current = new Date(startDate);
@@ -287,17 +293,23 @@ export default function AdminCampsManagement() {
       initialTracksArray.push({ id: 'track_' + i, label: `מסלול ${i}` });
     }
 
-    setBoardConfig({
+    const configObj = {
       startDate: setupStartDate,
       endDate: setupEndDate,
       totalHours: setupTotalHours,
       netHours: setupNetHours
-    });
+    };
 
+    setBoardConfig(configObj);
     setBoardWeeks(computedWeeks);
     setTracks(initialTracksArray);
-    fetchLiveCampsDataFromCloud(); // משיכה אקטיבית מהענן לתוך הלוח שהוקם
 
+    // 🟢 שמירה בלוקאלית בדפדפן למניעת מחיקה ברענון
+    localStorage.setItem('aragon_camp_board_config', JSON.stringify(configObj));
+    localStorage.setItem('aragon_camp_board_weeks', JSON.stringify(computedWeeks));
+    localStorage.setItem('aragon_camp_tracks', JSON.stringify(initialTracksArray));
+
+    fetchLiveCampsDataFromCloud(); 
     setIsSetupModalOpen(false);
     showToast('🚀 לוח מסלולי קייטנות ומחזורים שבועיים נוצר בהצלחה!');
   };
@@ -305,7 +317,10 @@ export default function AdminCampsManagement() {
   // הוספת שורת מסלול/תור נוסף ללוח בריאל-טיים
   const handleAddNewTrackLane = () => {
     const nextIndex = tracks.length + 1;
-    setTracks([...tracks, { id: 'track_' + nextIndex, label: `מסלול ${nextIndex}` }]);
+    const nextTracks = [...tracks, { id: 'track_' + nextIndex, label: `מסלול ${nextIndex}` }];
+    setTracks(nextTracks);
+    // 🟢 עדכון השמירה הלוקאלית
+    localStorage.setItem('aragon_camp_tracks', JSON.stringify(nextTracks));
     showToast(`➕ מסלול ${nextIndex} נוסף כמערך תור אקטיבי בלוח`);
   };
 
@@ -317,10 +332,16 @@ export default function AdminCampsManagement() {
     setTracks([]);
     setCamps([]);
     setSelectedViewCamp(null);
+
+    // 🟢 מחיקת השמירה הלוקאלית ברענון
+    localStorage.removeItem('aragon_camp_board_config');
+    localStorage.removeItem('aragon_camp_board_weeks');
+    localStorage.removeItem('aragon_camp_tracks');
+
     showToast('🗑️ הלוח אופס ונמחק לחלוטין מחמ"ל האדמין');
   };
 
-  // חדרים נפתחים ריקים לחלוטין כברירת מחדל ("ללא מדריך")
+  // אוטומציית ניהול מתחמים/חדרים בהתאם לכמות הילדים
   useEffect(() => {
     const requiredRooms = Math.max(1, Math.ceil(campChildrenCount / 25));
     
@@ -338,7 +359,6 @@ export default function AdminCampsManagement() {
     setCampCompounds(nextCompounds);
   }, [campChildrenCount]);
 
-  // מנוע אוטומציה מובנה עבור מסך העריכה - משנה דינמית את כמות החדרים ומושיב אותם ריקים
   const handleEditChildrenCountChange = (val) => {
     const count = parseInt(val, 10) || 0;
     const requiredRooms = Math.max(1, Math.ceil(count / 25));
@@ -365,7 +385,7 @@ export default function AdminCampsManagement() {
     });
   };
 
-  // פתיחת מודאל הוספת קייטנה חדשה ואיפוס סטייט לוגיסטיקה
+  // פתיחת מודאל הוספת קייטנה חדשה
   const handleOpenAddCampModal = () => {
     setCampTitle('');
     setCampStaff1('');
@@ -374,7 +394,7 @@ export default function AdminCampsManagement() {
     setIsAddCampModalOpen(true);
   };
 
-  // 🟢 תיקון 3: פקודת שמירה (Insert) מסונכרנת אבסולוטית מול Supabase לענן לקייטנות וחדרים במקביל
+  // שמירת הקייטנה ושיבוצה בתוך קו הזמן
   const handleSaveCampToTrack = async (e) => {
     e.preventDefault();
     if (!campTitle.trim()) { alert('נא להזין את שם הקייטנה/בית הספר'); return; }
@@ -391,7 +411,6 @@ export default function AdminCampsManagement() {
     }
 
     try {
-      // 1. הזרקת קייטנת האב וקבלת ה-ID שלה
       const { data: insertedCamp, error: campErr } = await supabase
         .from('camps')
         .insert([{
@@ -409,7 +428,6 @@ export default function AdminCampsManagement() {
 
       if (campErr) throw campErr;
 
-      // 2. הזרקת חלוקת המתחמים הפנימיים המשויכים אליה
       if (insertedCamp && campCompounds.length > 0) {
         const compoundsToInsert = campCompounds.map(comp => ({
           camp_id: insertedCamp.id,
@@ -423,7 +441,7 @@ export default function AdminCampsManagement() {
       }
 
       setIsAddCampModalOpen(false);
-      await fetchLiveCampsDataFromCloud(); // טעינה מחודשת מהענן
+      await fetchLiveCampsDataFromCloud(); 
       showToast(`✓ קייטנת ${campTitle.trim()} נשמרה וסונכרנה בהצלחה בענן!`);
     } catch (err) {
       console.error(err);
@@ -431,13 +449,6 @@ export default function AdminCampsManagement() {
     }
   };
 
-  // פתיחת המודאל הפנימי להצגת הלו"ז המלא של הקייטנה הנבחרת
-  const handleOpenCampDashboardConsole = (camp) => {
-    setSelectedViewCamp(camp);
-    setIsEditMode(false);
-  };
-
-  // 🟢 תיקון 3: פקודת עדכון (Update) רציפה בענן - מעדכנת נתוני אב ומשכתבת מחדש מתחמי כוח אדם ב-Supabase
   const handleUpdateCampDetailsInfo = async (e) => {
     e.preventDefault();
 
@@ -454,7 +465,6 @@ export default function AdminCampsManagement() {
     }
 
     try {
-      // 1. עדכון טבלת האב
       const { error: campErr } = await supabase
         .from('camps')
         .update({
@@ -471,7 +481,6 @@ export default function AdminCampsManagement() {
 
       if (campErr) throw campErr;
 
-      // 2. עדכון טבלת הילדים (מחיקה קודמת והזרקה אטומית מחודשת למניעת פערים)
       await supabase.from('camp_compounds').delete().eq('camp_id', selectedViewCamp.id);
       
       if (selectedViewCamp.compounds.length > 0) {
@@ -496,7 +505,6 @@ export default function AdminCampsManagement() {
     }
   };
 
-  // 🟢 תיקון 3: פקודת השמדה (Delete) אבסולוטית מול מסד הנתונים בענן
   const handleDeleteCampPermanently = async () => {
     if (!window.confirm(`⚠️ אזהרה סופית: האם למחוק לחלוטין את קייטנת "${selectedViewCamp.title}" משרתי המערכת בענן?`)) return;
     
@@ -516,12 +524,6 @@ export default function AdminCampsManagement() {
       console.error(err);
       alert('תקלה במחיקת הרשומה מהשרת: ' + err.message);
     }
-  };
-
-  const fmtDateLabelStr = (dateStr) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
   };
 
   return (
@@ -580,7 +582,7 @@ export default function AdminCampsManagement() {
 
         .content { flex: 1; overflow: hidden; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; height: calc(100% - 64px); min-height: 0; }
         
-        /* TOOLBAR ACTION BUTTONS */
+        /* TOOLBAR */
         .camps-toolbar { display: flex; align-items: center; justify-content: space-between; background: #070e1c; padding: 12px 18px; border-radius: 12px; border: 1px solid #1a2a4a; flex-shrink: 0; }
         .camps-toolbar-btn-group { display: flex; align-items: center; gap: 10px; }
         .ct-btn { padding: 7px 16px; border-radius: 7px; border: 1px solid; font-family: 'Heebo', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.18s; }
@@ -591,12 +593,11 @@ export default function AdminCampsManagement() {
         .btn-reset-board { background: rgba(255, 69, 96, 0.05); border-color: rgba(255, 69, 96, 0.3); color: #ff4560; }
         .btn-reset-board:hover { background: rgba(255, 69, 96, 0.15); }
 
-        /* TIMELINE LAYOUT GRID WITH ENHANCED HIGH-CONTRAST SEPARATORS */
+        /* TIMELINE PANEL */
         .timeline-panel { background: #070e1c; border: 2px solid rgba(255, 255, 255, 0.15); border-radius: 14px; overflow: hidden; flex: 1; display: flex; flex-direction: column; min-height: 0; }
         .timeline-scroll-box { flex: 1; overflow-x: auto; overflow-y: auto; width: 100%; padding-bottom: 30px; }
         
         .timeline-matrix-grid { display: grid; position: relative; min-width: max-content; }
-        
         .tm-header-row { display: flex; background: #080f1e; border-bottom: 2px solid rgba(255, 255, 255, 0.15); position: sticky; top: 0; z-index: 8; }
         .tm-track-header-cell { width: 120px; padding: 14px; font-size: 13.5px; font-weight: 800; color: #00c8ff; text-align: center; background: #080f1e; border-left: 2px solid rgba(255, 255, 255, 0.15); position: sticky; right: 0; z-index: 9; }
         .tm-week-header-cell { width: 260px; padding: 10px; text-align: center; border-left: 2px solid rgba(255, 255, 255, 0.15); display: flex; flex-direction: column; gap: 2px; }
@@ -683,6 +684,7 @@ export default function AdminCampsManagement() {
         @keyframes fadeInToast { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
         @keyframes hqSpin { to { transform: rotate(360deg); } }
+        @keyframes wavePulse { 0% { height: 3px; } 100% { height: 11px; } }
       `}</style>
 
       {/* סיידבר אדמין רשמי */}
@@ -998,6 +1000,7 @@ export default function AdminCampsManagement() {
                 </div>
               </div>
               
+              {/* כפתור "תקן כוח אדם" פנימי */}
               <button className="edit-icon-trigger-btn" style={{ color: '#f5c842' }} title="צפה בתקן כוח אדם" onClick={() => setIsInfoModalOpen(true)}>
                 <i className="ti ti-info-circle"></i>
               </button>
@@ -1171,7 +1174,7 @@ export default function AdminCampsManagement() {
                 </button>
 
                 <div className="mf2">
-                  <button type="button" className="mbtn-cancel" onClick={() => setIsEditMode(false)}>הולך אחורה</button>
+                  <button type="button" className="mbtn-cancel" onClick={() => setIsEditMode(false)}>חזור לצפייה</button>
                   <button className="update-btn" type="submit" style={{ background: 'rgba(245, 200, 66, 0.1)', borderColor: '#f5c842', color: '#f5c842' }}>
                     <i className="ti ti-device-floppy"></i>שמור שינויים בענן
                   </button>
