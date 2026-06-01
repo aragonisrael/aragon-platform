@@ -13,7 +13,7 @@ const fmtDateLabelStr = (dateStr) => {
   return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
 };
 
-// 🟢 פונקציית זיקוק אטומית - מנקה כל סוג סוגריים ומילים כפולות מה-Database ומאלצת תיוג יחיד ותקין
+// פונקציית זיקוק אטומית - מנקה כל סוג סוגריים ומילים כפולות מה-Database ומאלצת תיוג יחיד ותקין
 const cleanInstructorName = (name, isTemp = true) => {
   if (!name) return '';
   let cleanRaw = String(name)
@@ -33,7 +33,7 @@ export default function AdminCampsManagement() {
   const [clk, setClk] = useState('00:00:00');
   const [toast, setToast] = useState({ show: false, message: '' });
 
-  // מאגרי כח אדם דינמיים מסונכרנים ישירות מהענן (קבועים מול זמניים)
+  // ax מאגרי כח אדם דינמיים מסונכרנים ישירות מהענן (קבועים מול זמניים)
   const [seniorInstructors, setSeniorInstructors] = useState(['אריה כהן', 'רחל לוי', 'ישראל ישראלי', 'מיכל דוד', 'שיר אלון']);
   const [tempInstructors, setTempInstructors] = useState(['אופק שבתאי (זמני)', 'מאי לוגסי (זמנית)', 'גל רותם (זמני)', 'ליאור פרידמן (זמנית)']);
   const [campManagers, setCampManagers] = useState(['רוני אלוני', 'גיא דותן', 'אביב גל', 'מנהל לוגיסטיקה']);
@@ -119,6 +119,29 @@ export default function AdminCampsManagement() {
     return totalPool.filter(st => !occupiedStaff.has(st.name));
   };
 
+  // 🟢 פונקציית השירות שחזרה למקומה ומחשבת את רשימת ימי העבודה לחלונית הקוקפיט
+  const getCampDaysList = (startDate, endDate) => {
+    const days = [];
+    if (!startDate || !endDate) return days;
+    let current = new Date(startDate);
+    const stop = new Date(endDate);
+    
+    const dayNamesHe = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+
+    while (current <= stop) {
+      const dayOfWeek = current.getDay();
+      if (dayOfWeek !== 5 && dayOfWeek !== 6) { 
+        days.push({
+          dateStr: current.toISOString().split('T')[0],
+          dayName: dayNamesHe[dayOfWeek],
+          formattedDate: current.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })
+         });
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    return days;
+  };
+
   // פונקציה מסונכרנת למשיכת כל הקייטנות והמתחמים הקיימים ב-Database עם זיקוק אבסולוטי
   const fetchLiveCampsDataFromCloud = async () => {
     try {
@@ -187,7 +210,7 @@ export default function AdminCampsManagement() {
     return () => clearInterval(interval);
   }, []);
 
-  // סנכרן את מצב כפתור הנגן
+  // סנכרן את מצב כפתור הנהן
   useEffect(() => {
     const globalAudio = document.getElementById('hq-cyber-radio');
     if (globalAudio) setIsPlaying(!globalAudio.paused);
@@ -200,54 +223,16 @@ export default function AdminCampsManagement() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  const generateWeeklyColumns = (start, end) => {
-    const weeks = [];
-    const globalStart = new Date(start);
-    const globalEnd = new Date(end);
-
-    let currentSunday = new Date(globalStart);
-    currentSunday.setDate(currentSunday.getDate() - currentSunday.getDay());
-
-    let weekIndex = 1;
-    while (currentSunday <= globalEnd) {
-      const workingDays = [];
-      
-      for (let i = 0; i < 5; i++) {
-        const dayDate = new Date(currentSunday);
-        dayDate.setDate(dayDate.getDate() + i);
-        const isOOB = dayDate < globalStart || dayDate > globalEnd;
-        
-        workingDays.push({
-          date: dayDate,
-          dateStr: dayDate.toISOString().split('T')[0],
-          isOOB: isOOB
-        });
-      }
-
-      const activeDays = workingDays.filter(d => !d.isOOB);
-      let datesLabel = '';
-      if (activeDays.length > 0) {
-        const fmt = (d) => d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
-        datesLabel = `${fmt(activeDays[0].date)} - ${fmt(activeDays[activeDays.length - 1].date)}`;
-      } else {
-        const fmt = (d) => d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
-        datesLabel = `${fmt(workingDays[0].date)} - ${fmt(workingDays[4].date)}`;
-      }
-
-      weeks.push({
-        id: 'w_' + weekIndex,
-        label: `מחזור ${weekIndex}`,
-        dates: datesLabel,
-        workingDays: workingDays
-      });
-
-      currentSunday.setDate(currentSunday.getDate() + 7);
-      weekIndex++;
-    }
-    return weeks;
+  // פונקציית הוספת מסלול נוסף
+  const handleAddNewTrackLane = () => {
+    const nextIndex = tracks.length + 1;
+    const nextTracks = [...tracks, { id: 'track_' + nextIndex, label: `מסלול ${nextIndex}` }];
+    setTracks(nextTracks);
+    localStorage.setItem('aragon_camp_tracks', JSON.stringify(nextTracks));
+    showToast(`➕ מסלול ${nextIndex} נוסף כמערך תור אקטיבי בלוח`);
   };
 
-  // 🟢 החזרת פונקציית הקמת הלו"ז המקורית שנשמטה ומנעה מהכפתור לעבוד
+  // פונקציית הקמת הלו"ז והמחזורים השבועיים
   const handleBuildBoardRoute = (e) => {
     e.preventDefault();
     const computedWeeks = generateWeeklyColumns(setupStartDate, setupEndDate);
@@ -275,14 +260,6 @@ export default function AdminCampsManagement() {
     fetchLiveCampsDataFromCloud(); 
     setIsSetupModalOpen(false);
     showToast('🚀 לוח מסלולי קייטנות ומחזורים שבועיים נוצר בהצלחה!');
-  };
-
-  const handleAddNewTrackLane = () => {
-    const nextIndex = tracks.length + 1;
-    const nextTracks = [...tracks, { id: 'track_' + nextIndex, label: `מסלול ${nextIndex}` }];
-    setTracks(nextTracks);
-    localStorage.setItem('aragon_camp_tracks', JSON.stringify(nextTracks));
-    showToast(`➕ מסלול ${nextIndex} נוסף כמערך תור אקטיבי בלוח`);
   };
 
   const handleOpenAddCampModal = () => {
@@ -481,23 +458,6 @@ export default function AdminCampsManagement() {
       zIndex: 10
     };
   };
-
-  useEffect(() => {
-    const requiredRooms = Math.max(1, Math.ceil(campChildrenCount / 25));
-    
-    const nextCompounds = Array.from({ length: requiredRooms }).map((_, idx) => {
-      if (campCompounds[idx]) return campCompounds[idx]; 
-      return {
-        id: 'comp_' + idx + '_' + Date.now(),
-        label: `מתחם חומרה ${idx + 1}`,
-        roomType: ROOM_TYPES[idx % ROOM_TYPES.length],
-        seniorInstructor: '', 
-        tempInstructor: ''    
-      };
-    });
-    
-    setCampCompounds(nextCompounds);
-  }, [campChildrenCount]);
 
   const handleEditChildrenCountChange = (val) => {
     const count = parseInt(val, 10) || 0;
@@ -956,7 +916,6 @@ export default function AdminCampsManagement() {
                           {ROOM_TYPES.map(rt => <option key={rt} value={rt}>{rt}</option>)}
                         </select>
                       </div>
-                      {/* 🟢 חלון שיבוץ ראשון (מדריך 1) מעורבב ומסונכרן קלנדרית */}
                       <div>
                         <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 1</label>
                         <select 
@@ -974,7 +933,6 @@ export default function AdminCampsManagement() {
                           ))}
                         </select>
                       </div>
-                      {/* 🟢 חלון שיבוץ שני (מדריך 2) מעורבב ומסונכרן קלנדרית */}
                       <div>
                         <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 2</label>
                         <select 
@@ -1165,7 +1123,6 @@ export default function AdminCampsManagement() {
                             {ROOM_TYPES.map(rt => <option key={rt} value={rt}>{rt}</option>)}
                           </select>
                         </div>
-                        {/* 🟢 מדריך 1 בעריכה - מחובר למנגנון הסינון */}
                         <div>
                           <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 1</label>
                           <select 
@@ -1184,7 +1141,6 @@ export default function AdminCampsManagement() {
                             ))}
                           </select>
                         </div>
-                        {/* 🟢 מדריך 2 בעריכה - מחובר למנגנון הסינון */}
                         <div>
                           <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 2</label>
                           <select 
