@@ -6,7 +6,7 @@ import { supabase } from '../../supabaseClient';
 // ייבוא הלוגו הרשמי של אראגון
 import aragonLogo from '../../assets/aragonlogo.png';
 
-// 🟢 העברת פונקציית העזר לראש הקובץ (Top-Level) למניעת קריסות scope ובעיות ReferenceError ברענונים
+// העברת פונקציית העזר לראש הקובץ (Top-Level) למניעת קריסות scope ברענונים
 const fmtDateLabelStr = (dateStr) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -134,7 +134,8 @@ export default function AdminCampsManagement() {
       
       const { data: temps } = await supabase.from('users').select('full_name').eq('role', 'temp_instructor');
       if (temps && temps.length > 0) {
-        setTempInstructors(temps.map(u => u.full_name + ' (זמני)'));
+        // 🟢 תיקון חסין: מאחר ושם המדריך כבר נשמר עם התוספת (זמני) בענן, אנחנו מושכים אותו ישירות ללא הדבקה כפולה!
+        setTempInstructors(temps.map(u => u.full_name));
       }
     } catch (err) {
       console.error("Error loading staff from remote database:", err);
@@ -177,14 +178,33 @@ export default function AdminCampsManagement() {
     e.preventDefault();
     if (!newTempName.trim()) { alert('נא להזין שם מלא'); return; }
 
-    const generatedUsername = 'temp.' + toEng(newTempName.trim()).toLowerCase() + Math.floor(10 + Math.random() * 89);
+    const baseUsername = newTempName.trim().replace(/\s+/g, '.');
 
     try {
+      // בדיקה מול כלל המערכת למניעת התנגשויות שמות משתמש
+      const { data: matchedUsers } = await supabase
+        .from('users')
+        .select('username')
+        .ilike('username', `${baseUsername}%`);
+
+      const takenPool = matchedUsers ? matchedUsers.map(u => u.username) : [];
+      let generatedUsername = baseUsername;
+      let counter = 1;
+
+      while (takenPool.includes(generatedUsername)) {
+        generatedUsername = `${baseUsername}${counter}`;
+        counter++;
+      }
+
       const { error } = await supabase.from('users').insert([{
         username: generatedUsername,
         password: '12345678',
         role: 'temp_instructor',
-        full_name: newTempName.trim()
+        // 🟢 התאמה קשיחה למבנה מפקדת הצוות המרכזית
+        full_name: `${newTempName.trim()} (זמני)`, 
+        ils_balance: 0,
+        coins: 0,
+        is_active: true
       }]);
 
       if (error) throw error;
@@ -678,7 +698,6 @@ export default function AdminCampsManagement() {
         .toast.show { display: block; animation: fadeInToast 0.2s ease-out; }
 
         @keyframes hqSpin { to { transform: rotate(360deg); } }
-        @keyframes wavePulse { 0% { height: 3px; } 100% { height: 11px; } }
       `}</style>
 
       {/* סיידבר אדמין רשמי */}
@@ -690,7 +709,6 @@ export default function AdminCampsManagement() {
         <button className="nav-btn" type="button" onClick={() => navigate('/admin/control')}><i className="ti ti-calendar"></i><span className="nav-label">לו"ז</span></button>
         <button className="nav-btn" type="button" onClick={() => navigate('/admin/groups')}><i className="ti ti-table"></i><span className="nav-label">קבוצות</span></button>
         <button className="nav-btn" type="button" onClick={() => navigate('/admin/team')}><i className="ti ti-users"></i><span className="nav-label">צוות</span></button>
-        {/* 🟢 תיקון 2: החלפת ה-SVG השבור באייקון רשמי וחסין קריסות של Tabler למניעת מסך לבן */}
         <button className="nav-btn active" type="button">
           <i className="ti ti-tent" style={{ fontSize: '20px' }}></i>
           <span className="nav-label">קייטנות</span>
