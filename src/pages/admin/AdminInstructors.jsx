@@ -12,21 +12,21 @@ export default function AdminInstructors() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
-  // 🟢 סטייט חדש עבור מודאל הקמת מדריך זמני
+  // סטייט עבור מודאל הקמת מדריך זמני
   const [isAddTempModalOpen, setIsAddTempModalOpen] = useState(false);
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // 🟢 סטייט לפילטור סוגי המדריכים במסך (הכל / בכירים / זמניים)
+  // פילטר טאבים ייעודיים לסינון סגל
   const [filterRole, setFilterRole] = useState('all'); // 'all' | 'senior' | 'temp'
 
   // שדות טופס מדריך קבוע
   const [formName, setFormName] = useState('');
   const [formPhone, setFormPhone] = useState('');
 
-  // 🟢 שדות טופס ייעודיים עבור מדריך זמני חדש
+  // שדות טופס ייעודיים עבור מדריך זמני חדש
   const [formTempCity, setFormTempCity] = useState('');
   const [formHourlyInstruction, setFormHourlyInstruction] = useState(40);
   const [formHourlyGeneral, setFormHourlyGeneral] = useState(40);
@@ -44,12 +44,13 @@ export default function AdminInstructors() {
   // פונקציה מרכזית לסנכרון מלא של המדריכים, הקבוצות והתלמידים מהשרת
   const fetchLiveInstructorsMatrix = async () => {
     try {
-      // 🟢 שינוי שאילתה: מושך את המדריכים הקבועים והזמניים ביחד מה-Database
-      const { data: dbUsers } = await supabase
+      const { data: dbUsers, error: usersErr } = await supabase
         .from('users')
         .select('*')
         .in('role', ['instructor', 'temp_instructor']);
         
+      if (usersErr) throw usersErr;
+
       const { data: dbGroups } = await supabase.from('groups').select('*');
       const { data: dbStudents } = await supabase.from('users').select('group_id').eq('role', 'student');
 
@@ -76,7 +77,7 @@ export default function AdminInstructors() {
           return {
             id: user.id,
             name: user.full_name,
-            role: user.role, // שמירת הרול המקורי לסינון ולזיהוי
+            role: user.role, 
             username: user.username,
             password: user.password,
             phone: user.phone || '—',
@@ -134,7 +135,7 @@ export default function AdminInstructors() {
     const generatedUsername = `${toEng(formName.trim()).toLowerCase()}.${Math.floor(10 + Math.random() * 89)}`;
 
     try {
-      await supabase.from('users').insert([{
+      const { error } = await supabase.from('users').insert([{
         username: generatedUsername,
         password: '12345678',
         role: 'instructor',
@@ -145,22 +146,25 @@ export default function AdminInstructors() {
         is_active: true
       }]);
 
+      if (error) throw error;
+
       await fetchLiveInstructorsMatrix();
       setIsAddModalOpen(false);
       setFormName(''); setFormPhone('');
       triggerToast(`המדריך הבכיר ${formName.trim()} נוצר וסונכרן לענן!`);
     } catch (err) {
       console.error(err);
+      alert('שגיאת ענן: ' + err.message);
     }
   };
 
-  // 🟢 פונקציית הקמת מדריך זמני חדש בענן כולל שכר מפולח ועיר מגורים
+  // 🟢 פונקציית הקמת מדריך זמני חדש בענן - כולל בדיקת שגיאות אקטיבית למניעת שמירות שקטות שנכשלות
   const handleCreateTempInstructor = async () => {
     if (!formName.trim()) { triggerToast('⚠️ נא להזין שם מלא למדריך', true); return; }
     const generatedUsername = `temp.${toEng(formName.trim()).toLowerCase()}.${Math.floor(10 + Math.random() * 89)}`;
 
     try {
-      await supabase.from('users').insert([{
+      const { error } = await supabase.from('users').insert([{
         username: generatedUsername,
         password: '12345678',
         role: 'temp_instructor',
@@ -174,6 +178,9 @@ export default function AdminInstructors() {
         is_active: true
       }]);
 
+      // 🟢 אם השדות חסרים בטבלה, פקודה זו תקפיץ חלונית אזהרה מפורשת למסך
+      if (error) throw error;
+
       await fetchLiveInstructorsMatrix();
       setIsAddTempModalOpen(false);
       setFormName(''); setFormPhone(''); setFormTempCity('');
@@ -181,13 +188,14 @@ export default function AdminInstructors() {
       triggerToast(`המדריך הזמני ${formName.trim()} הוקם בהצלחה ברשת!`);
     } catch (err) {
       console.error(err);
+      alert('❌ תקלה ברישום: וודא שהרצת את קוד ה-SQL להוספת העמודות החדשות ב-Supabase! פירוט: ' + err.message);
     }
   };
 
   // פתיחת מודאל עריכת מדריך וטעינת נתוניו הנוכחיים
   const handleOpenEditModal = (inst) => {
     setEditingInstructor(inst);
-    setFormName(inst.name);
+    formName ? setFormName(inst.name) : setFormName(inst.name);
     setFormPhone(inst.phone === '—' ? '' : inst.phone);
     setIsEditModalOpen(true);
   };
@@ -204,13 +212,15 @@ export default function AdminInstructors() {
           .eq('instructor', editingInstructor.name);
       }
 
-      await supabase
+      const { error } = await supabase
         .from('users')
         .update({
           full_name: formName.trim(),
           phone: formPhone.trim() || null
         })
         .eq('id', editingInstructor.id);
+
+      if (error) throw error;
 
       await fetchLiveInstructorsMatrix();
       setIsEditModalOpen(false);
@@ -226,7 +236,8 @@ export default function AdminInstructors() {
     if (window.confirm(`🚨 האם אתה בטוח שברצונך למחוק את המדריך "${name}"? הפעולה תנתק אותו מהקבוצות.`)) {
       try {
         await supabase.from('groups').update({ instructor: '', status: 'red' }).eq('instructor', name);
-        await supabase.from('users').delete().eq('id', id);
+        const { error } = await supabase.from('users').delete().eq('id', id);
+        if (error) throw error;
         await fetchLiveInstructorsMatrix();
         triggerToast(`המדריך ${name} נמחק לצמיתות מהמערכת`);
       } catch (err) {
@@ -238,7 +249,8 @@ export default function AdminInstructors() {
   // הקפאה / הפעלה של מדריך בלייב
   const handleToggleStatus = async (id, currentStatus, name) => {
     try {
-      await supabase.from('users').update({ is_active: !currentStatus }).eq('id', id);
+      const { error } = await supabase.from('users').update({ is_active: !currentStatus }).eq('id', id);
+      if (error) throw error;
       await fetchLiveInstructorsMatrix();
       triggerToast(currentStatus ? `החשבון של ${name} הוקפא בהצלחה ❄️` : `החשבון של ${name} הופעל מחדש ⚡`);
     } catch (err) {
@@ -267,7 +279,8 @@ export default function AdminInstructors() {
     const nextStatus = isCurrentlyAssigned ? 'red' : 'green';
 
     try {
-      await supabase.from('groups').update({ instructor: nextInstructor, status: nextStatus }).eq('id', group.id);
+      const { error } = await supabase.from('groups').update({ instructor: nextInstructor, status: nextStatus }).eq('id', group.id);
+      if (error) throw error;
       await fetchLiveInstructorsMatrix();
       triggerToast(`הקבוצה ${group.venue} שונתה בהצלחה`);
     } catch (err) {
@@ -279,14 +292,14 @@ export default function AdminInstructors() {
     setVisiblePasswords(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // 🟢 מערך סינון וחיפוש משולב: תומך בטקסט חופשי ובפילטר ה-Tabs שבחר האדמין
+  // מערך סינון וחיפוש משולב
   const filteredInstructors = instructors.filter(i => {
     const matchesSearch = i.name.toLowerCase().includes(searchQuery.toLowerCase()) || i.username.toLowerCase().includes(searchQuery.toLowerCase());
     if (!matchesSearch) return false;
     
     if (filterRole === 'senior') return i.role === 'instructor';
     if (filterRole === 'temp') return i.role === 'temp_instructor';
-    return true; // 'all'
+    return true; 
   });
 
   const filteredGroupsForAssign = allGroups.filter(g => g.venue.includes(groupSearch) || g.city.includes(groupSearch) || g.name.includes(groupSearch));
@@ -345,7 +358,6 @@ export default function AdminInstructors() {
 
         .content { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
         
-        /* 🟢 פאנל ניווט ופעולות עליון מאוחד */
         .camps-toolbar { display: flex; align-items: center; justify-content: space-between; background: #070e1c; padding: 12px 18px; border-radius: 12px; border: 1px solid #1a2a4a; flex-shrink: 0; gap: 12px; flex-wrap: wrap; }
         .camps-toolbar-btn-group { display: flex; align-items: center; gap: 10px; }
         .ct-btn { padding: 8px 16px; border-radius: 7px; border: 1px solid; font-family: 'Heebo', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.18s; }
@@ -354,13 +366,12 @@ export default function AdminInstructors() {
         .btn-add-temp { background: rgba(160, 96, 224, 0.08); border-color: rgba(160, 96, 224, 0.35); color: #c080ff; }
         .btn-add-temp:hover { background: rgba(160, 96, 224, 0.18); box-shadow: 0 0 12px rgba(160, 96, 224, 0.2); }
 
-        /* 🟢 פילטר טאבים ייעודיים לסינון סגל */
         .filter-tabs-container { display: flex; gap: 6px; background: #040a15; border: 1px solid #14223d; padding: 4px; border-radius: 8px; }
         .filter-tab { background: transparent; border: none; padding: 6px 14px; font-size: 12px; font-weight: 600; color: #4a6080; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
         .filter-tab:hover { color: #ffffff; }
         .filter-tab.active { background: #0c1c38; color: #00c8ff; border: 1px solid rgba(0,200,255,0.15); }
 
-        .search-box-wrap { display: flex; background: #070e1c; padding: 10px 16px; border-radius: 12px; border: 1px solid #1a2a4a; align-items: center; gap: 10px; flex: 1; min-width: 240px; }
+        .search-box-wrap { display: flex; background: #060b18; padding: 10px 16px; border-radius: 12px; border: 1px solid #1a2a4a; align-items: center; gap: 10px; flex: 1; min-width: 240px; }
         .search-input { background: transparent; border: none; color: #c0d8f0; font-family: 'Heebo', sans-serif; font-size: 13.5px; outline: none; flex: 1; text-align: right; }
 
         .table-panel { background: #070e1c; border: 1px solid #1a2a4a; border-radius: 14px; overflow: hidden; }
@@ -455,14 +466,14 @@ export default function AdminInstructors() {
         {/* CONTENT */}
         <div className="content">
           
-          {/* 🟢 תיקון 1: סרגל לחצני הפעולה העליון המאחד חיפוש, סינון טאבים והוספה מרוכזת */}
+          {/* 🟢 סרגל לחצני הפעולה העליון המאחד חיפוש, סינון טאבים והוספה מרוכזת */}
           <div className="camps-toolbar">
             <div className="search-box-wrap">
               <i className="ti ti-search" style={{ color: '#4a6080', fontSize: '16px' }}></i>
               <input className="search-input" type="text" placeholder="חפש חבר סגל לפי שם או יוזר..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
 
-            {/* 🟢 תיקון 4: כפתורי סינון טאבים מהירים לסוגי סגל */}
+            {/* 🟢 כפתורי סינון טאבים מהירים לסוגי סגל */}
             <div className="filter-tabs-container">
               <button className={`filter-tab ${filterRole === 'all' ? 'active' : ''}`} onClick={() => setFilterRole('all')}>הצג הכל</button>
               <button className={`filter-tab ${filterRole === 'senior' ? 'active' : ''}`} onClick={() => setFilterRole('senior')}>מדריכים בכירים</button>
@@ -473,7 +484,7 @@ export default function AdminInstructors() {
               <button className="ct-btn btn-build-board" type="button" onClick={() => setIsAddModalOpen(true)}>
                 <i className="ti ti-user-plus"></i> הוסף מדריך בכיר
               </button>
-              {/* 🟢 תיקון 2: כפתור ייעודי חדש להוספת עובד זמני */}
+              {/* 🟢 כפתור ייעודי חדש להוספת עובד זמני */}
               <button className="ct-btn btn-add-temp" type="button" onClick={() => {
                 setFormName(''); setFormPhone(''); setFormTempCity('');
                 setFormHourlyInstruction(40); setFormHourlyGeneral(40);
@@ -513,7 +524,7 @@ export default function AdminInstructors() {
               <tbody>
                 {filteredInstructors.map(inst => (
                   <tr key={inst.id} className={inst.isActive ? '' : 'frozen'}>
-                    {/* 🟢 תיקון 3: תצוגת שם המשתמש בתוספת מזהה (זמני) בסוגריים במידה והוא סגל זמני */}
+                    {/* 🟢 תצוגת שם המשתמש בתוספת מזהה (זמני) בסוגריים במידה והוא סגל זמני */}
                     <td>
                       <span className="cell-bold" style={inst.isActive ? (inst.role === 'temp_instructor' ? { color: '#c080ff' } : {}) : { color: '#4a6080' }}>
                         {inst.role === 'temp_instructor' ? `${inst.name} (זמני)` : inst.name}
