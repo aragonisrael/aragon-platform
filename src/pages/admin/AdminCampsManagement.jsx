@@ -36,7 +36,6 @@ export default function AdminCampsManagement() {
   // מאגרי כח אדם דינמיים מסונכרנים ישירות מהענן (קבועים מול זמניים)
   const [seniorInstructors, setSeniorInstructors] = useState(['אריה כהן', 'רחל לוי', 'ישראל ישראלי', 'מיכל דוד', 'שיר אלון']);
   const [tempInstructors, setTempInstructors] = useState(['אופק שבתאי (זמני)', 'מאי לוגסי (זמנית)', 'גל רותם (זמני)', 'ליאור פרידמן (זמנית)']);
-  const [campManagers, setCampManagers] = useState(['רוני אלוני', 'גיא דותן', 'אביב גל', 'מנהל לוגיסטיקה']);
 
   // תצורת הלוח האקטיבי עם חסינות רענון (localStorage persistence)
   const [boardConfig, setBoardConfig] = useState(() => {
@@ -89,12 +88,30 @@ export default function AdminCampsManagement() {
   const ROOM_TYPES = ['חדר גיימינג', 'חדר מחשבים', 'חדר רובוטיקה', 'חדר מדע וחלל', 'חדר פיננסי', 'חדר משפטים'];
 
   // ── פונקציות שירות פנימיות ──
-  const showToast = (msg) => {
-    setToast({ show: true, message: msg });
-    setTimeout(() => setToast({ show: false, message: '' }), 3200);
+  const mapCampsData = (dbCamps, dbCompounds) => {
+    return dbCamps.map(c => {
+      const comps = dbCompounds ? dbCompounds.filter(comp => comp.camp_id === c.id).map(comp => ({
+        id: comp.id,
+        roomType: comp.room_type,
+        seniorInstructor: comp.senior_instructor ? cleanInstructorName(comp.senior_instructor, comp.senior_instructor.includes('(זמני)')) : '',
+        tempInstructor: comp.temp_instructor ? cleanInstructorName(comp.temp_instructor, comp.temp_instructor.includes('(זמני)')) : ''
+      })) : [];
+
+      return {
+        id: c.id,
+        title: c.title,
+        startDate: c.start_date,
+        endDate: c.end_date,
+        netHours: c.net_hours,
+        manager: c.manager,
+        childrenCount: c.children_count,
+        trackId: c.track_id,
+        setupStaff: c.setup_staff || ['', '', ''],
+        compounds: comps
+      };
+    });
   };
 
-  // פונקציית פילטור דינמית חוצת-לו"ז: מונעת כפל שיבוצים ומחזירה סגל פנוי בלבד לטווח תאריכים
   const getAvailableStaffPool = (start, end, currentCampId = null) => {
     const totalPool = [
       ...seniorInstructors.map(name => ({ name, isTemp: false })),
@@ -126,7 +143,6 @@ export default function AdminCampsManagement() {
     return totalPool.filter(st => !occupiedStaff.has(st.name));
   };
 
-  // פונקציית השירות מחשבת את רשימת ימי העבודה לחלונית הקוקפיט
   const getCampDaysList = (startDate, endDate) => {
     const days = [];
     if (!startDate || !endDate) return days;
@@ -149,7 +165,6 @@ export default function AdminCampsManagement() {
     return days;
   };
 
-  // פונקציית חישוב המיקום של הבלוק על ציר הזמן
   const getCampPositionStyle = (camp) => {
     const allDays = boardWeeks.flatMap(w => w.workingDays);
     const dayWidth = 52; 
@@ -171,7 +186,6 @@ export default function AdminCampsManagement() {
     };
   };
 
-  // פונקציה מסונכרנת למשיכת כל הקייטנות והמתחמים הקיימים ב-Database
   const fetchLiveCampsDataFromCloud = async () => {
     try {
       const { data: dbCamps, error: campsErr } = await supabase.from('camps').select('*');
@@ -181,27 +195,7 @@ export default function AdminCampsManagement() {
         const { data: dbCompounds, error: compErr } = await supabase.from('camp_compounds').select('*');
         if (compErr) throw compErr;
 
-        const mappedCamps = dbCamps.map(c => {
-          const comps = dbCompounds ? dbCompounds.filter(comp => comp.camp_id === c.id).map(comp => ({
-            id: comp.id,
-            roomType: comp.room_type,
-            seniorInstructor: comp.senior_instructor ? cleanInstructorName(comp.senior_instructor, comp.senior_instructor.includes('(זמני)')) : '',
-            tempInstructor: comp.temp_instructor ? cleanInstructorName(comp.temp_instructor, comp.temp_instructor.includes('(זמני)')) : ''
-          })) : [];
-
-          return {
-            id: c.id,
-            title: c.title,
-            startDate: c.start_date,
-            endDate: c.end_date,
-            netHours: c.net_hours,
-            manager: c.manager,
-            childrenCount: c.children_count,
-            trackId: c.track_id,
-            setupStaff: c.setup_staff || ['', '', ''],
-            compounds: comps
-          };
-        });
+        const mappedCamps = mapCampsData(dbCamps, dbCompounds);
         setCamps(mappedCamps);
       }
     } catch (err) {
@@ -209,7 +203,6 @@ export default function AdminCampsManagement() {
     }
   };
 
-  // משיכת כל המדריכים מ-Supabase וניקוי מוחלט של כפל תיוגים בשורת המקור
   const fetchLiveWorkforcePool = async () => {
     try {
       const { data: seniors } = await supabase.from('users').select('full_name').eq('role', 'instructor');
@@ -226,7 +219,11 @@ export default function AdminCampsManagement() {
     }
   };
 
-  // פונקציית הוספת מסלול נוסף בלוח
+  useEffect(() => {
+    fetchLiveWorkforcePool();
+    fetchLiveCampsDataFromCloud();
+  }, []);
+
   const handleAddNewTrackLane = () => {
     const nextIndex = tracks.length + 1;
     const nextTracks = [...tracks, { id: 'track_' + nextIndex, label: `מסלול ${nextIndex}` }];
@@ -235,7 +232,53 @@ export default function AdminCampsManagement() {
     showToast(`➕ מסלול ${nextIndex} נוסף כמערך תור אקטיבי בלוח`);
   };
 
-  // פונקציית הקמת הלו"ז והמחזורים השבועיים
+  const generateWeeklyColumns = (start, end) => {
+    const weeks = [];
+    const globalStart = new Date(start);
+    const globalEnd = new Date(end);
+
+    let currentSunday = new Date(globalStart);
+    currentSunday.setDate(currentSunday.getDate() - currentSunday.getDay());
+
+    let weekIndex = 1;
+    while (currentSunday <= globalEnd) {
+      const workingDays = [];
+      
+      for (let i = 0; i < 5; i++) {
+        const dayDate = new Date(currentSunday);
+        dayDate.setDate(dayDate.getDate() + i);
+        const isOOB = dayDate < globalStart || dayDate > globalEnd;
+        
+        workingDays.push({
+          date: dayDate,
+          dateStr: dayDate.toISOString().split('T')[0],
+          isOOB: isOOB
+        });
+      }
+
+      const activeDays = workingDays.filter(d => !d.isOOB);
+      let datesLabel = '';
+      if (activeDays.length > 0) {
+        const fmt = (d) => d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
+        datesLabel = `${fmt(activeDays[0].date)} - ${fmt(activeDays[activeDays.length - 1].date)}`;
+      } else {
+        const fmt = (d) => d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
+        datesLabel = `${fmt(workingDays[0].date)} - ${fmt(workingDays[4].date)}`;
+      }
+
+      weeks.push({
+        id: 'w_' + weekIndex,
+        label: `מחזור ${weekIndex}`,
+        dates: datesLabel,
+        workingDays: workingDays
+      });
+
+      currentSunday.setDate(currentSunday.getDate() + 7);
+      weekIndex++;
+    }
+    return weeks;
+  };
+
   const handleBuildBoardRoute = (e) => {
     e.preventDefault();
     const computedWeeks = generateWeeklyColumns(setupStartDate, setupEndDate);
@@ -345,19 +388,6 @@ export default function AdminCampsManagement() {
     }
   };
 
-  const handleOpenCampDashboardConsole = (camp) => {
-    const sanitizedCamp = {
-      ...camp,
-      compounds: camp.compounds.map(comp => ({
-        ...comp,
-        seniorInstructor: cleanInstructorName(comp.seniorInstructor, comp.seniorInstructor.includes('(זמני)')),
-        tempInstructor: cleanInstructorName(comp.tempInstructor, comp.tempInstructor.includes('(זמני)'))
-      }))
-    };
-    setSelectedViewCamp(sanitizedCamp);
-    setIsEditMode(false);
-  };
-
   const handleUpdateCampDetailsInfo = async (e) => {
     e.preventDefault();
 
@@ -435,19 +465,11 @@ export default function AdminCampsManagement() {
     }
   };
 
-  const handleResetEntireBoard = () => {
-    if (!window.confirm('⚠️ אזהרה! האם למחוק לחלוטין את לוח הקייטנות האקטיבי וכל השיבוצים בתוכו?')) return;
-    setBoardConfig(null);
-    setBoardWeeks([]);
-    setTracks([]);
-    setCamps([]);
-    setSelectedViewCamp(null);
-
-    localStorage.removeItem('aragon_camp_board_config');
-    localStorage.removeItem('aragon_camp_board_weeks');
-    localStorage.removeItem('aragon_camp_tracks');
-
-    showToast('🗑️ הלוח אופס ונמחק לחלוטין מחמ"ל האדמין');
+  const toggleRadioPlay = () => {
+    const globalAudio = document.getElementById('hq-cyber-radio');
+    if (!globalAudio) return;
+    globalAudio.paused ? globalAudio.play().catch(err => console.log(err)) : globalAudio.pause();
+    setIsPlaying(!globalAudio.paused);
   };
 
   const handleEditChildrenCountChange = (val) => {
@@ -476,42 +498,6 @@ export default function AdminCampsManagement() {
     });
   };
 
-  const toggleRadioPlay = () => {
-    const globalAudio = document.getElementById('hq-cyber-radio');
-    if (!globalAudio) return;
-    globalAudio.paused ? globalAudio.play().catch(err => console.log(err)) : globalAudio.pause();
-    setIsPlaying(!globalAudio.paused);
-  };
-
-  // תזמון שעון חמ"ל
-  useEffect(() => {
-    const tick = () => setClk(new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-    const interval = setInterval(tick, 1000);
-    tick();
-    return () => clearInterval(interval);
-  }, []);
-
-  // סנכרן את מצב כפתור הנגן
-  useEffect(() => {
-    const globalAudio = document.getElementById('hq-cyber-radio');
-    if (globalAudio) setIsPlaying(!globalAudio.paused);
-  }, []);
-
-  useEffect(() => {
-    const requiredRooms = Math.max(1, Math.ceil(campChildrenCount / 25));
-    const nextCompounds = Array.from({ length: requiredRooms }).map((_, idx) => {
-      if (campCompounds[idx]) return campCompounds[idx]; 
-      return {
-        id: 'comp_' + idx + '_' + Date.now(),
-        label: `מתחם חומרה ${idx + 1}`,
-        roomType: ROOM_TYPES[idx % ROOM_TYPES.length],
-        seniorInstructor: '', 
-        tempInstructor: ''    
-      };
-    });
-    setCampCompounds(nextCompounds);
-  }, [campChildrenCount]);
-
   return (
     <div className="hq-global-wrapper">
       <style>{`
@@ -539,7 +525,14 @@ export default function AdminCampsManagement() {
         
         .top-bar { height: 64px; background: linear-gradient(90deg, #050812 0%, #080f22 30%, #0a0820 50%, #080f22 70%, #050812 100%); border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 20; flex-shrink: 0; }
         .top-bar-brand { display: flex; align-items: center; gap: 14px; }
+        .brand-title { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: #00c8ff; }
+        .brand-sub { font-size: 10px; color: #4a6080; letter-spacing: 1px; margin-top: 1px; font-family: 'Heebo', sans-serif; }
         
+        .top-bar-right { display: flex; align-items: center; gap: 12px; }
+        .status-pill { display: flex; align-items: center; gap: 6px; background: #040c18; border: 1px solid #0a2040; border-radius: 20px; padding: 5px 12px; font-size: 12px; color: #4a9060; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #00e676; animation: hqPulse 2s ease-in-out infinite; }
+        .top-bar-neon { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #00c8ff44, #7b2fbe66, #00c8ff44, transparent); }
+
         .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #1a3a6a; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; transition: all 0.2s; user-select: none; }
         .cyber-music-player:hover { border-color: #00c8ff; box-shadow: 0 0 10px rgba(0, 200, 255, 0.2); }
         .player-toggle-btn { color: #00c8ff; font-size: 14px; display: flex; align-items: center; }
@@ -556,6 +549,108 @@ export default function AdminCampsManagement() {
         .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
 
         .content { flex: 1; overflow: hidden; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; height: calc(100% - 64px); min-height: 0; }
+        
+        /* TOOLBAR */
+        .camps-toolbar { display: flex; align-items: center; justify-content: space-between; background: #070e1c; padding: 12px 18px; border-radius: 12px; border: 1px solid #1a2a4a; flex-shrink: 0; }
+        .camps-toolbar-btn-group { display: flex; align-items: center; gap: 10px; }
+        .ct-btn { padding: 7px 16px; border-radius: 7px; border: 1px solid; font-family: 'Heebo', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.18s; }
+        .btn-build-board { background: rgba(0, 212, 255, 0.08); border-color: rgba(0, 212, 255, 0.35); color: #00d4ff; }
+        .btn-build-board:hover { background: rgba(0, 212, 255, 0.18); box-shadow: 0 0 12px rgba(0, 212, 255, 0.2); }
+        .btn-add-camp { background: rgba(0, 229, 160, 0.06); border-color: rgba(0, 229, 160, 0.35); color: #00e5a0; }
+        .btn-add-camp:hover { background: rgba(0, 229, 160, 0.15); box-shadow: 0 0 12px rgba(0, 229, 160, 0.2); }
+        .btn-reset-board { background: rgba(255, 69, 96, 0.05); border-color: rgba(255, 69, 96, 0.3); color: #ff4560; }
+        .btn-reset-board:hover { background: rgba(255, 69, 96, 0.15); }
+
+        /* TIMELINE PANEL */
+        .timeline-panel { background: #070e1c; border: 2px solid rgba(255, 255, 255, 0.15); border-radius: 14px; overflow: hidden; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+        .timeline-scroll-box { flex: 1; overflow-x: auto; overflow-y: auto; width: 100%; padding-bottom: 30px; }
+        
+        .timeline-matrix-grid { display: grid; position: relative; min-width: max-content; }
+        .tm-header-row { display: flex; background: #080f1e; border-bottom: 2px solid rgba(255, 255, 255, 0.15); position: sticky; top: 0; z-index: 8; }
+        .tm-track-header-cell { width: 120px; padding: 14px; font-size: 13.5px; font-weight: 800; color: #00c8ff; text-align: center; background: #080f1e; border-left: 2px solid rgba(255, 255, 255, 0.15); position: sticky; right: 0; z-index: 9; }
+        .tm-week-header-cell { width: 260px; padding: 10px; text-align: center; border-left: 2px solid rgba(255, 255, 255, 0.15); display: flex; flex-direction: column; gap: 2px; }
+        .tm-week-title { font-size: 13.5px; font-weight: 800; color: #ffffff; text-shadow: 0 0 6px rgba(255,255,255,0.2); }
+        .tm-week-dates { font-size: 10.5px; color: rgba(160,185,215,0.5); font-family: 'Orbitron', monospace; font-weight: 600; }
+
+        .tm-track-row { display: flex; border-bottom: 2px solid rgba(255, 255, 255, 0.15); min-height: 140px; position: relative; }
+        .tm-track-lane-cell { width: 120px; background: #080f1e; border-left: 2px solid rgba(255, 255, 255, 0.15); font-size: 13.5px; font-weight: 700; color: #ffffff; display: flex; align-items: center; justify-content: center; position: sticky; right: 0; z-index: 5; }
+        
+        .tm-track-timeline-wrapper { position: relative; display: flex; height: 100%; min-height: 140px; }
+        .tm-week-grid-placeholder { width: 260px; height: 100%; border-left: 2px solid rgba(255, 255, 255, 0.15); display: flex; }
+        
+        .tm-day-sub-slot { width: 52px; height: 100%; border-left: 1px dashed rgba(255, 255, 255, 0.05); }
+        .tm-day-sub-slot:last-child { border-left: none; }
+        
+        .tm-day-sub-slot.oob-blurred {
+          background: repeating-linear-gradient(45deg, rgba(255, 69, 96, 0.03), rgba(255, 69, 96, 0.03) 4px, transparent 4px, transparent 8px);
+          opacity: 0.4;
+        }
+
+        /* CAMP BLOCK */
+        .camp-block { background: linear-gradient(135deg, #111f35 0%, #0d1625 100%); border: 1px solid rgba(0,200,255,0.3); border-top: 3px solid #00c8ff; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: center; gap: 5px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); box-sizing: border-box; top: 15px; height: calc(100% - 30px); overflow: hidden; cursor: pointer; }
+        .camp-block:hover { border-color: #00c8ff; box-shadow: 0 6px 20px rgba(0,200,255,0.25); }
+        .camp-block-title { font-size: 14px; font-weight: 800; color: #ffffff; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .camp-block-meta-row { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; color: #ffffff; opacity: 0.9; }
+        .camp-block-dates-lbl { font-size: 11px; color: #00d4ff; font-family: 'Orbitron', monospace; font-weight: 600; }
+        .camp-block-staff-summary { font-size: 11px; color: rgba(220, 235, 255, 0.6); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 4px; margin-top: 2px; }
+
+        /* SUB TIMELINE GRID TABLE */
+        .sub-timeline-grid-table { width: 100%; border-collapse: collapse; margin-top: 14px; border: 2px solid rgba(255, 255, 255, 0.15); }
+        .sub-timeline-grid-table th { background: #080f1e; border: 2px solid rgba(255, 255, 255, 0.15); padding: 10px; font-size: 12.5px; font-weight: 800; color: #ffffff; text-align: center; }
+        .sub-timeline-grid-table td { border: 1px solid rgba(255, 255, 255, 0.1); padding: 10px; text-align: center; background: rgba(255,255,255,0.005); vertical-align: middle; }
+        .sub-timeline-track-lbl { font-size: 13px; font-weight: 800; color: #00c8ff; background: #080f1e !important; border-left: 2px solid rgba(255, 255, 255, 0.15) !important; width: 110px; }
+        .sub-timeline-cell-staff-tile { background: rgba(0, 229, 160, 0.03); border: 1px solid rgba(0, 229, 160, 0.15); border-radius: 6px; padding: 6px; display: flex; flex-direction: column; gap: 2px; align-items: center; justify-content: center; min-width: 90px; }
+        .sub-timeline-cell-staff-text { font-size: 11.5px; color: #ffffff; font-weight: 500; }
+
+        .camps-logistics-crew-footer-panel { margin-top: 18px; background: rgba(0, 200, 255, 0.03); border: 1px dashed rgba(0, 200, 255, 0.25); border-radius: 8px; padding: 12px 16px; font-size: 13px; line-height: 1.5; text-align: right; }
+        .clc-footer-title { font-size: 13.5px; font-weight: 800; color: #00c8ff; margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
+
+        .board-empty-placeholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: rgba(160,185,215,0.4); text-align: center; padding: 40px 0; }
+        .board-empty-icon { font-size: 56px; color: rgba(0,200,255,0.1); }
+
+        /* MODALS */
+        .modal-ov { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+        .modal-box { background: #080f1e; border: 1px solid #1a2a4a; border-radius: 14px; padding: 26px; width: 540px; max-width: 96vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 0 50px rgba(0,200,255,0.12); direction: rtl; position: relative; text-align: right; }
+        .modal-box::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,200,255,0.4), transparent); }
+        .modal-box.wide-console { width: 880px; } 
+
+        .modal-box.info-pane-style { width: 580px; border-color: #f5c842; box-shadow: 0 0 40px rgba(245, 200, 66, 0.15); }
+        .info-pane-grid { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+        .info-pane-card { background: #060b18; border: 1px solid rgba(255,255,255,0.04); border-right: 3px solid #f5c842; border-radius: 6px; padding: 12px 14px; }
+        .info-pane-card-title { font-size: 13.5px; font-weight: 800; color: #f5c842; margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
+        .info-pane-card-text { font-size: 12.5px; color: rgba(220, 235, 255, 0.85); line-height: 1.6; }
+
+        .modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #1a2a4a; }
+        .modal-title-text { font-family: 'Heebo', sans-serif; font-size: 15.5px; font-weight: 800; color: #ffffff; }
+        .modal-subtitle-text { font-size: 12px; color: rgba(160,185,215,0.5); margin-top: 3px; }
+        .modal-close { position: absolute; left: 16px; top: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: rgba(160,185,215,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .modal-close:hover { background: rgba(255,69,96,0.12); color: #ff4560; }
+        
+        .mfr { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+        .mfl { font-size: 11.5px; color: rgba(0,212,255,0.55); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+        .mfi, .mfs { width: 100%; background: #060b18; border: 1px solid #1a2a4a; border-radius: 7px; color: #ffffff; padding: 10px 13px; font-family: 'Heebo', sans-serif; font-size: 14px; direction: rtl; outline: none; }
+        .mfi:focus, .mfs:focus { border-color: #00c8ff; box-shadow: 0 0 8px rgba(0,200,255,0.15); }
+        
+        .compounds-dynamic-container { background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 10px; padding: 12px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
+        .compound-form-block { background: #060b18; border: 1px solid #1a2a4a; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+        .compound-form-title { font-size: 12.5px; font-weight: 800; color: #00e5a0; border-bottom: 1px solid #1a2a4a; padding-bottom: 4px; }
+
+        .update-btn { width: 100%; padding: 12px; background: rgba(0,200,255,0.1); border: 1px solid #00c8ff; border-radius: 8px; color: #00c8ff; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; outline: none; }
+        .update-btn:hover { background: rgba(0,200,255,0.18); box-shadow: 0 0 18px rgba(0,200,255,0.2); }
+        .mbtn-cancel { padding: 12px 18px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: rgba(160,185,215,0.5); font-family: 'Heebo', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; }
+        
+        .mdelete-warning-btn { width: 100%; background: rgba(255, 59, 48, 0.05); border: 1px dashed rgba(255, 59, 48, 0.4); color: #ff5555; padding: 11px; border-radius: 8px; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s; margin-top: 14px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .mdelete-warning-btn:hover { background: rgba(255, 59, 48, 0.16); border-color: #ff3b30; color: #ff3b30; box-shadow: 0 0 15px rgba(255, 59, 48, 0.25); }
+
+        .mf2 { display: flex; gap: 10px; margin-top: 20px; }
+        .edit-icon-trigger-btn { background: transparent; border: none; color: #f5c842; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; margin-right: 6px; }
+        .edit-icon-trigger-btn:hover { transform: scale(1.15); color: #ffffff; }
+
+        .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(0); background: #080f1e; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 30px rgba(0,229,160,0.3); z-index: 999; text-align: center; pointer-events: none; display: none; }
+        .toast.show { display: block; animation: fadeInToast 0.2s ease-out; }
+
+        @keyframes hqSpin { to { transform: rotate(360deg); } }
+        @keyframes wavePulse { 0% { height: 3px; } 100% { height: 11px; } }
       `}</style>
 
       {/* סיידבר אדמין רשמי */}
@@ -573,6 +668,7 @@ export default function AdminCampsManagement() {
         </button>
       </div>
 
+      {/* ── 🟢 תחילת עמוד הניהול המרכזי ── */}
       <div className="main-col">
         {/* טופבר אדמין */}
         <div className="top-bar">
@@ -603,7 +699,7 @@ export default function AdminCampsManagement() {
           </div>
           <div className="top-bar-right">
             <div className={`cyber-music-player ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
-              <div className="player-toggle-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i ></div>
+              <div className="player-toggle-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i></div>
               <div className="player-station-text">HQ RADIO</div>
               <div className="audio-visualizer-wave"><div className="visualizer-bar"></div><div className="visualizer-bar"></div><div className="visualizer-bar"></div></div>
             </div>
@@ -707,10 +803,8 @@ export default function AdminCampsManagement() {
                             );
                           })}
                       </div>
-
                     </div>
                   ))}
-
                 </div>
               </div>
             ) : (
@@ -723,9 +817,8 @@ export default function AdminCampsManagement() {
               </div>
             )}
           </div>
-
-        </div>
-      </div>
+        </div> {/* ── 🟢 סגירה הרמטית של .content ── */}
+      </div> {/* ── 🟢 סגירה הרמטית של .main-col ── */}
 
       {/* מודאל 1: חלונית "הקם מסלול קייטנות" */}
       {isSetupModalOpen && (
@@ -1170,6 +1263,6 @@ export default function AdminCampsManagement() {
 
       {/* TOAST FEEDBACK ALERT */}
       <div className={`toast ${toast.show ? 'show' : ''}`}>✓ {toast.message}</div>
-    </div>
+    </div> // ── 🟢 סגירה של hq-global-wrapper ──
   );
 }
