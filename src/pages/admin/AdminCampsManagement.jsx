@@ -13,7 +13,7 @@ const fmtDateLabelStr = (dateStr) => {
   return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
 };
 
-//  green 🟢 פונקציית זיקוק אטומית - מנקה כל סוג סוגריים ומילים כפולות מה-Database ומאלצת תיוג יחיד ותקין
+// 🟢 פונקציית זיקוק אטומית - מנקה כל סוג סוגריים ומילים כפולות מה-Database ומאלצת תיוג יחיד ותקין
 const cleanInstructorName = (name, isTemp = true) => {
   if (!name) return '';
   let cleanRaw = String(name)
@@ -60,6 +60,8 @@ export default function AdminCampsManagement() {
   const [isAddCampModalOpen, setIsAddCampModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
+  // ── סטייטים של מודאל הוספת מדריך זמני הוסרו לחלוטין מהקובץ הזה ──
+
   // סטייט עבור מודאל קוקפיט הלו"ז של קייטנה נבחרת
   const [selectedViewCamp, setSelectedViewCamp] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -91,6 +93,37 @@ export default function AdminCampsManagement() {
   const showToast = (msg) => {
     setToast({ show: true, message: msg });
     setTimeout(() => setToast({ show: false, message: '' }), 3200);
+  };
+
+  // 🟢 פונקציית פילטור דינמית חדשה חוצת-לו"ז: מונעת כפל שיבוצים ומחזירה סגל פנוי בלבד לטווח תאריכים
+  const getAvailableStaffPool = (start, end, currentCampId = null) => {
+    // יצירת מאגר מאוחד של כל הצוותים (קבועים וזמניים ביחד)
+    const totalPool = [
+      ...seniorInstructors.map(name => ({ name, isTemp: false })),
+      ...tempInstructors.map(name => ({ name, isTemp: true }))
+    ];
+
+    if (!start || !end) return totalPool;
+
+    // מיפוי כל חברי הסגל שתפוסים כרגע בקייטנות חופפות אחרות
+    const occupiedStaff = new Set();
+
+    camps.forEach(camp => {
+      // אם אנחנו במצב עריכה, נתעלם מהקייטנה הנוכחית כדי שהמדריך המשובץ בה לא ייעלם מהרשימה של עצמו
+      if (currentCampId && camp.id === currentCampId) return;
+
+      // בדיקת חפיפת תאריכים קשיחה: startA <= endB && endA >= startB
+      const isOverlapping = (start <= camp.endDate && end >= camp.startDate);
+      if (isOverlapping) {
+        camp.compounds.forEach(comp => {
+          if (comp.seniorInstructor) occupiedStaff.add(comp.seniorInstructor);
+          if (comp.tempInstructor) occupiedStaff.add(comp.tempInstructor);
+        });
+      }
+    });
+
+    // החזרת רשימת חברי הסגל שאינם תפוסים בתאריכים הללו
+    return totalPool.filter(st => !occupiedStaff.has(st.name));
   };
 
   // פונקציה מסונכרנת למשיכת כל הקייטנות והמתחמים הקיימים ב-Database עם זיקוק אבסולוטי
@@ -539,7 +572,6 @@ export default function AdminCampsManagement() {
 
         .main-col { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-width: 0; }
         
-        /* ── 🟢 שדרוג ויישור מוחלט של ה-Top Bar למבנה הסינכרוני המנצח של האפליקציה ── */
         .top-bar { height: 64px; background: linear-gradient(90deg, #050812 0%, #080f22 30%, #0a0820 50%, #080f22 70%, #050812 100%); border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 20; flex-shrink: 0; }
         .top-bar-brand { display: flex; align-items: center; gap: 14px; }
         .brand-title { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: #00c8ff; }
@@ -778,7 +810,12 @@ export default function AdminCampsManagement() {
                         {camps
                           .filter(c => c.trackId === track.id)
                           .map(camp => {
-                            const instructorsInitialsList = camp.compounds.filter(comp => comp.seniorInstructor).map(comp => comp.seniorInstructor.split(' ')[0]);
+                            const instructorsInitialsList = camp.compounds.flatMap(comp => {
+                              const list = [];
+                              if (comp.seniorInstructor) list.push(comp.seniorInstructor.split(' ')[0]);
+                              if (comp.tempInstructor) list.push(comp.tempInstructor.split(' ')[0]);
+                              return list;
+                            });
                             const uniqueStaffRowStr = [camp.manager + ' (מ)', ...instructorsInitialsList].join(' · ');
 
                             return (
@@ -901,18 +938,15 @@ export default function AdminCampsManagement() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '14px' }}>
                 <select className="mfs" value={campStaff1} onChange={(e) => setCampStaff1(e.target.value)}>
                   <option value="">— ללא עובד —</option>
-                  {seniorInstructors.map(i => <option key={i} value={i}>{i}</option>)}
-                  {tempInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                  {getAvailableStaffPool(campStartDate, campEndDate).map(st => <option key={st.name} value={st.name}>{st.name}</option>)}
                 </select>
                 <select className="mfs" value={campStaff2} onChange={(e) => setCampStaff2(e.target.value)}>
                   <option value="">— ללא עובד —</option>
-                  {seniorInstructors.map(i => <option key={i} value={i}>{i}</option>)}
-                  {tempInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                  {getAvailableStaffPool(campStartDate, campEndDate).map(st => <option key={st.name} value={st.name}>{st.name}</option>)}
                 </select>
                 <select className="mfs" value={campStaff3} onChange={(e) => setCampStaff3(e.target.value)}>
                   <option value="">— ללא עובד —</option>
-                  {seniorInstructors.map(i => <option key={i} value={i}>{i}</option>)}
-                  {tempInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                  {getAvailableStaffPool(campStartDate, campEndDate).map(st => <option key={st.name} value={st.name}>{st.name}</option>)}
                 </select>
               </div>
 
@@ -923,7 +957,7 @@ export default function AdminCampsManagement() {
                 {campCompounds.map((comp, idx) => (
                   <div key={comp.id} className="compound-form-block">
                     <div className="compound-form-title"> מתחם פעילות #{idx + 1}</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                       <div>
                         <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>סוג חדר חומרה</label>
                         <select className="mfs" style={{ padding: '6px 8px', fontSize: '12.5px' }} value={comp.roomType} onChange={(e) => setCampCompounds(campCompounds.map((c, i) => i === idx ? { ...c, roomType: e.target.value } : c))}>
@@ -931,17 +965,26 @@ export default function AdminCampsManagement() {
                         </select>
                       </div>
                       <div>
-                        <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך בכיר (קבוע)</label>
-                        <select className="mfs" style={{ padding: '6px 8px', fontSize: '12.5px' }} value={comp.seniorInstructor} onChange={(e) => setCampCompounds(campCompounds.map((c, i) => i === idx ? { ...c, seniorInstructor: e.target.value } : c))}>
+                        {/* 🟢 שדרוג 2: רשימת בחירה מעורבבת, אחידה ומסונכרנת אוטומטית לפי חופש קלנדרי מבוסס תאריכים */}
+                        <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך אחראי למתחם</label>
+                        <select 
+                          className="mfs" 
+                          style={{ padding: '6px 8px', fontSize: '12.5px' }} 
+                          value={comp.seniorInstructor || comp.tempInstructor || ''} 
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const isTemporary = val.includes('(זמני)');
+                            setCampCompounds(campCompounds.map((c, i) => i === idx ? { 
+                              ...c, 
+                              seniorInstructor: isTemporary ? '' : val, 
+                              tempInstructor: isTemporary ? val : '' 
+                            } : c));
+                          }}
+                        >
                           <option value="">— ללא מדריך —</option>
-                          {seniorInstructors.map(si => <option key={si} value={si}>{si}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך בזק (זמני)</label>
-                        <select className="mfs" style={{ padding: '6px 8px', fontSize: '12.5px' }} value={comp.tempInstructor} onChange={(e) => setCampCompounds(campCompounds.map((c, i) => i === idx ? { ...c, tempInstructor: e.target.value } : c))}>
-                          <option value="">— ללא מדריך —</option>
-                          {tempInstructors.map(ti => <option key={ti} value={ti}>{ti}</option>)}
+                          {getAvailableStaffPool(campStartDate, campEndDate).map(st => (
+                            <option key={st.name} value={st.name}>{st.name}</option>
+                          ))}
                         </select>
                       </div>
                     </div>
@@ -952,7 +995,7 @@ export default function AdminCampsManagement() {
               <div className="mf2">
                 <button type="button" className="mbtn-cancel" onClick={() => setIsAddCampModalOpen(false)}>ביטול</button>
                 <button className="update-btn" type="submit">
-                  <i className="ti ti-calendar-check"></i>נעילת שיבוץ ושילוח ללו"ז
+                  <i className="ti ti-calendar-check"></i>נעילת שיץ ושילוח ללו"ז
                 </button>
               </div>
             </form>
@@ -1017,11 +1060,8 @@ export default function AdminCampsManagement() {
                         {getCampDaysList(selectedViewCamp.startDate, selectedViewCamp.endDate).map((day, dIdx) => (
                           <td key={dIdx}>
                             <div className="sub-timeline-cell-staff-tile">
-                              <span className="sub-timeline-cell-staff-text" style={{ fontWeight: 700, color: comp.seniorInstructor ? '#00e5a0' : 'rgba(255,255,255,0.2)' }}>
-                                {comp.seniorInstructor ? `👤 ${comp.seniorInstructor}` : '—'}
-                              </span>
-                              <span className="sub-timeline-cell-staff-text" style={{ opacity: comp.tempInstructor ? 0.75 : 0.2, fontSize: '10.5px' }}>
-                                {comp.tempInstructor ? `🧑‍💻 ${comp.tempInstructor}` : '—'}
+                              <span className="sub-timeline-cell-staff-text" style={{ fontWeight: 700, color: (comp.seniorInstructor || comp.tempInstructor) ? '#00e5a0' : 'rgba(255,255,255,0.2)' }}>
+                                {comp.seniorInstructor || comp.tempInstructor || '—'}
                               </span>
                             </div>
                           </td>
@@ -1082,8 +1122,7 @@ export default function AdminCampsManagement() {
                     setSelectedViewCamp({ ...selectedViewCamp, setupStaff: nextStaff });
                   }}>
                     <option value="">— ללא עובד —</option>
-                    {seniorInstructors.map(i => <option key={i} value={i}>{i}</option>)}
-                    {tempInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                    {getAvailableStaffPool(selectedViewCamp.startDate, selectedViewCamp.endDate, selectedViewCamp.id).map(st => <option key={st.name} value={st.name}>{st.name}</option>)}
                   </select>
                   <select className="mfs" value={selectedViewCamp.setupStaff?.[1] || ''} onChange={(e) => {
                     const nextStaff = [...(selectedViewCamp.setupStaff || ['', '', ''])];
@@ -1091,8 +1130,7 @@ export default function AdminCampsManagement() {
                     setSelectedViewCamp({ ...selectedViewCamp, setupStaff: nextStaff });
                   }}>
                     <option value="">— ללא עובד —</option>
-                    {seniorInstructors.map(i => <option key={i} value={i}>{i}</option>)}
-                    {tempInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                    {getAvailableStaffPool(selectedViewCamp.startDate, selectedViewCamp.endDate, selectedViewCamp.id).map(st => <option key={st.name} value={st.name}>{st.name}</option>)}
                   </select>
                   <select className="mfs" value={selectedViewCamp.setupStaff?.[2] || ''} onChange={(e) => {
                     const nextStaff = [...(selectedViewCamp.setupStaff || ['', '', ''])];
@@ -1100,8 +1138,7 @@ export default function AdminCampsManagement() {
                     setSelectedViewCamp({ ...selectedViewCamp, setupStaff: nextStaff });
                   }}>
                     <option value="">— ללא עובד —</option>
-                    {seniorInstructors.map(i => <option key={i} value={i}>{i}</option>)}
-                    {tempInstructors.map(i => <option key={i} value={i}>{i}</option>)}
+                    {getAvailableStaffPool(selectedViewCamp.startDate, selectedViewCamp.endDate, selectedViewCamp.id).map(st => <option key={st.name} value={st.name}>{st.name}</option>)}
                   </select>
                 </div>
 
@@ -1110,7 +1147,7 @@ export default function AdminCampsManagement() {
                   {selectedViewCamp.compounds.map((comp, idx) => (
                     <div key={comp.id} className="compound-form-block">
                       <div className="compound-form-title">מתחם פעילות מספר {idx + 1}</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                         <div>
                           <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>סוג חדר חומרה</label>
                           <select className="mfs" style={{ padding: '6px 8px', fontSize: '12.5px' }} value={comp.roomType} onChange={(e) => {
@@ -1121,23 +1158,27 @@ export default function AdminCampsManagement() {
                           </select>
                         </div>
                         <div>
-                          <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך בכיר</label>
-                          <select className="mfs" style={{ padding: '6px 8px', fontSize: '12.5px' }} value={comp.seniorInstructor} onChange={(e) => {
-                            const updatedComp = selectedViewCamp.compounds.map((c, i) => i === idx ? { ...c, seniorInstructor: e.target.value } : c);
-                            setSelectedViewCamp({ ...selectedViewCamp, compounds: updatedComp });
-                          }}>
+                          {/* 🟢 שדרוג 2: רשימת בחירה מעורבבת, אחידה ומסונכרנת אוטומטית לפי חופש קלנדרי מבוסס תאריכים בעריכה */}
+                          <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך אחראי למתחם</label>
+                          <select 
+                            className="mfs" 
+                            style={{ padding: '6px 8px', fontSize: '12.5px' }} 
+                            value={comp.seniorInstructor || comp.tempInstructor || ''} 
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const isTemporary = val.includes('(זמני)');
+                              const updatedComp = selectedViewCamp.compounds.map((c, i) => i === idx ? { 
+                                ...c, 
+                                seniorInstructor: isTemporary ? '' : val, 
+                                tempInstructor: isTemporary ? val : '' 
+                              } : c);
+                              setSelectedViewCamp({ ...selectedViewCamp, compounds: updatedComp });
+                            }}
+                          >
                             <option value="">— ללא מדריך —</option>
-                            {seniorInstructors.map(si => <option key={si} value={si}>{si}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך בזק (זמני)</label>
-                          <select className="mfs" style={{ padding: '6px 8px', fontSize: '12.5px' }} value={comp.tempInstructor} onChange={(e) => {
-                            const updatedComp = selectedViewCamp.compounds.map((c, i) => i === idx ? { ...c, tempInstructor: e.target.value } : c);
-                            setSelectedViewCamp({ ...selectedViewCamp, compounds: updatedComp });
-                          }}>
-                            <option value="">— ללא מדריך —</option>
-                            {tempInstructors.map(ti => <option key={ti} value={ti}>{ti}</option>)}
+                            {getAvailableStaffPool(selectedViewCamp.startDate, selectedViewCamp.endDate, selectedViewCamp.id).map(st => (
+                              <option key={st.name} value={st.name}>{st.name}</option>
+                            ))}
                           </select>
                         </div>
                       </div>
