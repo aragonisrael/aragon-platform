@@ -14,7 +14,7 @@ export default function AdminCampsManagement() {
   const [clk, setClk] = useState('00:00:00');
   const [toast, setToast] = useState({ show: false, message: '' });
 
-  // מאגרי כח אדם מסונכרנים מהענן (קבועים מול זמניים)
+  // מאגרי כח אדם דינמיים מסונכרנים ישירות מהענן (קבועים מול זמניים)
   const [seniorInstructors, setSeniorInstructors] = useState(['אריה כהן', 'רחל לוי', 'ישראל ישראלי', 'מיכל דוד', 'שיר אלון']);
   const [tempInstructors, setTempInstructors] = useState(['אופק שבתאי (זמני)', 'מאי לוגסי (זמנית)', 'גל רותם (זמני)', 'ליאור פרידמן (זמנית)']);
   const [campManagers, setCampManagers] = useState(['רוני אלוני', 'גיא דותן', 'אביב גל', 'מנהל לוגיסטיקה']);
@@ -30,13 +30,16 @@ export default function AdminCampsManagement() {
   // בקרת מודאלים פנימיים
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [isAddCampModalOpen, setIsAddCampModalOpen] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   
+  // 🟢 סטייט מודאל חדש להקמת מדריך זמני חדש במערכת
+  const [isAddTempInstructorModalOpen, setIsAddTempInstructorModalOpen] = useState(false);
+  const [newTempName, setNewTempName] = useState('');
+  const [newTempPhone, setNewTempPhone] = useState('');
+
   // סטייט עבור מודאל קוקפיט הלו"ז של קייטנה נבחרת
   const [selectedViewCamp, setSelectedViewCamp] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
-
-  // סטייט עבור מודאל פופ-אפ המידע של תקן כוח אדם
-  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
   // שדות טופס הקמת לוח/מסלול ("הקם מסלול קייטנות")
   const [setupStartDate, setSetupStartDate] = useState('2026-07-01');
@@ -67,6 +70,29 @@ export default function AdminCampsManagement() {
     setTimeout(() => setToast({ show: false, message: '' }), 3200);
   };
 
+  // 🟢 פונקציה למשיכת כל המדריכים (קבועים + זמניים) מ-Supabase בזמן אמת להפקה מלאה
+  const fetchLiveWorkforcePool = async () => {
+    try {
+      // משיכת מדריכים קבועים
+      const { data: seniors } = await supabase.from('users').select('full_name').eq('role', 'instructor');
+      if (seniors && seniors.length > 0) {
+        setSeniorInstructors(seniors.map(u => u.full_name));
+      }
+      
+      // משיכת מדריכים זמניים
+      const { data: temps } = await supabase.from('users').select('full_name').eq('role', 'temp_instructor');
+      if (temps && temps.length > 0) {
+        setTempInstructors(temps.map(u => u.full_name + ' (זמני)'));
+      }
+    } catch (err) {
+      console.error("Error loading staff from remote database:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveWorkforcePool();
+  }, []);
+
   // תזמון שעון חמ"ל
   useEffect(() => {
     const tick = () => setClk(new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -86,6 +112,40 @@ export default function AdminCampsManagement() {
     if (!globalAudio) return;
     globalAudio.paused ? globalAudio.play().catch(err => console.log(err)) : globalAudio.pause();
     setIsPlaying(!globalAudio.paused);
+  };
+
+  // מרה לאותיות באנגלית לצורך יצירת יוזרניים נקי למדריך זמני
+  const toEng = (n) => {
+    const m = { 'א': 'a', 'ב': 'b', 'ג': 'g', 'ד': 'd', 'ה': 'h', 'ו': 'v', 'ז': 'z', 'ח': 'ch', 'ט': 't', 'י': 'y', 'כ': 'k', 'ל': 'l', 'מ': 'm', 'נ': 'n', 'ס': 's', 'ע': 'a', 'פ': 'p', 'צ': 'tz', 'ק': 'k', 'ר': 'r', 'ש': 'sh', 'ת': 't', 'ך': 'k', 'ם': 'm', 'ן': 'n', 'ף': 'p', 'ץ': 'tz' };
+    return n.split('').map(c => m[c] || c).join('').replace(/\s+/g, '.');
+  };
+
+  // 🟢 פונקציית שיגור והקמת מדריך זמני חדש ישירות ל-Supabase
+  const handleCreateTempInstructorSubmit = async (e) => {
+    e.preventDefault();
+    if (!newTempName.trim()) { alert('נא להזין שם מלא'); return; }
+
+    const generatedUsername = 'temp.' + toEng(newTempName.trim()).toLowerCase() + Math.floor(10 + Math.random() * 89);
+
+    try {
+      const { error } = await supabase.from('users').insert([{
+        username: generatedUsername,
+        password: '12345678',
+        role: 'temp_instructor',
+        full_name: newTempName.trim()
+      }]);
+
+      if (error) throw error;
+
+      showToast(`✓ המדריך הזמני "${newTempName}" הוקם וסונכרן לענן!`);
+      setNewTempName('');
+      setNewTempPhone('');
+      setIsAddTempInstructorModalOpen(false);
+      await fetchLiveWorkforcePool(); // רענון רשימות הגלילה
+    } catch (err) {
+      console.error(err);
+      alert('שגיאה ביצירת משתמש בענן: ' + err.message);
+    }
   };
 
   // מנגנון אסינכרוני חכם המפרק טווח תאריכים לעמודות שבועיות (א-ה) נקיות לפי הלוח שנה
@@ -173,7 +233,7 @@ export default function AdminCampsManagement() {
           dateStr: current.toISOString().split('T')[0],
           dayName: dayNamesHe[dayOfWeek],
           formattedDate: current.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })
-        });
+         });
       }
       current.setDate(current.getDate() + 1);
     }
@@ -283,6 +343,18 @@ export default function AdminCampsManagement() {
     e.preventDefault();
     if (!campTitle.trim()) { alert('נא להזין את שם הקייטנה/בית הספר'); return; }
 
+    // 🟢 תיקון 1: מנגנון בדיקת חפיפה ונעילת שיבוץ קייטנה על קייטנה באותו מסלול (תור)
+    const isOverlapping = camps.some(c => 
+      c.trackId === campTargetTrack && 
+      campStartDate <= c.endDate && 
+      campEndDate >= c.startDate
+    );
+
+    if (isOverlapping) {
+      alert('⚠️ שגיאה חמורה: לא ניתן לשבץ קייטנה על קייטנה באותו מסלול! נא להעביר מסלול או לשנות את התאריכים.');
+      return;
+    }
+
     const newCampObj = {
       id: 'camp_' + Date.now(),
       title: campTitle.trim(),
@@ -310,9 +382,33 @@ export default function AdminCampsManagement() {
   // עדכון ועריכת נתוני קייטנה קיימת מתוך מודאל הניהול
   const handleUpdateCampDetailsInfo = (e) => {
     e.preventDefault();
+
+    // 🟢 תיקון 1: בדיקת חפיפה גם בזמן עדכון ועריכה בעיפרון
+    const isOverlapping = camps.some(c => 
+      c.id !== selectedViewCamp.id &&
+      c.trackId === selectedViewCamp.trackId && 
+      selectedViewCamp.startDate <= c.endDate && 
+      selectedViewCamp.endDate >= c.startDate
+    );
+
+    if (isOverlapping) {
+      alert('⚠️ שגיאה: עדכון נכשל! קיים שיבוץ חופף במסלול זה בתאריכים הנבחרים. נא לשנות מסלול או תאריך.');
+      return;
+    }
+
     setCamps(camps.map(c => c.id === selectedViewCamp.id ? { ...selectedViewCamp } : c));
     setIsEditMode(false);
     showToast(`✓ השינויים והשיבוצים בקייטנת ${selectedViewCamp.title} עודכנו בענן!`);
+  };
+
+  // 🟢 תיקון 2: מנגנון מחיקה קבועה של קייטנה מתוך מצב עריכה
+  const handleDeleteCampPermanently = () => {
+    if (!window.confirm(`⚠️ אזהרה סופית: האם למחוק לחלוטין את קייטנת "${selectedViewCamp.title}" מלוח הזמנים של המפקדה?`)) return;
+    
+    setCamps(camps.filter(c => c.id !== selectedViewCamp.id));
+    setSelectedViewCamp(null);
+    setIsEditMode(false);
+    showToast('🗑️ הקייטנה נמחקה והוסרה בהצלחה מהמערכת!');
   };
 
   const fmtDateLabelStr = (dateStr) => {
@@ -330,7 +426,7 @@ export default function AdminCampsManagement() {
         *{ box-sizing: border-box; margin: 0; padding: 0; }
         .hq-global-wrapper { width: 100%; min-height: 100vh; background: #050812; display: flex; font-family: 'Heebo', sans-serif; color: #e0f0ff; direction: rtl; overflow: hidden; }
         
-        /* 💻 סיידבר אדמין מאוחד */
+        /* SIDEBAR */
         .sidebar { width: 72px; background: #080f1e; border-left: 1px solid #1a2a4a; display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 8px; position: sticky; top: 0; height: 100vh; z-index: 10; flex-shrink: 0; }
         .sidebar-logo { width: 42px; height: 42px; border-radius: 50%; border: 2px solid #00c8ff; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; position: relative; }
         .sidebar-logo::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; border: 1px solid #7b2fbe; border-top-color: transparent; border-bottom-color: transparent; animation: hqSpin 4s linear infinite; }
@@ -349,23 +445,15 @@ export default function AdminCampsManagement() {
         
         .top-bar { height: 64px; background: linear-gradient(90deg, #050812 0%, #080f22 30%, #0a0820 50%, #080f22 70%, #050812 100%); border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 20; flex-shrink: 0; }
         .top-bar-brand { display: flex; align-items: center; gap: 14px; }
-        .brand-title { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: #00c8ff; }
-        .brand-sub { font-size: 10px; color: #4a6080; letter-spacing: 1px; margin-top: 1px; font-family: 'Heebo', sans-serif; }
         
-        .top-bar-right { display: flex; align-items: center; gap: 12px; }
-        .status-pill { display: flex; align-items: center; gap: 6px; background: #040c18; border: 1px solid #0a2040; border-radius: 20px; padding: 5px 12px; font-size: 12px; color: #4a9060; }
-        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #00e676; animation: hqPulse 2s ease-in-out infinite; }
-        .top-bar-neon { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #00c8ff44, #7b2fbe66, #00c8ff44, transparent); }
-
-        /* 🔒 תיקון קריטי: הגדרות ה-CSS הנעולות מחדש עבור הלוגו הדינמי וההילה של הטופבר */
+        /* 🔒 הנגן הגלובלי המיושר סימטרית */
         .ring-wrap { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; z-index: 4; flex-shrink: 0; }
         .ro { position: absolute; inset: 0; border-radius: 50%; border: 1.5px dashed rgba(0, 200, 255, 0.2); animation: hqSpin 14s linear infinite; }
         .rm { position: absolute; inset: 4px; border-radius: 50%; border: 1px solid transparent; border-top-color: #6040ff; border-right-color: #00c8ff; animation: hqSpin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,0.3); }
         .rm2 { position: absolute; inset: 8px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #00c8ff; animation: hqSpin 7s linear infinite reverse; box-shadow: inset 0 0 8px rgba(0,200,255,0.2); }
-        .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
         .limg { width: 28px; height: 28px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 1px; box-shadow: 0 0 8px rgba(0,200,255,0.4); flex-shrink: 0; }
+        .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
 
-        /* נגן הרדיו הגלובלי */
         .cyber-music-player { display: flex; align-items: center; justify-content: center; gap: 10px; background: #040c18; border: 1px solid #1a3a6a; border-radius: 20px; padding: 0 16px; margin-left: 12px; height: 32px; cursor: pointer; user-select: none; transition: all 0.2s; box-sizing: border-box; }
         .cyber-music-player:hover { border-color: #00c8ff; box-shadow: 0 0 10px rgba(0, 200, 255, 0.2); }
         .cyber-music-player.playing { border-color: #00e5a0; box-shadow: 0 0 10px rgba(0,229,160,0.15); }
@@ -379,7 +467,7 @@ export default function AdminCampsManagement() {
 
         .content { flex: 1; overflow: hidden; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; height: calc(100% - 64px); min-height: 0; }
         
-        /* TOOLBAR ACTION BUTTONS */
+        /* TOOLBAR */
         .camps-toolbar { display: flex; align-items: center; justify-content: space-between; background: #070e1c; padding: 12px 18px; border-radius: 12px; border: 1px solid #1a2a4a; flex-shrink: 0; }
         .camps-toolbar-btn-group { display: flex; align-items: center; gap: 10px; }
         .ct-btn { padding: 7px 16px; border-radius: 7px; border: 1px solid; font-family: 'Heebo', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.18s; }
@@ -390,12 +478,11 @@ export default function AdminCampsManagement() {
         .btn-reset-board { background: rgba(255, 69, 96, 0.05); border-color: rgba(255, 69, 96, 0.3); color: #ff4560; }
         .btn-reset-board:hover { background: rgba(255, 69, 96, 0.15); }
 
-        /* TIMELINE LAYOUT GRID WITH ENHANCED HIGH-CONTRAST SEPARATORS */
+        /* TIMELINE PANEL */
         .timeline-panel { background: #070e1c; border: 2px solid rgba(255, 255, 255, 0.15); border-radius: 14px; overflow: hidden; flex: 1; display: flex; flex-direction: column; min-height: 0; }
         .timeline-scroll-box { flex: 1; overflow-x: auto; overflow-y: auto; width: 100%; padding-bottom: 30px; }
         
         .timeline-matrix-grid { display: grid; position: relative; min-width: max-content; }
-        
         .tm-header-row { display: flex; background: #080f1e; border-bottom: 2px solid rgba(255, 255, 255, 0.15); position: sticky; top: 0; z-index: 8; }
         .tm-track-header-cell { width: 120px; padding: 14px; font-size: 13.5px; font-weight: 800; color: #00c8ff; text-align: center; background: #080f1e; border-left: 2px solid rgba(255, 255, 255, 0.15); position: sticky; right: 0; z-index: 9; }
         .tm-week-header-cell { width: 260px; padding: 10px; text-align: center; border-left: 2px solid rgba(255, 255, 255, 0.15); display: flex; flex-direction: column; gap: 2px; }
@@ -432,7 +519,6 @@ export default function AdminCampsManagement() {
         .sub-timeline-cell-staff-tile { background: rgba(0, 229, 160, 0.03); border: 1px solid rgba(0, 229, 160, 0.15); border-radius: 6px; padding: 6px; display: flex; flex-direction: column; gap: 2px; align-items: center; justify-content: center; min-width: 90px; }
         .sub-timeline-cell-staff-text { font-size: 11.5px; color: #ffffff; font-weight: 500; }
 
-        /* CAMP LOGISTICS CREW FOOTER PANEL */
         .camps-logistics-crew-footer-panel { margin-top: 18px; background: rgba(0, 200, 255, 0.03); border: 1px dashed rgba(0, 200, 255, 0.25); border-radius: 8px; padding: 12px 16px; font-size: 13px; line-height: 1.5; text-align: right; }
         .clc-footer-title { font-size: 13.5px; font-weight: 800; color: #00c8ff; margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
 
@@ -445,7 +531,6 @@ export default function AdminCampsManagement() {
         .modal-box::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,200,255,0.4), transparent); }
         .modal-box.wide-console { width: 880px; } 
 
-        /* פקודות עיצוב עבור מודאל תקן כוח האדם החדש */
         .modal-box.info-pane-style { width: 580px; border-color: #f5c842; box-shadow: 0 0 40px rgba(245, 200, 66, 0.15); }
         .info-pane-grid { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
         .info-pane-card { background: #060b18; border: 1px solid rgba(255,255,255,0.04); border-right: 3px solid #f5c842; border-radius: 6px; padding: 12px 14px; }
@@ -470,6 +555,11 @@ export default function AdminCampsManagement() {
         .update-btn { width: 100%; padding: 12px; background: rgba(0,200,255,0.1); border: 1px solid #00c8ff; border-radius: 8px; color: #00c8ff; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; outline: none; }
         .update-btn:hover { background: rgba(0,200,255,0.18); box-shadow: 0 0 18px rgba(0,200,255,0.2); }
         .mbtn-cancel { padding: 12px 18px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: rgba(160,185,215,0.5); font-family: 'Heebo', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; }
+        
+        /* 🟢 לחצן אדום מורחב למחיקת קייטנה במצב עריכה */
+        .mdelete-warning-btn { width: 100%; background: rgba(255, 59, 48, 0.05); border: 1px dashed rgba(255, 59, 48, 0.4); color: #ff5555; padding: 11px; border-radius: 8px; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s; margin-top: 14px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .mdelete-warning-btn:hover { background: rgba(255, 59, 48, 0.16); border-color: #ff3b30; color: #ff3b30; box-shadow: 0 0 15px rgba(255, 59, 48, 0.25); }
+
         .mf2 { display: flex; gap: 10px; margin-top: 20px; }
 
         .edit-icon-trigger-btn { background: transparent; border: none; color: #f5c842; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; margin-right: 6px; }
@@ -477,10 +567,8 @@ export default function AdminCampsManagement() {
 
         .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(0); background: #080f1e; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 30px rgba(0,229,160,0.3); z-index: 999; text-align: center; pointer-events: none; display: none; }
         .toast.show { display: block; animation: fadeInToast 0.2s ease-out; }
-        @keyframes fadeInToast { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
         @keyframes hqSpin { to { transform: rotate(360deg); } }
-        @keyframes wavePulse { 0% { height: 3px; } 100% { height: 11px; } }
       `}</style>
 
       {/* סיידבר אדמין רשמי */}
@@ -542,8 +630,13 @@ export default function AdminCampsManagement() {
                   <button className="ct-btn btn-build-board" style={{ background: 'rgba(0, 200, 255, 0.05)', borderColor: 'rgba(0, 200, 255, 0.3)', color: '#00c8ff' }} onClick={handleAddNewTrackLane}>
                     <i className="ti ti-git-fork"></i>הוסף מסלול נוסף
                   </button>
+                  {/* כפתור "תקן כוח אדם" */}
                   <button className="ct-btn" style={{ background: 'rgba(245, 200, 66, 0.06)', borderColor: 'rgba(245, 200, 66, 0.35)', color: '#f5c842' }} onClick={() => setIsInfoModalOpen(true)}>
                     <i className="ti ti-info-circle"></i>תקן כח אדם
+                  </button>
+                  {/* 🟢 לחצן "הוסף מדריך זמני" החדש המשובץ בסרגל הכלים הראשי של האדמין */}
+                  <button className="ct-btn" style={{ background: 'rgba(123, 47, 190, 0.06)', borderColor: 'rgba(123, 47, 190, 0.35)', color: '#a060e0' }} onClick={() => setIsAddTempInstructorModalOpen(true)}>
+                    <i className="ti ti-user-plus"></i>הוסף מדריך זמני
                   </button>
                 </>
               )}
@@ -793,6 +886,7 @@ export default function AdminCampsManagement() {
                 </div>
               </div>
               
+              {/* כפתור "תקן כוח אדם" פנימי */}
               <button className="edit-icon-trigger-btn" style={{ color: '#f5c842' }} title="צפה בתקן כוח אדם" onClick={() => setIsInfoModalOpen(true)}>
                 <i className="ti ti-info-circle"></i>
               </button>
@@ -961,6 +1055,11 @@ export default function AdminCampsManagement() {
                   ))}
                 </div>
 
+                {/* 🟢 תיקון 2: לחצן השמדה מחיקה קבועה של קייטנה מלוח השיבוצים מתוך תפריט העריכה */}
+                <button type="button" className="mdelete-warning-btn" onClick={handleDeleteCampPermanently}>
+                  <i className="ti ti-trash"></i> מחק קייטנה זו לצמיתות מהמערכת
+                </button>
+
                 <div className="mf2">
                   <button type="button" className="mbtn-cancel" onClick={() => setIsEditMode(false)}>חזור לצפייה</button>
                   <button className="update-btn" type="submit" style={{ background: 'rgba(245, 200, 66, 0.1)', borderColor: '#f5c842', color: '#f5c842' }}>
@@ -973,7 +1072,7 @@ export default function AdminCampsManagement() {
         </div>
       )}
 
-      {/* מודאל 4: פופ-אפ חלונית המידע והחוקים הרשמיים של תקן כוח אדם ופיננסים קייטנה */}
+      {/* מודאל 4: פופ-אפ חלונית המידע והחוקים הרשמיים של תקן כוח אדם */}
       {isInfoModalOpen && (
         <div className="modal-ov open" onClick={(e) => e.target.className === 'modal-ov open' && setIsInfoModalOpen(false)}>
           <div className="modal-box info-pane-style">
@@ -988,7 +1087,6 @@ export default function AdminCampsManagement() {
             </div>
 
             <div className="info-pane-grid">
-              
               <div className="info-pane-card">
                 <div className="info-pane-card-title"><i className="ti ti-user-check"></i>תקן מנהל קייטנה (דרג מפקדה)</div>
                 <div className="info-pane-card-text">
@@ -1001,7 +1099,7 @@ export default function AdminCampsManagement() {
               <div className="info-pane-card">
                 <div className="info-pane-card-title"><i className="ti ti-users"></i>תקן קיבולת חדרים וקבוצות (לפי 50 ילדים)</div>
                 <div className="info-pane-card-text">
-                  מדריך קייטנה / עוזר מדריך רשאי לעבוד עד 5.5 שעות ביום מלבד היום הראשון של הקייטנה שבו הזכאות עומדת על עד 6 שעות ביום (ללא קשר לתקן לוגיסטיקה). קייטנה בעלת **50 חניכים רשומים מתחלקת באופן קשיח ל-2 קבוצות** פרונטליות של 25 תלמידים לכל מתחם. 
+                  קייטנה בעלת **50 חניכים רשומים מתחלקת באופן קשיח ל-2 קבוצות** פרונטליות של 25 תלמידים לכל מתחם. 
                   מערך השיבוץ הפיננסי לכל חדר מחייב בחירה באחד משני המודלים הבאים:
                   <br />
                   • **מודל א':** 2 מדריכים בשכר יסוד של **60 ש״ח לשעה** + עוזר מדריך בשכר של **35 ש״ח לשעה**.
@@ -1025,12 +1123,50 @@ export default function AdminCampsManagement() {
                   כלל החזרי הנסיעות, הדלק, רכיבי הקילומטראז' ונסיעות השטח המיוחדות ישולמו לצוותי ההדרכה והלוגיסטיקה **במלואם כחוק** ובהתאם לצו ההרחבה העדכני במדינה.
                 </div>
               </div>
-
             </div>
 
             <div className="mrow" style={{ marginTop: '22px' }}>
               <button className="msave" style={{ background: 'linear-gradient(135deg, #1b1604, #3a2e0a)', borderColor: '#f5c842', color: '#f5c842' }} type="button" onClick={() => setIsInfoModalOpen(false)}>הבנתי, סגור פופאפ</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🟢 מודאל 5 חדש: טופס הפקה והקמת מדריך זמני חדש ישירות לענן */}
+      {isAddTempInstructorModalOpen && (
+        <div className="modal-ov open" onClick={(e) => e.target.className === 'modal-ov open' && setIsAddTempInstructorModalOpen(false)}>
+          <div className="modal-box" style={{ width: '480px' }}>
+            <button className="modal-close" onClick={() => setIsAddTempInstructorModalOpen(false)}>×</button>
+            
+            <div className="modal-head" style={{ borderBottomColor: 'rgba(123, 47, 190, 0.2)' }}>
+              <div className="av av-temp" style={{ background: 'rgba(123, 47, 190, 0.12)', color: '#a060e0' }}><i className="ti ti-user-plus" style={{ fontSize: '20px' }}></i></div>
+              <div>
+                <div className="modal-title-text" style={{ color: '#a060e0' }}>הקמת מדריך בזק (סגל זמני)</div>
+                <div className="modal-subtitle-text">הזרקת עובד קייטנות חדש ישירות ל-Database המרכזי של הרשת</div>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateTempInstructorSubmit}>
+              <div className="mfr">
+                <label className="mfl">שם מלא (עברית)</label>
+                <input className="mfi" type="text" placeholder="למשל: דניאל לוי" value={newTempName} onChange={(e) => setNewTempName(e.target.value)} />
+              </div>
+              <div className="mfr">
+                <label className="mfl">מספר טלפון נייד</label>
+                <input className="mfi" type="text" placeholder="למשל: 0541234567" value={newTempPhone} onChange={(e) => setNewTempPhone(e.target.value)} />
+              </div>
+
+              <div style={{ fontSize: '11px', color: '#a060e0', opacity: 0.8, background: 'rgba(123, 47, 190, 0.05)', padding: '8px 10px', borderRadius: '6px', marginBottom: '14px', lineHeight: 1.4 }}>
+                💡 מערכת אראגון תפיק עבורו שם משתמש אוטומטי בעברית (למשל: temp.דניאל.לוי) וסיסמת ברירת מחדל 12345678 לצורך כניסה ישירה לאפליקציית המדריכים המצומצמת שלו.
+              </div>
+
+              <div className="mf2">
+                <button type="button" className="mbtn-cancel" onClick={() => setIsAddTempInstructorModalOpen(false)}>ביטול</button>
+                <button className="update-btn" type="submit" style={{ background: 'rgba(123, 47, 190, 0.12)', borderColor: '#a060e0', color: '#a060e0' }}>
+                  <i className="ti ti-bolt"></i>הנפק משתמש וסנכרן לענן
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
