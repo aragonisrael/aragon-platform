@@ -13,11 +13,15 @@ const fmtDateLabelStr = (dateStr) => {
   return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
 };
 
-// 🟢 פונקציית זיקוק גלובלית חדשה שמנקה כפילויות של (זמני) ומבטיחה תיוג יחיד ומדויק
+//  green 🟢 פונקציית זיקוק אבסולוטית חסינת תקלות - משרשרת ומנקה כל זכר לכפילויות ללא Regex
 const cleanInstructorName = (name, isTemp = true) => {
   if (!name) return '';
-  // הסרת כל הצירופים הקודמים של (זמני) או (זמנית) ורווחים מיותרים
-  const cleanRaw = name.replace(/\s*\(זמני\)/g, '').replace(/\s*\(זמנית\)/g, '').trim();
+  let cleanRaw = String(name)
+    .replaceAll(' (זמני)', '')
+    .replaceAll('(זמני)', '')
+    .replaceAll(' (זמנית)', '')
+    .replaceAll('(זמנית)', '')
+    .trim();
   return isTemp ? `${cleanRaw} (זמני)` : cleanRaw;
 };
 
@@ -94,7 +98,7 @@ export default function AdminCampsManagement() {
     setTimeout(() => setToast({ show: false, message: '' }), 3200);
   };
 
-  // 🟢 פונקציה מעודכנת: מנקה כפילויות של (זמני) מהענן תוך כדי שליפת הקייטנות בריאל-טיים
+  // פונקציה מסונכרנת למשיכת כל הקייטנות והמתחמים הקיימים ב-Database עם זיקוק אבסולוטי
   const fetchLiveCampsDataFromCloud = async () => {
     try {
       const { data: dbCamps, error: campsErr } = await supabase.from('camps').select('*');
@@ -132,7 +136,7 @@ export default function AdminCampsManagement() {
     }
   };
 
-  // משיכת כל המדריכים מ-Supabase וזיקוקם למניעת תיוג כפול
+  // משיכת כל המדריכים מ-Supabase וניקוי מוחלט של כפל תיוגים בשורת המקור
   const fetchLiveWorkforcePool = async () => {
     try {
       const { data: seniors } = await supabase.from('users').select('full_name').eq('role', 'instructor');
@@ -417,7 +421,6 @@ export default function AdminCampsManagement() {
     setIsAddCampModalOpen(true);
   };
 
-  // 🟢 שמירה מבוקרת: מנקה ומזקקת את השמות בענן עוד לפני השילוח כדי למנוע כפילויות לוגיות
   const handleSaveCampToTrack = async (e) => {
     e.preventDefault();
     if (!campTitle.trim()) { alert('נא להזין את שם הקייטנה/בית הספר'); return; }
@@ -477,11 +480,20 @@ export default function AdminCampsManagement() {
   };
 
   const handleOpenCampDashboardConsole = (camp) => {
-    setSelectedViewCamp(camp);
+    //  green 🟢 זיקוק וניקוי מוחלט של נתוני הקייטנה הספציפית בעת פתיחת המודאל
+    const sanitizedCamp = {
+      ...camp,
+      compounds: camp.compounds.map(comp => ({
+        ...comp,
+        seniorInstructor: cleanInstructorName(comp.seniorInstructor, false),
+        tempInstructor: cleanInstructorName(comp.tempInstructor, true)
+      }))
+    };
+    setSelectedViewCamp(sanitizedCamp);
     setIsEditMode(false);
   };
 
-  // 🟢 עדכון מבוקר בעיפרון: שוטף ומזקק את השמות מכל כפל תיוגים של (זמני) לפני הנעילה בענן
+  // 🟢 תיקון מנוע העריכה (העיפרון): שוטף ומרוקן כפילויות של (זמני) בריאל-טיים בעת ביצוע שינויים בתפריט
   const handleUpdateCampDetailsInfo = async (e) => {
     e.preventDefault();
 
@@ -742,7 +754,7 @@ export default function AdminCampsManagement() {
           <div className="top-bar-right">
             <div className={`cyber-music-player ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
               <div className="player-toggle-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i ></div>
-              <div className="player-station-text">HQ RADIO</div>
+              <div className="brand-title" style={{ fontSize: '11px', color: 'rgba(160,185,215,0.6)', fontFamily: 'Orbitron' }}>HQ RADIO</div>
               <div className="audio-visualizer-wave"><div className="visualizer-bar"></div><div className="visualizer-bar"></div><div className="visualizer-bar"></div></div>
             </div>
             <div className="status-pill"><div className="status-dot"></div>מערכת פעילה</div>
