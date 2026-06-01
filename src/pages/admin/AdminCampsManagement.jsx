@@ -13,7 +13,7 @@ const fmtDateLabelStr = (dateStr) => {
   return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
 };
 
-// פונקציית זיקוק אטומית - מנקה כל סוג סוגריים ומילים כפולות מה-Database ומאלצת תיוג יחיד ותקין
+// 🟢 פונקציית זיקוק אטומית - מנקה כל סוג סוגריים ומילים כפולות מה-Database ומאלצת תיוג יחיד ותקין
 const cleanInstructorName = (name, isTemp = true) => {
   if (!name) return '';
   let cleanRaw = String(name)
@@ -200,7 +200,83 @@ export default function AdminCampsManagement() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // פונקציית הוספת מסלול נוסף
+  const generateWeeklyColumns = (start, end) => {
+    const weeks = [];
+    const globalStart = new Date(start);
+    const globalEnd = new Date(end);
+
+    let currentSunday = new Date(globalStart);
+    currentSunday.setDate(currentSunday.getDate() - currentSunday.getDay());
+
+    let weekIndex = 1;
+    while (currentSunday <= globalEnd) {
+      const workingDays = [];
+      
+      for (let i = 0; i < 5; i++) {
+        const dayDate = new Date(currentSunday);
+        dayDate.setDate(dayDate.getDate() + i);
+        const isOOB = dayDate < globalStart || dayDate > globalEnd;
+        
+        workingDays.push({
+          date: dayDate,
+          dateStr: dayDate.toISOString().split('T')[0],
+          isOOB: isOOB
+        });
+      }
+
+      const activeDays = workingDays.filter(d => !d.isOOB);
+      let datesLabel = '';
+      if (activeDays.length > 0) {
+        const fmt = (d) => d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
+        datesLabel = `${fmt(activeDays[0].date)} - ${fmt(activeDays[activeDays.length - 1].date)}`;
+      } else {
+        const fmt = (d) => d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
+        datesLabel = `${fmt(workingDays[0].date)} - ${fmt(workingDays[4].date)}`;
+      }
+
+      weeks.push({
+        id: 'w_' + weekIndex,
+        label: `מחזור ${weekIndex}`,
+        dates: datesLabel,
+        workingDays: workingDays
+      });
+
+      currentSunday.setDate(currentSunday.getDate() + 7);
+      weekIndex++;
+    }
+    return weeks;
+  };
+
+  // 🟢 החזרת פונקציית הקמת הלו"ז המקורית שנשמטה ומנעה מהכפתור לעבוד
+  const handleBuildBoardRoute = (e) => {
+    e.preventDefault();
+    const computedWeeks = generateWeeklyColumns(setupStartDate, setupEndDate);
+    
+    const initialTracksArray = [];
+    for (let i = 1; i <= parseInt(setupInitialTracks, 10); i++) {
+      initialTracksArray.push({ id: 'track_' + i, label: `מסלול ${i}` });
+    }
+
+    const configObj = {
+      startDate: setupStartDate,
+      endDate: setupEndDate,
+      totalHours: setupTotalHours,
+      netHours: setupNetHours
+    };
+
+    setBoardConfig(configObj);
+    setBoardWeeks(computedWeeks);
+    setTracks(initialTracksArray);
+
+    localStorage.setItem('aragon_camp_board_config', JSON.stringify(configObj));
+    localStorage.setItem('aragon_camp_board_weeks', JSON.stringify(computedWeeks));
+    localStorage.setItem('aragon_camp_tracks', JSON.stringify(initialTracksArray));
+
+    fetchLiveCampsDataFromCloud(); 
+    setIsSetupModalOpen(false);
+    showToast('🚀 לוח מסלולי קייטנות ומחזורים שבועיים נוצר בהצלחה!');
+  };
+
   const handleAddNewTrackLane = () => {
     const nextIndex = tracks.length + 1;
     const nextTracks = [...tracks, { id: 'track_' + nextIndex, label: `מסלול ${nextIndex}` }];
@@ -383,6 +459,27 @@ export default function AdminCampsManagement() {
     localStorage.removeItem('aragon_camp_tracks');
 
     showToast('🗑️ הלוח אופס ונמחק לחלוטין מחמ"ל האדמין');
+  };
+
+  const getCampPositionStyle = (camp) => {
+    const allDays = boardWeeks.flatMap(w => w.workingDays);
+    const dayWidth = 52; 
+
+    let startIdx = allDays.findIndex(d => d.dateStr >= camp.startDate);
+    let endIdx = allDays.findLastIndex(d => d.dateStr <= camp.endDate);
+
+    if (startIdx === -1) startIdx = 0;
+    if (endIdx === -1) endIdx = allDays.length - 1;
+    if (endIdx < startIdx) endIdx = startIdx;
+
+    const totalDaysSpan = (endIdx - startIdx) + 1;
+
+    return {
+      position: 'absolute',
+      right: `${startIdx * dayWidth}px`,
+      width: `${totalDaysSpan * dayWidth - 4}px`, 
+      zIndex: 10
+    };
   };
 
   useEffect(() => {
@@ -599,7 +696,7 @@ export default function AdminCampsManagement() {
       </div>
 
       <div className="main-col">
-        {/* טופבר אדמין - 🟢 נעילת גודל אבסולוטית חסינת עיוותים באמצעות inline style */}
+        {/* טופבר אדמין */}
         <div className="top-bar">
           <div className="top-bar-brand">
             <div className="ring-wrap">
@@ -859,6 +956,7 @@ export default function AdminCampsManagement() {
                           {ROOM_TYPES.map(rt => <option key={rt} value={rt}>{rt}</option>)}
                         </select>
                       </div>
+                      {/* 🟢 חלון שיבוץ ראשון (מדריך 1) מעורבב ומסונכרן קלנדרית */}
                       <div>
                         <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 1</label>
                         <select 
@@ -876,6 +974,7 @@ export default function AdminCampsManagement() {
                           ))}
                         </select>
                       </div>
+                      {/* 🟢 חלון שיבוץ שני (מדריך 2) מעורבב ומסונכרן קלנדרית */}
                       <div>
                         <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 2</label>
                         <select 
@@ -1066,6 +1165,7 @@ export default function AdminCampsManagement() {
                             {ROOM_TYPES.map(rt => <option key={rt} value={rt}>{rt}</option>)}
                           </select>
                         </div>
+                        {/* 🟢 מדריך 1 בעריכה - מחובר למנגנון הסינון */}
                         <div>
                           <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 1</label>
                           <select 
@@ -1084,6 +1184,7 @@ export default function AdminCampsManagement() {
                             ))}
                           </select>
                         </div>
+                        {/* 🟢 מדריך 2 בעריכה - מחובר למנגנון הסינון */}
                         <div>
                           <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 2</label>
                           <select 
