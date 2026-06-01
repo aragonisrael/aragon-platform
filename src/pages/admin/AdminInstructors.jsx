@@ -5,6 +5,18 @@ import { supabase } from '../../supabaseClient';
 // ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
 import aragonLogo from '../../assets/aragonlogo.png';
 
+//  green 🟢 פונקציית זיקוק אבסולוטית חסינת תקלות - מונעת כפילויות של (זמני) בכל רחבי מערך הצוות והשמירות
+const cleanInstructorName = (name, isTemp = true) => {
+  if (!name) return '';
+  let cleanRaw = String(name)
+    .replaceAll(' (זמני)', '')
+    .replaceAll('(זמני)', '')
+    .replaceAll(' (זמנית)', '')
+    .replaceAll('(זמנית)', '')
+    .trim();
+  return isTemp ? `${cleanRaw} (זמני)` : cleanRaw;
+};
+
 export default function AdminInstructors() {
   const navigate = useNavigate();
 
@@ -124,19 +136,15 @@ export default function AdminInstructors() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  const toEng = (n) => {
-    const m = { 'א': 'a', 'ב': 'b', 'ג': 'g', 'ד': 'd', 'ה': 'h', 'ו': 'v', 'ז': 'z', 'ח': 'ch', 'ט': 't', 'י': 'y', 'כ': 'k', 'ל': 'l', 'מ': 'm', 'נ': 'n', 'ס': 's', 'ע': 'a', 'פ': 'p', 'צ': 'tz', 'ק': 'k', 'ר': 'r', 'ש': 'sh', 'ת': 't', 'ך': 'k', 'ם': 'm', 'ן': 'n', 'ף': 'p', 'ץ': 'tz' };
-    return n.split('').map(c => m[c] || c).join('').replace(/\s+/g, '.');
-  };
-
-  // 🟢 הקמת מדריך בכיר חדש עם שם משתמש בעברית וחסינות כפילויות אבסולוטית מול כל רולי המערכת (כולל תלמידים)
+  // הקמת מדריך בכיר חדש אוטומטית לענן
   const handleCreateInstructor = async () => {
     if (!formName.trim()) { triggerToast('⚠️ נא להזין שם מלא למדריך', true); return; }
     
+    // ניקוי השם מכל זכר לתוספות ידניות למניעת שיבושים
+    const cleanName = cleanInstructorName(formName.trim(), false);
+    const baseUsername = cleanName.replace(/\s+/g, '.');
+    
     try {
-      const baseUsername = formName.trim().replace(/\s+/g, '.');
-      
-      // שליפת כל המשתמשים (כולל תלמידים) ששם המשתמש שלהם מתחיל בבסיס העברי הזה
       const { data: matchedUsers, error: fetchErr } = await supabase
         .from('users')
         .select('username')
@@ -157,7 +165,7 @@ export default function AdminInstructors() {
         username: generatedUsername,
         password: '12345678',
         role: 'instructor',
-        full_name: formName.trim(),
+        full_name: cleanName,
         phone: formPhone.trim() || null,
         ils_balance: 0,
         coins: 0,
@@ -169,21 +177,22 @@ export default function AdminInstructors() {
       await fetchLiveInstructorsMatrix();
       setIsAddModalOpen(false);
       setFormName(''); setFormPhone('');
-      triggerToast(`המדריך הבכיר ${formName.trim()} נוצר וסונכרן לענן!`);
+      triggerToast(`המדריך הבכיר ${cleanName} נוצר וסונכרן לענן!`);
     } catch (err) {
       console.error(err);
       alert('שגיאת ענן: ' + err.message);
     }
   };
 
-  // 🟢 הקמת מדריך זמני חדש עם שם משתמש בעברית ללא תוספות, חסינות כפילויות מלאה, והזרקת (זמני) קשיח לשם התצוגה
+  // הקמת מדריך זמני חדש עם שם משתמש בעברית ללא תוספות, חסינות כפילויות מלאה
   const handleCreateTempInstructor = async () => {
     if (!formName.trim()) { triggerToast('⚠️ נא להזין שם מלא למדריך', true); return; }
 
+    //  green 🟢 הפעלת סינון קשיח על הקלט למניעת כפילויות של (זמני) (זמני) בבסיס הנתונים
+    const cleanRawName = formName.trim().replaceAll(' (זמני)', '').replaceAll('(זמני)', '');
+    const baseUsername = cleanRawName.replace(/\s+/g, '.');
+    
     try {
-      const baseUsername = formName.trim().replace(/\s+/g, '.');
-      
-      // בדיקה אקטיבית בענן מול כל היוזרים (כולל תלמידים) למניעת התנגשויות תחת הפורמט העברי הנקי
       const { data: matchedUsers, error: fetchErr } = await supabase
         .from('users')
         .select('username')
@@ -204,7 +213,7 @@ export default function AdminInstructors() {
         username: generatedUsername,
         password: '12345678',
         role: 'temp_instructor',
-        full_name: `${formName.trim()} (זמני)`, // בקשת המנהל: הוספה קשיחה של הסיווג לשם התצוגה הראשי
+        full_name: cleanInstructorName(cleanRawName, true), 
         phone: formPhone.trim() || null,
         city: formTempCity.trim() || null,
         hourly_rate_instruction: Number(formHourlyInstruction) || 40,
@@ -220,7 +229,7 @@ export default function AdminInstructors() {
       setIsAddTempModalOpen(false);
       setFormName(''); setFormPhone(''); setFormTempCity('');
       setFormHourlyInstruction(40); setFormHourlyGeneral(40);
-      triggerToast(`המדריך הזמני ${formName.trim()} הוקם בהצלחה ברשת!`);
+      triggerToast(`המדריך הזמני ${cleanRawName} הוקם בהצלחה ברשת!`);
     } catch (err) {
       console.error(err);
       alert('❌ תקלה ברישום: ' + err.message);
@@ -230,8 +239,7 @@ export default function AdminInstructors() {
   // פתיחת מודאל עריכת מדריך וטעינת נתוניו הנוכחיים
   const handleOpenEditModal = (inst) => {
     setEditingInstructor(inst);
-    // ניקוי המילה (זמני) משדה העריכה במידה ומדובר במדריך זמני, כדי לא לשכפל אותה בשמירה
-    setFormName(inst.name.replace(' (זמני)', ''));
+    setFormName(inst.name.replaceAll(' (זמני)', '').replaceAll('(זמני)', ''));
     setFormPhone(inst.phone === '—' ? '' : inst.phone);
     setIsEditModalOpen(true);
   };
@@ -240,8 +248,8 @@ export default function AdminInstructors() {
   const handleSaveEditInstructor = async () => {
     if (!formName.trim()) { triggerToast('⚠️ נא להזין שם מלא למדריך', true); return; }
 
-    // שמירה על הפורמט המקורי של תיוג השם בהתאם לרול שלו בעריכה
-    const finalFullName = editingInstructor.role === 'temp_instructor' ? `${formName.trim()} (זמני)` : formName.trim();
+    const cleanRawName = formName.trim().replaceAll(' (זמני)', '').replaceAll('(זמני)', '');
+    const finalFullName = editingInstructor.role === 'temp_instructor' ? cleanInstructorName(cleanRawName, true) : cleanRawName;
 
     try {
       if (finalFullName !== editingInstructor.name) {
@@ -270,7 +278,7 @@ export default function AdminInstructors() {
     }
   };
 
-  // מחיקת מדריך מהרשת
+  // mחיקת מדריך מהרשת
   const handleDeleteInstructor = async (id, name) => {
     if (window.confirm(`🚨 האם אתה בטוח שברצונך למחוק את המדריך "${name}"? הפעולה תנתק אותו מהקבוצות.`)) {
       try {
@@ -299,7 +307,7 @@ export default function AdminInstructors() {
 
   // שיתוף מהיר לוואטסאפ עם הפרטים
   const handleShareWhatsApp = (inst) => {
-    const message = `היי ${inst.name.replace(' (זמני)', '')}! 👋\nאלו פרטי ההתחברות שלך למערכת אראגון:\n🔗 קישור: https://aragon-platform.vercel.app\n👤 שם משתמש: ${inst.username}\n🔑 סיסמה: ${inst.password}\n\nבהצלחה! 🤖🚀`;
+    const message = `היי ${inst.name.replaceAll(' (זמני)', '')}! 👋\nאלו פרטי ההתחברות שלך למערכת אראגון:\n🔗 קישור: https://aragon-platform.vercel.app\n👤 שם משתמש: ${inst.username}\n🔑 סיסמה: ${inst.password}\n\nבהצלחה! 🤖🚀`;
     const cleanPhone = inst.phone.replace(/[^0-9]/g, '');
     const url = `https://wa.me/${cleanPhone.startsWith('0') ? '972' + cleanPhone.slice(1) : cleanPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
@@ -371,7 +379,8 @@ export default function AdminInstructors() {
         .ro { position: absolute; inset: 0; border-radius: 50%; border: 1.5px dashed rgba(0, 200, 255, 0.2); animation: hqSpin 14s linear infinite; }
         .rm { position: absolute; inset: 4px; border-radius: 50%; border: 1px solid transparent; border-top-color: #6040ff; border-right-color: #00c8ff; animation: hqSpin 5s linear infinite; box-shadow: 0 0 8px rgba(120,80,255,0.3); }
         .rm2 { position: absolute; inset: 8px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #00c8ff; animation: hqSpin 7s linear infinite reverse; box-shadow: inset 0 0 8px rgba(0,200,255,0.2); }
-        .limg { width: 28px; height: 28px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 1px; box-shadow: 0 0 8px rgba(0,200,255,0.4); }
+        .limg { width: 28px; height: 28px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 1px; box-shadow: 0 0 8px rgba(0,200,255,0.4); flex-shrink: 0; }
+        .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
 
         .cyber-dots-purple, .cyber-dots-blue { position: absolute; inset: -3px; border-radius: 50%; pointer-events: none; transform-origin: center center; }
         .cyber-dots-purple { animation: hqSpin 3s linear infinite; z-index: 6; }
@@ -424,7 +433,7 @@ export default function AdminInstructors() {
         .matrix-table tr.frozen td { opacity: 0.4; }
         
         .cell-bold { font-weight: 700; color: #00c8ff; }
-        .creds-font { font-family: 'Heebo', sans-serif; font-size: 13px; color: #a0b0d0; display: flex; align-items: center; gap: 6px; text-transform: none; }
+        .creds-font { font-family: 'Orbitron', monospace; font-size: 12.5px; color: #a0b0d0; display: flex; align-items: center; gap: 6px; text-transform: none; }
         .pass-toggle-icon { cursor: pointer; color: #4a6080; }
         .pass-toggle-icon:hover { color: #00c8ff; }
         
@@ -565,7 +574,6 @@ export default function AdminInstructors() {
                     <td>
                       <span className="cell-bold" style={inst.isActive ? (inst.role === 'temp_instructor' ? { color: '#c080ff' } : {}) : { color: '#4a6080' }}>
                         {inst.name}
-                        {!inst.isActive && ' ⏳ (מוקפא)'}
                       </span>
                     </td>
                     <td>
