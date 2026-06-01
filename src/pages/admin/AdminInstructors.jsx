@@ -124,22 +124,35 @@ export default function AdminInstructors() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // 🟢 תיקון: מנוע הקמת מדריך בכיר חדש עם שם משתמש בעברית מלאה חסין כפילויות (שם.משפחה)
+  const toEng = (n) => {
+    const m = { 'א': 'a', 'ב': 'b', 'ג': 'g', 'ד': 'd', 'ה': 'h', 'ו': 'v', 'ז': 'z', 'ח': 'ch', 'ט': 't', 'י': 'y', 'כ': 'k', 'ל': 'l', 'מ': 'm', 'נ': 'n', 'ס': 's', 'ע': 'a', 'פ': 'p', 'צ': 'tz', 'ק': 'k', 'ר': 'r', 'ש': 'sh', 'ת': 't', 'ך': 'k', 'ם': 'm', 'ן': 'n', 'ף': 'p', 'ץ': 'tz' };
+    return n.split('').map(c => m[c] || c).join('').replace(/\s+/g, '.');
+  };
+
+  // 🟢 הקמת מדריך בכיר חדש עם שם משתמש בעברית וחסינות כפילויות אבסולוטית מול כל רולי המערכת (כולל תלמידים)
   const handleCreateInstructor = async () => {
     if (!formName.trim()) { triggerToast('⚠️ נא להזין שם מלא למדריך', true); return; }
     
-    // איסוף שמות המשתמש התפוסים במערכת כרגע למניעת התנגשויות
-    const takenUsernames = instructors.map(i => i.username);
-    const baseUsername = formName.trim().replace(/\s+/g, '.');
-    let generatedUsername = baseUsername;
-    let counter = 1;
-
-    while (takenUsernames.includes(generatedUsername)) {
-      generatedUsername = `${baseUsername}${counter}`;
-      counter++;
-    }
-
     try {
+      const baseUsername = formName.trim().replace(/\s+/g, '.');
+      
+      // שליפת כל המשתמשים (כולל תלמידים) ששם המשתמש שלהם מתחיל בבסיס העברי הזה
+      const { data: matchedUsers, error: fetchErr } = await supabase
+        .from('users')
+        .select('username')
+        .ilike('username', `${baseUsername}%`);
+
+      if (fetchErr) throw fetchErr;
+
+      const takenPool = matchedUsers ? matchedUsers.map(u => u.username) : [];
+      let generatedUsername = baseUsername;
+      let counter = 1;
+
+      while (takenPool.includes(generatedUsername)) {
+        generatedUsername = `${baseUsername}${counter}`;
+        counter++;
+      }
+
       const { error } = await supabase.from('users').insert([{
         username: generatedUsername,
         password: '12345678',
@@ -163,26 +176,35 @@ export default function AdminInstructors() {
     }
   };
 
-  // 🟢 תיקון: מנוע הקמת מדריך זמני חדש עם שם משתמש בעברית מלאה חסין כפילויות (temp.שם.משפחה)
+  // 🟢 הקמת מדריך זמני חדש עם שם משתמש בעברית ללא תוספות, חסינות כפילויות מלאה, והזרקת (זמני) קשיח לשם התצוגה
   const handleCreateTempInstructor = async () => {
     if (!formName.trim()) { triggerToast('⚠️ נא להזין שם מלא למדריך', true); return; }
-    
-    const takenUsernames = instructors.map(i => i.username);
-    const baseUsername = `temp.${formName.trim().replace(/\s+/g, '.')}`;
-    let generatedUsername = baseUsername;
-    let counter = 1;
-
-    while (takenUsernames.includes(generatedUsername)) {
-      generatedUsername = `${baseUsername}${counter}`;
-      counter++;
-    }
 
     try {
+      const baseUsername = formName.trim().replace(/\s+/g, '.');
+      
+      // בדיקה אקטיבית בענן מול כל היוזרים (כולל תלמידים) למניעת התנגשויות תחת הפורמט העברי הנקי
+      const { data: matchedUsers, error: fetchErr } = await supabase
+        .from('users')
+        .select('username')
+        .ilike('username', `${baseUsername}%`);
+
+      if (fetchErr) throw fetchErr;
+
+      const takenPool = matchedUsers ? matchedUsers.map(u => u.username) : [];
+      let generatedUsername = baseUsername;
+      let counter = 1;
+
+      while (takenPool.includes(generatedUsername)) {
+        generatedUsername = `${baseUsername}${counter}`;
+        counter++;
+      }
+
       const { error } = await supabase.from('users').insert([{
         username: generatedUsername,
         password: '12345678',
         role: 'temp_instructor',
-        full_name: formName.trim(),
+        full_name: `${formName.trim()} (זמני)`, // בקשת המנהל: הוספה קשיחה של הסיווג לשם התצוגה הראשי
         phone: formPhone.trim() || null,
         city: formTempCity.trim() || null,
         hourly_rate_instruction: Number(formHourlyInstruction) || 40,
@@ -208,7 +230,8 @@ export default function AdminInstructors() {
   // פתיחת מודאל עריכת מדריך וטעינת נתוניו הנוכחיים
   const handleOpenEditModal = (inst) => {
     setEditingInstructor(inst);
-    setFormName(inst.name);
+    // ניקוי המילה (זמני) משדה העריכה במידה ומדובר במדריך זמני, כדי לא לשכפל אותה בשמירה
+    setFormName(inst.name.replace(' (זמני)', ''));
     setFormPhone(inst.phone === '—' ? '' : inst.phone);
     setIsEditModalOpen(true);
   };
@@ -217,18 +240,21 @@ export default function AdminInstructors() {
   const handleSaveEditInstructor = async () => {
     if (!formName.trim()) { triggerToast('⚠️ נא להזין שם מלא למדריך', true); return; }
 
+    // שמירה על הפורמט המקורי של תיוג השם בהתאם לרול שלו בעריכה
+    const finalFullName = editingInstructor.role === 'temp_instructor' ? `${formName.trim()} (זמני)` : formName.trim();
+
     try {
-      if (formName.trim() !== editingInstructor.name) {
+      if (finalFullName !== editingInstructor.name) {
         await supabase
           .from('groups')
-          .update({ instructor: formName.trim() })
+          .update({ instructor: finalFullName })
           .eq('instructor', editingInstructor.name);
       }
 
       const { error } = await supabase
         .from('users')
         .update({
-          full_name: formName.trim(),
+          full_name: finalFullName,
           phone: formPhone.trim() || null
         })
         .eq('id', editingInstructor.id);
@@ -273,7 +299,7 @@ export default function AdminInstructors() {
 
   // שיתוף מהיר לוואטסאפ עם הפרטים
   const handleShareWhatsApp = (inst) => {
-    const message = `היי ${inst.name}! 👋\nאלו פרטי ההתחברות שלך למערכת אראגון:\n🔗 קישור: https://aragon-platform.vercel.app\n👤 שם משתמש: ${inst.username}\n🔑 סיסמה: ${inst.password}\n\nבהצלחה! 🤖🚀`;
+    const message = `היי ${inst.name.replace(' (זמני)', '')}! 👋\nאלו פרטי ההתחברות שלך למערכת אראגון:\n🔗 קישור: https://aragon-platform.vercel.app\n👤 שם משתמש: ${inst.username}\n🔑 סיסמה: ${inst.password}\n\nבהצלחה! 🤖🚀`;
     const cleanPhone = inst.phone.replace(/[^0-9]/g, '');
     const url = `https://wa.me/${cleanPhone.startsWith('0') ? '972' + cleanPhone.slice(1) : cleanPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
@@ -323,7 +349,7 @@ export default function AdminInstructors() {
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         
-        .hq-global-wrapper { width: 100%; min-height: 100vh; background: #050812; display: flex; font-family: 'Heebo', sans-serif; color: #e0f0ff; direction: rtl; }
+        .hq-global-wrapper { width: 100%; min-height: 100vh; background: #050812; display: flex; font-family: 'Heebo', sans-serif; color: #e0f0ff; direction: rtl; overflow: hidden; }
         .sidebar { width: 72px; background: #080f1e; border-left: 1px solid #1a2a4a; display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 8px; position: sticky; top: 0; height: 100vh; z-index: 10; flex-shrink: 0; }
         .sidebar-logo { width: 42px; height: 42px; border-radius: 50%; border: 2px solid #00c8ff; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; position: relative; }
         .sidebar-logo::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; border: 1px solid #7b2fbe; border-top-color: transparent; border-bottom-color: transparent; animation: hqSpin 4s linear infinite; }
@@ -398,7 +424,7 @@ export default function AdminInstructors() {
         .matrix-table tr.frozen td { opacity: 0.4; }
         
         .cell-bold { font-weight: 700; color: #00c8ff; }
-        .creds-font { font-family: 'Heebo', monospace; font-size: 12.5px; color: #a0b0d0; display: flex; align-items: center; gap: 6px; }
+        .creds-font { font-family: 'Heebo', sans-serif; font-size: 13px; color: #a0b0d0; display: flex; align-items: center; gap: 6px; text-transform: none; }
         .pass-toggle-icon { cursor: pointer; color: #4a6080; }
         .pass-toggle-icon:hover { color: #00c8ff; }
         
@@ -538,7 +564,7 @@ export default function AdminInstructors() {
                   <tr key={inst.id} className={inst.isActive ? '' : 'frozen'}>
                     <td>
                       <span className="cell-bold" style={inst.isActive ? (inst.role === 'temp_instructor' ? { color: '#c080ff' } : {}) : { color: '#4a6080' }}>
-                        {inst.role === 'temp_instructor' ? `${inst.name} (זמני)` : inst.name}
+                        {inst.name}
                         {!inst.isActive && ' ⏳ (מוקפא)'}
                       </span>
                     </td>
@@ -547,7 +573,7 @@ export default function AdminInstructors() {
                         {inst.role === 'temp_instructor' ? 'סגל זמני' : 'מדריך קבוע'}
                       </span>
                     </td>
-                    <td><span className="creds-font" style={{ textTransform: 'none' }}>{inst.username}</span></td>
+                    <td><span className="creds-font">{inst.username}</span></td>
                     <td>
                       <div className="creds-font">
                         <span>{visiblePasswords[inst.id] ? inst.password : '••••••••'}</span>
@@ -610,7 +636,7 @@ export default function AdminInstructors() {
               <div className="mfield" style={{ flex: 1 }}><label>שכר שעתי כללי (₪)</label><input className="minput" type="number" value={formHourlyGeneral} onChange={(e) => setFormHourlyGeneral(e.target.value)} /></div>
             </div>
 
-            <div style={{ fontSize: '11px', color: '#4a6080', background: '#050a14', padding: '8px', borderRadius: '6px', border: '1px solid #1a2a4a', marginBottom: '14px' }}>💡 המערכת תנפיק לו שם משתמש עברי עם הקידומת temp ותסנכרן אותו אוטומטית למאגרי הקייטנות והחוגים.</div>
+            <div style={{ fontSize: '11px', color: '#4a6080', background: '#050a14', padding: '8px', borderRadius: '6px', border: '1px solid #1a2a4a', marginBottom: '14px' }}>💡 המערכת תנפיק לו שם משתמש עברי אחיד (שם.משפחה) ותסנכרן אותו אוטומטית למאגרי הקייטנות והחוגים.</div>
             <div className="mrow">
               <button className="msave" style={{ background: 'linear-gradient(135deg, #1b0a30, #311354)', color: '#c080ff', borderColor: 'rgba(160,96,224,0.3)' }} type="button" onClick={handleCreateTempInstructor}>הנפק סגל זמני</button>
               <button className="mcancel" type="button" onClick={() => setIsAddTempModalOpen(false)}>ביטול</button>
