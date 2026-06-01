@@ -655,7 +655,7 @@ export default function AdminCampsManagement() {
         .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(0); background: #080f1e; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 30px rgba(0,229,160,0.3); z-index: 999; text-align: center; pointer-events: none; display: none; }
         .toast.show { display: block; animation: fadeInToast 0.2s ease-out; }
 
-        @规律 hqSpin { to { transform: rotate(360deg); } }
+        @keyframes hqSpin { to { transform: rotate(360deg); } }
         @keyframes wavePulse { 0% { height: 3px; } 100% { height: 11px; } }
       `}</style>
 
