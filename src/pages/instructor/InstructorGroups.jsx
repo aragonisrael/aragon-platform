@@ -202,7 +202,7 @@ export default function InstructorGroups() {
     const { data: allUsers } = await supabase.from('users').select('username');
     const allExistingUsernames = allUsers?.map(u => u.username) || [];
 
-    // 🟢 תיקון: סגירת הרווח המלחיץ במשתנה פריסת ה-Database לנעילת ה-Vercel Build
+    // ── 🎯 תיקון סופי סגור לחלוטין ללא רווחים מיותרים! ──
     const newStudentsPoolForDB = [];
     const localResultsToShow = [];
 
@@ -263,19 +263,8 @@ export default function InstructorGroups() {
     setActivePanel('');
   };
 
-  const handleToggleGroupAssignment = async (group) => {
-    const isCurrentlyAssigned = group.instructor === selectedInstructor.name;
-    const nextInstructor = isCurrentlyAssigned ? '' : selectedInstructor.name;
-    const nextStatus = isCurrentlyAssigned ? 'red' : 'green';
-
-    try {
-      const { error } = await supabase.from('groups').update({ instructor: nextInstructor, status: nextStatus }).eq('id', group.id);
-      if (error) throw error;
-      await fetchLiveInstructorsMatrix();
-      triggerToast(`הקבוצה ${group.venue} שונתה בהצלחה`);
-    } catch (err) {
-      console.error(err);
-    }
+  const handleTogglePanel = (panelType) => {
+    setActivePanel(activePanel === panelType ? '' : panelType);
   };
 
   const handleGiveCoins = async (amount, emoji) => {
@@ -477,7 +466,7 @@ export default function InstructorGroups() {
 
         .coins-panel, .task-panel, .edit-panel { display: none; margin-top: 14px; }
         .coins-panel.open, .task-panel.open, .edit-panel.open { display: block; animation: fadeIn .3s ease; }
-        .coins-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .groups-list { padding: 0 16px; direction: rtl; }
         .coin-btn { background: linear-gradient(135deg,#12122a,#0e0e20); border: 1px solid #2a2a48; border-radius: 12px; padding: 12px 10px; cursor: pointer; text-align: center; }
         .coin-btn:hover { border-color: #5030aa; }
         .coin-btn .cb-emoji { font-size: 22px; display: block; margin-bottom: 5px; }
@@ -530,7 +519,7 @@ export default function InstructorGroups() {
           {/* HQ RADIO */}
           <div className={`hero-radio-capsule ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
             <div className="capsule-left">
-              <div className="capsule-play-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i></div>
+              <div className="capsule-play-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i ></div>
               <div className="capsule-text">HQ RADIO</div>
             </div>
             <div className="capsule-wave"><div className="capsule-wave-bar"></div><div className="capsule-wave-bar"></div><div className="capsule-wave-bar"></div></div>
@@ -556,7 +545,7 @@ export default function InstructorGroups() {
           {campsData.length > 0 && (
             <>
               <div className="results-count" style={{ color: '#00c8ff', fontWeight: 'bold', marginTop: '4px', fontSize: '11.5px' }}>
-                Context ⛺ קייטנות ומתחמי קיץ באחריותך ({campsData.length})
+                ⛺ קייטנות ומתחמי קיץ באחריותך ({campsData.length})
               </div>
               <div className="groups-list" style={{ marginBottom: '14px' }}>
                 {campsData.map(c => (
