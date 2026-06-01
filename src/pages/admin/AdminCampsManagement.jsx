@@ -682,7 +682,6 @@ export default function AdminCampsManagement() {
             <div className="ring-wrap">
               <div className="ro"></div><div className="rm"></div><div className="rm2"></div><div className="ric"></div>
               <img className="limg" src={aragonLogo} alt="Aragon" />
-              />
             </div>
             <div>
               <div className="brand-title">ARAGON CENTER</div>
