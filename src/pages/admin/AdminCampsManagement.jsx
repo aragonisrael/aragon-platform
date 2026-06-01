@@ -200,7 +200,7 @@ export default function AdminCampsManagement() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // 🟢 תיקון: החזרת פונקציית הוספת מסלול נוסף שנשמטה בטעות ומנעה את עליית המסך
+  // פונקציית הוספת מסלול נוסף
   const handleAddNewTrackLane = () => {
     const nextIndex = tracks.length + 1;
     const nextTracks = [...tracks, { id: 'track_' + nextIndex, label: `מסלול ${nextIndex}` }];
@@ -472,6 +472,12 @@ export default function AdminCampsManagement() {
         .visualizer-bar { width: 2px; height: 3px; background: #00c8ff; }
         .cyber-music-player.playing .visualizer-bar { background: #00e5a0; animation: wavePulse 0.6s ease-in-out infinite alternate; }
 
+        .ring-wrap { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; z-index: 4; flex-shrink: 0; }
+        .ro { position: absolute; inset: 0; border-radius: 50%; border: 1.5px dashed rgba(0, 200, 255, 0.2); animation: hqSpin 14s linear infinite; }
+        .rm { position: absolute; inset: 4px; border-radius: 50%; border: 1px solid transparent; border-top-color: #6040ff; border-right-color: #00c8ff; animation: hqSpin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,0.3); }
+        .rm2 { position: absolute; inset: 8px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #00c8ff; animation: hqSpin 7s linear infinite reverse; box-shadow: inset 0 0 8px rgba(0,200,255,0.2); }
+        .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
+
         .content { flex: 1; overflow: hidden; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; height: calc(100% - 64px); min-height: 0; }
         
         /* TOOLBAR */
@@ -593,12 +599,27 @@ export default function AdminCampsManagement() {
       </div>
 
       <div className="main-col">
-        {/* טופבר אדמין - מתוקן פיקסל פרפקט */}
+        {/* טופבר אדמין - 🟢 נעילת גודל אבסולוטית חסינת עיוותים באמצעות inline style */}
         <div className="top-bar">
           <div className="top-bar-brand">
             <div className="ring-wrap">
               <div className="ro"></div><div className="rm"></div><div className="rm2"></div><div className="ric"></div>
-              <img className="limg" src={aragonLogo} alt="Aragon" />
+              <img 
+                src={aragonLogo} 
+                alt="Aragon" 
+                style={{ 
+                  width: '28px', 
+                  height: '28px', 
+                  borderRadius: '50%', 
+                  objectFit: 'cover', 
+                  display: 'block',
+                  position: 'relative',
+                  zIndex: 5,
+                  background: 'rgba(255,255,255,0.9)',
+                  padding: '1px',
+                  boxShadow: '0 0 8px rgba(0,200,255,0.4)'
+                }} 
+              />
             </div>
             <div>
               <div className="brand-title">ARAGON CENTER</div>
@@ -838,7 +859,6 @@ export default function AdminCampsManagement() {
                           {ROOM_TYPES.map(rt => <option key={rt} value={rt}>{rt}</option>)}
                         </select>
                       </div>
-                      {/* 🟢 שדרוג: 2 תיבות בחירה אחידות, מעורבבות ומסונכרנות מראש למניעת כפל שיבוצים */}
                       <div>
                         <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 1</label>
                         <select 
@@ -1046,7 +1066,6 @@ export default function AdminCampsManagement() {
                             {ROOM_TYPES.map(rt => <option key={rt} value={rt}>{rt}</option>)}
                           </select>
                         </div>
-                        {/* 🟢 שדרוג: 2 תיבות בחירה אחידות, מעורבבות ומסונכרנות מראש למניעת כפל שיבוצים בעריכה */}
                         <div>
                           <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 1</label>
                           <select 
