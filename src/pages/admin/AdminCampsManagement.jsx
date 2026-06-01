@@ -87,31 +87,7 @@ export default function AdminCampsManagement() {
 
   const ROOM_TYPES = ['חדר גיימינג', 'חדר מחשבים', 'חדר רובוטיקה', 'חדר מדע וחלל', 'חדר פיננסי', 'חדר משפטים'];
 
-  // ── פונקציות שירות פנימיות ──
-  const mapCampsData = (dbCamps, dbCompounds) => {
-    return dbCamps.map(c => {
-      const comps = dbCompounds ? dbCompounds.filter(comp => comp.camp_id === c.id).map(comp => ({
-        id: comp.id,
-        roomType: comp.room_type,
-        seniorInstructor: comp.senior_instructor ? cleanInstructorName(comp.senior_instructor, comp.senior_instructor.includes('(זמני)')) : '',
-        tempInstructor: comp.temp_instructor ? cleanInstructorName(comp.temp_instructor, comp.temp_instructor.includes('(זמני)')) : ''
-      })) : [];
-
-      return {
-        id: c.id,
-        title: c.title,
-        startDate: c.start_date,
-        endDate: c.end_date,
-        netHours: c.net_hours,
-        manager: c.manager,
-        childrenCount: c.children_count,
-        trackId: c.track_id,
-        setupStaff: c.setup_staff || ['', '', ''],
-        compounds: comps
-      };
-    });
-  };
-
+  // ── פונקציות שירות ופילטור ──
   const getAvailableStaffPool = (start, end, currentCampId = null) => {
     const totalPool = [
       ...seniorInstructors.map(name => ({ name, isTemp: false })),
@@ -186,6 +162,7 @@ export default function AdminCampsManagement() {
     };
   };
 
+  // ── פונקציות סנכרון ותקשורת ענן ──
   const fetchLiveCampsDataFromCloud = async () => {
     try {
       const { data: dbCamps, error: campsErr } = await supabase.from('camps').select('*');
@@ -195,7 +172,27 @@ export default function AdminCampsManagement() {
         const { data: dbCompounds, error: compErr } = await supabase.from('camp_compounds').select('*');
         if (compErr) throw compErr;
 
-        const mappedCamps = mapCampsData(dbCamps, dbCompounds);
+        const mappedCamps = dbCamps.map(c => {
+          const comps = dbCompounds ? dbCompounds.filter(comp => comp.camp_id === c.id).map(comp => ({
+            id: comp.id,
+            roomType: comp.room_type,
+            seniorInstructor: comp.senior_instructor ? cleanInstructorName(comp.senior_instructor, comp.senior_instructor.includes('(זמני)')) : '',
+            tempInstructor: comp.temp_instructor ? cleanInstructorName(comp.temp_instructor, comp.temp_instructor.includes('(זמני)')) : ''
+          })) : [];
+
+          return {
+            id: c.id,
+            title: c.title,
+            startDate: c.start_date,
+            endDate: c.end_date,
+            netHours: c.net_hours,
+            manager: c.manager,
+            childrenCount: c.children_count,
+            trackId: c.track_id,
+            setupStaff: c.setup_staff || ['', '', ''],
+            compounds: comps
+          };
+        });
         setCamps(mappedCamps);
       }
     } catch (err) {
@@ -219,64 +216,13 @@ export default function AdminCampsManagement() {
     }
   };
 
-  useEffect(() => {
-    fetchLiveWorkforcePool();
-    fetchLiveCampsDataFromCloud();
-  }, []);
-
+  // ── מפעילים ואירועים (Handlers) ──
   const handleAddNewTrackLane = () => {
     const nextIndex = tracks.length + 1;
     const nextTracks = [...tracks, { id: 'track_' + nextIndex, label: `מסלול ${nextIndex}` }];
     setTracks(nextTracks);
     localStorage.setItem('aragon_camp_tracks', JSON.stringify(nextTracks));
     showToast(`➕ מסלול ${nextIndex} נוסף כמערך תור אקטיבי בלוח`);
-  };
-
-  const generateWeeklyColumns = (start, end) => {
-    const weeks = [];
-    const globalStart = new Date(start);
-    const globalEnd = new Date(end);
-
-    let currentSunday = new Date(globalStart);
-    currentSunday.setDate(currentSunday.getDate() - currentSunday.getDay());
-
-    let weekIndex = 1;
-    while (currentSunday <= globalEnd) {
-      const workingDays = [];
-      
-      for (let i = 0; i < 5; i++) {
-        const dayDate = new Date(currentSunday);
-        dayDate.setDate(dayDate.getDate() + i);
-        const isOOB = dayDate < globalStart || dayDate > globalEnd;
-        
-        workingDays.push({
-          date: dayDate,
-          dateStr: dayDate.toISOString().split('T')[0],
-          isOOB: isOOB
-        });
-      }
-
-      const activeDays = workingDays.filter(d => !d.isOOB);
-      let datesLabel = '';
-      if (activeDays.length > 0) {
-        const fmt = (d) => d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
-        datesLabel = `${fmt(activeDays[0].date)} - ${fmt(activeDays[activeDays.length - 1].date)}`;
-      } else {
-        const fmt = (d) => d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
-        datesLabel = `${fmt(workingDays[0].date)} - ${fmt(workingDays[4].date)}`;
-      }
-
-      weeks.push({
-        id: 'w_' + weekIndex,
-        label: `מחזור ${weekIndex}`,
-        dates: datesLabel,
-        workingDays: workingDays
-      });
-
-      currentSunday.setDate(currentSunday.getDate() + 7);
-      weekIndex++;
-    }
-    return weeks;
   };
 
   const handleBuildBoardRoute = (e) => {
@@ -388,6 +334,19 @@ export default function AdminCampsManagement() {
     }
   };
 
+  const handleOpenCampDashboardConsole = (camp) => {
+    const sanitizedCamp = {
+      ...camp,
+      compounds: camp.compounds.map(comp => ({
+        ...comp,
+        seniorInstructor: cleanInstructorName(comp.seniorInstructor, comp.seniorInstructor.includes('(זמני)')),
+        tempInstructor: cleanInstructorName(comp.tempInstructor, comp.tempInstructor.includes('(זמני)'))
+      }))
+    };
+    setSelectedViewCamp(sanitizedCamp);
+    setIsEditMode(false);
+  };
+
   const handleUpdateCampDetailsInfo = async (e) => {
     e.preventDefault();
 
@@ -465,11 +424,19 @@ export default function AdminCampsManagement() {
     }
   };
 
-  const toggleRadioPlay = () => {
-    const globalAudio = document.getElementById('hq-cyber-radio');
-    if (!globalAudio) return;
-    globalAudio.paused ? globalAudio.play().catch(err => console.log(err)) : globalAudio.pause();
-    setIsPlaying(!globalAudio.paused);
+  const handleResetEntireBoard = () => {
+    if (!window.confirm('⚠️ אזהרה! האם למחוק לחלוטין את לוח הקייטנות האקטיבי וכל השיבוצים בתוכו?')) return;
+    setBoardConfig(null);
+    setBoardWeeks([]);
+    setTracks([]);
+    setCamps([]);
+    setSelectedViewCamp(null);
+
+    localStorage.removeItem('aragon_camp_board_config');
+    localStorage.removeItem('aragon_camp_board_weeks');
+    localStorage.removeItem('aragon_camp_tracks');
+
+    showToast('🗑️ הלוח אופס ונמחק לחלוטין מחמ"ל האדמין');
   };
 
   const handleEditChildrenCountChange = (val) => {
@@ -498,6 +465,19 @@ export default function AdminCampsManagement() {
     });
   };
 
+  const toggleRadioPlay = () => {
+    const globalAudio = document.getElementById('hq-cyber-radio');
+    if (!globalAudio) return;
+    globalAudio.paused ? globalAudio.play().catch(err => console.log(err)) : globalAudio.pause();
+    setIsPlaying(!globalAudio.paused);
+  };
+
+  // ── אפקטים ורענונים (Lifecycle) ──
+  useEffect(() => {
+    fetchLiveWorkforcePool();
+    fetchLiveCampsDataFromCloud();
+  }, []);
+
   return (
     <div className="hq-global-wrapper">
       <style>{`
@@ -525,14 +505,7 @@ export default function AdminCampsManagement() {
         
         .top-bar { height: 64px; background: linear-gradient(90deg, #050812 0%, #080f22 30%, #0a0820 50%, #080f22 70%, #050812 100%); border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 20; flex-shrink: 0; }
         .top-bar-brand { display: flex; align-items: center; gap: 14px; }
-        .brand-title { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: #00c8ff; }
-        .brand-sub { font-size: 10px; color: #4a6080; letter-spacing: 1px; margin-top: 1px; font-family: 'Heebo', sans-serif; }
         
-        .top-bar-right { display: flex; align-items: center; gap: 12px; }
-        .status-pill { display: flex; align-items: center; gap: 6px; background: #040c18; border: 1px solid #0a2040; border-radius: 20px; padding: 5px 12px; font-size: 12px; color: #4a9060; }
-        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #00e676; animation: hqPulse 2s ease-in-out infinite; }
-        .top-bar-neon { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #00c8ff44, #7b2fbe66, #00c8ff44, transparent); }
-
         .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #1a3a6a; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; transition: all 0.2s; user-select: none; }
         .cyber-music-player:hover { border-color: #00c8ff; box-shadow: 0 0 10px rgba(0, 200, 255, 0.2); }
         .player-toggle-btn { color: #00c8ff; font-size: 14px; display: flex; align-items: center; }
@@ -649,7 +622,7 @@ export default function AdminCampsManagement() {
         .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(0); background: #080f1e; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 30px rgba(0,229,160,0.3); z-index: 999; text-align: center; pointer-events: none; display: none; }
         .toast.show { display: block; animation: fadeInToast 0.2s ease-out; }
 
-        @keyframes hqSpin { to { transform: rotate(360deg); } }
+        @规律 hqSpin { to { transform: rotate(360deg); } }
         @keyframes wavePulse { 0% { height: 3px; } 100% { height: 11px; } }
       `}</style>
 
@@ -668,7 +641,7 @@ export default function AdminCampsManagement() {
         </button>
       </div>
 
-      {/* ── 🟢 תחילת עמוד הניהול המרכזי ── */}
+      {/* ── קומפוננטת עמוד הניהול המרכזית ── */}
       <div className="main-col">
         {/* טופבר אדמין */}
         <div className="top-bar">
@@ -699,7 +672,7 @@ export default function AdminCampsManagement() {
           </div>
           <div className="top-bar-right">
             <div className={`cyber-music-player ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
-              <div className="player-toggle-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i></div>
+              <div className="player-toggle-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i ></div>
               <div className="player-station-text">HQ RADIO</div>
               <div className="audio-visualizer-wave"><div className="visualizer-bar"></div><div className="visualizer-bar"></div><div className="visualizer-bar"></div></div>
             </div>
@@ -817,8 +790,8 @@ export default function AdminCampsManagement() {
               </div>
             )}
           </div>
-        </div> {/* ── 🟢 סגירה הרמטית של .content ── */}
-      </div> {/* ── 🟢 סגירה הרמטית של .main-col ── */}
+        </div> {/* סגירת .content */}
+      </div> {/* סגירת .main-col */}
 
       {/* מודאל 1: חלונית "הקם מסלול קייטנות" */}
       {isSetupModalOpen && (
@@ -1263,6 +1236,6 @@ export default function AdminCampsManagement() {
 
       {/* TOAST FEEDBACK ALERT */}
       <div className={`toast ${toast.show ? 'show' : ''}`}>✓ {toast.message}</div>
-    </div> // ── 🟢 סגירה של hq-global-wrapper ──
+    </div> // ── סגירה אחידה והרמטית של hq-global-wrapper ──
   );
 }
