@@ -13,7 +13,7 @@ const fmtDateLabelStr = (dateStr) => {
   return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
 };
 
-// 🟢 פונקציית זיקוק אטומית - מנקה כל סוג סוגריים ומילים כפולות מה-Database ומאלצת תיוג יחיד ותקין
+// פונקציית זיקוק אטומית - מנקה כל סוג סוגריים ומילים כפולות מה-Database ומאלצת תיוג יחיד ותקין
 const cleanInstructorName = (name, isTemp = true) => {
   if (!name) return '';
   let cleanRaw = String(name)
@@ -93,7 +93,7 @@ export default function AdminCampsManagement() {
     setTimeout(() => setToast({ show: false, message: '' }), 3200);
   };
 
-  // 🟢 פונקציית פילטור דינמית חדשה חוצת-לו"ז: מונעת כפל שיבוצים ומחזירה סגל פנוי בלבד לטווח תאריכים
+  // פונקציית פילטור דינמית חוצת-לו"ז: מונעת כפל שיבוצים ומחזירה סגל פנוי בלבד לטווח תאריכים
   const getAvailableStaffPool = (start, end, currentCampId = null) => {
     const totalPool = [
       ...seniorInstructors.map(name => ({ name, isTemp: false })),
@@ -200,7 +200,15 @@ export default function AdminCampsManagement() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // 🟢 תיקון אתחול מסלול: בעת פתיחת המודאל המערכת מאתחלת אוטומטית את המשתנה למסלול הראשון הקיים בבורד
+  // 🟢 תיקון: החזרת פונקציית הוספת מסלול נוסף שנשמטה בטעות ומנעה את עליית המסך
+  const handleAddNewTrackLane = () => {
+    const nextIndex = tracks.length + 1;
+    const nextTracks = [...tracks, { id: 'track_' + nextIndex, label: `מסלול ${nextIndex}` }];
+    setTracks(nextTracks);
+    localStorage.setItem('aragon_camp_tracks', JSON.stringify(nextTracks));
+    showToast(`➕ מסלול ${nextIndex} נוסף כמערך תור אקטיבי בלוח`);
+  };
+
   const handleOpenAddCampModal = () => {
     setCampTitle('');
     setCampStaff1('');
@@ -362,6 +370,64 @@ export default function AdminCampsManagement() {
     }
   };
 
+  const handleResetEntireBoard = () => {
+    if (!window.confirm('⚠️ אזהרה! האם למחוק לחלוטין את לוח הקייטנות האקטיבי וכל השיבוצים בתוכו?')) return;
+    setBoardConfig(null);
+    setBoardWeeks([]);
+    setTracks([]);
+    setCamps([]);
+    setSelectedViewCamp(null);
+
+    localStorage.removeItem('aragon_camp_board_config');
+    localStorage.removeItem('aragon_camp_board_weeks');
+    localStorage.removeItem('aragon_camp_tracks');
+
+    showToast('🗑️ הלוח אופס ונמחק לחלוטין מחמ"ל האדמין');
+  };
+
+  useEffect(() => {
+    const requiredRooms = Math.max(1, Math.ceil(campChildrenCount / 25));
+    
+    const nextCompounds = Array.from({ length: requiredRooms }).map((_, idx) => {
+      if (campCompounds[idx]) return campCompounds[idx]; 
+      return {
+        id: 'comp_' + idx + '_' + Date.now(),
+        label: `מתחם חומרה ${idx + 1}`,
+        roomType: ROOM_TYPES[idx % ROOM_TYPES.length],
+        seniorInstructor: '', 
+        tempInstructor: ''    
+      };
+    });
+    
+    setCampCompounds(nextCompounds);
+  }, [campChildrenCount]);
+
+  const handleEditChildrenCountChange = (val) => {
+    const count = parseInt(val, 10) || 0;
+    const requiredRooms = Math.max(1, Math.ceil(count / 25));
+    let currentCompounds = [...selectedViewCamp.compounds];
+
+    if (currentCompounds.length < requiredRooms) {
+      for (let i = currentCompounds.length; i < requiredRooms; i++) {
+        currentCompounds.push({
+          id: 'comp_edit_' + i + '_' + Date.now(),
+          label: `מתחם חומרה ${i + 1}`,
+          roomType: ROOM_TYPES[i % ROOM_TYPES.length],
+          seniorInstructor: '', 
+          tempInstructor: ''    
+        });
+      }
+    } else if (currentCompounds.length > requiredRooms) {
+      currentCompounds = currentCompounds.slice(0, requiredRooms);
+    }
+
+    setSelectedViewCamp({
+      ...selectedViewCamp,
+      childrenCount: count,
+      compounds: currentCompounds
+    });
+  };
+
   return (
     <div className="hq-global-wrapper">
       <style>{`
@@ -405,13 +471,6 @@ export default function AdminCampsManagement() {
         .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2.5px; height: 11px; margin-bottom: 2px; }
         .visualizer-bar { width: 2px; height: 3px; background: #00c8ff; }
         .cyber-music-player.playing .visualizer-bar { background: #00e5a0; animation: wavePulse 0.6s ease-in-out infinite alternate; }
-
-        .ring-wrap { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; z-index: 4; flex-shrink: 0; }
-        .ro { position: absolute; inset: 0; border-radius: 50%; border: 1.5px dashed rgba(0, 200, 255, 0.2); animation: hqSpin 14s linear infinite; }
-        .rm { position: absolute; inset: 4px; border-radius: 50%; border: 1px solid transparent; border-top-color: #6040ff; border-right-color: #00c8ff; animation: hqSpin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,0.3); }
-        .rm2 { position: absolute; inset: 8px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #00c8ff; animation: hqSpin 7s linear infinite reverse; box-shadow: inset 0 0 8px rgba(0,200,255,0.2); }
-        .limg { width: 28px; height: 28px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 1px; box-shadow: 0 0 8px rgba(0,200,255,0.4); flex-shrink: 0; }
-        .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
 
         .content { flex: 1; overflow: hidden; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; height: calc(100% - 64px); min-height: 0; }
         
@@ -779,7 +838,7 @@ export default function AdminCampsManagement() {
                           {ROOM_TYPES.map(rt => <option key={rt} value={rt}>{rt}</option>)}
                         </select>
                       </div>
-                      {/* 🟢 שדרוג 2: החזרת משבצת שיבוץ ראשונה (מדריך 1) המציגה רשימה מעורבבת ומסונכרנת של כל הצוות */}
+                      {/* 🟢 שדרוג: 2 תיבות בחירה אחידות, מעורבבות ומסונכרנות מראש למניעת כפל שיבוצים */}
                       <div>
                         <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 1</label>
                         <select 
@@ -797,7 +856,6 @@ export default function AdminCampsManagement() {
                           ))}
                         </select>
                       </div>
-                      {/* 🟢 שדרוג 2: החזרת משבצת שיבוץ שנייה (מדריך 2) המציגה רשימה מעורבבת ומסונכרנת של כל הצוות */}
                       <div>
                         <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 2</label>
                         <select 
@@ -988,7 +1046,7 @@ export default function AdminCampsManagement() {
                             {ROOM_TYPES.map(rt => <option key={rt} value={rt}>{rt}</option>)}
                           </select>
                         </div>
-                        {/* 🟢 שדרוג 2: החזרת משבצת שיבוץ ראשונה (מדריך 1) בעריכה */}
+                        {/* 🟢 שדרוג: 2 תיבות בחירה אחידות, מעורבבות ומסונכרנות מראש למניעת כפל שיבוצים בעריכה */}
                         <div>
                           <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 1</label>
                           <select 
@@ -1007,7 +1065,6 @@ export default function AdminCampsManagement() {
                             ))}
                           </select>
                         </div>
-                        {/* 🟢 שדרוג 2: החזרת משבצת שיבוץ שנייה (מדריך 2) בעריכה */}
                         <div>
                           <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 2</label>
                           <select 
