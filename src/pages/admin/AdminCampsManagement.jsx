@@ -6,11 +6,19 @@ import { supabase } from '../../supabaseClient';
 // ייבוא הלוגו הרשמי של אראגון
 import aragonLogo from '../../assets/aragonlogo.png';
 
-// העברת פונקציית העזר לראש הקובץ (Top-Level) למניעת קריסות scope ברענונים
+// פונקציית עזר לראש הקובץ (Top-Level) למניעת קריסות scope ברענונים
 const fmtDateLabelStr = (dateStr) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
+};
+
+// 🟢 פונקציית זיקוק גלובלית חדשה שמנקה כפילויות של (זמני) ומבטיחה תיוג יחיד ומדויק
+const cleanInstructorName = (name, isTemp = true) => {
+  if (!name) return '';
+  // הסרת כל הצירופים הקודמים של (זמני) או (זמנית) ורווחים מיותרים
+  const cleanRaw = name.replace(/\s*\(זמני\)/g, '').replace(/\s*\(זמנית\)/g, '').trim();
+  return isTemp ? `${cleanRaw} (זמני)` : cleanRaw;
 };
 
 export default function AdminCampsManagement() {
@@ -86,7 +94,7 @@ export default function AdminCampsManagement() {
     setTimeout(() => setToast({ show: false, message: '' }), 3200);
   };
 
-  // פונקציה מסונכרנת למשיכת כל הקייטנות והמתחמים הקיימים ב-Database
+  // 🟢 פונקציה מעודכנת: מנקה כפילויות של (זמני) מהענן תוך כדי שליפת הקייטנות בריאל-טיים
   const fetchLiveCampsDataFromCloud = async () => {
     try {
       const { data: dbCamps, error: campsErr } = await supabase.from('camps').select('*');
@@ -100,8 +108,8 @@ export default function AdminCampsManagement() {
           const comps = dbCompounds ? dbCompounds.filter(comp => comp.camp_id === c.id).map(comp => ({
             id: comp.id,
             roomType: comp.room_type,
-            seniorInstructor: comp.senior_instructor || '',
-            tempInstructor: comp.temp_instructor || ''
+            seniorInstructor: comp.senior_instructor ? cleanInstructorName(comp.senior_instructor, false) : '',
+            tempInstructor: comp.temp_instructor ? cleanInstructorName(comp.temp_instructor, true) : ''
           })) : [];
 
           return {
@@ -124,18 +132,17 @@ export default function AdminCampsManagement() {
     }
   };
 
-  // משיכת כל המדריכים (קבועים + זמניים) מ-Supabase בזמן אמת
+  // משיכת כל המדריכים מ-Supabase וזיקוקם למניעת תיוג כפול
   const fetchLiveWorkforcePool = async () => {
     try {
       const { data: seniors } = await supabase.from('users').select('full_name').eq('role', 'instructor');
       if (seniors && seniors.length > 0) {
-        setSeniorInstructors(seniors.map(u => u.full_name));
+        setSeniorInstructors(seniors.map(u => cleanInstructorName(u.full_name, false)));
       }
       
       const { data: temps } = await supabase.from('users').select('full_name').eq('role', 'temp_instructor');
       if (temps && temps.length > 0) {
-        // 🟢 תיקון חסין: מאחר ושם המדריך כבר נשמר עם התוספת (זמני) בענן, אנחנו מושכים אותו ישירות ללא הדבקה כפולה!
-        setTempInstructors(temps.map(u => u.full_name));
+        setTempInstructors(temps.map(u => cleanInstructorName(u.full_name, true)));
       }
     } catch (err) {
       console.error("Error loading staff from remote database:", err);
@@ -181,7 +188,6 @@ export default function AdminCampsManagement() {
     const baseUsername = newTempName.trim().replace(/\s+/g, '.');
 
     try {
-      // בדיקה מול כלל המערכת למניעת התנגשויות שמות משתמש
       const { data: matchedUsers } = await supabase
         .from('users')
         .select('username')
@@ -200,8 +206,7 @@ export default function AdminCampsManagement() {
         username: generatedUsername,
         password: '12345678',
         role: 'temp_instructor',
-        // 🟢 התאמה קשיחה למבנה מפקדת הצוות המרכזית
-        full_name: `${newTempName.trim()} (זמני)`, 
+        full_name: cleanInstructorName(newTempName.trim(), true), 
         ils_balance: 0,
         coins: 0,
         is_active: true
@@ -412,6 +417,7 @@ export default function AdminCampsManagement() {
     setIsAddCampModalOpen(true);
   };
 
+  // 🟢 שמירה מבוקרת: מנקה ומזקקת את השמות בענן עוד לפני השילוח כדי למנוע כפילויות לוגיות
   const handleSaveCampToTrack = async (e) => {
     e.preventDefault();
     if (!campTitle.trim()) { alert('נא להזין את שם הקייטנה/בית הספר'); return; }
@@ -438,7 +444,11 @@ export default function AdminCampsManagement() {
           manager: campManager,
           children_count: campChildrenCount,
           track_id: campTargetTrack,
-          setup_staff: [campStaff1, campStaff2, campStaff3]
+          setup_staff: [
+            campStaff1 ? cleanInstructorName(campStaff1, campStaff1.includes('(זמני)')) : '',
+            campStaff2 ? cleanInstructorName(campStaff2, campStaff2.includes('(זמני)')) : '',
+            campStaff3 ? cleanInstructorName(campStaff3, campStaff3.includes('(זמני)')) : ''
+          ]
         }])
         .select()
         .single();
@@ -449,8 +459,8 @@ export default function AdminCampsManagement() {
         const compoundsToInsert = campCompounds.map(comp => ({
           camp_id: insertedCamp.id,
           room_type: comp.roomType,
-          senior_instructor: comp.seniorInstructor,
-          temp_instructor: comp.tempInstructor
+          senior_instructor: comp.seniorInstructor ? cleanInstructorName(comp.seniorInstructor, false) : '',
+          temp_instructor: comp.tempInstructor ? cleanInstructorName(comp.tempInstructor, true) : ''
         }));
 
         const { error: compErr } = await supabase.from('camp_compounds').insert(compoundsToInsert);
@@ -471,6 +481,7 @@ export default function AdminCampsManagement() {
     setIsEditMode(false);
   };
 
+  // 🟢 עדכון מבוקר בעיפרון: שוטף ומזקק את השמות מכל כפל תיוגים של (זמני) לפני הנעילה בענן
   const handleUpdateCampDetailsInfo = async (e) => {
     e.preventDefault();
 
@@ -497,7 +508,7 @@ export default function AdminCampsManagement() {
           manager: selectedViewCamp.manager,
           children_count: selectedViewCamp.childrenCount,
           track_id: selectedViewCamp.trackId,
-          setup_staff: selectedViewCamp.setupStaff
+          setup_staff: selectedViewCamp.setupStaff ? selectedViewCamp.setupStaff.map(s => s ? cleanInstructorName(s, s.includes('(זמני)')) : '') : []
         })
         .eq('id', selectedViewCamp.id);
 
@@ -509,8 +520,8 @@ export default function AdminCampsManagement() {
         const compoundsToInsert = selectedViewCamp.compounds.map(comp => ({
           camp_id: selectedViewCamp.id,
           room_type: comp.roomType,
-          senior_instructor: comp.seniorInstructor,
-          temp_instructor: comp.tempInstructor
+          senior_instructor: comp.seniorInstructor ? cleanInstructorName(comp.seniorInstructor, false) : '',
+          temp_instructor: comp.tempInstructor ? cleanInstructorName(comp.tempInstructor, true) : ''
         }));
 
         const { error: compErr } = await supabase.from('camp_compounds').insert(compoundsToInsert);
@@ -557,7 +568,6 @@ export default function AdminCampsManagement() {
         *{ box-sizing: border-box; margin: 0; padding: 0; }
         .hq-global-wrapper { width: 100%; min-height: 100vh; background: #050812; display: flex; font-family: 'Heebo', sans-serif; color: #e0f0ff; direction: rtl; overflow: hidden; }
         
-        /* 💻 סיידבר אדמין מאוחד */
         .sidebar { width: 72px; background: #080f1e; border-left: 1px solid #1a2a4a; display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 8px; position: sticky; top: 0; height: 100vh; z-index: 10; flex-shrink: 0; }
         .sidebar-logo { width: 42px; height: 42px; border-radius: 50%; border: 2px solid #00c8ff; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; position: relative; }
         .sidebar-logo::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; border: 1px solid #7b2fbe; border-top-color: transparent; border-bottom-color: transparent; animation: hqSpin 4s linear infinite; }
@@ -698,6 +708,7 @@ export default function AdminCampsManagement() {
         .toast.show { display: block; animation: fadeInToast 0.2s ease-out; }
 
         @keyframes hqSpin { to { transform: rotate(360deg); } }
+        @keyframes wavePulse { 0% { height: 3px; } 100% { height: 11px; } }
       `}</style>
 
       {/* סיידבר אדמין רשמי */}
