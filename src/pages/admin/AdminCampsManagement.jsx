@@ -13,15 +13,15 @@ const fmtDateLabelStr = (dateStr) => {
   return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
 };
 
-//  green 🟢 פונקציית זיקוק אבסולוטית חסינת תקלות - משרשרת ומנקה כל זכר לכפילויות ללא Regex
+//  green 🟢 פונקציית זיקוק אטומית חסינת תקלות - מקלפת את כל הסוגריים והמילים "זמני" מהשורש ומחזירה תיוג יחיד ומדויק
 const cleanInstructorName = (name, isTemp = true) => {
   if (!name) return '';
   let cleanRaw = String(name)
-    .replaceAll(' (זמני)', '')
-    .replaceAll('(זמני)', '')
-    .replaceAll(' (זמנית)', '')
-    .replaceAll('(זמנית)', '')
-    .trim();
+    .replace(/[\(\)]/g, '')    // מסיר פיזית את כל הסוגריים פתח וסגור מהמחרוזת לחלוטין
+    .replace(/זמני/g, '')      // מוחק לחלוטין את המילה זמני
+    .replace(/זמנית/g, '')     // מוחק לחלוטין את המילה זמנית
+    .replace(/\s+/g, ' ')      // מאחד כפילויות של רווחים לרווח בודד
+    .trim();                   // מנקה שוליים
   return isTemp ? `${cleanRaw} (זמני)` : cleanRaw;
 };
 
@@ -493,7 +493,6 @@ export default function AdminCampsManagement() {
     setIsEditMode(false);
   };
 
-  // 🟢 תיקון מנוע העריכה (העיפרון): שוטף ומרוקן כפילויות של (זמני) בריאל-טיים בעת ביצוע שינויים בתפריט
   const handleUpdateCampDetailsInfo = async (e) => {
     e.preventDefault();
 
@@ -611,8 +610,7 @@ export default function AdminCampsManagement() {
         .cyber-music-player.playing { border-color: #00e5a0; box-shadow: 0 0 10px rgba(0,229,160,0.15); }
         .player-toggle-btn { color: #00c8ff; font-size: 13px; display: flex; align-items: center; justify-content: center; height: 100%; }
         .cyber-music-player.playing .player-toggle-btn { color: #00e5a0; }
-        .player-station-text { font-size: 11px; font-family: 'Orbitron', monospace; color: rgba(160,185,215,0.6); letter-spacing: 1px; font-weight: bold; }
-        .cyber-music-player.playing .player-station-text { color: #00e5a0; }
+        .brand-title { font-size: 11px; color: rgba(160,185,215,0.6); font-family: 'Orbitron'; font-weight: bold; }
         .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2.5px; height: 11px; margin-bottom: 2px; }
         .visualizer-bar { width: 2px; height: 3px; background: #00c8ff; }
         .cyber-music-player.playing .visualizer-bar { background: #00e5a0; animation: wavePulse 0.6s ease-in-out infinite alternate; }
