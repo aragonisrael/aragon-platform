@@ -60,8 +60,6 @@ export default function AdminCampsManagement() {
   const [isAddCampModalOpen, setIsAddCampModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
-  // ── סטייטים של מודאל הוספת מדריך זמני הוסרו לחלוטין מהקובץ הזה ──
-
   // סטייט עבור מודאל קוקפיט הלו"ז של קייטנה נבחרת
   const [selectedViewCamp, setSelectedViewCamp] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -97,7 +95,6 @@ export default function AdminCampsManagement() {
 
   // 🟢 פונקציית פילטור דינמית חדשה חוצת-לו"ז: מונעת כפל שיבוצים ומחזירה סגל פנוי בלבד לטווח תאריכים
   const getAvailableStaffPool = (start, end, currentCampId = null) => {
-    // יצירת מאגר מאוחד של כל הצוותים (קבועים וזמניים ביחד)
     const totalPool = [
       ...seniorInstructors.map(name => ({ name, isTemp: false })),
       ...tempInstructors.map(name => ({ name, isTemp: true }))
@@ -105,14 +102,11 @@ export default function AdminCampsManagement() {
 
     if (!start || !end) return totalPool;
 
-    // מיפוי כל חברי הסגל שתפוסים כרגע בקייטנות חופפות אחרות
     const occupiedStaff = new Set();
 
     camps.forEach(camp => {
-      // אם אנחנו במצב עריכה, נתעלם מהקייטנה הנוכחית כדי שהמדריך המשובץ בה לא ייעלם מהרשימה של עצמו
       if (currentCampId && camp.id === currentCampId) return;
 
-      // בדיקת חפיפת תאריכים קשיחה: startA <= endB && endA >= startB
       const isOverlapping = (start <= camp.endDate && end >= camp.startDate);
       if (isOverlapping) {
         camp.compounds.forEach(comp => {
@@ -122,7 +116,6 @@ export default function AdminCampsManagement() {
       }
     });
 
-    // החזרת רשימת חברי הסגל שאינם תפוסים בתאריכים הללו
     return totalPool.filter(st => !occupiedStaff.has(st.name));
   };
 
@@ -140,8 +133,8 @@ export default function AdminCampsManagement() {
           const comps = dbCompounds ? dbCompounds.filter(comp => comp.camp_id === c.id).map(comp => ({
             id: comp.id,
             roomType: comp.room_type,
-            seniorInstructor: comp.senior_instructor ? cleanInstructorName(comp.senior_instructor, false) : '',
-            tempInstructor: comp.temp_instructor ? cleanInstructorName(comp.temp_instructor, true) : ''
+            seniorInstructor: comp.senior_instructor ? cleanInstructorName(comp.senior_instructor, comp.senior_instructor.includes('(זמני)')) : '',
+            tempInstructor: comp.temp_instructor ? cleanInstructorName(comp.temp_instructor, comp.temp_instructor.includes('(זמני)')) : ''
           })) : [];
 
           return {
@@ -207,195 +200,17 @@ export default function AdminCampsManagement() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  const generateWeeklyColumns = (start, end) => {
-    const weeks = [];
-    const globalStart = new Date(start);
-    const globalEnd = new Date(end);
-
-    let currentSunday = new Date(globalStart);
-    currentSunday.setDate(currentSunday.getDate() - currentSunday.getDay());
-
-    let weekIndex = 1;
-    while (currentSunday <= globalEnd) {
-      const workingDays = [];
-      
-      for (let i = 0; i < 5; i++) {
-        const dayDate = new Date(currentSunday);
-        dayDate.setDate(dayDate.getDate() + i);
-        const isOOB = dayDate < globalStart || dayDate > globalEnd;
-        
-        workingDays.push({
-          date: dayDate,
-          dateStr: dayDate.toISOString().split('T')[0],
-          isOOB: isOOB
-        });
-      }
-
-      const activeDays = workingDays.filter(d => !d.isOOB);
-      let datesLabel = '';
-      if (activeDays.length > 0) {
-        const fmt = (d) => d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
-        datesLabel = `${fmt(activeDays[0].date)} - ${fmt(activeDays[activeDays.length - 1].date)}`;
-      } else {
-        const fmt = (d) => d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
-        datesLabel = `${fmt(workingDays[0].date)} - ${fmt(workingDays[4].date)}`;
-      }
-
-      weeks.push({
-        id: 'w_' + weekIndex,
-        label: `מחזור ${weekIndex}`,
-        dates: datesLabel,
-        workingDays: workingDays
-      });
-
-      currentSunday.setDate(currentSunday.getDate() + 7);
-      weekIndex++;
-    }
-    return weeks;
-  };
-
-  const getCampPositionStyle = (camp) => {
-    const allDays = boardWeeks.flatMap(w => w.workingDays);
-    const dayWidth = 52; 
-
-    let startIdx = allDays.findIndex(d => d.dateStr >= camp.startDate);
-    let endIdx = allDays.findLastIndex(d => d.dateStr <= camp.endDate);
-
-    if (startIdx === -1) startIdx = 0;
-    if (endIdx === -1) endIdx = allDays.length - 1;
-    if (endIdx < startIdx) endIdx = startIdx;
-
-    const totalDaysSpan = (endIdx - startIdx) + 1;
-
-    return {
-      position: 'absolute',
-      right: `${startIdx * dayWidth}px`,
-      width: `${totalDaysSpan * dayWidth - 4}px`, 
-      zIndex: 10
-    };
-  };
-
-  const getCampDaysList = (startDate, endDate) => {
-    const days = [];
-    let current = new Date(startDate);
-    const stop = new Date(endDate);
-    
-    const dayNamesHe = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-
-    while (current <= stop) {
-      const dayOfWeek = current.getDay();
-      if (dayOfWeek !== 5 && dayOfWeek !== 6) { 
-        days.push({
-          dateStr: current.toISOString().split('T')[0],
-          dayName: dayNamesHe[dayOfWeek],
-          formattedDate: current.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })
-         });
-      }
-      current.setDate(current.getDate() + 1);
-    }
-    return days;
-  };
-
-  const handleBuildBoardRoute = (e) => {
-    e.preventDefault();
-    const computedWeeks = generateWeeklyColumns(setupStartDate, setupEndDate);
-    
-    const initialTracksArray = [];
-    for (let i = 1; i <= parseInt(setupInitialTracks, 10); i++) {
-      initialTracksArray.push({ id: 'track_' + i, label: `מסלול ${i}` });
-    }
-
-    const configObj = {
-      startDate: setupStartDate,
-      endDate: setupEndDate,
-      totalHours: setupTotalHours,
-      netHours: setupNetHours
-    };
-
-    setBoardConfig(configObj);
-    setBoardWeeks(computedWeeks);
-    setTracks(initialTracksArray);
-
-    localStorage.setItem('aragon_camp_board_config', JSON.stringify(configObj));
-    localStorage.setItem('aragon_camp_board_weeks', JSON.stringify(computedWeeks));
-    localStorage.setItem('aragon_camp_tracks', JSON.stringify(initialTracksArray));
-
-    fetchLiveCampsDataFromCloud(); 
-    setIsSetupModalOpen(false);
-    showToast('🚀 לוח מסלולי קייטנות ומחזורים שבועיים נוצר בהצלחה!');
-  };
-
-  const handleAddNewTrackLane = () => {
-    const nextIndex = tracks.length + 1;
-    const nextTracks = [...tracks, { id: 'track_' + nextIndex, label: `מסלול ${nextIndex}` }];
-    setTracks(nextTracks);
-    localStorage.setItem('aragon_camp_tracks', JSON.stringify(nextTracks));
-    showToast(`➕ מסלול ${nextIndex} נוסף כמערך תור אקטיבי בלוח`);
-  };
-
-  const handleResetEntireBoard = () => {
-    if (!window.confirm('⚠️ אזהרה! האם למחוק לחלוטין את לוח הקייטנות האקטיבי וכל השיבוצים בתוכו?')) return;
-    setBoardConfig(null);
-    setBoardWeeks([]);
-    setTracks([]);
-    setCamps([]);
-    setSelectedViewCamp(null);
-
-    localStorage.removeItem('aragon_camp_board_config');
-    localStorage.removeItem('aragon_camp_board_weeks');
-    localStorage.removeItem('aragon_camp_tracks');
-
-    showToast('🗑️ הלוח אופס ונמחק לחלוטין מחמ"ל האדמין');
-  };
-
-  useEffect(() => {
-    const requiredRooms = Math.max(1, Math.ceil(campChildrenCount / 25));
-    
-    const nextCompounds = Array.from({ length: requiredRooms }).map((_, idx) => {
-      if (campCompounds[idx]) return campCompounds[idx]; 
-      return {
-        id: 'comp_' + idx + '_' + Date.now(),
-        label: `מתחם חומרה ${idx + 1}`,
-        roomType: ROOM_TYPES[idx % ROOM_TYPES.length],
-        seniorInstructor: '', 
-        tempInstructor: ''    
-      };
-    });
-    
-    setCampCompounds(nextCompounds);
-  }, [campChildrenCount]);
-
-  const handleEditChildrenCountChange = (val) => {
-    const count = parseInt(val, 10) || 0;
-    const requiredRooms = Math.max(1, Math.ceil(count / 25));
-    let currentCompounds = [...selectedViewCamp.compounds];
-
-    if (currentCompounds.length < requiredRooms) {
-      for (let i = currentCompounds.length; i < requiredRooms; i++) {
-        currentCompounds.push({
-          id: 'comp_edit_' + i + '_' + Date.now(),
-          label: `מתחם חומרה ${i + 1}`,
-          roomType: ROOM_TYPES[i % ROOM_TYPES.length],
-          seniorInstructor: '', 
-          tempInstructor: ''    
-        });
-      }
-    } else if (currentCompounds.length > requiredRooms) {
-      currentCompounds = currentCompounds.slice(0, requiredRooms);
-    }
-
-    setSelectedViewCamp({
-      ...selectedViewCamp,
-      childrenCount: count,
-      compounds: currentCompounds
-    });
-  };
-
+  // 🟢 תיקון אתחול מסלול: בעת פתיחת המודאל המערכת מאתחלת אוטומטית את המשתנה למסלול הראשון הקיים בבורד
   const handleOpenAddCampModal = () => {
     setCampTitle('');
     setCampStaff1('');
     setCampStaff2('');
     setCampStaff3('');
+    if (tracks.length > 0) {
+      setCampTargetTrack(tracks[0].id);
+    } else {
+      setCampTargetTrack('');
+    }
     setIsAddCampModalOpen(true);
   };
 
@@ -440,8 +255,8 @@ export default function AdminCampsManagement() {
         const compoundsToInsert = campCompounds.map(comp => ({
           camp_id: insertedCamp.id,
           room_type: comp.roomType,
-          senior_instructor: comp.seniorInstructor ? cleanInstructorName(comp.seniorInstructor, false) : '',
-          temp_instructor: comp.tempInstructor ? cleanInstructorName(comp.tempInstructor, true) : ''
+          senior_instructor: comp.seniorInstructor ? cleanInstructorName(comp.seniorInstructor, comp.seniorInstructor.includes('(זמני)')) : '',
+          temp_instructor: comp.tempInstructor ? cleanInstructorName(comp.tempInstructor, comp.tempInstructor.includes('(זמני)')) : ''
         }));
 
         const { error: compErr } = await supabase.from('camp_compounds').insert(compoundsToInsert);
@@ -462,8 +277,8 @@ export default function AdminCampsManagement() {
       ...camp,
       compounds: camp.compounds.map(comp => ({
         ...comp,
-        seniorInstructor: cleanInstructorName(comp.seniorInstructor, false),
-        tempInstructor: cleanInstructorName(comp.tempInstructor, true)
+        seniorInstructor: cleanInstructorName(comp.seniorInstructor, comp.seniorInstructor.includes('(זמני)')),
+        tempInstructor: cleanInstructorName(comp.tempInstructor, comp.tempInstructor.includes('(זמני)'))
       }))
     };
     setSelectedViewCamp(sanitizedCamp);
@@ -508,8 +323,8 @@ export default function AdminCampsManagement() {
         const compoundsToInsert = selectedViewCamp.compounds.map(comp => ({
           camp_id: selectedViewCamp.id,
           room_type: comp.roomType,
-          senior_instructor: comp.seniorInstructor ? cleanInstructorName(comp.seniorInstructor, false) : '',
-          temp_instructor: comp.tempInstructor ? cleanInstructorName(comp.tempInstructor, true) : ''
+          senior_instructor: comp.seniorInstructor ? cleanInstructorName(comp.seniorInstructor, comp.seniorInstructor.includes('(זמני)')) : '',
+          temp_instructor: comp.tempInstructor ? cleanInstructorName(comp.tempInstructor, comp.tempInstructor.includes('(זמני)')) : ''
         }));
 
         const { error: compErr } = await supabase.from('camp_compounds').insert(compoundsToInsert);
@@ -957,28 +772,41 @@ export default function AdminCampsManagement() {
                 {campCompounds.map((comp, idx) => (
                   <div key={comp.id} className="compound-form-block">
                     <div className="compound-form-title"> מתחם פעילות #{idx + 1}</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                       <div>
                         <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>סוג חדר חומרה</label>
                         <select className="mfs" style={{ padding: '6px 8px', fontSize: '12.5px' }} value={comp.roomType} onChange={(e) => setCampCompounds(campCompounds.map((c, i) => i === idx ? { ...c, roomType: e.target.value } : c))}>
                           {ROOM_TYPES.map(rt => <option key={rt} value={rt}>{rt}</option>)}
                         </select>
                       </div>
+                      {/* 🟢 שדרוג 2: החזרת משבצת שיבוץ ראשונה (מדריך 1) המציגה רשימה מעורבבת ומסונכרנת של כל הצוות */}
                       <div>
-                        {/* 🟢 שדרוג 2: רשימת בחירה מעורבבת, אחידה ומסונכרנת אוטומטית לפי חופש קלנדרי מבוסס תאריכים */}
-                        <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך אחראי למתחם</label>
+                        <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 1</label>
                         <select 
                           className="mfs" 
                           style={{ padding: '6px 8px', fontSize: '12.5px' }} 
-                          value={comp.seniorInstructor || comp.tempInstructor || ''} 
+                          value={comp.seniorInstructor} 
                           onChange={(e) => {
                             const val = e.target.value;
-                            const isTemporary = val.includes('(זמני)');
-                            setCampCompounds(campCompounds.map((c, i) => i === idx ? { 
-                              ...c, 
-                              seniorInstructor: isTemporary ? '' : val, 
-                              tempInstructor: isTemporary ? val : '' 
-                            } : c));
+                            setCampCompounds(campCompounds.map((c, i) => i === idx ? { ...c, seniorInstructor: val } : c));
+                          }}
+                        >
+                          <option value="">— ללא מדריך —</option>
+                          {getAvailableStaffPool(campStartDate, campEndDate).map(st => (
+                            <option key={st.name} value={st.name}>{st.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {/* 🟢 שדרוג 2: החזרת משבצת שיבוץ שנייה (מדריך 2) המציגה רשימה מעורבבת ומסונכרנת של כל הצוות */}
+                      <div>
+                        <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 2</label>
+                        <select 
+                          className="mfs" 
+                          style={{ padding: '6px 8px', fontSize: '12.5px' }} 
+                          value={comp.tempInstructor} 
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCampCompounds(campCompounds.map((c, i) => i === idx ? { ...c, tempInstructor: val } : c));
                           }}
                         >
                           <option value="">— ללא מדריך —</option>
@@ -995,7 +823,7 @@ export default function AdminCampsManagement() {
               <div className="mf2">
                 <button type="button" className="mbtn-cancel" onClick={() => setIsAddCampModalOpen(false)}>ביטול</button>
                 <button className="update-btn" type="submit">
-                  <i className="ti ti-calendar-check"></i>נעילת שיץ ושילוח ללו"ז
+                  <i className="ti ti-calendar-check"></i>נעילת שיבוץ ושילוח ללו"ז
                 </button>
               </div>
             </form>
@@ -1060,8 +888,11 @@ export default function AdminCampsManagement() {
                         {getCampDaysList(selectedViewCamp.startDate, selectedViewCamp.endDate).map((day, dIdx) => (
                           <td key={dIdx}>
                             <div className="sub-timeline-cell-staff-tile">
-                              <span className="sub-timeline-cell-staff-text" style={{ fontWeight: 700, color: (comp.seniorInstructor || comp.tempInstructor) ? '#00e5a0' : 'rgba(255,255,255,0.2)' }}>
-                                {comp.seniorInstructor || comp.tempInstructor || '—'}
+                              <span className="sub-timeline-cell-staff-text" style={{ fontWeight: 700, color: comp.seniorInstructor ? '#00e5a0' : 'rgba(255,255,255,0.2)' }}>
+                                {comp.seniorInstructor ? `👤 ${comp.seniorInstructor}` : '—'}
+                              </span>
+                              <span className="sub-timeline-cell-staff-text" style={{ fontWeight: 700, color: comp.tempInstructor ? '#00e5a0' : 'rgba(255,255,255,0.2)', opacity: comp.tempInstructor ? 0.8 : 0.2, fontSize: '11.5px', marginTop: '2px' }}>
+                                {comp.tempInstructor ? `👤 ${comp.tempInstructor}` : '—'}
                               </span>
                             </div>
                           </td>
@@ -1147,7 +978,7 @@ export default function AdminCampsManagement() {
                   {selectedViewCamp.compounds.map((comp, idx) => (
                     <div key={comp.id} className="compound-form-block">
                       <div className="compound-form-title">מתחם פעילות מספר {idx + 1}</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                         <div>
                           <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>סוג חדר חומרה</label>
                           <select className="mfs" style={{ padding: '6px 8px', fontSize: '12.5px' }} value={comp.roomType} onChange={(e) => {
@@ -1157,21 +988,35 @@ export default function AdminCampsManagement() {
                             {ROOM_TYPES.map(rt => <option key={rt} value={rt}>{rt}</option>)}
                           </select>
                         </div>
+                        {/* 🟢 שדרוג 2: החזרת משבצת שיבוץ ראשונה (מדריך 1) בעריכה */}
                         <div>
-                          {/* 🟢 שדרוג 2: רשימת בחירה מעורבבת, אחידה ומסונכרנת אוטומטית לפי חופש קלנדרי מבוסס תאריכים בעריכה */}
-                          <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך אחראי למתחם</label>
+                          <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 1</label>
                           <select 
                             className="mfs" 
                             style={{ padding: '6px 8px', fontSize: '12.5px' }} 
-                            value={comp.seniorInstructor || comp.tempInstructor || ''} 
+                            value={comp.seniorInstructor} 
                             onChange={(e) => {
                               const val = e.target.value;
-                              const isTemporary = val.includes('(זמני)');
-                              const updatedComp = selectedViewCamp.compounds.map((c, i) => i === idx ? { 
-                                ...c, 
-                                seniorInstructor: isTemporary ? '' : val, 
-                                tempInstructor: isTemporary ? val : '' 
-                              } : c);
+                              const updatedComp = selectedViewCamp.compounds.map((c, i) => i === idx ? { ...c, seniorInstructor: val } : c);
+                              setSelectedViewCamp({ ...selectedViewCamp, compounds: updatedComp });
+                            }}
+                          >
+                            <option value="">— ללא מדריך —</option>
+                            {getAvailableStaffPool(selectedViewCamp.startDate, selectedViewCamp.endDate, selectedViewCamp.id).map(st => (
+                              <option key={st.name} value={st.name}>{st.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        {/* 🟢 שדרוג 2: החזרת משבצת שיבוץ שנייה (מדריך 2) בעריכה */}
+                        <div>
+                          <label style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>מדריך 2</label>
+                          <select 
+                            className="mfs" 
+                            style={{ padding: '6px 8px', fontSize: '12.5px' }} 
+                            value={comp.tempInstructor} 
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const updatedComp = selectedViewCamp.compounds.map((c, i) => i === idx ? { ...c, tempInstructor: val } : c);
                               setSelectedViewCamp({ ...selectedViewCamp, compounds: updatedComp });
                             }}
                           >
