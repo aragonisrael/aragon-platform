@@ -34,7 +34,7 @@ export default function InstructorGroups() {
   // בסיס נתוני הקבוצות המרכזי - ייטען דינמית מהשרת בלייב!
   const [groupsData, setGroupsData] = useState([]);
 
-  // 🟢 סטייט חדש לשמירת נתוני הקייטנות המשובצות למדריך מהענן
+  // סטייט לשמירת נתוני הקייטנות המשובצות למדריך מהענן
   const [campsData, setCampsData] = useState([]);
 
   // שם המדריך המחובר כרגע במערכת
@@ -64,7 +64,8 @@ export default function InstructorGroups() {
         const DAYS_MAP = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי'];
         
         const minToHourStr = (m) => {
-          const h = Math.floor(m / 60), mm = m % 60;
+          const h = Math.floor(m / 60);
+          const mm = m % 60;
           return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
         };
 
@@ -120,22 +121,23 @@ export default function InstructorGroups() {
         setGroupsData(liveGroups);
       }
 
-      // 🟢 4. סעיף חדש: שליפת קייטנות ומחזורי קיץ משובצים למדריך זה (עבודה בריאל-טיים מול טבלת camp_compounds)
+      // 🟢 4. סעיף מעודכן וחסין: שליפת קייטנות ומחזורי קיץ משובצים למדריך באמצעות סינון צד-לקוח מאובטח
       const { data: dbCamps } = await supabase
         .from('camp_compounds')
-        .select('room_type, camps (*)')
-        .or(`senior_instructor.eq."${userData.full_name}",temp_instructor.eq."${userData.full_name}"`);
+        .select('room_type, senior_instructor, temp_instructor, camps (*)');
 
       if (dbCamps) {
-        const mappedCamps = dbCamps.filter(c => c.camps).map(c => ({
-          id: c.camps.id,
-          title: c.camps.title,
-          roomType: c.room_type,
-          startDate: new Date(c.camps.start_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
-          endDate: new Date(c.camps.end_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
-          netHours: c.camps.net_hours,
-          manager: c.camps.manager
-        }));
+        const mappedCamps = dbCamps
+          .filter(c => c.camps && (c.senior_instructor === userData.full_name || c.temp_instructor === userData.full_name))
+          .map(c => ({
+            id: c.camps.id,
+            title: c.camps.title,
+            roomType: c.room_type,
+            startDate: new Date(c.camps.start_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
+            endDate: new Date(c.camps.end_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
+            netHours: c.camps.net_hours,
+            manager: c.camps.manager
+          }));
         setCampsData(mappedCamps);
       }
 
@@ -170,7 +172,7 @@ export default function InstructorGroups() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // מנוע יצירת שמות משתמש בעברית מלאה חסין כפילויות
+  // מנהל יצירת שמות משתמש בעברית מלאה חסין כפילויות
   const generateUniqueUsername = (fullName, takenUsernames) => {
     const baseUsername = fullName.trim().replace(/\s+/g, '.');
     let finalUsername = baseUsername;
@@ -200,7 +202,7 @@ export default function InstructorGroups() {
     const { data: allUsers } = await supabase.from('users').select('username');
     const allExistingUsernames = allUsers?.map(u => u.username) || [];
 
-    const newStudentsPoolForDB = [];
+    const newStudentsPool ForDB = [];
     const localResultsToShow = [];
 
     lines.forEach(fullName => {

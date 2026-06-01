@@ -76,11 +76,10 @@ export default function InstructorSchedule() {
           .select('*')
           .eq('instructor', userData.full_name);
 
-        // 🟢 2. שליפת קייטנות ומחזורי קיץ משובצים למדריך זה (עבודה בריאל-טיים מול טבלת camp_compounds)
+        // 🟢 2. תיקון חסין: משיכת כל המתחמים מהענן למניעת קריסת ה-or עם סוגריים, נבצע סינון מדויק בצד לקוח
         const { data: dbCamps } = await supabase
           .from('camp_compounds')
-          .select('room_type, camps (*)')
-          .or(`senior_instructor.eq."${userData.full_name}",temp_instructor.eq."${userData.full_name}"`);
+          .select('room_type, senior_instructor, temp_instructor, camps (*)');
 
         if (dbGroups) {
           const matrix = [[], [], [], [], [], []];
@@ -96,12 +95,17 @@ export default function InstructorSchedule() {
 
           // חישוב והזרקת בלוקי הקמה, פירוק ונסיעה לתוך הלו"ז של המדריך
           for (let dayIdx = 0; dayIdx <= 5; dayIdx++) {
-            const dayDateStr = currentWeekDaysList[dayIdx]; // התאריך הקלנדרי של היום הנוכחי בלולאה
+            const dayDateStr = currentWeekDaysList[dayIdx]; 
             const dayTimelineBlocks = [];
 
-            // 🟢 א׳. סריקה והזרקת קייטנות השייכות לתאריך הספציפי הזה בלוח השנה
+            // 🟢 א׳. סריקה והזרקת קייטנות השייכות לתאריך הספציפי הזה - סינון צד לקוח מאובטח
             if (dbCamps) {
-              const activeCampsToday = dbCamps.filter(c => c.camps && dayDateStr >= c.camps.start_date && dayDateStr <= c.camps.end_date);
+              const activeCampsToday = dbCamps.filter(c => 
+                c.camps && 
+                dayDateStr >= c.camps.start_date && 
+                dayDateStr <= c.camps.end_date &&
+                (c.senior_instructor === userData.full_name || c.temp_instructor === userData.full_name)
+              );
               
               activeCampsToday.forEach(c => {
                 // בדיקה האם מדובר ביום הראשון של הקייטנה לצורך קביעת שעות עבודה (7:15 מול 7:40)
@@ -116,7 +120,7 @@ export default function InstructorSchedule() {
                   school: `מתחם: ${c.room_type}`,
                   city: `מנהל: ${c.camps.manager}`,
                   status: 'green',
-                  type: 'camp' // רכיב פריסה ייחודי
+                  type: 'camp' 
                 });
               });
             }
@@ -234,7 +238,7 @@ export default function InstructorSchedule() {
     }
   };
 
-  // 🟢 תיקון קריטי: הוספת weekOffset למערך ה-Dependencies כדי שהחלפת שבועות תרענן את הקייטנות התאריכיות בעמוד בלייב
+  // הוספת weekOffset למערך ה-Dependencies כדי שהחלפת שבועות תרענן את הקייטנות התאריכיות בעמוד בלייב
   useEffect(() => {
     fetchLiveInstructorSchedule();
   }, [loggedUser, weekOffset]);
@@ -478,7 +482,7 @@ export default function InstructorSchedule() {
         .slot.type-class.approved .slot-dot { background: #18c0a0; box-shadow: 0 0 6px rgba(24,192,160,.6); }
         .slot.type-class.approved .slot-tag { background: rgba(24,192,160,.12); color: #18c0a0; border: 1px solid rgba(24,192,160,.2); }
 
-        /* 🟢 תיקון: הגדרות עיצוב הייטקיות, זוהרות ונקיות בצבע ניאון-כחול מובחן עבור בלוקי הקייטנה החדשים בלו"ז */
+        /* הגדרות עיצוב הייטקיות, זוהרות ונקיות בצבע ניאון-כחול מובחן עבור בלוקי הקייטנה החדשים בלו"ז */
         .slot.type-camp { min-height: 56px; background: linear-gradient(135deg, rgba(0, 200, 255, 0.15), rgba(0, 100, 255, 0.06)); border: 1px solid #00c8ff55; box-shadow: 0 0 10px rgba(0,200,255,0.05); }
         .slot.type-camp .slot-dot { background: #00c8ff; box-shadow: 0 0 8px #00c8ff; }
         .slot.type-camp .slot-name { color: #ffffff; font-weight: 800; }
