@@ -277,6 +277,17 @@ export default function AdminCampsManagement() {
       setCampManager('');
     }
 
+    // 🟢 אתחול כמות ילדים וחדרים ראשונית אוטומטית בפתיחת הטופס
+    setCampChildrenCount(45);
+    const initialRooms = Array.from({ length: 2 }).map((_, idx) => ({
+      id: 'comp_' + idx + '_' + Date.now(),
+      label: `מתחם חומרה ${idx + 1}`,
+      roomType: ROOM_TYPES[idx % ROOM_TYPES.length],
+      seniorInstructor: '',
+      tempInstructor: ''
+    }));
+    setCampCompounds(initialRooms);
+
     setIsAddCampModalOpen(true);
   };
 
@@ -468,6 +479,23 @@ export default function AdminCampsManagement() {
       childrenCount: count,
       compounds: currentCompounds
     });
+  };
+  // פונקציה שמייצרת ומחשבת מתחמי חומרה אוטומטית בזמן הקמת קייטנה חדשה
+  const handleChildrenCountChange = (val) => {
+    const count = parseInt(val, 10) || 0;
+    setCampChildrenCount(count);
+    const requiredRooms = Math.max(1, Math.ceil(count / 25));
+    
+    const nextCompounds = Array.from({ length: requiredRooms }).map((_, idx) => {
+      return {
+        id: 'comp_' + idx + '_' + Date.now(),
+        label: `מתחם חומרה ${idx + 1}`,
+        roomType: ROOM_TYPES[idx % ROOM_TYPES.length],
+        seniorInstructor: '', 
+        tempInstructor: ''    
+      };
+    });
+    setCampCompounds(nextCompounds);
   };
 
   const toggleRadioPlay = () => {
@@ -867,8 +895,7 @@ export default function AdminCampsManagement() {
               </div>
 
               <div style={{ display: 'flex', gap: '10px' }}>
-                <div className="mfr" style={{ flex: 1 }}><label className="mfl">כמות ילדים רשומים צפויה</label><input className="mfi" type="number" min="1" value={campChildrenCount} onChange={(e) => setCampChildrenCount(parseInt(e.target.value, 10) || 0)} /></div>
-                <div className="mfr" style={{ flex: 1 }}>
+              <div className="mfr" style={{ flex: 1 }}><label className="mfl">כמות ילדים רשומים צפויה</label><input className="mfi" type="number" min="1" value={campChildrenCount} onChange={(e) => handleChildrenCountChange(e.target.value)} /></div>                <div className="mfr" style={{ flex: 1 }}>
                   <label className="mfl">שבץ בקו מסלול (תור)</label>
                   <select className="mfs" value={campTargetTrack} onChange={(e) => setCampTargetTrack(e.target.value)}>
                     {tracks.map(t => <option key={t.id} value={t.id}>📍 {t.label}</option>)}
