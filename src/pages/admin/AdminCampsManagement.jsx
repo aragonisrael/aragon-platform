@@ -59,7 +59,7 @@ export default function AdminCampsManagement() {
   const [isAddCampModalOpen, setIsAddCampModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
-  // סטייט עבור מודאל קוקפיט הלו"ז של קייטנה נבחרת
+  // ── סטייט עבור מודאל קוקפיט הלו"ז של קייטנה נבחרת ──
   const [selectedViewCamp, setSelectedViewCamp] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -87,12 +87,13 @@ export default function AdminCampsManagement() {
 
   const ROOM_TYPES = ['חדר גיימינג', 'חדר מחשבים', 'חדר רובוטיקה', 'חדר מדע וחלל', 'חדר פיננסי', 'חדר משפטים'];
 
+  // ── פונקציות שירות פנימיות ──
   const showToast = (msg) => {
     setToast({ show: true, message: msg });
     setTimeout(() => setToast({ show: false, message: '' }), 3200);
   };
 
-  // 🟢 פונקציית פילטור דינמית מורחבת חוצת-לו"ז: מונעת כפל שיבוצים אבסולוטי (כולל מנהלים, מדריכים וצוות לוגיסטיקה)
+  // פונקציית פילטור דינמית חוצת-לו"ז: מונעת כפל שיבוצים ומחזירה סגל פנוי בלבד לטווח תאריכים
   const getAvailableStaffPool = (start, end, currentCampId = null) => {
     const totalPool = [
       ...seniorInstructors.map(name => ({ name, isTemp: false })),
@@ -106,19 +107,13 @@ export default function AdminCampsManagement() {
     camps.forEach(camp => {
       if (currentCampId && camp.id === currentCampId) return;
 
-      // בדיקת חפיפת תאריכים קשיחה: startA <= endB && endA >= startB
       const isOverlapping = (start <= camp.endDate && end >= camp.startDate);
       if (isOverlapping) {
-        // 1. חסימת מנהל הקייטנה הנוכחית מלהשתבץ במקביל במקום אחר
         if (camp.manager) occupiedStaff.add(camp.manager);
-        
-        // 2. חסימת המדריכים של חדרים בקייטנה זו
         camp.compounds.forEach(comp => {
           if (comp.seniorInstructor) occupiedStaff.add(comp.seniorInstructor);
           if (comp.tempInstructor) occupiedStaff.add(comp.tempInstructor);
         });
-
-        // 3. חסימת סגל ההקמה והלוגיסטיקה המשויך
         if (camp.setupStaff) {
           camp.setupStaff.forEach(staffName => {
             if (staffName) occupiedStaff.add(staffName);
@@ -153,7 +148,29 @@ export default function AdminCampsManagement() {
     return days;
   };
 
-  // פונקציה מסונכרנת למשיכת כל הקייטנות והמתחמים הקיימים ב-Database עם זיקוק אבסולוטי
+  // 🟢 פונקציית חישוב המיקום של הבלוק על ציר הזמן - מיושרת ובטוחה בתוך ה-Scope
+  const getCampPositionStyle = (camp) => {
+    const allDays = boardWeeks.flatMap(w => w.workingDays);
+    const dayWidth = 52; 
+
+    let startIdx = allDays.findIndex(d => d.dateStr >= camp.startDate);
+    let endIdx = allDays.findLastIndex(d => d.dateStr <= camp.endDate);
+
+    if (startIdx === -1) startIdx = 0;
+    if (endIdx === -1) endIdx = allDays.length - 1;
+    if (endIdx < startIdx) endIdx = startIdx;
+
+    const totalDaysSpan = (endIdx - startIdx) + 1;
+
+    return {
+      position: 'absolute',
+      right: `${startIdx * dayWidth}px`,
+      width: `${totalDaysSpan * dayWidth - 4}px`, 
+      zIndex: 10
+    };
+  };
+
+  // פונקציה מסונכרנת למשיכת כל הקייטנות והמתחמים הקיימים ב-Database
   const fetchLiveCampsDataFromCloud = async () => {
     try {
       const { data: dbCamps, error: campsErr } = await supabase.from('camps').select('*');
@@ -208,33 +225,7 @@ export default function AdminCampsManagement() {
     }
   };
 
-  useEffect(() => {
-    fetchLiveWorkforcePool();
-    fetchLiveCampsDataFromCloud();
-  }, []);
-
-  // תזמון שעון חמ"ל
-  useEffect(() => {
-    const tick = () => setClk(new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-    const interval = setInterval(tick, 1000);
-    tick();
-    return () => clearInterval(interval);
-  }, []);
-
-  // סנכרן את מצב כפתור הנגן
-  useEffect(() => {
-    const globalAudio = document.getElementById('hq-cyber-radio');
-    if (globalAudio) setIsPlaying(!globalAudio.paused);
-  }, []);
-
-  const toggleRadioPlay = () => {
-    const globalAudio = document.getElementById('hq-cyber-radio');
-    if (!globalAudio) return;
-    globalAudio.paused ? globalAudio.play().catch(err => console.log(err)) : globalAudio.pause();
-    setIsPlaying(!globalAudio.paused);
-  };
-
-  // פונקציית הוספת מסלול נוסף
+  // פונקציית הוספת מסלול נוסף בלוח
   const handleAddNewTrackLane = () => {
     const nextIndex = tracks.length + 1;
     const nextTracks = [...tracks, { id: 'track_' + nextIndex, label: `מסלול ${nextIndex}` }];
@@ -273,7 +264,6 @@ export default function AdminCampsManagement() {
     showToast('🚀 לוח מסלולי קייטנות ומחזורים שבועיים נוצר בהצלחה!');
   };
 
-  // 🟢 אתחול מודאל הוספה: מאתחל אוטומטית את מנהל הקייטנה למדריך הראשון הפנוי במסלול
   const handleOpenAddCampModal = () => {
     setCampTitle('');
     setCampStaff1('');
@@ -338,7 +328,7 @@ export default function AdminCampsManagement() {
           camp_id: insertedCamp.id,
           room_type: comp.roomType,
           senior_instructor: comp.seniorInstructor ? cleanInstructorName(comp.seniorInstructor, comp.seniorInstructor.includes('(זמני)')) : '',
-          temp_instructor: comp.tempInstructor ? cleanInstructorName(comp.tempInstructor, comp.tempInstructor.includes('(זמני)')) : ''
+          temp_instructor: comp.tempInstructor ? cleanInstructorName(comp.tempInstructor, comp.tempInstructor.includes('(זמni)')) : ''
         }));
 
         const { error: compErr } = await supabase.from('camp_compounds').insert(compoundsToInsert);
@@ -352,19 +342,6 @@ export default function AdminCampsManagement() {
       console.error(err);
       alert('שגיאת שרת בשמירת הקייטנה: ' + err.message);
     }
-  };
-
-  const handleOpenCampDashboardConsole = (camp) => {
-    const sanitizedCamp = {
-      ...camp,
-      compounds: camp.compounds.map(comp => ({
-        ...comp,
-        seniorInstructor: cleanInstructorName(comp.seniorInstructor, comp.seniorInstructor.includes('(זמני)')),
-        tempInstructor: cleanInstructorName(comp.tempInstructor, comp.tempInstructor.includes('(זמני)'))
-      }))
-    };
-    setSelectedViewCamp(sanitizedCamp);
-    setIsEditMode(false);
   };
 
   const handleUpdateCampDetailsInfo = async (e) => {
@@ -459,6 +436,32 @@ export default function AdminCampsManagement() {
     showToast('🗑️ הלוח אופס ונמחק לחלוטין מחמ"ל האדמין');
   };
 
+  const handleEditChildrenCountChange = (val) => {
+    const count = parseInt(val, 10) || 0;
+    const requiredRooms = Math.max(1, Math.ceil(count / 25));
+    let currentCompounds = [...selectedViewCamp.compounds];
+
+    if (currentCompounds.length < requiredRooms) {
+      for (let i = currentCompounds.length; i < requiredRooms; i++) {
+        currentCompounds.push({
+          id: 'comp_edit_' + i + '_' + Date.now(),
+          label: `מתחם חומרה ${i + 1}`,
+          roomType: ROOM_TYPES[i % ROOM_TYPES.length],
+          seniorInstructor: '', 
+          tempInstructor: ''    
+        });
+      }
+    } else if (currentCompounds.length > requiredRooms) {
+      currentCompounds = currentCompounds.slice(0, requiredRooms);
+    }
+
+    setSelectedViewCamp({
+      ...selectedViewCamp,
+      childrenCount: count,
+      compounds: currentCompounds
+    });
+  };
+
   return (
     <div className="hq-global-wrapper">
       <style>{`
@@ -502,12 +505,6 @@ export default function AdminCampsManagement() {
         .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2.5px; height: 11px; margin-bottom: 2px; }
         .visualizer-bar { width: 2px; height: 3px; background: #00c8ff; }
         .cyber-music-player.playing .visualizer-bar { background: #00e5a0; animation: wavePulse 0.6s ease-in-out infinite alternate; }
-
-        .ring-wrap { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; z-index: 4; flex-shrink: 0; }
-        .ro { position: absolute; inset: 0; border-radius: 50%; border: 1.5px dashed rgba(0, 200, 255, 0.2); animation: hqSpin 14s linear infinite; }
-        .rm { position: absolute; inset: 4px; border-radius: 50%; border: 1px solid transparent; border-top-color: #6040ff; border-right-color: #00c8ff; animation: hqSpin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,0.3); }
-        .rm2 { position: absolute; inset: 8px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #00c8ff; animation: hqSpin 7s linear infinite reverse; box-shadow: inset 0 0 8px rgba(0,200,255,0.2); }
-        .ric { position: absolute; inset: 12px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.15); }
 
         .content { flex: 1; overflow: hidden; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; height: calc(100% - 64px); min-height: 0; }
         
@@ -799,7 +796,7 @@ export default function AdminCampsManagement() {
             <form onSubmit={handleBuildBoardRoute}>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <div className="mfr" style={{ flex: 1 }}><label className="mfl">תאריך תחילת מסלול</label><input className="mfi" type="date" value={setupStartDate} onChange={(e) => setSetupStartDate(e.target.value)} /></div>
-                <div className="mfr" style={{ flex: 1 }}><label className="mfl">תאריך סיום מסלול</label><input className="mfi" type="date" value={setupEndDate} onChange={(e) => setSetupEndDate(e.target.value)} /></div>
+                <div className="mfr" style={{ flex: 1 }}><label className="mfl">תאריך סיום מסלול</label><input className="mfi" type="date" value={setupEndDate} onChange={(e) => setSetupEndDate(target.value)} /></div>
               </div>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <div className="mfr" style={{ flex: 1 }}><label className="mfl">שעות אורך יום (כולל הקמה ופירוק)</label><input className="mfi" type="text" placeholder="07:00 - 16:00" value={setupTotalHours} onChange={(e) => setSetupTotalHours(e.target.value)} /></div>
@@ -840,7 +837,6 @@ export default function AdminCampsManagement() {
 
               <div style={{ display: 'flex', gap: '10px' }}>
                 <div className="mfr" style={{ flex: 1 }}><label className="mfl">שעות נטו קייטנה</label><input className="mfi" type="text" value={campNetHours} onChange={(e) => setCampNetHours(e.target.value)} /></div>
-                {/* 🟢 שדרוג 1: מנהל הקייטנה נבחר מתוך הסגל המעורבב והפנוי קלנדרית בלבד */}
                 <div className="mfr" style={{ flex: 1 }}>
                   <label className="mfl">מנהל קייטנה אחראי (סגל פנוי)</label>
                   <select className="mfs" value={campManager} onChange={(e) => setCampManager(e.target.value)}>
@@ -1039,7 +1035,6 @@ export default function AdminCampsManagement() {
               /* מצב עריכה (עיפרון): טופס עדכון דינמי מלא */
               <form onSubmit={handleUpdateCampDetailsInfo}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  {/* 🟢 שדרוג 2: עדכון מנהל קייטנה פנוי קלנדרית גם בתוך מסך העריכה החי ברשת */}
                   <div className="mfr">
                     <label className="mfl">מנהל קייטנה (סגל פנוי)</label>
                     <select 
