@@ -124,15 +124,20 @@ export default function AdminInstructors() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  const toEng = (n) => {
-    const m = { 'א': 'a', 'ב': 'b', 'ג': 'g', 'ד': 'd', 'ה': 'h', 'ו': 'v', 'ז': 'z', 'ח': 'ch', 'ט': 't', 'י': 'y', 'כ': 'k', 'ל': 'l', 'מ': 'm', 'נ': 'n', 'ס': 's', 'ע': 'a', 'פ': 'p', 'צ': 'tz', 'ק': 'k', 'ר': 'r', 'ש': 'sh', 'ת': 't', 'ך': 'k', 'ם': 'm', 'ן': 'n', 'ף': 'p', 'ץ': 'tz' };
-    return n.split('').map(c => m[c] || c).join('').replace(/\s+/g, '.');
-  };
-
-  // הקמת מדריך חדש אוטומטית לענן
+  // 🟢 תיקון: מנוע הקמת מדריך בכיר חדש עם שם משתמש בעברית מלאה חסין כפילויות (שם.משפחה)
   const handleCreateInstructor = async () => {
     if (!formName.trim()) { triggerToast('⚠️ נא להזין שם מלא למדריך', true); return; }
-    const generatedUsername = `${toEng(formName.trim()).toLowerCase()}.${Math.floor(10 + Math.random() * 89)}`;
+    
+    // איסוף שמות המשתמש התפוסים במערכת כרגע למניעת התנגשויות
+    const takenUsernames = instructors.map(i => i.username);
+    const baseUsername = formName.trim().replace(/\s+/g, '.');
+    let generatedUsername = baseUsername;
+    let counter = 1;
+
+    while (takenUsernames.includes(generatedUsername)) {
+      generatedUsername = `${baseUsername}${counter}`;
+      counter++;
+    }
 
     try {
       const { error } = await supabase.from('users').insert([{
@@ -158,10 +163,19 @@ export default function AdminInstructors() {
     }
   };
 
-  // 🟢 פונקציית הקמת מדריך זמני חדש בענן - כולל בדיקת שגיאות אקטיבית למניעת שמירות שקטות שנכשלות
+  // 🟢 תיקון: מנוע הקמת מדריך זמני חדש עם שם משתמש בעברית מלאה חסין כפילויות (temp.שם.משפחה)
   const handleCreateTempInstructor = async () => {
     if (!formName.trim()) { triggerToast('⚠️ נא להזין שם מלא למדריך', true); return; }
-    const generatedUsername = `temp.${toEng(formName.trim()).toLowerCase()}.${Math.floor(10 + Math.random() * 89)}`;
+    
+    const takenUsernames = instructors.map(i => i.username);
+    const baseUsername = `temp.${formName.trim().replace(/\s+/g, '.')}`;
+    let generatedUsername = baseUsername;
+    let counter = 1;
+
+    while (takenUsernames.includes(generatedUsername)) {
+      generatedUsername = `${baseUsername}${counter}`;
+      counter++;
+    }
 
     try {
       const { error } = await supabase.from('users').insert([{
@@ -178,7 +192,6 @@ export default function AdminInstructors() {
         is_active: true
       }]);
 
-      // 🟢 אם השדות חסרים בטבלה, פקודה זו תקפיץ חלונית אזהרה מפורשת למסך
       if (error) throw error;
 
       await fetchLiveInstructorsMatrix();
@@ -188,14 +201,14 @@ export default function AdminInstructors() {
       triggerToast(`המדריך הזמני ${formName.trim()} הוקם בהצלחה ברשת!`);
     } catch (err) {
       console.error(err);
-      alert('❌ תקלה ברישום: וודא שהרצת את קוד ה-SQL להוספת העמודות החדשות ב-Supabase! פירוט: ' + err.message);
+      alert('❌ תקלה ברישום: ' + err.message);
     }
   };
 
   // פתיחת מודאל עריכת מדריך וטעינת נתוניו הנוכחיים
   const handleOpenEditModal = (inst) => {
     setEditingInstructor(inst);
-    formName ? setFormName(inst.name) : setFormName(inst.name);
+    setFormName(inst.name);
     setFormPhone(inst.phone === '—' ? '' : inst.phone);
     setIsEditModalOpen(true);
   };
@@ -385,7 +398,7 @@ export default function AdminInstructors() {
         .matrix-table tr.frozen td { opacity: 0.4; }
         
         .cell-bold { font-weight: 700; color: #00c8ff; }
-        .creds-font { font-family: 'Orbitron', monospace; font-size: 11.5px; color: #a0b0d0; display: flex; align-items: center; gap: 6px; }
+        .creds-font { font-family: 'Heebo', monospace; font-size: 12.5px; color: #a0b0d0; display: flex; align-items: center; gap: 6px; }
         .pass-toggle-icon { cursor: pointer; color: #4a6080; }
         .pass-toggle-icon:hover { color: #00c8ff; }
         
@@ -466,14 +479,14 @@ export default function AdminInstructors() {
         {/* CONTENT */}
         <div className="content">
           
-          {/* 🟢 סרגל לחצני הפעולה העליון המאחד חיפוש, סינון טאבים והוספה מרוכזת */}
+          {/* סרגל לחצני הפעולה העליון המאחד חיפוש, סינון טאבים והוספה מרוכזת */}
           <div className="camps-toolbar">
             <div className="search-box-wrap">
               <i className="ti ti-search" style={{ color: '#4a6080', fontSize: '16px' }}></i>
               <input className="search-input" type="text" placeholder="חפש חבר סגל לפי שם או יוזר..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
 
-            {/* 🟢 כפתורי סינון טאבים מהירים לסוגי סגל */}
+            {/* כפתורי סינון טאבים מהירים לסוגי סגל */}
             <div className="filter-tabs-container">
               <button className={`filter-tab ${filterRole === 'all' ? 'active' : ''}`} onClick={() => setFilterRole('all')}>הצג הכל</button>
               <button className={`filter-tab ${filterRole === 'senior' ? 'active' : ''}`} onClick={() => setFilterRole('senior')}>מדריכים בכירים</button>
@@ -484,7 +497,6 @@ export default function AdminInstructors() {
               <button className="ct-btn btn-build-board" type="button" onClick={() => setIsAddModalOpen(true)}>
                 <i className="ti ti-user-plus"></i> הוסף מדריך בכיר
               </button>
-              {/* 🟢 כפתור ייעודי חדש להוספת עובד זמני */}
               <button className="ct-btn btn-add-temp" type="button" onClick={() => {
                 setFormName(''); setFormPhone(''); setFormTempCity('');
                 setFormHourlyInstruction(40); setFormHourlyGeneral(40);
@@ -524,7 +536,6 @@ export default function AdminInstructors() {
               <tbody>
                 {filteredInstructors.map(inst => (
                   <tr key={inst.id} className={inst.isActive ? '' : 'frozen'}>
-                    {/* 🟢 תצוגת שם המשתמש בתוספת מזהה (זמני) בסוגריים במידה והוא סגל זמני */}
                     <td>
                       <span className="cell-bold" style={inst.isActive ? (inst.role === 'temp_instructor' ? { color: '#c080ff' } : {}) : { color: '#4a6080' }}>
                         {inst.role === 'temp_instructor' ? `${inst.name} (זמני)` : inst.name}
@@ -536,7 +547,7 @@ export default function AdminInstructors() {
                         {inst.role === 'temp_instructor' ? 'סגל זמני' : 'מדריך קבוע'}
                       </span>
                     </td>
-                    <td><span className="creds-font">{inst.username}</span></td>
+                    <td><span className="creds-font" style={{ textTransform: 'none' }}>{inst.username}</span></td>
                     <td>
                       <div className="creds-font">
                         <span>{visiblePasswords[inst.id] ? inst.password : '••••••••'}</span>
@@ -545,7 +556,6 @@ export default function AdminInstructors() {
                     </td>
                     <td><span style={{ color: '#cbd5e1' }}>{inst.phone}</span></td>
                     <td><span style={{ color: '#cbd5e1' }}>{inst.city}</span></td>
-                    {/* 🟢 תצוגת פילוח השכר השעתי המעודכן בענן למתקנים זמניים */}
                     <td style={{ fontFamily: 'Orbitron, monospace', fontSize: '12px' }}>
                       {inst.role === 'temp_instructor' ? (
                         <span style={{ color: '#00e5a0' }}>₪{inst.hourlyInstruction} / ₪{inst.hourlyGeneral}</span>
@@ -579,13 +589,13 @@ export default function AdminInstructors() {
             <div className="modal-title"><i className="ti ti-user-plus"></i> גיוס מדריך בכיר למערכת</div>
             <div className="mfield"><label>שם המדריך המלא</label><input className="minput" type="text" placeholder="לדוגמה: ירון כהן" value={formName} onChange={(e) => setFormName(e.target.value)} /></div>
             <div className="mfield"><label>טלפון ליצירת קשר (לסנכרון וואטסאפ)</label><input className="minput" type="text" placeholder="0500000000" value={formPhone} onChange={(e) => setFormPhone(e.target.value)} /></div>
-            <div style={{ fontSize: '11px', color: '#4a6080', background: '#050a14', padding: '8px', borderRadius: '6px', border: '1px solid #1a2a4a', marginBottom: '14px' }}>💡 המערכת תנפיק לו שם משתמש ייחודי וסיסמה ראשונית (12345678) אוטומטית עם סיום ההקמה.</div>
+            <div style={{ fontSize: '11px', color: '#4a6080', background: '#050a14', padding: '8px', borderRadius: '6px', border: '1px solid #1a2a4a', marginBottom: '14px' }}>💡 המערכת תנפיק לו שם משתמש ייחודי בעברית (שם.משפחה) וסיסמה ראשונית (12345678) אוטומטית עם סיום ההקמה.</div>
             <div className="mrow"><button className="msave" type="button" onClick={handleCreateInstructor}>אשר וסנכרן חשבון</button><button className="mcancel" type="button" onClick={() => setIsAddModalOpen(false)}>ביטול</button></div>
           </div>
         </div>
       )}
 
-      {/* 🟢 MODAL 1B חדש: גיוס והוספת מדריך זמני (סגל קייטנות ובזק) כולל הגדרות שכר ועיר מגורים */}
+      {/* MODAL 1B: גיוס והוספת מדריך זמני (סגל קייטנות ובזק) */}
       {isAddTempModalOpen && (
         <div className="modal-bg" onClick={(e) => e.target.className === 'modal-bg' && setIsAddTempModalOpen(false)}>
           <div className="modal">
@@ -600,7 +610,7 @@ export default function AdminInstructors() {
               <div className="mfield" style={{ flex: 1 }}><label>שכר שעתי כללי (₪)</label><input className="minput" type="number" value={formHourlyGeneral} onChange={(e) => setFormHourlyGeneral(e.target.value)} /></div>
             </div>
 
-            <div style={{ fontSize: '11px', color: '#4a6080', background: '#050a14', padding: '8px', borderRadius: '6px', border: '1px solid #1a2a4a', marginBottom: '14px' }}>💡 המערכת תנפיק לו שם משתמש עם הקידומת temp ותסנכרן אותו אוטומטית למאגרי הקייטנות והחוגים.</div>
+            <div style={{ fontSize: '11px', color: '#4a6080', background: '#050a14', padding: '8px', borderRadius: '6px', border: '1px solid #1a2a4a', marginBottom: '14px' }}>💡 המערכת תנפיק לו שם משתמש עברי עם הקידומת temp ותסנכרן אותו אוטומטית למאגרי הקייטנות והחוגים.</div>
             <div className="mrow">
               <button className="msave" style={{ background: 'linear-gradient(135deg, #1b0a30, #311354)', color: '#c080ff', borderColor: 'rgba(160,96,224,0.3)' }} type="button" onClick={handleCreateTempInstructor}>הנפק סגל זמני</button>
               <button className="mcancel" type="button" onClick={() => setIsAddTempModalOpen(false)}>ביטול</button>
