@@ -24,52 +24,64 @@ const cleanInstructorName = (name, isTemp = true) => {
     .trim();                   // מנקה שוליים
   return isTemp ? `${cleanRaw} (זמני)` : cleanRaw;
 };
-// פונקציית אלגוריתם דינמית - מפרקת את טווח התאריכים למחזורי פעילות שבועיים (ראשון-חמישי) עבור הגריד
+// אלגוריתם קלנדרי חכם - מיישר את השבועות לימי ראשון-חמישי אמיתיים לפי לוח השנה של השנה הנוכחית
 const generateWeeklyColumns = (startStr, endStr) => {
   const weeks = [];
   if (!startStr || !endStr) return weeks;
-  
-  let current = new Date(startStr);
-  const end = new Date(endStr);
+
+  const globalStart = new Date(startStr);
+  const globalEnd = new Date(endStr);
+
+  // מוצאים את יום ראשון של השבוע שבו מתחילה הפעילות
+  let currentSunday = new Date(globalStart);
+  currentSunday.setDate(currentSunday.getDate() - currentSunday.getDay());
+
   let weekCounter = 1;
-  
-  while (current <= end) {
-    const weekStart = new Date(current);
-    let weekEnd = new Date(current);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    if (weekEnd > end) {
-      weekEnd = new Date(end);
-    }
-    
+
+  while (currentSunday <= globalEnd) {
     const workingDays = [];
-    let dayCursor = new Date(weekStart);
-    const dayNamesHe = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+    const dayNamesHe = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי'];
     
-    while (dayCursor <= weekEnd) {
-      const dayOfWeek = dayCursor.getDay();
-      if (dayOfWeek !== 5 && dayOfWeek !== 6) { // רק ימי פעילות רשמיים (א-ה)
-        workingDays.push({
-          dateStr: dayCursor.toISOString().split('T')[0],
-          dayName: dayNamesHe[dayOfWeek],
-          isOOB: false
-        });
-      }
-      dayCursor.setDate(dayCursor.getDate() + 1);
+    // מייצרים בדיוק 5 ימי עבודה רציפים (ראשון עד חמישי) עבור המחזור הנוכחי
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(currentSunday);
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+      
+      // יום נחשב מחוץ לטווח (OOB) אם הוא קטן מתאריך הפתיחה הגלובלי או גדול מתאריך הסיום
+      const isOOB = d < globalStart || d > globalEnd;
+
+      workingDays.push({
+        dateStr,
+        dayName: dayNamesHe[i],
+        isOOB
+      });
     }
+
+    // מסננים את הימים הפעילים במחזור הזה כדי להציג טווח תאריכים אמיתי בכותרת
+    const activeDays = workingDays.filter(d => !d.isOOB);
     
-    const startLabel = `${weekStart.getDate()}.${weekStart.getMonth() + 1}`;
-    const endLabel = `${weekEnd.getDate()}.${weekEnd.getMonth() + 1}`;
-    
-    weeks.push({
-      id: 'week_' + weekCounter + '_' + Date.now(),
-      label: `מחזור ${weekCounter}`,
-      dates: `${startLabel} - ${endLabel}`,
-      workingDays: workingDays
-    });
-    
-    weekCounter++;
-    current.setDate(current.getDate() + 7);
+    if (activeDays.length > 0) {
+      const firstActive = new Date(activeDays[0].dateStr);
+      const lastActive = new Date(activeDays[activeDays.length - 1].dateStr);
+      
+      const startLabel = `${firstActive.getDate()}.${firstActive.getMonth() + 1}`;
+      const endLabel = `${lastActive.getDate()}.${lastActive.getMonth() + 1}`;
+
+      weeks.push({
+        id: `week_${weekCounter}_${Date.now()}`,
+        label: `מחזור ${weekCounter}`,
+        dates: `${startLabel} - ${endLabel}`,
+        workingDays: workingDays
+      });
+      
+      weekCounter++;
+    }
+
+    // קופצים קדימה 7 ימים ליום ראשון הבא
+    currentSunday.setDate(currentSunday.getDate() + 7);
   }
+  
   return weeks;
 };
 
