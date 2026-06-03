@@ -649,8 +649,7 @@ export default function AdminCampsManagement() {
         .tm-track-header-cell { width: 120px; padding: 14px; font-size: 13.5px; font-weight: 800; color: #00c8ff; text-align: center; background: #080f1e; border-left: 2px solid rgba(255, 255, 255, 0.15); position: sticky; right: 0; z-index: 6; }
         .tm-week-header-cell { width: 260px; padding: 10px; text-align: center; border-left: 2px solid rgba(255, 255, 255, 0.15); display: flex; flex-direction: column; gap: 2px; }
         .tm-week-title { font-size: 13.5px; font-weight: 800; color: #ffffff; text-shadow: 0 0 6px rgba(255,255,255,0.2); }
-        .tm-week-dates { font-size: 10.5px; color: rgba(160,185,215,0.5); font-family: 'Orbitron', monospace; font-weight: 600; }
-
+        .tm-week-dates { font-size: 12px; color: #00d4ff; font-family: 'Orbitron', monospace; font-weight: 700; letter-spacing: 0.5px; margin-top: 2px; text-shadow: 0 0 8px rgba(0, 212, 255, 0.3); }
         .tm-track-row { display: flex; border-bottom: 2px solid rgba(255, 255, 255, 0.15); min-height: 140px; position: relative; }
         .tm-track-lane-cell { width: 120px; background: #080f1e; border-left: 2px solid rgba(255, 255, 255, 0.15); font-size: 13.5px; font-weight: 700; color: #ffffff; display: flex; align-items: center; justify-content: center; position: sticky; right: 0; z-index: 3; }        
         .tm-track-timeline-wrapper { position: relative; display: flex; height: 100%; min-height: 140px; }
