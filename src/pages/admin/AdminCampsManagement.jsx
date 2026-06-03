@@ -24,6 +24,54 @@ const cleanInstructorName = (name, isTemp = true) => {
     .trim();                   // מנקה שוליים
   return isTemp ? `${cleanRaw} (זמני)` : cleanRaw;
 };
+// פונקציית אלגוריתם דינמית - מפרקת את טווח התאריכים למחזורי פעילות שבועיים (ראשון-חמישי) עבור הגריד
+const generateWeeklyColumns = (startStr, endStr) => {
+  const weeks = [];
+  if (!startStr || !endStr) return weeks;
+  
+  let current = new Date(startStr);
+  const end = new Date(endStr);
+  let weekCounter = 1;
+  
+  while (current <= end) {
+    const weekStart = new Date(current);
+    let weekEnd = new Date(current);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    if (weekEnd > end) {
+      weekEnd = new Date(end);
+    }
+    
+    const workingDays = [];
+    let dayCursor = new Date(weekStart);
+    const dayNamesHe = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+    
+    while (dayCursor <= weekEnd) {
+      const dayOfWeek = dayCursor.getDay();
+      if (dayOfWeek !== 5 && dayOfWeek !== 6) { // רק ימי פעילות רשמיים (א-ה)
+        workingDays.push({
+          dateStr: dayCursor.toISOString().split('T')[0],
+          dayName: dayNamesHe[dayOfWeek],
+          isOOB: false
+        });
+      }
+      dayCursor.setDate(dayCursor.getDate() + 1);
+    }
+    
+    const startLabel = `${weekStart.getDate()}.${weekStart.getMonth() + 1}`;
+    const endLabel = `${weekEnd.getDate()}.${weekEnd.getMonth() + 1}`;
+    
+    weeks.push({
+      id: 'week_' + weekCounter + '_' + Date.now(),
+      label: `מחזור ${weekCounter}`,
+      dates: `${startLabel} - ${endLabel}`,
+      workingDays: workingDays
+    });
+    
+    weekCounter++;
+    current.setDate(current.getDate() + 7);
+  }
+  return weeks;
+};
 
 export default function AdminCampsManagement() {
   const navigate = useNavigate();
