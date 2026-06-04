@@ -389,8 +389,7 @@ export default function LogisticsDashboard() {
           {/* 🟢 רכיב עדכונים זמני (דרישה 1) — מופיע רק כשיש עדכוני ציוד חדשים */}
           {updates.length > 0 && (
             <div className="live-updates-area">
-              <div style={{ fontSize: '13px', fontWeight: '800', color: '#00d4ff', display: 'flex', align-items: 'center', gap: '6px' }}>
-                <i className="ti ti-bell-ringing animate-bounce"></i> עדכוני ציוד חדשים שטרם נקראו:
+              <div style={{ fontSize: '13px', fontWeight: '800', color: '#00d4ff', display: 'flex', alignItems: 'center', gap: '6px' }}>                <i className="ti ti-bell-ringing animate-bounce"></i> עדכוני ציוד חדשים שטרם נקראו:
               </div>
               {updates.map(item => (
                 <div key={item.id} className={`update-row-item ${item.type}`}>
