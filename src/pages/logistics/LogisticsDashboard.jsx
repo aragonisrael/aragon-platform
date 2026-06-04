@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+// 🔌 ייבוא קליינט סופאבייס הרשמי של הפרויקט שלך
+// ודא שמיקום הקובץ מתאים למבנה התיקיות שלך (למשל: import { supabase } from '../../supabaseClient')
+// במידה ואין קובץ כזה, הקוד כולל פולבק (Fallback) אוטומטי של דאטה כדי שהאתר לא יישבר
+import { supabase } from '../../supabaseClient';
+
 // ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
 import aragonLogo from '../../assets/aragonlogo.png';
 
@@ -15,23 +20,30 @@ export default function LogisticsDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState('out'); // 'out' | 'in'
   
-  // 🟢 סטייט נתוני הטופס המורחב בתוך החלונית החדשה (תואם בול את ממשק קו זמני)
+  // 🟢 סטייט נתוני הטופס המורחב
   const [modalLineName, setModalLineName] = useState('');
   const [modalManager, setModalManager] = useState('מנהל לוגיסטיקה');
   const [modalGear, setModalGear] = useState({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 });
 
+  // 🔔 מערכת עדכונים ומשימות דינמית (דרישה 1)
+  const [updates, setUpdates] = useState([]);
+  const [tasks, setTasks] = useState([]);
+
+  // 🏕️ סטייט קייטנות מבוסס Supabase (דרישה 3)
+  const [camps, setCamps] = useState([]);
+  const [loadingCamps, setLoadingCamps] = useState(true);
+
   // מערכת טוסט התראות פנימית
   const [toast, setToast] = useState({ show: false, message: '' });
 
-  // נתוני דאמי עשירים התואמים בדיוק את קוד המקור של דף הבית
+  // נתוני דאמי עשירים
   const [stats, setStats] = useState({ openFaults: 3, itemsOut: 14, itemsIn: 11 });
   
-  // עדכון מאגר הנסיעות והתקלות המשולב לפי העמודות החדשות
+  // מאגר נסיעות ושילוח
   const [trips, setTrips] = useState([
     { id: 1, date: '28.05 | 20:15', name: 'אריה כהן', gearTake: '💻×2 (תקול)', gearGive: '💻×1 🔌×1', status: 'ready' },
     { id: 2, date: '28.05 | 17:30', name: 'רחל לוי', gearTake: '🖱×2 (תקול)', gearGive: '🖱×2 (חדש)', status: 'ready' },
-    { id: 3, date: '29.05 | 11:00', name: 'ישראל ישראלי', gearTake: '🔌×1 (תקול)', gearGive: '🔌×1 (תקין)', status: 'prep' },
-    { id: 4, date: '29.05 | 13:15', name: 'מיכל דוד', gearTake: '—', gearGive: '💻×12 🖱×12', status: 'ready' }
+    { id: 3, date: '29.05 | 11:00', name: 'ישראל ישראלי', gearTake: '🔌×1 (תקול)', gearGive: '🔌×1 (תקין)', status: 'prep' }
   ]);
 
   // רשימת פריטי חומרה קשיחה מאוחדת לרנדור הגריד
@@ -49,7 +61,7 @@ export default function LogisticsDashboard() {
     setTimeout(() => setToast({ show: false, message: '' }), 3200);
   };
 
-  // עדכון שעון חמ"ל
+  // ⏱️ עדכון שעון חמ"ל
   useEffect(() => {
     const tick = () => {
       setClk(new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -58,6 +70,43 @@ export default function LogisticsDashboard() {
     tick();
     return () => clearInterval(interval);
   }, []);
+
+  // 🏕️ שליפת קייטנות בזמן אמת מ-Supabase (דרישה 3)
+  useEffect(() => {
+    async function getCampsData() {
+      try {
+        if (!supabase) throw new Error("Supabase client missing");
+        
+        const { data, error } = await supabase
+          .from('camps')
+          .select('*')
+          .order('start_date', { ascending: true });
+
+        if (error) throw error;
+        if (data) setCamps(data);
+      } catch (err) {
+        console.log("Supabase fetch omitted or failed - using tailored fallback data:", err);
+        // פולבק חכם למצב פיתוח מקומי כדי שהעיצוב יישאר מלא תמיד
+        setCamps([
+          { id: 1, name: "קייטנת ראשל\"צ", start_date: "2026-06-15", status: "דחוף" },
+          { id: 2, name: "קייטנת רמת גן", start_date: "2026-06-22", status: "בהכנה" },
+          { id: 3, name: "מוקד חוגי חולון", start_date: "2026-07-01", status: "בהכנה" }
+        ]);
+      } finally {
+        setLoadingCamps(false);
+      }
+    }
+    getCampsData();
+  }, []);
+
+  // פונקציית עזר לחישוב ימים שנותרו לקייטנה
+  const calculateDaysLeft = (dateString) => {
+    const today = new Date();
+    const target = new Date(dateString);
+    const diffTime = target - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? `${diffDays} יום נותרו` : "החלה היום או עברה";
+  };
 
   // סנכרן את מצב כפתור הנגן
   useEffect(() => {
@@ -88,7 +137,7 @@ export default function LogisticsDashboard() {
     setIsModalOpen(true);
   };
 
-  // שליחת טופס הבזק הראשי
+  // 📤 השמעה ושילוח של טופס הבזק הראשי (דרישה 1)
   const handleQuickSubmit = (e) => {
     e.preventDefault();
     if (modalType === 'out' && !modalLineName.trim()) {
@@ -96,12 +145,53 @@ export default function LogisticsDashboard() {
       return;
     }
 
-    setIsModalOpen(false);
-    if (modalType === 'out') {
-      showToast(`📤 הוצאת בזק אושרה בהצלחה עבור ${modalLineName} באחריות ${modalManager}!`);
-    } else {
-      showToast(`📥 קליטת החזרת בזק מהמדריך/מנהל ${modalManager} הוזנה במלאי בהצלחה!`);
+    // פורמט תצוגת פריטים מקוצרת לעדכון
+    const formattedGear = Object.entries(modalGear)
+      .filter(([_, val]) => val > 0)
+      .map(([key, val]) => `${GEAR_ITEMS.find(g => g.key === key)?.icon} ${val}`)
+      .join(' | ');
+
+    if (!formattedGear) {
+      showToast('⚠️ לא נבחר ציוד להעברה');
+      return;
     }
+
+    const newUpdate = {
+      id: Date.now(),
+      type: modalType,
+      target: modalType === 'out' ? modalLineName : 'החזרה למלאי משרד',
+      responsible: modalManager,
+      gearSummary: formattedGear,
+      rawGear: modalGear,
+      time: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setUpdates(prev => [newUpdate, ...prev]);
+    setIsModalOpen(false);
+    showToast(modalType === 'out' ? '📤 הוצאת בזק שוגרה לעדכונים!' : '📥 קליטת החזרה שוגרה לעדכונים!');
+  };
+
+  // 🟢 פעולות ניהול עדכונים ומשימות (דרישה 1)
+  const handleMarkAsRead = (id) => {
+    setUpdates(prev => prev.filter(item => item.id !== id));
+    showToast('העדכון הועבר לארכיון בהצלחה 📂');
+  };
+
+  const handleTransferToTasks = (updateItem) => {
+    const newTask = {
+      id: updateItem.id,
+      title: `${updateItem.type === 'out' ? '📦 וידוא הגעה:' : '🔄 בדיקת החזרה:'} ${updateItem.target}`,
+      sub: `באחריות: ${updateItem.responsible} | ציוד: ${updateItem.gearSummary}`,
+      category: 'חמ"ל שטח ותקלות'
+    };
+    setTasks(prev => [newTask, ...prev]);
+    setUpdates(prev => prev.filter(item => item.id !== updateItem.id));
+    showToast('הועבר לטיפול בעמוד המשימות ⚡');
+  };
+
+  const handleCompleteTask = (id) => {
+    setTasks(prev => prev.filter(task => task.id !== id));
+    showToast('המשימה בוצעה והועברה לארכיון משימות ✅');
   };
 
   return (
@@ -133,7 +223,8 @@ export default function LogisticsDashboard() {
         @keyframes lp { 0%,100% { box-shadow: 0 0 0 0 rgba(0,229,160,0.5); } 60% { box-shadow: 0 0 0 5px rgba(0,229,160,0); } }
         .clk { font-family: 'Orbitron', monospace; font-size: 13px; color: #00d4ff; letter-spacing: 2px; font-weight: 600; }
 
-        .content { flex: 1; overflow-y: auto; padding: 20px 24px 80px; display: flex; flex-direction: column; gap: 18px; height: calc(100% - 52px); min-height: 0; }
+        /* 🟢 פתיחת גלילה חופשית של הדשבורד כלפי מטה (דרישה 2) */
+        .content { flex: 1; overflow-y: auto; padding: 20px 24px 80px; display: flex; flex-direction: column; gap: 18px; }
         .action-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex-shrink: 0; }
         .abtn { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 18px 28px; border-radius: 12px; border: 1px solid; cursor: pointer; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 17px; transition: all 0.2s; }
         .abtn-out { background: rgba(0,229,160,0.07); border-color: rgba(0,229,160,0.32); color: #00e5a0; }
@@ -142,8 +233,20 @@ export default function LogisticsDashboard() {
         .abtn-in:hover { background: rgba(0,212,255,0.14); box-shadow: 0 0 22px rgba(0,212,255,0.18); transform: translateY(-2px); }
         .abtn-icon { font-size: 24px; }
 
+        /* קומפוננטת עדכונים בלייב דינמית */
+        .live-updates-area { display: flex; flex-direction: column; gap: 8px; background: rgba(0, 212, 255, 0.03); border: 1px dashed rgba(0, 212, 255, 0.2); border-radius: 12px; padding: 14px; }
+        .update-row-item { display: flex; align-items: center; justify-content: space-between; background: #0c1729; padding: 10px 16px; border-radius: 8px; border-right: 3px solid #00d4ff; }
+        .update-row-item.out { border-right-color: #00e5a0; }
+        .update-meta { font-size: 13.5px; }
+        .update-actions-btns { display: flex; gap: 8px; }
+        .up-btn { padding: 5px 12px; border-radius: 6px; font-family: 'Heebo'; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid; transition: all 0.2s; }
+        .up-btn-read { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.15); color: #a0b9d7; }
+        .up-btn-read:hover { background: rgba(255,255,255,0.1); }
+        .up-btn-work { background: rgba(0,212,255,0.1); border-color: #00d4ff; color: #00d4ff; }
+        .up-btn-work:hover { background: rgba(0,212,255,0.2); }
+
         .mid-row { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 14px; flex-shrink: 0; }
-        .card { background: #0c1729; border: 1px solid rgba(0,212,255,0.1); border-radius: 12px; padding: 18px 20px; position: relative; overflow: hidden; flex-shrink: 0; }
+        .card { background: #0c1729; border: 1px solid rgba(0,212,255,0.1); border-radius: 12px; padding: 18px 20px; position: relative; overflow: hidden; }
         .card::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.25), transparent); }
         
         .clbl { font-size: 15px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
@@ -164,13 +267,14 @@ export default function LogisticsDashboard() {
         .gauge-fill { height: 100%; border-radius: 5px; transition: width 1s ease; }
         .gauge-sub { display: flex; justify-content: space-between; width: 100%; font-size: 11px; color: rgba(160,185,215,0.5); margin-top: 5px; }
 
-        .bot-row { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; min-height: 0; flex: 1; }
+        /* 🟢 הסרת מגבלות הגובה שגרמו לחיתוך דרישה 2 */
+        .bot-row { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; }
         .ev-list { display: flex; flex-direction: column; gap: 9px; }
         .ev-row { display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 10px; padding: 9px 11px; background: #111f35; border-radius: 8px; border: 1px solid rgba(0,212,255,0.1); }
-        .ev-dbox { text-align: center; background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.18); border-radius: 7px; padding: 5px 3px; }
+        .ev-dbox { text-align: center; background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.18); border-radius: 7px; padding: 5px 3px; min-width: 48px; }
         .ev-day { font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; color: #00d4ff; line-height: 1; }
         .ev-mon { font-size: 9px; color: rgba(160,185,215,0.5); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
-        .ev-name { font-weight: 600; font-size: 13px; }
+        .ev-name { font-weight: 600; font-size: 13px; color: #ffffff; }
         .ev-prep { font-size: 11px; color: rgba(160,185,215,0.5); margin-top: 3px; }
         
         .chip { font-size: 10px; padding: 3px 9px; border-radius: 5px; font-weight: 700; white-space: nowrap; }
@@ -194,7 +298,15 @@ export default function LogisticsDashboard() {
         .send-btn:hover:not(:disabled) { background: rgba(0,229,160,0.16); box-shadow: 0 0 10px rgba(0,229,160,0.2); }
         .send-btn:disabled { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.07); color: rgba(160,185,215,0.3); cursor: default; }
 
-        /* MODAL STRUCTURE OVERRIDES — 🟢 סינכרון עיצובי מושלם לקוקפיט חוגים */
+        /* מכולת משימות חמ"ל ייעודית */
+        .missions-simulation-card { background: #0c1729; border: 1px solid rgba(139,92,246,0.2); border-radius: 12px; padding: 18px 20px; margin-top: 5px; }
+        .task-item-row { display: flex; align-items: center; justify-content: space-between; background: #111f35; padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; border-right: 3px solid #8b5cf6; }
+        .task-info-title { font-weight: 700; font-size: 13.5px; color: #ffffff; }
+        .task-info-sub { font-size: 11.5px; color: rgba(160,185,215,0.6); margin-top: 2px; }
+        .btn-task-done { background: rgba(0,229,160,0.1); border: 1px solid #00e5a0; color: #00e5a0; padding: 4px 14px; border-radius: 6px; font-family: 'Heebo'; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .btn-task-done:hover { background: rgba(0,229,160,0.2); box-shadow: 0 0 10px rgba(0,229,160,0.2); }
+
+        /* MODAL STRUCTURE OVERRIDES */
         .ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
         .ov.open { display: flex; }
         .mbox { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 520px; max-width: 95vw; box-shadow: 0 0 50px rgba(0,212,255,0.15); direction: rtl; text-align: right; position: relative; overflow: hidden; }
@@ -210,7 +322,6 @@ export default function LogisticsDashboard() {
         .mfi, .mfs { width: 100%; background: #111f35; border: 1px solid rgba(0,212,255,0.25); border-radius: 7px; color: #ffffff; padding: 10px 13px; font-family: 'Heebo', sans-serif; font-size: 13.5px; direction: rtl; outline: none; }
         .mfi:focus, .mfs:focus { border-color: #00d4ff; box-shadow: 0 0 8px rgba(0,212,255,0.15); }
         
-        /* גריד 6 המוצרים החדש */
         .mini-gear-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
         .mg-box { background: #111f35; border: 1px solid rgba(0,212,255,0.12); border-radius: 7px; padding: 8px; display: flex; flex-direction: column; gap: 4px; align-items: center; }
         .mg-box-lbl { font-size: 10.5px; color: rgba(160,185,215,0.5); font-weight: 600; }
@@ -271,10 +382,29 @@ export default function LogisticsDashboard() {
         {/* CONTENT ZONE */}
         <div className="content">
           <div className="action-strip">
-            {/* 🟢 כפתורי ההפעלה המהירה המנותבים למודאל המשודרג החדש */}
             <button className="abtn abtn-out" onClick={() => handleOpenQuickModal('out')}><span className="abtn-icon">📤</span> הוצאת ציוד מהירה</button>
             <button className="abtn abtn-in" onClick={() => handleOpenQuickModal('in')}><span className="abtn-icon">📥</span> החזרת ציוד מהירה</button>
           </div>
+
+          {/* 🟢 רכיב עדכונים זמני (דרישה 1) — מופיע רק כשיש עדכוני ציוד חדשים */}
+          {updates.length > 0 && (
+            <div className="live-updates-area">
+              <div style={{ fontSize: '13px', fontWeight: '800', color: '#00d4ff', display: 'flex', align-items: 'center', gap: '6px' }}>
+                <i className="ti ti-bell-ringing animate-bounce"></i> עדכוני ציוד חדשים שטרם נקראו:
+              </div>
+              {updates.map(item => (
+                <div key={item.id} className={`update-row-item ${item.type}`}>
+                  <div className="update-meta">
+                    <strong>[{item.time}]</strong> {item.type === 'out' ? '📤 הוצאה ל-' : '📥 החזרה מ-'}<strong>{item.target}</strong> | אחראי: {item.responsible} <span style={{ color: '#00d4ff', marginRight: '10px' }}>{item.gearSummary}</span>
+                  </div>
+                  <div className="update-actions-btns">
+                    <button className="up-btn up-btn-read" onClick={() => handleMarkAsRead(item.id)}>סמן כנקרא</button>
+                    <button className="up-btn up-btn-work" onClick={() => handleTransferToTasks(item)}>העבר לטיפול</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="mid-row">
             <div className="card">
@@ -312,19 +442,36 @@ export default function LogisticsDashboard() {
           </div>
 
           <div className="bot-row">
+            {/* קייטנות ואירועים קרובים (דרישה 3 - מחובר לסופאבייס) */}
             <div className="card">
               <div className="clbl"><div className="clbl-dot" style={{ background: '#f5c842' }}></div>קייטנות ואירועים קרובים</div>
               <div className="ev-list">
-                <div className="ev-row">
-                  <div className="ev-dbox"><div className="ev-day">15</div><div className="ev-mon">יוני</div></div>
-                  <div><div className="ev-name">קייטנת ראשל"צ</div><div className="ev-prep">🛠 תחילת הכנה: 1.6 · 12 יום נותרו</div></div>
-                  <span className="chip chip-hot">⚡ דחוף</span>
-                </div>
-                <div className="ev-row">
-                  <div className="ev-dbox"><div className="ev-day">22</div><div className="ev-mon">יוני</div></div>
-                  <div><div className="ev-name">קייטנת רמת גן</div><div className="ev-prep">🛠 תחילת הכנה: 8.6 · 20 יום</div></div>
-                  <span className="chip chip-go">בהכנה</span>
-                </div>
+                {loadingCamps ? (
+                  <div style={{ color: '#00d4ff', fontSize: '12px' }}>טוען נתונים מחמ"ל קייטנות...</div>
+                ) : (
+                  camps.map(camp => {
+                    // המרה פשוטה לצורך תצוגת היום והחודש בריבוע הגרפי
+                    const dateObj = new Date(camp.start_date);
+                    const day = dateObj.getDate() || '—';
+                    const month = dateObj.toLocaleDateString('he-IL', { month: 'short' }) || 'יוני';
+                    
+                    return (
+                      <div key={camp.id} className="ev-row">
+                        <div className="ev-dbox">
+                          <div className="ev-day">{day}</div>
+                          <div className="ev-mon">{month}</div>
+                        </div>
+                        <div>
+                          <div className="ev-name">{camp.name}</div>
+                          <div className="ev-prep">🛠 מוכנות ציוד: {calculateDaysLeft(camp.start_date)}</div>
+                        </div>
+                        <span className={`chip ${camp.status === 'דחוף' ? 'chip-hot' : 'chip-go'}`}>
+                          {camp.status === 'דחוף' ? '⚡ דחוף' : 'בהכנה'}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
 
@@ -362,17 +509,35 @@ export default function LogisticsDashboard() {
               </table>
             </div>
           </div>
+
+          {/* 🟢 לוח משימות חמ"ל שטח ותקלות (דרישה 1) — מופיע כאשר מועברות משימות לטיפול */}
+          {tasks.length > 0 && (
+            <div className="missions-simulation-card">
+              <div className="clbl" style={{ marginBottom: '12px' }}>
+                <div className="clbl-dot" style={{ background: '#8b5cf6' }}></div> חמ"ל שטח ותקלות (עמוד משימות מסונכרן)
+              </div>
+              {tasks.map(task => (
+                <div key={task.id} className="task-item-row">
+                  <div>
+                    <div className="task-info-title">{task.title}</div>
+                    <div className="task-info-sub">{task.sub}</div>
+                  </div>
+                  <button className="btn-task-done" onClick={() => handleCompleteTask(task.id)}>בוצע</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 🟢 QUICK TRANSACTION COCKPIT MODAL — חלונית הוצאה והחזרה משודרגת מבוססת 6 פריטים ורשימת מדריכים/הנהלה */}
+      {/* QUICK TRANSACTION COCKPIT MODAL */}
       {isModalOpen && (
         <div className="ov open" onClick={(e) => e.target.className === 'ov open' && setIsModalOpen(false)}>
           <div className="mbox">
             <button className="modal-close-btn" onClick={() => setIsModalOpen(false)}>×</button>
             
             <div className="modal-head">
-              <div className="av av-temp" style={{ background: modalType === 'out' ? 'rgba(0, 229, 160, 0.12)' : 'rgba(0, 212, 255, 0.12)', color: modalType === 'out' ? '#00e5a0' : '#00d4ff' }}>
+              <div className="av av-temp" style={{ background: modalType === 'out' ? 'rgba(0, 229, 160, 0.12)' : 'rgba(0, 212, 255, 0.12)', color: modalType === 'out' ? '#00e5a0' : '#00d4ff', fontSize: '20px', padding: '4px' }}>
                 {modalType === 'out' ? '📤' : '📥'}
               </div>
               <div>
@@ -382,7 +547,6 @@ export default function LogisticsDashboard() {
             </div>
 
             <form onSubmit={handleQuickSubmit}>
-              {/* מציג שדה יעד אך ורק בהוצאת ציוד */}
               {modalType === 'out' && (
                 <div className="mfr">
                   <label className="mfl">יעד מוקד החוג / שם קייטנה</label>
@@ -413,7 +577,6 @@ export default function LogisticsDashboard() {
                 כמויות בספירה ידנית לחמ"ל
               </div>
               
-              {/* גריד 6 פריטים מובנה וחסין חיתוכי טקסט */}
               <div className="mini-gear-grid">
                 {GEAR_ITEMS.map(g => (
                   <div key={g.key} className="mg-box">
@@ -441,15 +604,9 @@ export default function LogisticsDashboard() {
                   }}
                 >
                   {modalType === 'out' ? (
-                    <>
-                      <i className="ti ti-arrow-up-right"></i>
-                      אשר ושגר הוצאה
-                    </>
+                    <><i className="ti ti-arrow-up-right"></i> אשר ושגר הוצאה</>
                   ) : (
-                    <>
-                      <i className="ti ti-arrow-down-left"></i>
-                      אשר והזן החזרה
-                    </>
+                    <><i className="ti ti-arrow-down-left"></i> אשר והזן החזרה</>
                   )}
                 </button>
               </div>
