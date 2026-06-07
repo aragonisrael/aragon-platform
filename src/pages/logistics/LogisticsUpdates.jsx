@@ -10,7 +10,7 @@ import aragonLogo from '../../assets/aragonlogo.png';
 export default function LogisticsUpdates() {
   const navigate = useNavigate();
 
-  // ── 🧠 סטייט תפעולי גלובלי למסך ──
+  // ── סטייט תפעולי גלובלי למסך ──
   const [isPlaying, setIsPlaying] = useState(false);
   const [clk, setClk] = useState('00:00:00');
   const [todayDate, setTodayDate] = useState('');
@@ -26,12 +26,8 @@ export default function LogisticsUpdates() {
   // ניהול רשימת האלמנטים שנמצאים כרגע באנימציית דעיכה
   const [fadingIds, setFadingIds] = useState([]);
 
-  // סטייט למודאל החזרת ציוד מותאם אישית
-  const [returnModal, setReturnModal] = useState({
-    open: false,
-    item: null,
-    gear: { laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, suitcases: 0 }
-  });
+  // סטייט למודאל החזרת ציוד (פופ-אפ אישור חכם)
+  const [returnModal, setReturnModal] = useState({ open: false, item: null });
 
   // מאגר עדכונים ותקלות חיות מתוך בסיס הנתונים (Supabase)
   const [dbFaults, setDbFaults] = useState([]);
@@ -178,7 +174,7 @@ export default function LogisticsUpdates() {
     }
   };
 
-  // הפעלת האנימציה המבוקשת (דעיכה וטשטוש) ולאחריה ביצוע הארכוב בפועל
+  // הפעלת האנימציה המבוקשת ולאחריה ביצוע הארכוב בדאטהבייס
   const triggerFadeAndArchive = (item) => {
     setFadingIds(prev => [...prev, item.id]); 
     setTimeout(() => {
@@ -204,41 +200,9 @@ export default function LogisticsUpdates() {
     setArchiveConfirm({ open: false, item: null });
   };
 
-  // פתיחת מודאל החזרת הציוד המורכב
+  // פתיחת מודאל החזרת הציוד (פופ-אפ האישור החדש)
   const handleOpenReturnModal = (item) => {
-    setReturnModal({
-      open: true,
-      item,
-      gear: { laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, suitcases: 0 }
-    });
-  };
-
-  // שליחת טופס החזרת הציוד וסגירת ההתראה בסופאבייס
-  const handleReturnSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const { error } = await supabase
-        .from('equipment_transfers')
-        .update({ status: 'completed' })
-        .eq('id', returnModal.item.dbId);
-
-      if (error) throw error;
-
-      await supabase.from('equipment_transfers').insert([{
-        type: 'in',
-        target: 'החזרה למלאי משרד מתוך שילוח שטח',
-        responsible: returnModal.item.who,
-        ...returnModal.gear,
-        status: 'completed'
-      }]);
-
-      fetchLiveDatabaseData();
-      setReturnModal({ open: false, item: null, gear: {} });
-      showToast('📥 הציוד נקלט בהצלחה במלאי, ההתראה האדומה נסגרה!');
-    } catch (err) {
-      console.error(err);
-      showToast('⚠️ תקלה בעיבוד החזרת הציוד בשרת');
-    }
+    setReturnModal({ open: true, item });
   };
 
   const typeColors = {
@@ -273,8 +237,6 @@ export default function LogisticsUpdates() {
         .nb:hover { background: #111f35; color: #00d4ff; border-color: rgba(0,212,255,0.1); }
         .nb.on { background: rgba(0,212,255,0.12); border-color: rgba(0,212,255,0.25); color: #00d4ff; }
         .nb i { font-size: 20px; }
-        
-        /* 🟢 שחזור העיצוב של הקווים המפרידים בתפריט הצד */
         .nb-sep { width: 32px; height: 1px; background: rgba(0,212,255,0.1); margin: 4px 0; }
 
         .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
@@ -307,12 +269,9 @@ export default function LogisticsUpdates() {
         .ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
         .ov.open { display: flex; }
         .mbox { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 480px; max-width: 95vw; box-shadow: 0 0 50px rgba(0,212,255,0.15); direction: rtl; text-align: right; position: relative; overflow: hidden; }
-
-        .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111f35; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 22px rgba(0,229,160,0.18); transition: transform 0.28s; z-index: 300; text-align: center; pointer-events: none; }
-        .toast.show { transform: translateX(-50%) translateY(0); }
       `}</style>
 
-      {/* SIDEBAR NAVIGATION — 🟢 שחזור מלא ותקין של כל כפתורי המערכת הצדדיים */}
+      {/* SIDEBAR NAVIGATION */}
       <div className="sidebar">
         <div className="sb-logo" onClick={() => navigate('/admin')}><img src={aragonLogo} alt="Logo" /></div>
         <button className="nb" onClick={() => navigate('/admin/logistics')} title="בית"><i className="ti ti-home"></i>בית</button>
@@ -383,7 +342,10 @@ export default function LogisticsUpdates() {
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 700, color: '#f5c842', background: 'rgba(245,200,66,0.08)', border: '1px solid rgba(245,200,66,0.2)', padding: '5px 13px', borderRadius: '6px' }}>⏳ בטיפול במשימות</span>
                       ) : null}
 
-                      <button className="mbtn-cancel" onClick={() => handleMarkRead(e)}>סמן כנקרא</button>
+                      {/* 🟢 הסרת כפתור ״סמן כנקרא״ רק אם מדובר בהוצאת ציוד חמה (החזר ציוד) */}
+                      {!isOutPending && (
+                        <button className="mbtn-cancel" onClick={() => handleMarkRead(e)}>סמן כנקרא</button>
+                      )}
                     </div>
                   </div>
                 );
@@ -455,7 +417,7 @@ export default function LogisticsUpdates() {
       {/* מודאל אזהרת סגירת תקלה */}
       {archiveConfirm.open && (
         <div className="ov open" onClick={() => setArchiveConfirm({ open: false, item: null })}>
-          <div className="mbox" style={{ borderborderColor: '#ff4560' }}>
+          <div className="mbox" style={{ borderColor: '#ff4560' }}>
             <div className="modal-head">
               <div style={{ fontSize: '22px', marginLeft: '10px' }}>⚠️</div>
               <div className="modal-title-text" style={{ fontSize: '16px', color: '#ff4560' }}>אזהרת חמ"ל לוגיסטיקה</div>
@@ -464,56 +426,58 @@ export default function LogisticsUpdates() {
               בחרת להעביר את התקלה הזו לארכיון והמשמעות שהתקלה הזו תיסגר - האם בכל זאת להעביר להארכיון?
             </div>
             <div className="mf2" style={{ marginTop: '0', justifyContent: 'flex-start' }}>
-              <button type="button" className="send-btn" style={{ background: 'rgba(255,69,96,0.12)', borderborderColor: '#ff4560', color: '#ff4560' }} onClick={() => triggerFadeAndArchive(archiveConfirm.item)}>כן, סגור תקלה</button>
+              <button type="button" className="send-btn" style={{ background: 'rgba(255,69,96,0.12)', borderColor: '#ff4560', color: '#ff4560' }} onClick={() => triggerFadeAndArchive(archiveConfirm.item)}>כן, סגור תקלה</button>
               <button type="button" className="mbtn-cancel" style={{ marginLeft: '0', marginRight: '10px' }} onClick={() => setArchiveConfirm({ open: false, item: null })}>לא, ביטול</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* מודאל החזרת ציוד דינמי וחכם */}
+      {/* 🟢 מודאל החזרת ציוד משודרג - פופ-אפ אישור חמ"ל עם רשימת הציוד המקורית */}
       {returnModal.open && (
-        <div className="ov open" onClick={() => setReturnModal({ open: false, item: null, gear: {} })}>
-          <div className="mbox" style={{ borderborderColor: '#00e5a0' }}>
-            <button className="modal-close-btn" onClick={() => setReturnModal({ open: false, item: null, gear: {} })}>×</button>
+        <div className="ov open" onClick={() => setReturnModal({ open: false, item: null })}>
+          <div className="mbox" style={{ borderColor: '#00e5a0' }}>
+            <button type="button" className="modal-close-btn" onClick={() => setReturnModal({ open: false, item: null })}>×</button>
             <div className="modal-head">
               <div style={{ fontSize: '20px', marginLeft: '10px' }}>📥</div>
               <div>
                 <div className="modal-title-text" style={{ color: '#00e5a0' }}>קליטת החזרת ציוד לחמ"ל</div>
-                <div className="modal-subtitle-text">הזן כמויות שהתקבלו פיזית בחזרה במשרד</div>
               </div>
             </div>
-            <form onSubmit={handleReturnSubmit}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-                {GEAR_ITEMS.map(g => {
-                  const maxQty = returnModal.item?.originalGear?.[g.key] || 0;
-                  if (maxQty === 0) return null;
+            
+            <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#ffffff', marginBottom: '18px', textAlign: 'right' }}>
+              שים לב האם זה הציוד שהוחזר ? נא לאשר קבלתו חזרה ושיבוצו במדפים הרלוונטים .
+            </div>
 
-                  return (
-                    <div key={g.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#111f35', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(0,212,255,0.1)' }}>
-                      <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                        {g.icon} {g.label} <span style={{ color: 'rgba(160,185,215,0.45)', marginRight: '4px' }}>(מתוך {maxQty} {g.label})</span>
-                      </span>
-                      <input 
-                        className="mfi" 
-                        type="number" 
-                        min="0" 
-                        max={maxQty} 
-                        style={{ width: '90px', textAnomalous: 'center', textAlign: 'center', color: '#00e5a0', fontWeight: '700', fontFamily: 'Orbitron' }} 
-                        value={returnModal.gear[g.key]} 
-                        onChange={(e) => setReturnModal({ ...returnModal, gear: { ...returnModal.gear, [g.key]: parseInt(e.target.value, 10) || 0 } })} 
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mf2" style={{ marginTop: '0' }}>
-                <button type="button" className="mbtn-cancel" onClick={() => setReturnModal({ open: false, item: null, gear: {} })}>ביטול</button>
-                <button type="submit" className="update-btn" style={{ background: 'rgba(0,229,160,0.12)', borderborderColor: '#00e5a0', color: '#00e5a0' }}>
-                  <i className="ti ti-check"></i> אשר קליטה למלאי המשרד
-                </button>
-              </div>
-            </form>
+            {/* רשימה דינמית של הציוד שדווח מההתחלה על ציוד שיצא */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+              {GEAR_ITEMS.map(g => {
+                const qty = returnModal.item?.originalGear?.[g.key] || 0;
+                if (qty === 0) return null; // מציג רק פריטים שיצאו במקור בשילוח זה
+                return (
+                  <div key={g.key} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#111f35', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(0,212,255,0.1)' }}>
+                    <span style={{ fontSize: '14px', fontWeight: '600' }}>
+                      {g.icon} {g.label}: <span style={{ color: '#00e5a0', fontFamily: 'Orbitron', fontWeight: '700', marginRight: '6px' }}>{qty}</span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mf2" style={{ marginTop: '0' }}>
+              <button type="button" className="mbtn-cancel" onClick={() => setReturnModal({ open: false, item: null })}>ביטול</button>
+              <button 
+                type="button" 
+                className="update-btn" 
+                style={{ background: 'rgba(0,229,160,0.12)', borderColor: '#00e5a0', color: '#00e5a0' }}
+                onClick={() => {
+                  triggerFadeAndArchive(returnModal.item);
+                  setReturnModal({ open: false, item: null });
+                }}
+              >
+                כן אני מאשר
+              </button>
+            </div>
           </div>
         </div>
       )}
