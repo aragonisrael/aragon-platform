@@ -18,6 +18,15 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [particles, setParticles] = useState([]);
 
+  // 🟢 סטייט לניהול מודאל בקשת ההצטרפות החדש
+  const [isRegModalOpen, setIsRegModalOpen] = useState(false);
+  const [regFullName, setRegFullName] = useState('');
+  const [regCity, setRegCity] = useState('');
+  const [regIsStudent, setRegIsStudent] = useState('yes'); // 'yes' | 'no'
+  const [regClassType, setRegClassType] = useState('הייטק ג׳וניור');
+  const [regHubName, setRegHubName] = useState('');
+  const [regParentPhone, setRegParentPhone] = useState('');
+
   // 🔄 טעינת פרטי גישה שמורים במידה וסומן "זכור אותי" בעבר
   useEffect(() => {
     const savedUser = localStorage.getItem('aragon_remember_user');
@@ -38,6 +47,7 @@ export default function Login() {
       return {
         id: i,
         size: `${sz}px`,
+        height: `${sz}px`,
         left: `${Math.random() * 100}%`,
         color: c,
         duration: `${(Math.random() * 12 + 10).toFixed(1)}s`, 
@@ -108,6 +118,33 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // 🟢 פונקציית שליחת בקשת הצטרפות במייל חצי אוטומטי להנהלה
+  const handleRegSubmit = (e) => {
+    e.preventDefault();
+
+    if (!regFullName.trim() || !regCity.trim() || !regParentPhone.trim()) {
+      alert('⚠️ נא למלא את כל שדות החובה (שם, עיר וטלפון)');
+      return;
+    }
+
+    const subject = `בקשת פתיחת משתמש חדש באפליקציה - ${regFullName}`;
+    const emailBody = `שלום הנהלת אראגון,\n\n` +
+      `התקבלה בקשת הצטרפות חדשה למערכת Aragon Platform:\n\n` +
+      `👤 שם מלא של התלמיד: ${regFullName}\n` +
+      `🏙️ עיר מגורים: ${regCity}\n` +
+      `📱 טלפון הורה / איש קשר: ${regParentPhone}\n` +
+      `🎓 האם תלמיד אראגון? ${regIsStudent === 'yes' ? 'כן' : 'לא'}\n` +
+      (regIsStudent === 'yes' ? `💻 סוג החוג: ${regClassType}\n` : '') +
+      `📍 מוקד השיעורים (שם המתנ"ס / ביה"ס): ${regHubName || 'לא צוין'}\n\n` +
+      `הודעה זו נשלחה אוטומטית משער הכניסה הציבורי של האפליקציה. אנא טפלו באישור המשתמש.`;
+
+    const mailtoUrl = `mailto:hey@aragon.co.il?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+    window.location.href = mailtoUrl;
+
+    setErrorMsg('🚀 אפליקציית המייל של המכשיר נפתחה, לחץ שלח כדי לשגר להנהלה!');
+    setIsRegModalOpen(false);
   };
 
   return (
@@ -251,7 +288,7 @@ export default function Login() {
 
         .ring-dot { width: 5px; height: 5px; border-radius: 50%; background: #7c3aed; position: absolute; top: -3px; left: 50%; transform: translateX(-50%); box-shadow: 0 0 8px #7c3aed; }
 
-        @keyframes spinRing {
+        @pragma spinRing {
           from { transform: rotate(0deg); }
           to   { transform: rotate(360deg); }
         }
@@ -289,7 +326,6 @@ export default function Login() {
         .card-title { text-align: center; font-family: 'Orbitron', sans-serif; font-size: 1.5rem; font-weight: 900; color: #e2e8f0; margin-bottom: 0.4rem; letter-spacing: 2px; }
         .card-subtitle { text-align: center; font-size: 0.85rem; color: #a78bfa; letter-spacing: 1px; font-weight: 600; margin-bottom: 2rem; direction: rtl; }
 
-        .form-group { margin-bottom: 1.4rem; position: relative; text-align: center; direction: rtl; }
         .form-group { margin-bottom: 1.4rem; position: relative; text-align: center; direction: rtl; }
         .form-label { display: block; font-size: 0.8rem; color: #a78bfa; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600; text-align: center; }
         
@@ -383,14 +419,29 @@ export default function Login() {
           box-shadow: 0 0 8px rgba(6, 182, 212, 0.5);
           flex-shrink: 0;
         }
-        .add-app-text {
-          font-size: 12.5px;
-          font-weight: 700;
-          letter-spacing: 0.3px;
-        }
+        .add-app-text { font-size: 12.5px; font-weight: 700; letter-spacing: 0.3px; }
 
         .error-banner { color: #f87171; font-size: 11px; font-weight: 600; text-align: center; margin-top: 10px; text-shadow: 0 0 8px rgba(248,113,113,0.3); direction: rtl; }
         .footer { width: 100%; padding: 1.2rem; text-align: center; font-size: 0.68rem; color: #1e293b; letter-spacing: 1px; text-transform: uppercase; flex-shrink: 0; position: relative; z-index: 1; }
+
+        /* 🟢 חיווט סגנונות עיצוב לפופ-אפ בקשת ההצטרפות הציבורי של אראגון */
+        .ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.93); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+        .ov.open { display: flex; }
+        .mbox { background: #0c1729; border: 1px solid rgba(124,58,237,0.35); border-radius: 14px; padding: 24px; width: 460px; max-width: 95vw; box-shadow: 0 0 40px rgba(124,58,237,0.15); direction: rtl; text-align: right; position: relative; overflow: hidden; }
+        .mbox::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(6,182,212,0.4), transparent); }
+        .modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .modal-title-text { font-family: 'Inter', sans-serif; font-size: 14.5px; font-weight: 800; color: #ffffff; }
+        .modal-subtitle-text { font-size: 11.5px; color: rgba(160,185,215,0.5); margin-top: 3px; }
+        .modal-close-btn { position: absolute; left: 16px; top: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: rgba(160,185,215,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .modal-close-btn:hover { background: rgba(255,69,96,0.12); color: #ff4560; border-color: rgba(255,69,96,0.2); }
+        .mfr { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; text-align: right; }
+        .mfl { font-size: 11px; color: #a78bfa; font-weight: 700; letter-spacing: 0.5px; display: block; margin-bottom: 2px; }
+        .mfi, .mfs { width: 100%; background: #111f35; border: 1px solid rgba(124,58,237,0.25); border-radius: 8px; color: #ffffff; padding: 10px 13px; font-family: 'Inter', sans-serif; font-size: 13px; direction: rtl; outline: none; text-align: right; }
+        .mfi:focus, .mfs:focus { border-color: #06b6d4; box-shadow: 0 0 8px rgba(6,182,212,0.2); }
+        .update-btn { width: 100%; padding: 11px; background: rgba(6,182,212,0.1); border: 1px solid #06b6d4; border-radius: 8px; color: #06b6d4; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; outline: none; }
+        .update-btn:hover { background: rgba(6,182,212,0.2); box-shadow: 0 0 15px rgba(6,182,212,0.2); }
+        .mbtn-cancel { padding: 11px 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: rgba(160,185,215,0.5); font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13px; cursor: pointer; }
+        .mf2 { display: flex; gap: 10px; margin-top: 18px; }
       `}</style>
 
       {/* כוכבי ניאון בולטים שעולים לאט */}
@@ -507,9 +558,85 @@ export default function Login() {
               <img src={aragonLogo} className="add-app-icon" alt="Aragon Icon App" />
               <span className="add-app-text">הוסף אותי כאפליקציה</span>
             </button>
+
+            {/* 🟢 קישור חכם ואינטראקטיבי להגשת טופס הרשמה להנהלה — עבור האישור של אפל */}
+            <div style={{ marginTop: '1.4rem', textAlign: 'center', direction: 'rtl' }}>
+              <span style={{ fontSize: '12.5px', color: '#475569', fontWeight: '500' }}>אין לך משתמש במערכת? </span>
+              <button
+                type="button"
+                style={{ background: 'none', border: 'none', color: '#06b6d4', fontWeight: '700', fontSize: '12.5px', cursor: 'pointer', textDecoration: 'underline', outline: 'none', fontFamily: 'Inter, sans-serif' }}
+                onClick={() => setIsRegModalOpen(true)}
+              >
+                לחץ כאן להגשת בקשת הצטרפות
+              </button>
+            </div>
           </form>
         </div>
       </div>
+
+      {/* 🟢 פופ-אפ מודאל מובנה להרשמה חצי אוטומטית במייל ישיר להנהלה */}
+      {isRegModalOpen && (
+        <div className="ov open" onClick={(e) => e.target.className === 'ov open' && setIsRegModalOpen(false)}>
+          <div className="mbox">
+            <button type="button" className="modal-close-btn" onClick={() => setIsRegModalOpen(false)}>×</button>
+            <div className="modal-head">
+              <div style={{ fontSize: '20px', marginLeft: '10px' }}>🕹️</div>
+              <div>
+                <div className="modal-title-text" style={{ color: '#00e5a0' }}>הגשת בקשת הצטרפות למערכת</div>
+                <div className="modal-subtitle-text">הפרטים יישלחו ישירות לבדיקת הנהלת אראגון ישראל</div>
+              </div>
+            </div>
+
+            <form onSubmit={handleRegSubmit}>
+              <div className="mfr">
+                <label className="mfl">שם מלא של התלמיד *</label>
+                <input className="mfi" type="text" required placeholder="הקלד שם פרטי ומשפחה..." value={regFullName} onChange={(e) => setRegFullName(e.target.value)} />
+              </div>
+
+              <div className="mfr">
+                <label className="mfl">עיר מגורים *</label>
+                <input className="mfi" type="text" required placeholder="למשל: נס ציונה, חולון..." value={regCity} onChange={(e) => setRegCity(e.target.value)} />
+              </div>
+
+              <div className="mfr">
+                <label className="mfl">טלפון של ההורה / איש קשר *</label>
+                <input className="mfi" type="tel" required placeholder="הקלד מספר נייד ליצירת קשר..." value={regParentPhone} onChange={(e) => setRegParentPhone(e.target.value)} style={{ fontFamily: 'Orbitron, Inter', letterSpacing: '0.5px' }} />
+              </div>
+
+              <div className="mfr">
+                <label className="mfl">האם אתה תלמיד פעיל באראגון?</label>
+                <select className="mfs" value={regIsStudent} onChange={(e) => setRegIsStudent(e.target.value)}>
+                  <option value="yes">🟢 כן, אני לומד באראגון</option>
+                  <option value="no">⚪ לא, אני מעוניין להצטרף</option>
+                </select>
+              </div>
+
+              {regIsStudent === 'yes' && (
+                <div className="mfr">
+                  <label className="mfl">באיזה סוג חוג אתה לומד?</label>
+                  <select className="mfs" value={regClassType} onChange={(e) => setRegClassType(e.target.value)}>
+                    <option value="הייטק ג׳וניור">💻 הייטק ג׳וניור</option>
+                    <option value="הייטק פרו">🚀 הייטק פרו</option>
+                    <option value="הנדסה ורובוטיקה">🤖 הנדסה ורובוטיקה</option>
+                  </select>
+                </div>
+              )}
+
+              <div className="mfr">
+                <label className="mfl">באיזה מוקד השיעור מתקיים?</label>
+                <input className="mfi" type="text" placeholder="שם המתנ''ס / ביה''ס שבו אתה לומד..." value={regHubName} onChange={(e) => setRegHubName(e.target.value)} />
+              </div>
+
+              <div className="mf2">
+                <button type="button" className="mbtn-cancel" onClick={() => setIsRegModalOpen(false)}>ביטול</button>
+                <button type="submit" className="update-btn" style={{ background: 'rgba(0,229,160,0.12)', borderColor: '#00e5a0', color: '#00e5a0' }}>
+                  <i className="ti ti-mail-forward"></i> כן, שלח בקשת הצטרפות
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <div className="footer">ARAGON SYSTEM &nbsp;|&nbsp; SECURE ACCESS PORTAL &nbsp;v2.0</div>
     </div>
