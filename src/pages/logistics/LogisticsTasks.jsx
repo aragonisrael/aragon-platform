@@ -392,24 +392,27 @@ export default function LogisticsTasks() {
                       <span className="tcard-time">{task.time}</span>
                     </div>
                     <div className="tcard-title">{task.title}</div>
-                    <div className="tcard-body">{task.body}</div>
+                    
+                    {/* טקסט המשימה - אם נוצר ידנית נצבע בלבן חזק וברור */}
+                    <div className="tcard-body" style={task.isCustom ? { color: '#ffffff', fontWeight: '500', fontSize: '13.5px' } : {}}>{task.body}</div>
 
                     <div className="act-strip">
-                      <div className="act-btn-split">
-                        {task.isDbFault ? (
-                          <>
-                            <button className="act-btn btn-read" style={{ borderColor: 'rgba(255,69,96,0.4)', color: '#ff4560' }} onClick={() => handleCloseFaultDirectly(task)}>סגור תקלה</button>
-                            <button className="act-btn btn-success" onClick={() => handleSendToTrip(task)}>
-                              <i className="ti ti-truck"></i> שלח לנסיעה
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'field', 'read')}>סמן כנקרא</button>
-                            <button className="act-btn btn-success" onClick={() => handleTaskAction(task.id, 'field', 'done')}>בוצע</button>
-                          </>
-                        )}
-                      </div>
+                      {task.isDbFault ? (
+                        <div className="act-btn-split">
+                          <button type="button" className="act-btn btn-read" style={{ borderColor: 'rgba(255,69,96,0.4)', color: '#ff4560' }} onClick={() => handleCloseFaultDirectly(task)}>סגור תקלה</button>
+                          <button type="button" className="act-btn btn-success" onClick={() => handleSendToTrip(task)}>
+                            <i className="ti ti-truck"></i> שלח לנסיעה
+                          </button>
+                        </div>
+                      ) : task.isCustom ? (
+                        /* משימה ידנית מקבלת רק כפתור בוצע אחד רחב שמפעיל את הפופ-אפ */
+                        <button type="button" className="act-btn btn-success" style={{ width: '100%' }} onClick={() => setDoneConfirm({ open: true, id: task.id, col: 'field' })}>בוצע</button>
+                      ) : (
+                        <div className="act-btn-split">
+                          <button type="button" className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'field', 'read')}>סמן כנקרא</button>
+                          <button type="button" className="act-btn btn-success" onClick={() => setDoneConfirm({ open: true, id: task.id, col: 'field' })}>בוצע</button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))
@@ -456,13 +459,36 @@ export default function LogisticsTasks() {
                       <span className="tcard-time">{task.time}</span>
                     </div>
                     <div className="tcard-title">{task.title}</div>
-                    <div className="tcard-who"><i className="ti ti-users"></i>{task.who}</div>
+                    
+                    {/* מציג את נתוני המקור רק למשימות מערכת ישנות במידה וקיימות */}
+                    {task.who && <div className="tcard-who"><i className="ti ti-users"></i>{task.who}</div>}
+                    
+                    {/* 🟢 אם מדובר במשימה עצמאית - נציג את הטקסט בלבן קריא וברור */}
+                    {task.isCustom ? (
+                      <div className="tcard-body" style={{ color: '#ffffff', fontWeight: '500', fontSize: '13.5px', marginTop: '4px' }}>{task.body}</div>
+                    ) : (
+                      task.checklist && task.checklist.length > 0 && (
+                        <div className="checklist">
+                          {task.checklist.map((item, idx) => (
+                            <div key={idx} className="chk-row">
+                              <div className="chk-box"><i className="ti ti-circle-dashed" style={{ fontSize: '10px', color: '#00d4ff' }}></i></div>
+                              <span className="chk-lbl">{item.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    )}
 
                     <div className="act-strip">
-                      <div className="act-btn-split">
-                        <button className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'camp', 'read')}>סמן כנקרא</button>
-                        <button className="act-btn btn-success" onClick={() => handleTaskAction(task.id, 'camp', 'done')}>בוצע</button>
-                      </div>
+                      {task.isCustom ? (
+                        /* לחצן בוצע יחיד ומורחב שמחובר לפופ-אפ הבדיקה */
+                        <button type="button" className="act-btn btn-success" style={{ width: '100%' }} onClick={() => setDoneConfirm({ open: true, id: task.id, col: 'camp' })}>בוצע</button>
+                      ) : (
+                        <div className="act-btn-split">
+                          <button type="button" className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'camp', 'read')}>סמן כנקרא</button>
+                          <button type="button" className="act-btn btn-success" onClick={() => setDoneConfirm({ open: true, id: task.id, col: 'camp' })}>בוצע</button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))
