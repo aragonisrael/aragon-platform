@@ -77,6 +77,14 @@ export default function Login() {
         return;
       }
 
+      // 🔥 אבטחת סביבה: חסימת גישת ניהול ולוגיסטיקה באפליקציית מובייל בלבד
+      const isMobileApp = !!window.Capacitor;
+      if (isMobileApp && (dbUser.role === 'admin' || dbUser.role === 'logistics')) {
+        setErrorMsg('⚠️ חמ"ל Aragon HQ נגיש ממחשב בלבד לטובת שליטה מבצעית רחבה. אנא התחבר מהלפטופ.');
+        setLoading(false);
+        return;
+      }
+
       // שמירת נתונים מקומית לפי סטטוס צ'קבוקס "זכור אותי"
       if (rememberMe) {
         localStorage.setItem('aragon_remember_user', username.trim());
@@ -281,6 +289,7 @@ export default function Login() {
         .card-title { text-align: center; font-family: 'Orbitron', sans-serif; font-size: 1.5rem; font-weight: 900; color: #e2e8f0; margin-bottom: 0.4rem; letter-spacing: 2px; }
         .card-subtitle { text-align: center; font-size: 0.85rem; color: #a78bfa; letter-spacing: 1px; font-weight: 600; margin-bottom: 2rem; direction: rtl; }
 
+        .form-group { margin-bottom: 1.4rem; position: relative; text-align: center; direction: rtl; }
         .form-group { margin-bottom: 1.4rem; position: relative; text-align: center; direction: rtl; }
         .form-label { display: block; font-size: 0.8rem; color: #a78bfa; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600; text-align: center; }
         

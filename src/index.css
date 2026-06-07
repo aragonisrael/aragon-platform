@@ -69,21 +69,33 @@
   }
 }
 
-body {
-  margin: 0;
-  background: #040b18; /* קיבוע רקע כהה אחיד למניעת הבהובים לבנים */
-}
-
-/* 🔥 שחרור המערכת לרוחב מלא ומסכים רחבים (Widescreen Matrix) */
-#root {
-  width: 100%;
-  max-width: 100%;
+/* ==========================================================================
+   🚀 פתיחת ברז הגלילה הגלובלי לכל האפליקציה במובייל
+   ========================================================================== */
+html, body {
   margin: 0;
   padding: 0;
+  width: 100%;
+  min-height: 100%;             /* מאפשר למסך לגדול באופן דינמי */
+  overflow-x: hidden;
+  overflow-y: auto !important;   /* פותח מחדש את הגלילה האנכית לכל האפליקציה */
+  background: #040b18;
+  -webkit-overflow-scrolling: touch; /* גלילת מובייל חלקה וטבעית */
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
   min-height: 100svh;
+  overflow: visible !important; /* מאפשר לתוכן של עמודים לזרום ולגלול חופשי */
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
+}
+
+/* הגנה מפני חניקות גלילה בקופסאות המעטפת של הקבצים האחרים בפרויקט */
+.mobile-universe, .app, .student-shell {
+  overflow: visible !important;
+  height: auto !important;
 }
 
 h1,

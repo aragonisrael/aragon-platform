@@ -60,7 +60,7 @@ export default function LogisticsPurchase() {
     return () => clearInterval(interval);
   }, []);
 
-  // סנכרן את מצב כפתור הנגן מול האודיו הגלובלי ב-App.jsx בעת מעבר דפים
+  // סנכרן את מצב כפתור הנגן מול האודיו הגלובלי
   useEffect(() => {
     const globalAudio = document.getElementById('hq-cyber-radio');
     if (globalAudio) setIsPlaying(!globalAudio.paused);
@@ -73,14 +73,31 @@ export default function LogisticsPurchase() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // שינוי סטטוס רכש כללי (כולל פתיחת מודאל העברה לרכש מאושר)
+  const handleDeleteExecItem = (id) => {
+    const item = execItems.find(x => x.id === id);
+    if (!item) return;
+
+    if (!window.confirm(`⚠️ האם למחוק את דרישת הרכש של "${item.name}" ולזכות את התקציב הכללי?`)) return;
+
+    setExecItems(prev => prev.filter(x => x.id !== id));
+    setBudget(prev => prev + item.cost);
+
+    if (!item.hasInv) {
+      setInvMissing(m => Math.max(0, m - 1));
+    }
+
+    showToast('הרכש בוטל בהצלחה, הכסף הוחזר ליתרת התקציב! 🗑️');
+  };
+
+  // 🔥 פתיחת חלונית העברה עם הזרקה וטעינה מראש של המשפט המקורי (ניתן לעריכה מלאה)
   const handleChangeStatus = (id, newStatus) => {
     const item = wishItems.find(x => x.id === id);
     if (!item) return;
 
     if (newStatus === 'approved') {
       setEditMoveItem(item);
-      setFormCost(item.cost);
+      setFormName(item.name); // 🎯 הזרקת הטקסט המקורי לשדה הקלט של הטופס
+      setFormCost(item.cost); // 🎯 הזרקת העלות המשוערת כבסיס לעריכה
       setFormInv(false);
       setModalType('move');
       setIsModalOpen(true);
@@ -91,7 +108,6 @@ export default function LogisticsPurchase() {
     if (newStatus === 'rejected') showToast('הפריט נפסל והועבר לארכיון הרכש');
   };
 
-  // הפעלת מצב עריכת עלות ישירה (Inline Edit)
   const startCostEdit = (id, currentCost) => {
     setEditingCostId(id);
     setEditCostInput(currentCost);
@@ -103,13 +119,12 @@ export default function LogisticsPurchase() {
     if (!item) return;
 
     const diff = item.cost - newCost;
-    setExecItems(prev => prev.map(x => x.id === id ? { ...x, cost: newCost } : x));
+    setExecItems(prev => prev.map(x => { if (x.id === id) return { ...x, cost: newCost }; return x; }));
     setBudget(prev => prev + diff);
     setEditingCostId(null);
     showToast('העלות עודכנה והתקציב חושב מחדש ✓');
   };
 
-  // שינוי סימון חשבונית הוגשה
   const handleToggleInv = (id) => {
     setExecItems(prev => prev.map(x => {
       if (x.id !== id) return x;
@@ -120,7 +135,6 @@ export default function LogisticsPurchase() {
     }));
   };
 
-  // שינוי סימון נרכש בהצלחה
   const handleTogglePurchased = (id) => {
     setExecItems(prev => prev.map(x => {
       if (x.id !== id) return x;
@@ -130,7 +144,6 @@ export default function LogisticsPurchase() {
     }));
   };
 
-  // פתיחת מודאלים ליצירת פריטים
   const openCreateModal = (type) => {
     setModalType(type);
     setFormName('');
@@ -139,6 +152,7 @@ export default function LogisticsPurchase() {
     setIsModalOpen(true);
   };
 
+  // מנוע סנכרון והעברת פריטים בין הדרישות הכלליות לרכש המאושר הסופי
   const handleFormSubmit = () => {
     if (!formName.trim()) { showToast('נא למלא תיאור לפריט'); return; }
     const costNum = parseInt(formCost, 10) || 0;
@@ -148,21 +162,21 @@ export default function LogisticsPurchase() {
       showToast('דרישת רכש חדשה נוספה למערכת ✓');
     } else if (modalType === 'exec') {
       if (!formInv) setInvMissing(prev => prev + 1);
-      setExecItems([{ id: 'e' + Date.now(), name: formName.trim(), cost: costNum, hasInv: formInv, purchased: false }, ...execItems]);
+      setExecItems([{ id: 'e' + Date.now(), name: formName.trim(), cost: costNum, hasInv: formInv, purchased: true }, ...execItems]);
       setBudget(prev => prev - costNum);
       showToast('רכש נרשם — התקציב הפנוי עודכן ✓');
     } else if (modalType === 'move' && editMoveItem) {
+      // 🔥 משיכת הטקסט הערוך (formName) והזרקה ישירה לרכש המאושר (הציוד נרכש)
       if (!formInv) setInvMissing(prev => prev + 1);
-      setExecItems([{ id: 'e' + Date.now(), name: editMoveItem.name, cost: costNum, hasInv: formInv, purchased: false }, ...execItems]);
+      setExecItems([{ id: 'e' + Date.now(), name: formName.trim(), cost: costNum, hasInv: formInv, purchased: true }, ...execItems]);
       setWishItems(prev => prev.filter(x => x.id !== editMoveItem.id));
       setBudget(prev => prev - costNum);
-      showToast('הועבר בהצלחה לרכש מאושר — התקציב עודכן ✓');
+      showToast('הפריט אושר, עודכן והועבר בהצלחה לרכש מאושר! 💳');
     }
 
     setIsModalOpen(false);
   };
 
-  // פקודות חישוב אחוז תקציב פנוי
   const pct = (budget / TOTAL) * 100;
   const budgetColor = pct > 30 ? '#00e5a0' : pct > 15 ? '#f5c842' : '#ff4560';
 
@@ -172,18 +186,17 @@ export default function LogisticsPurchase() {
   return (
     <div className="hq-global-wrapper">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Heebo:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Heebo:wght@300;400;500;600;700;800&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         
         *{ box-sizing: border-box; margin: 0; padding: 0; }
         .hq-global-wrapper { width: 100%; height: 100vh; background: #040b18; display: flex; font-family: 'Heebo', sans-serif; color: rgba(220,235,255,0.92); direction: rtl; overflow: hidden; }
         
-        /* SIDEBAR */
         .sidebar { width: 78px; background: #070f1e; border-left: 1px solid rgba(0,212,255,0.1); display: flex; flex-direction: column; align-items: center; padding: 18px 0 14px; gap: 4px; flex-shrink: 0; z-index: 10; }
         .sb-logo { width: 38px; height: 38px; margin-bottom: 18px; cursor: pointer; }
         .sb-logo img { width: 100%; height: 100%; object-fit: contain; }
         
-        .nb { width: 58px; height: 58px; border-radius: 12px; border: 1px solid transparent; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; transition: all 0.18s; color: rgba(160,185,215,0.5); font-size: 9.5px; font-weight: 500; font-family: 'Heebo', sans-serif; }
+        .nb { width: 58px; height: 58px; border-radius: 12px; border: 1px solid transparent; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; transition: all 0.18s; color: rgba(160,185,215,0.5); font-size: 9.5px; font-weight: 500; }
         .nb:hover { background: #111f35; color: #00d4ff; border-color: rgba(0,212,255,0.1); }
         .nb.on { background: rgba(0,212,255,0.12); border-color: rgba(0,212,255,0.25); color: #00d4ff; }
         .nb i { font-size: 20px; }
@@ -198,7 +211,6 @@ export default function LogisticsPurchase() {
         @keyframes lp { 0%,100% { box-shadow: 0 0 0 0 rgba(0,229,160,0.5); } 60% { box-shadow: 0 0 0 5px rgba(0,229,160,0); } }
         .clk { font-family: 'Orbitron', monospace; font-size: 13px; color: #00d4ff; letter-spacing: 2px; font-weight: 600; }
 
-        /* BUDGET HEADER ROW */
         .budget-hdr { flex-shrink: 0; display: grid; grid-template-columns: 1fr 1.6fr 1fr; border-bottom: 1px solid rgba(0,212,255,0.1); background: #070f1e; height: 100px; }
         .bh-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 24px; border-left: 1px solid rgba(0,212,255,0.1); }
         .bh-cell:last-child { border-left: none; }
@@ -212,23 +224,21 @@ export default function LogisticsPurchase() {
         .cd-num { font-family: 'Orbitron', monospace; font-size: 28px; font-weight: 900; color: #f5c842; }
         .inv-num { font-family: 'Orbitron', monospace; font-size: 28px; font-weight: 900; color: #ff4560; }
 
-        /* SPLIT FRAMES LAYOUT (50% / 50%) */
         .body { flex: 1; display: flex; overflow: hidden; }
         .col { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-left: 1px solid rgba(0,212,255,0.1); }
         .col:last-child { border-left: none; }
         .col-hdr { padding: 12px 18px; border-bottom: 1px solid rgba(0,212,255,0.1); background: #070f1e; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-        .col-hdr-title { font-family: 'Orbitron', monospace; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
-        .col-dot { width: 5px; height: 5px; border-radius: 50%; }
-        .col-scroll { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+        
+        .col-hdr-title { font-family: 'Heebo', sans-serif; font-size: 14px; font-weight: 800; color: #ffffff !important; display: flex; align-items: center; gap: 8px; text-shadow: 0 0 10px rgba(255,255,255,0.15); }
+        .col-dot { width: 6px; height: 6px; border-radius: 50%; }
+        .col-scroll { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
 
-        /* ACTION BUTTON BRUSHES */
         .col-add-btn { padding: 7px 16px; border-radius: 7px; border: 1px solid; font-family: 'Heebo', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.18s; flex-direction: row-reverse; }
-        .btn-wish { background: rgba(245,200,66,0.1); border-color: rgba(245,200,66,0.4); color: #f5c842; }
+        .btn-wish { background: rgba(245,200,66,0.1); border-color: rgba(245,200,66,0.4); color: #fbbf24; }
         .btn-wish:hover { background: rgba(245,200,66,0.2); box-shadow: 0 0 14px rgba(245,200,66,0.15); }
         .btn-exec { background: rgba(0,212,255,0.1); border-color: #00d4ff; color: #00d4ff; }
         .btn-exec:hover { background: rgba(0,212,255,0.2); box-shadow: 0 0 14px rgba(0,212,255,0.18); }
 
-        /* REJECTED ARCHIVE ACCORDION LOWER PANEL */
         .archive-section { flex-shrink: 0; border-top: 1px solid rgba(255,69,96,0.15); background: rgba(255,69,96,0.03); }
         .archive-hdr { padding: 7px 12px; display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; font-size: 11px; color: rgba(255,69,96,0.6); font-weight: 600; flex-direction: row-reverse; justify-content: flex-end; }
         .archive-hdr:hover { color: #ff4560; }
@@ -236,13 +246,12 @@ export default function LogisticsPurchase() {
         .archive-hdr.open i { transform: rotate(180deg); }
         .archive-list { padding: 4px 10px 8px; display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; }
 
-        /* EXPENSES CARDS SHAPE */
         .pcard { background: #0c1729; border: 1px solid rgba(0,212,255,0.1); border-radius: 8px; padding: 8px 12px; position: relative; overflow: hidden; }
         .pcard::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; }
         .pcard-wish::after { background: linear-gradient(90deg, transparent, rgba(245,200,66,0.3), transparent); }
         
         .wish-row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
-        .wish-name { font-size: 12px; font-weight: 600; color: rgba(220,235,255,0.92); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; text-align: right; }
+        .wish-name { font-size: 12.5px; font-weight: 600; color: rgba(220,235,255,0.92); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; text-align: right; }
         .wish-cost { font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; color: #f5c842; white-space: nowrap; margin-left: 8px; }
 
         .status-sel { background: #070f1e; border: 1px solid; border-radius: 5px; padding: 2px 6px; font-family: 'Heebo', sans-serif; font-size: 10px; font-weight: 700; cursor: pointer; outline: none; text-align: center; }
@@ -254,30 +263,35 @@ export default function LogisticsPurchase() {
         .archive-card-name { font-size: 11px; color: rgba(220,235,255,0.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; text-align: right; }
         .archive-card-cost { font-size: 10px; color: rgba(255,69,96,0.4); font-family: 'Orbitron', monospace; }
 
-        /* EXECUTED REQUISITIONS */
-        .exec-card { background: #0c1729; border: 1px solid rgba(0,212,255,0.1); border-radius: 8px; padding: 8px 12px; position: relative; overflow: hidden; transition: border-color 0.2s; }
+        .exec-card { background: #0c1729; border: 1px solid rgba(0,212,255,0.1); border-radius: 8px; padding: 12px 16px; position: relative; overflow: hidden; }
         .exec-card::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,229,160,0.3), transparent); }
-        .exec-card:hover { border-color: rgba(0,212,255,0.25); }
-        .exec-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-        .exec-name { font-size: 12px; font-weight: 600; flex: 1; line-height: 1.3; color: rgba(220,235,255,0.92); text-align: right; }
-        .exec-price-block { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; gap: 1px; }
+        
+        .exec-matrix-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; }
+        
+        .exec-name { font-size: 13px; font-weight: 700; color: #f1f5f9; text-align: right; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .exec-middle-buttons-vault { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        
+        .inv-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 5px; cursor: pointer; flex-direction: row-reverse; }
+        .inv-ok { background: rgba(0,212,255,0.06); color: #00d4ff; border: 1px solid rgba(0,212,255,0.2); }
+        .inv-missing { background: rgba(255,69,96,0.06); color: #ff4560; border: 1px solid rgba(255,69,96,0.2); }
+
+        .exec-status-badge { font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 5px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+        .exec-status-purchased { background: rgba(0,229,160,0.08); color: #00e5a0; border: 1px solid rgba(0,229,160,0.2); }
+        .exec-status-pending { background: rgba(245,200,66,0.06); color: #f5c842; border: 1px solid rgba(245,200,66,0.2); }
+
+        .btn-delete-exec-item { background: rgba(239,68,68,0.06); border: 1px dashed rgba(239,68,68,0.4); border-radius: 5px; color: #ef4444; padding: 4px 8px; font-size: 10.5px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; transition: all 0.2s; }
+        .btn-delete-exec-item:hover { background: #ef4444; color: white; border-color: #ef4444; }
+
+        .exec-price-block { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; min-width: 100px; }
         .exec-vat-excl { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 900; color: #00e5a0; cursor: pointer; }
-        .exec-vat-incl { font-size: 10px; color: rgba(160,185,215,0.5); }
-        .exec-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; gap: 8px; flex-direction: row-reverse; }
-
-        .exec-status-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; cursor: pointer; }
-        .exec-status-purchased { background: rgba(0,229,160,0.1); color: #00e5a0; border: 1px solid rgba(0,229,160,0.3); }
-        .exec-status-pending { background: rgba(245,200,66,0.08); color: #f5c842; border: 1px solid rgba(245,200,66,0.25); }
-
-        .inv-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; cursor: pointer; flex-direction: row-reverse; }
-        .inv-ok { background: rgba(0,229,160,0.08); color: #00e5a0; border: 1px solid rgba(0,229,160,0.25); }
-        .inv-missing { background: rgba(255,69,96,0.08); color: #ff4560; border: 1px solid rgba(255,69,96,0.25); }
+        .exec-vat-incl { font-size: 10px; color: rgba(160,185,215,0.5); font-weight: 500; margin-top: 1px; }
 
         .cost-edit-wrap { display: flex; align-items: center; gap: 4px; direction: ltr; }
-        .cost-edit-input { background: #111f35; border: 1px solid rgba(0,212,255,0.25); border-radius: 5px; color: rgba(220,235,255,0.92); padding: 3px 7px; font-family: 'Orbitron', monospace; font-size: 13px; width: 90px; text-align: center; outline: none; }
+        .cost-edit-input { background: #111f35; border: 1px solid rgba(0,212,255,0.25); border-radius: 5px; color: rgba(220,235,255,0.92); padding: 3px 7px; font-family: 'Orbitron', monospace; font-size: 12px; width: 75px; text-align: center; outline: none; }
         .cost-confirm-btn { background: rgba(0,229,160,0.12); border: 1px solid #00e5a0; border-radius: 5px; color: #00e5a0; padding: 3px 8px; cursor: pointer; font-size: 11px; font-weight: 700; }
 
-        /* MODAL COCKPIT */
+        /* MODAL */
         .ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
         .ov.open { display: flex; }
         .mbox { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 460px; max-width: 96vw; box-shadow: 0 0 50px rgba(0,212,255,0.1); direction: rtl; text-align: right; position: relative; }
@@ -299,34 +313,32 @@ export default function LogisticsPurchase() {
         .mbtn-go.green { background: rgba(0,229,160,0.1); border-color: #00e5a0; color: #00e5a0; }
         .mbtn-cancel { padding: 13px 18px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 8px; color: rgba(160,185,215,0.5); font-family: 'Heebo', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; }
 
-        .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111f35; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 22px rgba(0,229,160,0.18); transition: transform 0.28s; z-index: 300; text-align: center; pointer-events: none; }
-        .toast.show { transform: translateX(-50%) translateY(0); }
-        .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 30px; color: rgba(160,185,215,0.5); font-size: 13px; text-align: center; }
+        .toast { position: fixed !important; top: 20px; left: 50%; transform: translate(-50%, -100px); background: #0c1729; border: 2px solid #00e5a0; border-radius: 10px; padding: 12px 28px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 800; font-size: 14px; box-shadow: 0 10px 30px rgba(0,229,160,0.25); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 999999 !important; text-align: center; pointer-events: none; }
+        .toast.show { transform: translate(-50%, 0); }
         
+        .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 30px; color: rgba(160,185,215,0.5); font-size: 13px; text-align: center; }
         .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #162540; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; user-select: none; }
         .player-toggle-btn { color: #00d4ff; font-size: 14px; display: flex; align-items: center; }
-        .player-toggle-btn.playing { color: #00e5a0; }
         .player-station-text { font-size: 11px; font-family: 'Orbitron', monospace; color: rgba(160,185,215,0.5); letter-spacing: 1px; font-weight: bold; }
-        .cyber-music-player.playing .player-station-text { color: #00e5a0; }
         .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
         .visualizer-bar { width: 2px; height: 3px; background: #00e5a0; }
         .cyber-music-player.playing .visualizer-bar { animation: wavePulse 0.6s ease-in-out infinite alternate; }
         @keyframes wavePulse { 0% { height: 3px; } 100% { height: 10px; } }
       `}</style>
 
-      {/* SIDEBAR NAVIGATION — קבוע לחלוטין */}
+      {/* SIDEBAR NAVIGATION */}
       <div className="sidebar">
         <div className="sb-logo" onClick={() => navigate('/admin')}>
           <img src={aragonLogo} alt="Aragon Platform Logo" />
         </div>
-        <button className="nb" onClick={() => navigate('/admin/logistics')} title="בית"><i className="ti ti-home"></i>בית</button>
-        <button className="nb" onClick={() => navigate('/admin/logistics/updates')} title="עדכונים"><i className="ti ti-bell"></i>עדכונים</button>
-        <button className="nb" onClick={() => navigate('/admin/logistics/tasks')} title="משימות"><i className="ti ti-list-check"></i>Missions</button>
+        <button className="nb" onClick={() => navigate('/admin/logistics')} type="button" title="בית"><i className="ti ti-home"></i>בית</button>
+        <button className="nb" onClick={() => navigate('/admin/logistics/updates')} type="button" title="עדכונים"><i className="ti ti-bell"></i>עדכונים</button>
+        <button className="nb" onClick={() => navigate('/admin/logistics/tasks')} type="button" title="משימות"><i className="ti ti-list-check"></i>Missions</button>
         <div className="nb-sep"></div>
-        <button className="nb" onClick={() => navigate('/admin/logistics/classes')} title="חוגים"><i className="ti ti-device-laptop"></i>חוגים</button>
-        <button className="nb" onClick={() => navigate('/admin/logistics/camps')} title="קייטנות"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 17 22 12"/></svg>קייטנות</button>
+        <button className="nb" onClick={() => navigate('/admin/logistics/classes')} type="button" title="חוגים"><i className="ti ti-device-laptop"></i>חוגים</button>
+        <button className="nb" onClick={() => navigate('/admin/logistics/camps')} type="button" title="קייטנות"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 17 22 12"/></svg>קייטנות</button>
         <div className="nb-sep"></div>
-        <button className="nb on" title="רכש"><i className="ti ti-shopping-cart"></i>רכש</button>
+        <button className="nb on" type="button" title="רכש"><i className="ti ti-shopping-cart"></i>רכש</button>
       </div>
 
       <div className="main">
@@ -369,14 +381,14 @@ export default function LogisticsPurchase() {
         {/* SPLIT SCREEN BODY (50% / 50%) */}
         <div className="body">
           
-          {/* RIGHT COL: WISHLIST (רכש כללי — דרישות ציוד) */}
+          {/* RIGHT COL: WISHLIST */}
           <div className="col">
             <div className="col-hdr">
               <div className="col-hdr-title">
-                <div className="col-dot" style={{ background: '#f5c842', boxShadow: '0 0 6px #f5c842' }}></div>
+                <div className="col-dot" style={{ background: '#fbbf24', boxShadow: '0 0 6px #fbbf24' }}></div>
                 רכש כללי — דרישות ציוד לקייטנות ומדריכים
               </div>
-              <button className="col-add-btn btn-wish" onClick={() => openCreateModal('wish')}>
+              <button className="col-add-btn btn-wish" type="button" onClick={() => openCreateModal('wish')}>
                 <i className="ti ti-plus" style={{ fontWeight: 900 }}></i>הכנס רשימת רכש
               </button>
             </div>
@@ -429,14 +441,14 @@ export default function LogisticsPurchase() {
             </div>
           </div>
 
-          {/* LEFT COL: EXECUTED EXPENSES (רכש מאושר — בוצע) */}
+          {/* LEFT COL: EXECUTED EXPENSES */}
           <div className="col">
             <div className="col-hdr">
               <div className="col-hdr-title">
                 <div className="col-dot" style={{ background: '#00e5a0', boxShadow: '0 0 6px #00e5a0' }}></div>
                 רכש מאושר — בוצע ונגרע מהתקציב
               </div>
-              <button className="col-add-btn btn-exec" onClick={() => openCreateModal('exec')}>
+              <button className="col-add-btn btn-exec" type="button" onClick={() => openCreateModal('exec')}>
                 <i className="ti ti-credit-card"></i>בוצע רכש
               </button>
             </div>
@@ -447,13 +459,43 @@ export default function LogisticsPurchase() {
                 const isEditing = editingCostId === item.id;
                 return (
                   <div key={item.id} className="exec-card">
-                    <div className="exec-top">
-                      <div className="exec-name">{item.name}</div>
+                    
+                    {/* 🚀 פריסת מטריצה בשורה אחת חלקה */}
+                    <div className="exec-matrix-row">
+                      
+                      {/* אגף ימין: שם המשפט (הציוד) */}
+                      <div className="exec-name" title={item.name}>{item.name}</div>
+                      
+                      {/* אגף מרכז: הלחצנים התפעוליים סנדוויץ' באמצע החלל */}
+                      <div className="exec-middle-buttons-vault">
+                        <div className={`inv-badge ${item.hasInv ? 'inv-ok' : 'inv-missing'}`} onClick={() => handleToggleInv(item.id)}>
+                          <i className={item.hasInv ? "ti ti-check" : "ti ti-x"}></i>
+                          {item.hasInv ? 'חשבונית הוגשה' : 'חשבונית חסרה'}
+                        </div>
+                        
+                        <div className={`exec-status-badge ${item.purchased ? 'exec-status-purchased' : 'exec-status-pending'}`} onClick={() => handleTogglePurchased(item.id)}>
+                          {item.purchased ? '✓ נרכש' : '⏳ טרם נרכש'}
+                        </div>
+
+                        {/* פח אשפה תנאי: גלוי ומנקה תקציב רק אם טרם נרכש */}
+                        {!item.purchased && (
+                          <button 
+                            className="btn-delete-exec-item" 
+                            type="button" 
+                            onClick={() => handleDeleteExecItem(item.id)}
+                            title="מחק דרישת רכש זו"
+                          >
+                            🗑️
+                          </button>
+                        )}
+                      </div>
+
+                      {/* אגף שמאל: קוביית הסכום */}
                       <div className="exec-price-block">
                         {isEditing ? (
                           <div className="cost-edit-wrap">
                             <input className="cost-edit-input" type="number" value={editCostInput} onChange={(e) => setEditCostInput(e.target.value)} />
-                            <button className="cost-confirm-btn" onClick={() => confirmCostEdit(item.id)}>✓</button>
+                            <button className="cost-confirm-btn" type="button" onClick={() => confirmCostEdit(item.id)}>✓</button>
                           </div>
                         ) : (
                           <>
@@ -462,16 +504,9 @@ export default function LogisticsPurchase() {
                           </>
                         )}
                       </div>
+
                     </div>
-                    <div className="exec-bottom">
-                      <div className={`inv-badge ${item.hasInv ? 'inv-ok' : 'inv-missing'}`} onClick={() => handleToggleInv(item.id)}>
-                        <i className={item.hasInv ? "ti ti-check" : "ti ti-x"}></i>
-                        {item.hasInv ? 'חשבונית הוגשה ✓' : 'חשבונית חסרה'}
-                      </div>
-                      <div className={`exec-status-badge ${item.purchased ? 'exec-status-purchased' : 'exec-status-pending'}`} onClick={() => handleTogglePurchased(item.id)}>
-                        {item.purchased ? '✓ נרכש בהצלחה' : '⏳ טרם נרכש'}
-                      </div>
-                    </div>
+
                   </div>
                 );
               })}
@@ -493,17 +528,22 @@ export default function LogisticsPurchase() {
             </div>
             
             {modalType === 'move' && editMoveItem && (
-              <div style={{ padding: '10px 13px', background: 'rgba(245,200,66,0.06)', border: '1px solid rgba(245,200,66,0.2)', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
-                {editMoveItem.name}
+              <div style={{ padding: '4px 0', fontSize: '12px', color: '#fbbf24', marginBottom: '10px' }}>
+                🔄 מעביר פריט מרשימת הדרישות לרכש מאושר
               </div>
             )}
 
-            {modalType !== 'move' && (
-              <div className="fr">
-                <div className="fl">פירוט הציוד הלוגיסטי הנדרש</div>
-                <input className="fi" type="text" placeholder="למשל: 20 עכברי גיימינג, כבלים מאריכים..." value={formName} onChange={(e) => setFormName(e.target.value)} />
-              </div>
-            )}
+            {/* 🔥 שדה הקלט פתוח ועריץ תמיד, כולל בשלב ההעברה! (הערה חדשה) */}
+            <div className="fr">
+              <div className="fl">פירוט הציוד הלוגיסטי (ניתן לעריכה)</div>
+              <input 
+                className="fi" 
+                type="text" 
+                placeholder="למשל: 20 עכברי גיימינג, כבלים מאריכים..." 
+                value={formName} 
+                onChange={(e) => setFormName(e.target.value)} 
+              />
+            </div>
 
             <div className="fr">
               <div className="fl">{modalType === 'wish' ? 'עלות צפויה מוערכת (₪)' : 'עלות סופית כולל מע"מ (₪)'}</div>
@@ -528,7 +568,7 @@ export default function LogisticsPurchase() {
       )}
 
       {/* TOAST FEEDBACK ALERT */}
-      <div className={`toast ${toast.show ? 'show' : ''}`}>✓ {toast.message}</div>
+      <div className={`toast ${toast.message ? 'show' : ''}`}>✓ {toast.message}</div>
     </div>
   );
 }

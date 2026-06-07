@@ -4,7 +4,7 @@ android {
     namespace = "com.aragon.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.aragon.app"
+        applicationId "co.il.aragon.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
