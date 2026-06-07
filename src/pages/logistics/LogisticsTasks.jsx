@@ -30,69 +30,17 @@ export default function LogisticsTasks() {
   const [createTaskText, setCreateTaskText] = useState('');
   const [createTaskTargetCol, setCreateTaskTargetCol] = useState('field'); // 'field' | 'camp'
 
-  // ── מאגר משימות קשיח מקומי ──
-  const [fieldTasks, setFieldTasks] = useState([
-    { 
-      id: 'fc1', 
-      type: 'gear_prep',
-      badge: '🔧 הכנת ציוד', 
-      badgeColor: '#ff4560', 
-      instructor: 'אריה כהן',
-      time: '28.05 | 20:15', 
-      title: 'הכן ציוד תקין לשילוח נסיעה', 
-      body: 'יש להכין את פריטי החומרה הבאים מתוך המלאי הזמין בארונות ולסדר בתיק השילוח עבור המדריך.',
-      borderC: 'rgba(255,69,96,0.22)', 
-      bgC: 'rgba(255,69,96,0.04)', 
-      gearList: [
-        { item: 'לפטופ', qty: 2, icon: '💻' },
-        { item: 'מטען', qty: 2, icon: '🔌' },
-        { item: 'עכבר', qty: 2, icon: '🖱' }
-      ]
-    },
-    {
-      id: 'fc2_return',
-      type: 'check_return',
-      badge: '🔍 בדיקת ציוד חוזר',
-      badgeColor: '#00d4ff',
-      instructor: 'יהב כץ',
-      time: '29.05 | 11:30',
-      title: 'בדיקת תיק חומרה שחזר מהשטח',
-      body: 'אנא בדוק האם הציוד שחזר מהמדריך יהב הינו אכן לפי הפירוט הבא:',
-      borderC: 'rgba(0, 212, 255, 0.25)',
-      bgC: 'rgba(0, 212, 255, 0.04)',
-      gearList: [
-        { item: 'לפטופ', qty: 3, icon: '💻' },
-        { item: 'מטען', qty: 2, icon: '🔌' }
-      ]
-    }
-  ]);
+  // ── 🗑️ מאגר משימות קשיח מקומי - נוקה לבקשתך ──
+  const [fieldTasks, setFieldTasks] = useState([]);
 
   // 🟢 סטייט ייעודי לתקלות חיות שהועברו לטיפול מתוך Supabase
   const [dbFaultTasks, setDbFaultTasks] = useState([]);
 
-  // מאגר משימות קייטנות
-  const [campTasks, setCampTasks] = useState([
-    {
-      id: 'cc1', badge: '⚡ דחוף — 18 יום', time: 'פתיחה: 15.06', title: 'קייטנת ראשון לציון', who: '3 חדרים | 45 ילדים | תחילת הכנה: 1.6', bgC: 'rgba(0,212,255,0.04)', borderC: 'rgba(0,212,255,0.2)',
-      checklist: [
-        { label: '📞 שיחת תיאום מול אבות הבית', done: false, status: 'טרם בוצע', color: '#ff4560' },
-        { label: '🚛 קביעת מוביל ורכב חברה', done: false, status: 'טרם נקבע', color: '#ff4560' },
-        { label: '✅ אישור מיקום ובית ספר', done: true, status: 'בוצע', color: '#00e5a0' }
-      ]
-    },
-    {
-      id: 'cc2', badge: 'בהכנה — 25 יום', time: 'פתיחה: 22.06', title: 'קייטנת רמת גן', who: '2 חדרים | 30 ילדים | תחילת הכנה: 8.6', bgC: 'rgba(245,200,66,0.04)', borderC: 'rgba(245,200,66,0.18)',
-      checklist: [
-        { label: '📞 שיחת תיאום אבות הבית', done: true, status: 'בוצע', color: '#00e5a0' },
-        { label: '🚛 קביעת מוביל', done: false, status: 'טרם נקבע', color: '#ff4560' }
-      ]
-    }
-  ]);
+  // ── 🗑️ מאגר משימות קייטנות - נוקה לבקשתך ──
+  const [campTasks, setCampTasks] = useState([]);
 
-  // מאגר משימות התראות חכמות
-  const [alertTasks, setAlertTasks] = useState([
-    { id: 'ac1', badge: '⏰ תזכורת קריטית', time: 'יעד: 30.06', title: 'שיחה עם המדריך רועי', who: 'נוצר אוטומטית — 14 ימים לפני קייטנה', body: 'לוואדא שרועי מבין שעליו להביא את המחשבים האישיים שלו לקייטנת בן גוריון בתאריך 30.06. חובה לאשר בשיחה טלפונית.', bgC: 'rgba(255,140,66,0.06)', borderC: 'rgba(255,140,66,0.28)' }
-  ]);
+  // ── 🗑️ מאגר משימות התראות חכמות - נוקה לבקשתך ──
+  const [alertTasks, setAlertTasks] = useState([]);
 
   const showToast = (msg) => {
     setToast({ show: true, message: msg });
@@ -164,7 +112,7 @@ export default function LogisticsTasks() {
         badgeColor: '#ff4560',
         instructor: 'חמ"ל שטח',
         time: nowTime,
-        title: 'Mishama',
+        title: 'משימה לוגיסטית ידנית',
         body: createTaskText,
         borderC: 'rgba(255,69,96,0.25)',
         bgC: 'rgba(255,69,96,0.04)',
@@ -190,13 +138,12 @@ export default function LogisticsTasks() {
     setIsCreateModalOpen(false);
   };
 
-  // 🟢 ג'נרטור נסיעה חדשה - דוחף שילוח אמיתי לטבלת trips וסוגר את התקלה מהמערכת
+  // ג'נרטור נסיעה חדשה - דוחף שילוח אמיתי לטבלת trips וסוגר את התקלה מהמערכת
   const handleSendToTrip = async (task) => {
     try {
       if (!supabase) return;
       const nowTime = new Date().toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }) + ' | ' + new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
       
-      // 1. הזרקת שורה לטבלת trips החדשה
       const { error: tripErr } = await supabase
         .from('trips')
         .insert([{
@@ -208,7 +155,6 @@ export default function LogisticsTasks() {
         }]);
       if (tripErr) throw tripErr;
 
-      // 2. סגירת התקלה (ארכוב)
       const { error: faultErr } = await supabase
         .from('faults')
         .update({ archived: true })
@@ -223,7 +169,7 @@ export default function LogisticsTasks() {
     }
   };
 
-  // 🟢 סגירה ישירה של התקלה מהלוח ללא צורך בשילוח נסיעה
+  // סגירה ישירה של התקלה מהלוח ללא צורך בשילוח נסיעה
   const handleCloseFaultDirectly = async (task) => {
     try {
       if (!supabase) return;
@@ -266,7 +212,7 @@ export default function LogisticsTasks() {
     showToast(actionType === 'done' ? 'המשימה סומנה כבוצעה והועברה לארכיון! ✓' : 'הועבר לארכיון הודעות שנקראו.');
   };
 
-  // ── מיזוג התקלות החיות מסופאבייס עם הניסוח המדויק שביקשת ──
+  // מיזוג התקלות החיות מסופאבייס עם הניסוח המדויק
   const getCombinedFieldTasks = () => {
     const mappedDbFaults = dbFaultTasks.map(f => ({
       id: `db_fault_${f.id}`,
@@ -277,7 +223,6 @@ export default function LogisticsTasks() {
       instructor: f.reporter,
       time: new Date(f.created_at || Date.now()).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }),
       title: `חמ"ל תקלות: ${f.summary}`,
-      // 🟢 הניסוח המדויק שלך כאן בהתאם לכמויות ולסוגי הציוד
       body: `אנא הכן לנסיעה את פריטי הציוד הבאים: ${f.summary} עבור המדריך שפתח את התקלה : ${f.reporter} .`,
       rawSummary: f.summary,
       borderC: 'rgba(255, 69, 96, 0.35)',
@@ -326,10 +271,13 @@ export default function LogisticsTasks() {
         .col-hdr { padding: 14px 18px; border-bottom: 1px solid rgba(0,212,255,0.1); background: #070f1e; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; }
         .col-hdr-title { font-family: 'Heebo', sans-serif; font-size: 15px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
         .col-hdr-dot { width: 6px; height: 6px; border-radius: 50%; }
-        .col-hdr-right-box { display: flex; align-items: center; gap: 8px; }
-        .col-hdr-count { font-size: 11px; font-family: 'Orbitron', monospace; padding: 2px 8px; border-radius: 4px; font-weight: 700; }
         
-        .col-create-btn { background: rgba(0,212,255,0.06); border: 1px solid #00d4ff; color: #00d4ff; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: 'Heebo'; }
+        /* 🟢 תיקון יציבות קופסאות הכפתורים של צור המשימה למניעת שבירת העיצוב */
+        .col-hdr-right-box { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+        .col-hdr-count { font-size: 11px; font-family: 'Orbitron', monospace; padding: 2px 8px; border-radius: 4px; font-weight: 700; white-space: nowrap; }
+        
+        /* 🟢 עיצוב מחודש ומהודק לכפתור צור משימה */
+        .col-create-btn { background: rgba(0,212,255,0.06); border: 1px solid #00d4ff; color: #00d4ff; padding: 5px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: 'Heebo'; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; }
         .col-create-btn:hover { background: rgba(0,212,255,0.15); box-shadow: 0 0 10px rgba(0,212,255,0.2); }
         
         .col-body { flex: 1; overflow-y: auto; padding: 14px 14px; display: flex; flex-direction: column; gap: 12px; }
@@ -422,50 +370,41 @@ export default function LogisticsTasks() {
               </div>
             </div>
             <div className="col-body">
-              {combinedFieldTasks.map(task => (
-                <div key={task.id} className="tcard" style={{ background: task.bgC, borderColor: task.borderC }}>
-                  <div className="tcard-top">
-                    <div className="tcard-badge-wrap">
-                      <span className="tcard-badge" style={{ background: 'rgba(255,69,96,0.1)', color: task.badgeColor, border: `1px solid ${task.borderC}` }}>{task.badge}</span>
-                      <span className="instructor-tag">👤 {task.instructor}</span>
+              {combinedFieldTasks.length === 0 ? (
+                <div style={{ fontSize: '12px', color: 'rgba(160,185,215,0.4)', textAlign: 'center', marginTop: '20px' }}>אין משימות שטח או תקלות פעילות לחמ"ל</div>
+              ) : (
+                combinedFieldTasks.map(task => (
+                  <div key={task.id} className="tcard" style={{ background: task.bgC, borderColor: task.borderC }}>
+                    <div className="tcard-top">
+                      <div className="tcard-badge-wrap">
+                        <span className="tcard-badge" style={{ background: 'rgba(255,69,96,0.1)', color: task.badgeColor, border: `1px solid ${task.borderC}` }}>{task.badge}</span>
+                        <span className="instructor-tag">👤 {task.instructor}</span>
+                      </div>
+                      <span className="tcard-time">{task.time}</span>
                     </div>
-                    <span className="tcard-time">{task.time}</span>
-                  </div>
-                  <div className="tcard-title">{task.title}</div>
-                  <div className="tcard-body">{task.body}</div>
-                  
-                  {task.gearList && task.gearList.length > 0 && (
-                    <div className="gear-list-wrap">
-                      {task.gearList.map((g, idx) => (
-                        <div key={idx} className="gear-list-row">
-                          <span>{g.icon}</span>
-                          <span>{g.item}</span>
-                          <span className="gear-item-qty">x {g.qty}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                    <div className="tcard-title">{task.title}</div>
+                    <div className="tcard-body">{task.body}</div>
 
-                  <div className="act-strip">
-                    <div className="act-btn-split">
-                      {/* 🟢 בדיקה דינמית: הצגת כפתורי הניתוב המדויקים שלך לתקלות חיות מהדאטהבייס */}
-                      {task.isDbFault ? (
-                        <>
-                          <button className="act-btn btn-read" style={{ borderColor: 'rgba(255,69,96,0.4)', color: '#ff4560' }} onClick={() => handleCloseFaultDirectly(task)}>סגור תקלה</button>
-                          <button className="act-btn btn-success" onClick={() => handleSendToTrip(task)}>
-                            <i className="ti ti-truck"></i> שלח לנסיעה
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'field', 'read')}>סמן כנקרא</button>
-                          <button className="act-btn btn-success" onClick={() => handleTaskAction(task.id, 'field', 'done')}>בוצע</button>
-                        </>
-                      )}
+                    <div className="act-strip">
+                      <div className="act-btn-split">
+                        {task.isDbFault ? (
+                          <>
+                            <button className="act-btn btn-read" style={{ borderColor: 'rgba(255,69,96,0.4)', color: '#ff4560' }} onClick={() => handleCloseFaultDirectly(task)}>סגור תקלה</button>
+                            <button className="act-btn btn-success" onClick={() => handleSendToTrip(task)}>
+                              <i className="ti ti-truck"></i> שלח לנסיעה
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'field', 'read')}>סמן כנקרא</button>
+                            <button className="act-btn btn-success" onClick={() => handleTaskAction(task.id, 'field', 'done')}>בוצע</button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
             <div className="archive-section">
               <div className="arch-toggle" onClick={() => setArchOpen({ ...archOpen, field: !archOpen.field })}>
@@ -498,34 +437,27 @@ export default function LogisticsTasks() {
               </div>
             </div>
             <div className="col-body">
-              {campTasks.map(task => (
-                <div key={task.id} className="tcard" style={{ background: task.bgC, borderColor: task.borderC }}>
-                  <div className="tcard-top">
-                    <span className="tcard-badge" style={{ background: 'rgba(0,212,255,0.08)', color: '#00d4ff', border: `1px solid ${task.borderC}` }}>{task.badge}</span>
-                    <span className="tcard-time">{task.time}</span>
-                  </div>
-                  <div className="tcard-title">{task.title}</div>
-                  <div className="tcard-who"><i className="ti ti-users"></i>{task.who}</div>
-                  
-                  {task.checklist && task.checklist.length > 0 && (
-                    <div className="checklist">
-                      {task.checklist.map((item, idx) => (
-                        <div key={idx} className="chk-row">
-                          <div className="chk-box"><i className="ti ti-circle-dashed" style={{ fontSize: '10px', color: '#00d4ff' }}></i></div>
-                          <span className="chk-lbl">{item.label}</span>
-                        </div>
-                      ))}
+              {campTasks.length === 0 ? (
+                <div style={{ fontSize: '12px', color: 'rgba(160,185,215,0.4)', textAlign: 'center', marginTop: '20px' }}>אין משימות הכנת קייטנות בפיקוח</div>
+              ) : (
+                campTasks.map(task => (
+                  <div key={task.id} className="tcard" style={{ background: task.bgC, borderColor: task.borderC }}>
+                    <div className="tcard-top">
+                      <span className="tcard-badge" style={{ background: 'rgba(0,212,255,0.08)', color: '#00d4ff', border: `1px solid ${task.borderC}` }}>{task.badge}</span>
+                      <span className="tcard-time">{task.time}</span>
                     </div>
-                  )}
+                    <div className="tcard-title">{task.title}</div>
+                    <div className="tcard-who"><i className="ti ti-users"></i>{task.who}</div>
 
-                  <div className="act-strip">
-                    <div className="act-btn-split">
-                      <button className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'camp', 'read')}>סמן כנקרא</button>
-                      <button className="act-btn btn-success" onClick={() => handleTaskAction(task.id, 'camp', 'done')}>בוצע</button>
+                    <div className="act-strip">
+                      <div className="act-btn-split">
+                        <button className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'camp', 'read')}>סמן כנקרא</button>
+                        <button className="act-btn btn-success" onClick={() => handleTaskAction(task.id, 'camp', 'done')}>בוצע</button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
             <div className="archive-section">
               <div className="arch-toggle" onClick={() => setArchOpen({ ...archOpen, camp: !archOpen.camp })}>
@@ -575,26 +507,31 @@ export default function LogisticsTasks() {
                 </div>
               </div>
 
+              {/* 🟢 כותרת נקייה ללא הערות/משימות דאמי ישנות - מוכן להזרקות עתידיות לבקשתך */}
               <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(160,185,215,0.4)', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '6px', marginBottom: '2px', textAlign: 'right' }}>⚠️ התראות מערכת אקטיביות</div>
 
-              {alertTasks.map(task => (
-                <div key={task.id} className="tcard" style={{ background: task.bgC, borderColor: task.borderC }}>
-                  <div className="tcard-top">
-                    <span className="tcard-badge" style={{ background: 'rgba(245,200,66,0.12)', color: '#ff8c42', borderborderColor: 'rgba(245,200,66,0.3)' }}>{task.badge}</span>
-                    <span className="tcard-time">{task.time}</span>
-                  </div>
-                  <div className="tcard-title">{task.title}</div>
-                  <div className="tcard-who"><i className="ti ti-phone-call"></i>{task.who}</div>
-                  <div className="tcard-body">{task.body}</div>
+              {alertTasks.length === 0 ? (
+                <div style={{ fontSize: '12px', color: 'rgba(160,185,215,0.4)', textAlign: 'center', marginTop: '14px' }}>אין התראות מערכת פעילות כרגע</div>
+              ) : (
+                alertTasks.map(task => (
+                  <div key={task.id} className="tcard" style={{ background: task.bgC, borderColor: task.borderC }}>
+                    <div className="tcard-top">
+                      <span className="tcard-badge" style={{ background: 'rgba(245,200,66,0.12)', color: '#ff8c42', borderborderColor: 'rgba(245,200,66,0.3)' }}>{task.badge}</span>
+                      <span className="tcard-time">{task.time}</span>
+                    </div>
+                    <div className="tcard-title">{task.title}</div>
+                    <div className="tcard-who"><i className="ti ti-phone-call"></i>{task.who}</div>
+                    <div className="tcard-body">{task.body}</div>
 
-                  <div className="act-strip">
-                    <div className="act-btn-split">
-                      <button className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'alert', 'read')}>סמן כנקרא</button>
-                      <button className="act-btn btn-success" onClick={() => handleTaskAction(task.id, 'alert', 'done')}>בוצע</button>
+                    <div className="act-strip">
+                      <div className="act-btn-split">
+                        <button className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'alert', 'read')}>סמן כנקרא</button>
+                        <button className="act-btn btn-success" onClick={() => handleTaskAction(task.id, 'alert', 'done')}>בוצע</button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
             <div className="archive-section">
               <div className="arch-toggle" onClick={() => setArchOpen({ ...archOpen, alert: !archOpen.alert })}>
