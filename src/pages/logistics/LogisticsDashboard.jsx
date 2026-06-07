@@ -39,6 +39,9 @@ export default function LogisticsDashboard() {
   const [trips, setTrips] = useState([]);
   const [loadingTrips, setLoadingTrips] = useState(true);
 
+  // 👨‍🏫 סטייט למדריכים קבועים מהדאטהבייס
+  const [dbInstructors, setDbInstructors] = useState([]);
+
   const GEAR_ITEMS = [
     { key: 'laptops', label: 'מחשבים', icon: '💻' },
     { key: 'tablets', label: 'טאבלטים', icon: '📱' },
@@ -123,8 +126,25 @@ export default function LogisticsDashboard() {
     }
   };
 
+  // שליפת המדריכים הקבועים מתוך טבלת המשתמשים במערכת
   useEffect(() => {
+    async function getInstructorsData() {
+      try {
+        if (!supabase) return;
+        const { data, error } = await supabase
+          .from('users')
+          .select('username')
+          .eq('role', 'instructor');
+        
+        if (error) throw error;
+        if (data) setDbInstructors(data.map(u => u.username));
+      } catch (err) {
+        console.log("Error loading instructors:", err);
+      }
+    }
+    
     getTripsData();
+    getInstructorsData();
   }, []);
 
   const calculateDaysLeft = (dateString) => {
@@ -604,13 +624,17 @@ export default function LogisticsDashboard() {
                   {modalType === 'fault' && 'הגורם המדווח על התקלה'}
                 </label>
                 <select className="mfs" value={modalManager} onChange={(e) => setModalManager(e.target.value)}>
-                  <option value="מנהל לוגיסטיקה">👤 מנהל לוגיסטיקה</option>
-                  <option value="מנהלת משרד">👤 מנהלת משרד</option>
-                  <option value="מנהל הדרכה">👤 מנהל הדרכה</option>
-                  <option value="אריה כהן">👨‍🏫 אריה כהן</option>
-                  <option value="רחל לוי">👨‍🏫 רחל לוי</option>
-                  <option value="ישראל ישראלי">👨‍🏫 ישראל ישראלי</option>
-                  <option value="מיכל דוד">👨‍🏫 מיכל דוד</option>
+                  {/* תפקידי הניהול הקבועים בחמ"ל */}
+                  <option value="מנהל לוגיסטיקה">💼 מנהל לוגיסטיקה</option>
+                  <option value="מנהלת משרד">💼 מנהלת משרד</option>
+                  <option value="מנהל הדרכה">💼 מנהל הדרכה</option>
+                  <option value="מנהל תוכן">💼 מנהל תוכן</option>
+                  <option value="נהג">🚛 נהג</option>
+                  
+                  {/* רשימת מדריכים אמיתיים ופעילים מהדאטהבייס */}
+                  {dbInstructors.map((name, idx) => (
+                    <option key={idx} value={name}>👨‍🏫 {name}</option>
+                  ))}
                 </select>
               </div>
 
