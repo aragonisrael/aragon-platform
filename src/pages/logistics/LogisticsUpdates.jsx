@@ -10,7 +10,7 @@ import aragonLogo from '../../assets/aragonlogo.png';
 export default function LogisticsUpdates() {
   const navigate = useNavigate();
 
-  // ── סטייט תפעולי גלובלי למסך ──
+  // ── 🧠 סטייט תפעולי גלובלי למסך ──
   const [isPlaying, setIsPlaying] = useState(false);
   const [clk, setClk] = useState('00:00:00');
   const [todayDate, setTodayDate] = useState('');
@@ -23,7 +23,7 @@ export default function LogisticsUpdates() {
   // סטייט למודאל אישור ארכוב/סגירת תקלה
   const [archiveConfirm, setArchiveConfirm] = useState({ open: false, item: null });
 
-  // 🟢 ניהול רשימת האלמנטים שנמצאים כרגע באנימציית דעיכה
+  // ניהול רשימת האלמנטים שנמצאים כרגע באנימציית דעיכה
   const [fadingIds, setFadingIds] = useState([]);
 
   // סטייט למודאל החזרת ציוד מותאם אישית
@@ -129,7 +129,6 @@ export default function LogisticsUpdates() {
         .map(([key, val]) => `${GEAR_ITEMS.find(g => g.key === key)?.icon} × ${val}`)
         .join(' | ');
 
-      // 🟢 התאמת הנוסח המדויק שביקשת למקרה של החזרת ציוד מהירה שטרם אושרה
       const isPendingIn = t.type === 'in' && t.status === 'pending';
       const cardText = isPendingIn 
         ? `שים לב הציוד ${summaryList} מהאחראי ${t.responsible} חזר למשרד יש לטפל בו ולשבץ אותו במדפים שלו .`
@@ -139,7 +138,7 @@ export default function LogisticsUpdates() {
         id: `transfer_${t.id}`,
         dbId: t.id,
         isTransfer: true,
-        type: t.type, // 'out' | 'in'
+        type: t.type, 
         time: new Date(t.created_at || Date.now()).toLocaleString('he-IL', { hour: '2-digit', minute: '2-digit' }),
         who: t.responsible,
         text: cardText,
@@ -179,7 +178,7 @@ export default function LogisticsUpdates() {
     }
   };
 
-  // 🟢 הפעלת האנימציה המבוקשת (דעיכה וטשטוש) ולאחריה ביצוע הארכוב בפועל
+  // הפעלת האנימציה המבוקשת (דעיכה וטשטוש) ולאחריה ביצוע הארכוב בפועל
   const triggerFadeAndArchive = (item) => {
     setFadingIds(prev => [...prev, item.id]); 
     setTimeout(() => {
@@ -242,11 +241,9 @@ export default function LogisticsUpdates() {
     }
   };
 
-  // ── הגדרת העיצובים והמלבנים הצבעוניים ──
   const typeColors = {
     fault: { bg: 'rgba(255,69,96,0.08)', border: 'rgba(255,69,96,0.25)', accent: '#ff4560', label: 'תקלה בשטח' },
     out: { bg: 'rgba(255, 69, 96, 0.12)', border: '#ff4560', accent: '#ff4560', label: '⚠️ דחוף — ממתין להחזרה' },
-    // 🟢 מלבן התראה אדום עם סימן קריאה עבור החזרת ציוד מהירה שממתינה לאישור במשרד
     in_pending: { bg: 'rgba(255, 69, 96, 0.12)', border: '#ff4560', accent: '#ff4560', label: '⚠️ התראת חמ"ל — ציוד חזר למשרד' },
     in: { bg: 'rgba(0,212,255,0.06)', border: 'rgba(0,212,255,0.2)', accent: '#00d4ff', label: 'החזרת ציוד למשרד' },
     trip: { bg: 'rgba(245,200,66,0.06)', border: 'rgba(245,200,66,0.2)', accent: '#f5c842', label: 'נסיעה' }
@@ -276,6 +273,8 @@ export default function LogisticsUpdates() {
         .nb:hover { background: #111f35; color: #00d4ff; border-color: rgba(0,212,255,0.1); }
         .nb.on { background: rgba(0,212,255,0.12); border-color: rgba(0,212,255,0.25); color: #00d4ff; }
         .nb i { font-size: 20px; }
+        
+        /* 🟢 שחזור העיצוב של הקווים המפרידים בתפריט הצד */
         .nb-sep { width: 32px; height: 1px; background: rgba(0,212,255,0.1); margin: 4px 0; }
 
         .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
@@ -313,11 +312,17 @@ export default function LogisticsUpdates() {
         .toast.show { transform: translateX(-50%) translateY(0); }
       `}</style>
 
+      {/* SIDEBAR NAVIGATION — 🟢 שחזור מלא ותקין של כל כפתורי המערכת הצדדיים */}
       <div className="sidebar">
         <div className="sb-logo" onClick={() => navigate('/admin')}><img src={aragonLogo} alt="Logo" /></div>
-        <button className="nb" onClick={() => navigate('/admin/logistics')}><i className="ti ti-home"></i>בית</button>
-        <button className="nb on"><i className="ti ti-bell"></i>עדכונים</button>
-        <button className="nb" onClick={() => navigate('/admin/logistics/tasks')}><i className="ti ti-list-check"></i>Missions</button>
+        <button className="nb" onClick={() => navigate('/admin/logistics')} title="בית"><i className="ti ti-home"></i>בית</button>
+        <button className="nb on" title="עדכונים"><i className="ti ti-bell"></i>עדכונים</button>
+        <button className="nb" onClick={() => navigate('/admin/logistics/tasks')} title="משימות"><i className="ti ti-list-check"></i>Missions</button>
+        <div className="nb-sep"></div>
+        <button className="nb" onClick={() => navigate('/admin/logistics/classes')} title="חוגים"><i className="ti ti-device-laptop"></i>חוגים</button>
+        <button className="nb" onClick={() => navigate('/admin/logistics/camps')} title="קייטנות"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 17 22 12"/></svg>קייטנות</button>
+        <div className="nb-sep"></div>
+        <button className="nb" onClick={() => navigate('/admin/logistics/purchase')} title="רכש"><i className="ti ti-shopping-cart"></i>רכש</button>
       </div>
 
       <div className="main">
@@ -341,7 +346,6 @@ export default function LogisticsUpdates() {
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {visibleFeed.map(e => {
                 const isOutPending = e.type === 'out' && !e.archived;
-                // 🟢 בדיקה האם מדובר בהחזרת ציוד מהירה אקטיבית שדורשת מלבן התראה אדום
                 const isTransferInPending = e.type === 'in' && !e.archived;
 
                 const c = isOutPending ? typeColors.out : isTransferInPending ? typeColors.in_pending : (typeColors[e.type] || typeColors.fault);
@@ -370,7 +374,6 @@ export default function LogisticsUpdates() {
                           <i className="ti ti-arrow-down-left"></i> החזר ציוד
                         </button>
                       ) : isTransferInPending ? (
-                        // 🟢 כפתור "הוחזר בהצלחה" המבוקש עבור התראות החזרה מהירה חמות
                         <button className="send-btn" style={{ background: 'rgba(0,229,160,0.12)', borderColor: '#00e5a0', color: '#00e5a0' }} onClick={() => handleMarkRead(e)}>
                           <i className="ti ti-check"></i> הוחזר בהצלחה
                         </button>
@@ -420,7 +423,7 @@ export default function LogisticsUpdates() {
             
             <div className="card">
               <div className="clbl"><div className="clbl-dot" style={{ background: '#ff4560' }}></div>תקלות — יעילות טיפול</div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '26px', fontWeight: 900, color: '#ff4560' }}>{dbFaults.filter(f=>!f.archived && !f.is_task).length}</div>
                   <div style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>פתוחות</div>
@@ -439,7 +442,7 @@ export default function LogisticsUpdates() {
 
             <div className="card" style={{ borderColor: 'rgba(255,69,96,0.35)' }}>
               <div className="clbl"><div className="clbl-dot" style={{ background: '#ff4560' }}></div>סטטוס שילוח פעיל בשטח</div>
-              <div style={{ background: 'rgba(255,69,96,0.04)', border: '1px solid rgba(255,69,96,0.18)', borderRadius: '8px', padding: '14px 10px', textAnomalous: 'center', textAlign: 'center' }}>
+              <div style={{ background: 'rgba(255,69,96,0.04)', border: '1px solid rgba(255,69,96,0.18)', borderRadius: '8px', padding: '14px 10px', textAlign: 'center' }}>
                 <div style={{ fontSize: '11px', color: 'rgba(160,185,215,0.5)', marginBottom: '5px' }}>הוצאות ציוד שממתינות לחזרה</div>
                 <div style={{ fontFamily: 'Orbitron', fontSize: '42px', fontWeight: 900, color: '#ff4560', textShadow: '0 0 15px rgba(255,69,96,0.35)' }}>{pendingReturnsCount}</div>
                 <div style={{ fontSize: '10px', color: '#ff4560', fontWeight: '600', marginTop: '4px' }}>חובה לוודא סגירת החזרות בסיום פעילות</div>
