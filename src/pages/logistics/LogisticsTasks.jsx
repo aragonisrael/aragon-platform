@@ -33,14 +33,29 @@ export default function LogisticsTasks() {
   // 🟢 סטייט לפופ-אפ אישור ביצוע משימה (אישור / ביטול)
   const [doneConfirm, setDoneConfirm] = useState({ open: false, id: null, col: null });
 
-  // ── 🗑️ מאגר משימות קשיח מקומי - נוקה לבקשתך ──
-  const [fieldTasks, setFieldTasks] = useState([]);
+  // ── 🗑️ מאגר משימות קשיח מקומי - מחובר לזיכרון דפדפן ──
+  const [fieldTasks, setFieldTasks] = useState(() => {
+    const saved = localStorage.getItem('aragon_field_tasks');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   // 🟢 סטייט ייעודי לתקלות חיות שהועברו לטיפול מתוך Supabase
   const [dbFaultTasks, setDbFaultTasks] = useState([]);
 
-  // ── 🗑️ מאגר משימות קייטנות - נוקה לבקשתך ──
-  const [campTasks, setCampTasks] = useState([]);
+  // ── 🗑️ מאגר משימות קייטנות - מחובר לזיכרון דפדפן ──
+  const [campTasks, setCampTasks] = useState(() => {
+    const saved = localStorage.getItem('aragon_camp_tasks');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // אפקטים לשמירה אוטומטית של המשימות בזיכרון המקומי בכל שינוי
+  useEffect(() => {
+    localStorage.setItem('aragon_field_tasks', JSON.stringify(fieldTasks));
+  }, [fieldTasks]);
+
+  useEffect(() => {
+    localStorage.setItem('aragon_camp_tasks', JSON.stringify(campTasks));
+  }, [campTasks]);
 
   // ── 🗑️ מאגר משימות התראות חכמות - נוקה לבקשתך ──
   const [alertTasks, setAlertTasks] = useState([]);
@@ -111,11 +126,9 @@ export default function LogisticsTasks() {
     if (createTaskTargetCol === 'field') {
       const newTask = {
         id: newId,
-        badge: '📝 משימת חמ"ל',
+        badge: '📝 משימה ידנית',
         badgeColor: '#ff4560',
-        instructor: 'חמ"ל שטח',
         time: nowTime,
-        title: 'משימת שטח ידנית',
         body: createTaskText,
         borderC: 'rgba(255,69,96,0.35)',
         bgC: '#0c1729',
@@ -126,11 +139,9 @@ export default function LogisticsTasks() {
     } else {
       const newTask = {
         id: newId,
-        badge: '🏕️ משימת קייטנה',
+        badge: '🏕️ משימה ידנית',
         badgeColor: '#00d4ff',
-        instructor: 'חמ"ל קייטנות',
         time: nowTime,
-        title: 'משימת קייטנה ידנית',
         body: createTaskText,
         borderC: 'rgba(0,212,255,0.35)',
         bgC: '#0c1729',
@@ -386,15 +397,21 @@ export default function LogisticsTasks() {
                   <div key={task.id} className="tcard" style={{ background: task.bgC, borderColor: task.borderC }}>
                     <div className="tcard-top">
                       <div className="tcard-badge-wrap">
-                        <span className="tcard-badge" style={{ background: 'rgba(255,69,96,0.1)', color: task.badgeColor, border: `1px solid ${task.borderC}` }}>{task.badge}</span>
-                        <span className="instructor-tag">👤 {task.instructor}</span>
+                        <span className="tcard-badge" style={{ background: 'rgba(255,69,96,0.06)', color: task.badgeColor, border: `1px solid ${task.borderC}` }}>{task.badge}</span>
+                        {!task.isCustom && <span className="instructor-tag">👤 {task.instructor}</span>}
                       </div>
                       <span className="tcard-time">{task.time}</span>
                     </div>
-                    <div className="tcard-title">{task.title}</div>
-                    
-                    {/* טקסט המשימה - אם נוצר ידנית נצבע בלבן חזק וברור */}
-                    <div className="tcard-body" style={task.isCustom ? { color: '#ffffff', fontWeight: '500', fontSize: '13.5px' } : {}}>{task.body}</div>
+
+                    {/* הצגת תוכן המשימה בצורה נקייה וישירה */}
+                    {task.isCustom ? (
+                      <div className="tcard-body" style={{ color: '#ffffff', fontWeight: '600', fontSize: '14px', marginTop: '4px' }}>{task.body}</div>
+                    ) : (
+                      <>
+                        <div className="tcard-title">{task.title}</div>
+                        <div className="tcard-body">{task.body}</div>
+                      </>
+                    )}
 
                     <div className="act-strip">
                       {task.isDbFault ? (
@@ -404,14 +421,8 @@ export default function LogisticsTasks() {
                             <i className="ti ti-truck"></i> שלח לנסיעה
                           </button>
                         </div>
-                      ) : task.isCustom ? (
-                        /* משימה ידנית מקבלת רק כפתור בוצע אחד רחב שמפעיל את הפופ-אפ */
-                        <button type="button" className="act-btn btn-success" style={{ width: '100%' }} onClick={() => setDoneConfirm({ open: true, id: task.id, col: 'field' })}>בוצע</button>
                       ) : (
-                        <div className="act-btn-split">
-                          <button type="button" className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'field', 'read')}>סמן כנקרא</button>
-                          <button type="button" className="act-btn btn-success" onClick={() => setDoneConfirm({ open: true, id: task.id, col: 'field' })}>בוצע</button>
-                        </div>
+                        <button type="button" className="act-btn btn-success" style={{ width: '100%' }} onClick={() => setDoneConfirm({ open: true, id: task.id, col: 'field' })}>בוצע</button>
                       )}
                     </div>
                   </div>
@@ -455,40 +466,22 @@ export default function LogisticsTasks() {
                 campTasks.map(task => (
                   <div key={task.id} className="tcard" style={{ background: task.bgC, borderColor: task.borderC }}>
                     <div className="tcard-top">
-                      <span className="tcard-badge" style={{ background: 'rgba(0,212,255,0.08)', color: '#00d4ff', border: `1px solid ${task.borderC}` }}>{task.badge}</span>
+                      <span className="tcard-badge" style={{ background: 'rgba(0,212,255,0.06)', color: '#00d4ff', border: `1px solid ${task.borderC}` }}>{task.badge}</span>
                       <span className="tcard-time">{task.time}</span>
                     </div>
-                    <div className="tcard-title">{task.title}</div>
-                    
-                    {/* מציג את נתוני המקור רק למשימות מערכת ישנות במידה וקיימות */}
-                    {task.who && <div className="tcard-who"><i className="ti ti-users"></i>{task.who}</div>}
-                    
-                    {/* 🟢 אם מדובר במשימה עצמאית - נציג את הטקסט בלבן קריא וברור */}
+
+                    {/* הצגת תוכן המשימה בצורה נקייה וישירה */}
                     {task.isCustom ? (
-                      <div className="tcard-body" style={{ color: '#ffffff', fontWeight: '500', fontSize: '13.5px', marginTop: '4px' }}>{task.body}</div>
+                      <div className="tcard-body" style={{ color: '#ffffff', fontWeight: '600', fontSize: '14px', marginTop: '4px' }}>{task.body}</div>
                     ) : (
-                      task.checklist && task.checklist.length > 0 && (
-                        <div className="checklist">
-                          {task.checklist.map((item, idx) => (
-                            <div key={idx} className="chk-row">
-                              <div className="chk-box"><i className="ti ti-circle-dashed" style={{ fontSize: '10px', color: '#00d4ff' }}></i></div>
-                              <span className="chk-lbl">{item.label}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )
+                      <>
+                        <div className="tcard-title">{task.title}</div>
+                        {task.who && <div className="tcard-who"><i className="ti ti-users"></i>{task.who}</div>}
+                      </>
                     )}
 
                     <div className="act-strip">
-                      {task.isCustom ? (
-                        /* לחצן בוצע יחיד ומורחב שמחובר לפופ-אפ הבדיקה */
-                        <button type="button" className="act-btn btn-success" style={{ width: '100%' }} onClick={() => setDoneConfirm({ open: true, id: task.id, col: 'camp' })}>בוצע</button>
-                      ) : (
-                        <div className="act-btn-split">
-                          <button type="button" className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'camp', 'read')}>סמן כנקרא</button>
-                          <button type="button" className="act-btn btn-success" onClick={() => setDoneConfirm({ open: true, id: task.id, col: 'camp' })}>בוצע</button>
-                        </div>
-                      )}
+                      <button type="button" className="act-btn btn-success" style={{ width: '100%' }} onClick={() => setDoneConfirm({ open: true, id: task.id, col: 'camp' })}>בוצע</button>
                     </div>
                   </div>
                 ))
@@ -592,35 +585,48 @@ export default function LogisticsTasks() {
       {/* מודאל חצי אוטומטי ליצירת משימה חופשית */}
       {isCreateModalOpen && (
         <div className="ov open" onClick={(e) => e.target.className === 'ov open' && setIsCreateModalOpen(false)}>
-          <div className="mbox">
-            <button className="modal-close-btn" onClick={() => setIsCreateModalOpen(false)}>×</button>
-            <div className="modal-head">
-              <div style={{ fontSize: '20px', marginLeft: '10px' }}>📝</div>
+          <div className="mbox" style={{ borderborderColor: '#00d4ff', padding: '24px' }}>
+            <button type="button" className="modal-close-btn" onClick={() => setIsCreateModalOpen(false)}>×</button>
+            
+            <div className="modal-head" style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '22px', marginLeft: '10px' }}>📝</div>
               <div>
-                <div className="modal-title-text">הוספת משימה עצמאית לחמ"ל</div>
-                <div className="modal-subtitle-text">
-                  היעד הנבחר: {createTaskTargetCol === 'field' ? 'חמ"ל שטח ותקלות' : 'הכנת קייטנות'}
+                <div className="modal-title-text" style={{ color: '#00d4ff', fontSize: '16px', fontWeight: '800' }}>הוספת משימה עצמאית לחמ"ל</div>
+                <div className="modal-subtitle-text" style={{ fontSize: '12px', marginTop: '4px' }}>
+                  היעד הנבחר: <span style={{ color: '#ffffff', fontWeight: '600' }}>{createTaskTargetCol === 'field' ? 'חמ"ל שטח ותקלות' : 'הכנת קייטנות'}</span>
                 </div>
               </div>
             </div>
 
-            <form onSubmit={handleCreateTaskSubmit}>
-              <div className="mfr">
-                <label className="mfl">פירוט המשימה (מלל חופשי)</label>
+            <form onSubmit={handleCreateTaskSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="mfr" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label className="mfl" style={{ fontSize: '12px', fontWeight: '700', color: 'rgba(0,212,255,0.7)' }}>פירוט המשימה (מלל חופשי)</label>
                 <textarea 
                   className="mfi" 
                   rows="4" 
-                  style={{ resize: 'none', fontFamily: 'Heebo' }}
+                  required
+                  style={{ resize: 'none', fontFamily: 'Heebo', width: '100%', background: '#111f35', border: '1px solid rgba(0,212,255,0.25)', borderRadius: '8px', color: '#ffffff', padding: '12px', fontSize: '13.5px', outline: 'none', lineHeight: '1.5' }}
                   placeholder="הקלד כאן את פרטי המשימה המלאים..." 
                   value={createTaskText}
                   onChange={(e) => setCreateTaskText(e.target.value)}
                 />
               </div>
 
-              <div className="mf2">
-                <button type="button" className="mbtn-cancel" onClick={() => setIsCreateModalOpen(false)}>ביטול</button>
-                <button type="submit" className="update-btn">
-                  <i className="ti ti-plus"></i> אשר והזרק ללוח
+              <div className="mf2" style={{ display: 'flex', gap: '12px', marginTop: '8px', justifycontent: 'flex-start' }}>
+                <button 
+                  type="button" 
+                  className="mbtn-cancel" 
+                  style={{ padding: '10px 24px', borderRadius: '8px', fontSize: '13.5px', fontWeight: '600', cursor: 'pointer' }}
+                  onClick={() => setIsCreateModalOpen(false)}
+                >
+                  ביטול
+                </button>
+                <button 
+                  type="submit" 
+                  className="update-btn"
+                  style={{ padding: '10px 24px', background: 'rgba(0,212,255,0.12)', borderborderColor: '#00d4ff', color: '#00d4ff', borderRadius: '8px', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <i className="ti ti-plus"></i> פתח משימה
                 </button>
               </div>
             </form>
