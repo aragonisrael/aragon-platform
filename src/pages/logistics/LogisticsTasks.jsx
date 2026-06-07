@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+// 🔌 ייבוא קליינט סופאבייס הרשמי של הפרויקט שלך
+import { supabase } from '../../supabaseClient';
+
 // ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
 import aragonLogo from '../../assets/aragonlogo.png';
 
@@ -22,12 +25,12 @@ export default function LogisticsTasks() {
   const [archives, setArchives] = useState({ field: [], camp: [], alert: [] });
   const [archOpen, setArchOpen] = useState({ field: false, camp: false, alert: false });
 
-  // 🟢 סטייט מודאל "צור משימה" חדש (כתיבה חופשית)
+  // סטייט מודאל "צור משימה" חדש (כתיבה חופשית)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createTaskText, setCreateTaskText] = useState('');
   const [createTaskTargetCol, setCreateTaskTargetCol] = useState('field'); // 'field' | 'camp'
 
-  // ── מאגר משימות חמ"ל שטח ותקלות מורחב ──
+  // ── מאגר משימות קשיח מקומי ──
   const [fieldTasks, setFieldTasks] = useState([
     { 
       id: 'fc1', 
@@ -64,7 +67,10 @@ export default function LogisticsTasks() {
     }
   ]);
 
-  // ── מאגר משימות קייטנות ──
+  // 🟢 סטייט ייעודי לתקלות חיות שהועברו לטיפול מתוך Supabase
+  const [dbFaultTasks, setDbFaultTasks] = useState([]);
+
+  // מאגר משימות קייטנות
   const [campTasks, setCampTasks] = useState([
     {
       id: 'cc1', badge: '⚡ דחוף — 18 יום', time: 'פתיחה: 15.06', title: 'קייטנת ראשון לציון', who: '3 חדרים | 45 ילדים | תחילת הכנה: 1.6', bgC: 'rgba(0,212,255,0.04)', borderC: 'rgba(0,212,255,0.2)',
@@ -83,9 +89,9 @@ export default function LogisticsTasks() {
     }
   ]);
 
-  // ── מאגר משימות התראות חכמות ──
+  // מאגר משימות התראות חכמות
   const [alertTasks, setAlertTasks] = useState([
-    { id: 'ac1', badge: '⏰ תזכורת קריטית', time: 'יעד: 30.06', title: 'שיחה עם המדריך רועי', who: 'נוצר אוטומטית — 14 ימים לפני קייטנה', body: 'לוודא שרועי מבין שעליו להביא את המחשבים האישיים שלו לקייטנת בן גוריון בתאריך 30.06. חובה לאשר בשיחה טלפונית.', bgC: 'rgba(255,140,66,0.06)', borderC: 'rgba(255,140,66,0.28)' }
+    { id: 'ac1', badge: '⏰ תזכורת קריטית', time: 'יעד: 30.06', title: 'שיחה עם המדריך רועי', who: 'נוצר אוטומטית — 14 ימים לפני קייטנה', body: 'לוואדא שרועי מבין שעליו להביא את המחשבים האישיים שלו לקייטנת בן גוריון בתאריך 30.06. חובה לאשר בשיחה טלפונית.', bgC: 'rgba(255,140,66,0.06)', borderC: 'rgba(255,140,66,0.28)' }
   ]);
 
   const showToast = (msg) => {
@@ -101,6 +107,27 @@ export default function LogisticsTasks() {
     return () => clearInterval(interval);
   }, []);
 
+  // 🟢 שליפת התקלות שהועברו לטיפול (is_task = true וטרם אורכבו) מתוך Supabase
+  const fetchFaultTasks = async () => {
+    try {
+      if (!supabase) return;
+      const { data, error } = await supabase
+        .from('faults')
+        .select('*')
+        .eq('is_task', true)
+        .eq('archived', false);
+      
+      if (error) throw error;
+      if (data) setDbFaultTasks(data);
+    } catch (err) {
+      console.log("Error loading dynamic fault tasks:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchFaultTasks();
+  }, []);
+
   // סנכרן את מצב כפתור הנגן
   useEffect(() => {
     const globalAudio = document.getElementById('hq-cyber-radio');
@@ -114,14 +141,12 @@ export default function LogisticsTasks() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // 🟢 פתיחת מודאל יצירת משימה חופשית לפי עמודה
   const openCreateModal = (colType) => {
     setCreateTaskTargetCol(colType);
     setCreateTaskText('');
     setIsCreateModalOpen(true);
   };
 
-  // 🟢 הזרקת המשימה החדשה מהמלל החופשי למאגרים
   const handleCreateTaskSubmit = (e) => {
     e.preventDefault();
     if (!createTaskText.trim()) {
@@ -165,22 +190,44 @@ export default function LogisticsTasks() {
     setIsCreateModalOpen(false);
   };
 
-  // 🟢 מנגנון הסרה וניתוב לארכיונים לפי הפעולה שנבחרה (סמן כנקרא או בוצע)
-  const handleTaskAction = (id, col, actionType) => {
+  // 🟢 עדכון ניהול כפתורי משימה - מעדכן את Supabase עבור תקלות חיות מהדאטהבייס
+  const handleTaskAction = async (id, col, actionType) => {
     let taskTitle = '';
-    
-    if (col === 'field') {
-      const task = fieldTasks.find(x => x.id === id);
-      taskTitle = task ? task.title : 'משימת שטח';
-      setFieldTasks(prev => prev.filter(x => x.id !== id));
-    } else if (col === 'camp') {
-      const task = campTasks.find(x => x.id === id);
-      taskTitle = task ? task.title : 'משימת קייטנה';
-      setCampTasks(prev => prev.filter(x => x.id !== id));
-    } else if (col === 'alert') {
-      const task = alertTasks.find(x => x.id === id);
-      taskTitle = task ? task.title : 'התראה חכמה';
-      setAlertTasks(prev => prev.filter(x => x.id !== id));
+    const isDbItem = typeof id === 'string' && id.startsWith('db_fault_');
+
+    if (isDbItem) {
+      const realDbId = parseInt(id.replace('db_fault_', ''), 10);
+      const targetFault = dbFaultTasks.find(x => x.id === realDbId);
+      taskTitle = targetFault ? `תקלה: ${targetFault.summary}` : 'תקלה בשטח';
+
+      try {
+        // מעדכנים בסופאבייס שהתקלה נסגרה/אורכבה סופית מהטיפול
+        const { error } = await supabase
+          .from('faults')
+          .update({ archived: true })
+          .eq('id', realDbId);
+
+        if (error) throw error;
+        setDbFaultTasks(prev => prev.filter(x => x.id !== realDbId));
+      } catch (err) {
+        console.error("Error archiving fault task:", err);
+        showToast('⚠️ שגיאה בעדכון השרת');
+        return;
+      }
+    } else {
+      if (col === 'field') {
+        const task = fieldTasks.find(x => x.id === id);
+        taskTitle = task ? task.title : 'משימת שטח';
+        setFieldTasks(prev => prev.filter(x => x.id !== id));
+      } else if (col === 'camp') {
+        const task = campTasks.find(x => x.id === id);
+        taskTitle = task ? task.title : 'משימת קייטנה';
+        setCampTasks(prev => prev.filter(x => x.id !== id));
+      } else if (col === 'alert') {
+        const task = alertTasks.find(x => x.id === id);
+        taskTitle = task ? task.title : 'התראה חכמה';
+        setAlertTasks(prev => prev.filter(x => x.id !== id));
+      }
     }
 
     const archiveMsg = actionType === 'done' ? 'בוצעה בהצלחה ✅' : 'סומנה כנקראה 👁️';
@@ -197,6 +244,27 @@ export default function LogisticsTasks() {
     showToast(actionType === 'done' ? 'המשימה סומנה כבוצעה והועברה לארכיון! ✓' : 'הועבר לארכיון הודעות שנקראו.');
   };
 
+  // 🟢 מיזוג התקלות החיות מסופאבייס יחד עם מערך המשימות הסטטי
+  const getCombinedFieldTasks = () => {
+    const mappedDbFaults = dbFaultTasks.map(f => ({
+      id: `db_fault_${f.id}`,
+      type: 'db_fault',
+      badge: '🛠️ תקלה בטיפול',
+      badgeColor: '#ff4560',
+      instructor: f.reporter,
+      time: new Date(f.created_at || Date.now()).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }),
+      title: `חמ"ל תקלות: ${f.summary}`,
+      body: f.description,
+      borderC: 'rgba(255, 69, 96, 0.35)',
+      bgC: 'rgba(255, 69, 96, 0.03)',
+      gearList: []
+    }));
+
+    return [...mappedDbFaults, ...fieldTasks];
+  };
+
+  const combinedFieldTasks = getCombinedFieldTasks();
+
   return (
     <div className="hq-global-wrapper">
       <style>{`
@@ -206,7 +274,6 @@ export default function LogisticsTasks() {
         *{ box-sizing: border-box; margin: 0; padding: 0; }
         .hq-global-wrapper { width: 100%; height: 100vh; background: #040b18; display: flex; font-family: 'Heebo', sans-serif; color: rgba(220,235,255,0.92); direction: rtl; overflow: hidden; }
         
-        /* SIDEBAR */
         .sidebar { width: 78px; background: #070f1e; border-left: 1px solid rgba(0,212,255,0.1); display: flex; flex-direction: column; align-items: center; padding: 18px 0 14px; gap: 4px; flex-shrink: 0; z-index: 10; }
         .sb-logo { width: 38px; height: 38px; margin-bottom: 18px; cursor: pointer; }
         .sb-logo img { width: 100%; height: 100%; object-fit: contain; }
@@ -226,7 +293,6 @@ export default function LogisticsTasks() {
         @keyframes lp { 0%,100% { box-shadow: 0 0 0 0 rgba(0,229,160,0.5); } 60% { box-shadow: 0 0 0 5px rgba(0,229,160,0); } }
         .clk { font-family: 'Orbitron', monospace; font-size: 13px; color: #00d4ff; letter-spacing: 2px; font-weight: 600; }
 
-        /* KANBAN LAYOUT */
         .tasks-body { flex: 1; display: grid; grid-template-columns: 1fr 1fr 1fr; overflow: hidden; }
         .col { display: flex; flex-direction: column; border-left: 1px solid rgba(0,212,255,0.1); overflow: hidden; }
         .col:last-child { border-left: none; }
@@ -237,7 +303,6 @@ export default function LogisticsTasks() {
         .col-hdr-right-box { display: flex; align-items: center; gap: 8px; }
         .col-hdr-count { font-size: 11px; font-family: 'Orbitron', monospace; padding: 2px 8px; border-radius: 4px; font-weight: 700; }
         
-        /* כפתור צור משימה ניאון מעוצב */
         .col-create-btn { background: rgba(0,212,255,0.06); border: 1px solid #00d4ff; color: #00d4ff; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: 'Heebo'; }
         .col-create-btn:hover { background: rgba(0,212,255,0.15); box-shadow: 0 0 10px rgba(0,212,255,0.2); }
         
@@ -260,14 +325,12 @@ export default function LogisticsTasks() {
         .gear-list-row { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #ffffff; direction: rtl; }
         .gear-item-qty { font-family: 'Orbitron', monospace; color: #00e5a0; font-weight: 700; font-size: 13.5px; }
 
-        /* CHECKLIST */
         .checklist { display: flex; flex-direction: column; gap: 6px; width: 100%; }
         .chk-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); width: 100%; box-sizing: border-box; }
         .chk-box { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid rgba(0,212,255,0.35); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .chk-lbl { font-size: 12px; color: rgba(220,235,255,0.92); flex: 1; text-align: right; }
         .chk-status { font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 700; white-space: nowrap; margin-right: auto; }
 
-        /* STRIP ACTION BUTTONS — שונה לפי הדרישה ל-2 כפתורים בלבד */
         .act-strip { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 11px; margin-top: auto; width: 100%; }
         .act-btn-split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
         .act-btn { width: 100%; padding: 8px 14px; border-radius: 7px; border: 1px solid; cursor: pointer; font-family: 'Heebo', sans-serif; font-size: 12.5px; font-weight: 700; transition: all 0.18s; display: flex; align-items: center; justify-content: center; gap: 7px; }
@@ -285,12 +348,15 @@ export default function LogisticsTasks() {
         .snap-val { font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; }
         .snap-lbl { font-size: 9.5px; color: rgba(160,185,215,0.5); font-weight: 600; }
 
-        /* ARCHIVE */
         .archive-section { border-top: 1px solid rgba(0,212,255,0.1); flex-shrink: 0; background: #070f1e; }
         .arch-toggle { padding: 11px 14px; cursor: pointer; display: flex; align-items: center; gap: 7px; font-size: 10px; letter-spacing: 1.5px; color: rgba(160,185,215,0.5); text-transform: uppercase; user-select: none; }
         .arch-list { display: flex; max-height: 130px; overflow-y: auto; padding: 0 14px 10px; flex-direction: column; gap: 5px; }
         .arch-item { display: flex; align-items: center; justify-content: space-between; padding: 5px 9px; background: rgba(0,229,160,0.04); border: 1px solid rgba(0,229,160,0.12); border-radius: 6px; font-size: 12px; }
         
+        .ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+        .ov.open { display: flex; }
+        .mbox { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 480px; max-width: 95vw; box-shadow: 0 0 50px rgba(0,212,255,0.15); direction: rtl; text-align: right; position: relative; overflow: hidden; }
+
         .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #162540; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; user-select: none; }
         .player-toggle-btn { color: #00d4ff; font-size: 14px; display: flex; align-items: center; }
         .player-toggle-btn.playing { color: #00e5a0; }
@@ -300,31 +366,6 @@ export default function LogisticsTasks() {
         .visualizer-bar { width: 2px; height: 3px; background: #00e5a0; }
         .cyber-music-player.playing .visualizer-bar { animation: wavePulse 0.6s ease-in-out infinite alternate; }
         @keyframes wavePulse { 0% { height: 3px; } 100% { height: 10px; } }
-
-        /* MODAL STRUCTURE OVERRIDES */
-        .ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
-        .ov.open { display: flex; }
-        .mbox { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 480px; max-width: 95vw; box-shadow: 0 0 50px rgba(0,212,255,0.15); direction: rtl; text-align: right; position: relative; overflow: hidden; }
-        .mbox::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent); }
-        .modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid rgba(0,212,255,0.12); }
-        .modal-title-text { font-family: 'Heebo', sans-serif; font-size: 15px; font-weight: 800; color: #ffffff; }
-        .modal-subtitle-text { font-size: 12px; color: rgba(160,185,215,0.5); margin-top: 3px; }
-        .modal-close-btn { position: absolute; left: 16px; top: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: rgba(160,185,215,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center; }
-        .modal-close-btn:hover { background: rgba(255,69,96,0.12); color: #ff4560; }
-
-        .mfr { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
-        .mfl { font-size: 11px; color: rgba(0,212,255,0.55); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-        .mfi, .mfs { width: 100%; background: #111f35; border: 1px solid rgba(0,212,255,0.25); border-radius: 7px; color: #ffffff; padding: 10px 13px; font-family: 'Heebo', sans-serif; font-size: 13.5px; direction: rtl; outline: none; }
-        .mfi:focus, .mfs:focus { border-color: #00d4ff; box-shadow: 0 0 8px rgba(0,212,255,0.15); }
-        
-        .update-btn { width: 100%; padding: 12px; background: rgba(0,212,255,0.12); border: 1px solid #00d4ff; border-radius: 8px; color: #00d4ff; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; outline: none; }
-        .update-btn:hover { background: rgba(0,212,255,0.22); box-shadow: 0 0 18px rgba(0,212,255,0.2); }
-        .mbtn-cancel { padding: 12px 18px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 8px; color: rgba(160,185,215,0.5); font-family: 'Heebo', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; }
-        .mf2 { display: flex; gap: 10px; margin-top: 20px; }
-        
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.2); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 212, 255, 0.4); }
       `}</style>
 
       {/* SIDEBAR NAVIGATION */}
@@ -360,7 +401,7 @@ export default function LogisticsTasks() {
         {/* 3-COLUMN KANBAN TASKS BODY GRID */}
         <div className="tasks-body">
           
-          {/* COLUMN 1: FIELD OPS & FAULTS (חמ"ל שטח ותקלות) */}
+          {/* COLUMN 1: FIELD OPS & FAULTS (חמ"ל שטח ותקלות - כולל תקלות מסופאבייס) */}
           <div className="col">
             <div className="col-hdr">
               <div className="col-hdr-title">
@@ -368,13 +409,12 @@ export default function LogisticsTasks() {
                 חמ"ל שטח ותקלות
               </div>
               <div className="col-hdr-right-box">
-                {/* 🟢 כפתור צור משימה ייעודי לעמודה 1 */}
                 <button className="col-create-btn" onClick={() => openCreateModal('field')}>+ צור משימה</button>
-                <span className="col-hdr-count" style={{ background: 'rgba(255,69,96,0.1)', color: '#ff4560', border: '1px solid rgba(255,69,96,0.25)' }}>{fieldTasks.length}</span>
+                <span className="col-hdr-count" style={{ background: 'rgba(255,69,96,0.1)', color: '#ff4560', border: '1px solid rgba(255,69,96,0.25)' }}>{combinedFieldTasks.length}</span>
               </div>
             </div>
             <div className="col-body">
-              {fieldTasks.map(task => (
+              {combinedFieldTasks.map(task => (
                 <div key={task.id} className="tcard" style={{ background: task.bgC, borderColor: task.borderC }}>
                   <div className="tcard-top">
                     <div className="tcard-badge-wrap">
@@ -398,7 +438,7 @@ export default function LogisticsTasks() {
                     </div>
                   )}
 
-                  {/* 🟢 2 כפתורים בלבד ליד כל משימה (דרישה) */}
+                  {/* 2 כפתורים בלבד: סמן כנקרא / בוצע - שניהם סוגרים את התקלה בסופאבייס */}
                   <div className="act-strip">
                     <div className="act-btn-split">
                       <button className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'field', 'read')}>סמן כנקרא</button>
@@ -426,7 +466,7 @@ export default function LogisticsTasks() {
             </div>
           </div>
 
-          {/* COLUMN 2: CAMP PREPARATION (הכנת קייטנות) */}
+          {/* COLUMN 2: CAMP PREPARATION */}
           <div className="col">
             <div className="col-hdr">
               <div className="col-hdr-title">
@@ -434,7 +474,6 @@ export default function LogisticsTasks() {
                 הכנת קייטנות
               </div>
               <div className="col-hdr-right-box">
-                {/* 🟢 כפתור צור משימה ייעודי לעמודה 2 */}
                 <button className="col-create-btn" onClick={() => openCreateModal('camp')}>+ צור משימה</button>
                 <span className="col-hdr-count" style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.22)' }}>{campTasks.length}</span>
               </div>
@@ -460,7 +499,6 @@ export default function LogisticsTasks() {
                     </div>
                   )}
 
-                  {/* 🟢 2 כפתורים בלבד ליד כל משימה (דרישה) */}
                   <div className="act-strip">
                     <div className="act-btn-split">
                       <button className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'camp', 'read')}>סמן כנקרא</button>
@@ -488,7 +526,7 @@ export default function LogisticsTasks() {
             </div>
           </div>
 
-          {/* COLUMN 3: SNAPSHOT & SMART ALERTS (תמונת מצב והתראות חכמות) */}
+          {/* COLUMN 3: SNAPSHOT & SMART ALERTS */}
           <div className="col">
             <div className="col-hdr">
               <div className="col-hdr-title">
@@ -499,7 +537,6 @@ export default function LogisticsTasks() {
             </div>
             <div className="col-body">
               
-              {/* מוניטור מלאי דיגיטלי עליון קבוע לחומרה במשרד */}
               <div className="snapshot-container">
                 <div className="snapshot-row">
                   <div className="snapshot-label">💻 לפטופים במשרד</div>
@@ -524,15 +561,13 @@ export default function LogisticsTasks() {
               {alertTasks.map(task => (
                 <div key={task.id} className="tcard" style={{ background: task.bgC, borderColor: task.borderC }}>
                   <div className="tcard-top">
-                    <span className="tcard-badge" style={{ background: 'rgba(245,200,66,0.12)', color: '#ff8c42', borderColor: 'rgba(245,200,66,0.3)' }}>{task.badge}</span>
+                    <span className="tcard-badge" style={{ background: 'rgba(245,200,66,0.12)', color: '#ff8c42', borderborderColor: 'rgba(245,200,66,0.3)' }}>{task.badge}</span>
                     <span className="tcard-time">{task.time}</span>
                   </div>
                   <div className="tcard-title">{task.title}</div>
                   <div className="tcard-who"><i className="ti ti-phone-call"></i>{task.who}</div>
-                  
                   <div className="tcard-body">{task.body}</div>
 
-                  {/* 🟢 2 כפתורים בלבד ליד כל משימה (דרישה) */}
                   <div className="act-strip">
                     <div className="act-btn-split">
                       <button className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'alert', 'read')}>סמן כנקרא</button>
@@ -563,7 +598,7 @@ export default function LogisticsTasks() {
         </div>
       </div>
 
-      {/* 🟢 קומפוננטת מודאל חכמה ליצירת משימה חופשית בחמ"ל (דרישה) */}
+      {/* מודאל חצי אוטומטי ליצירת משימה חופשית */}
       {isCreateModalOpen && (
         <div className="ov open" onClick={(e) => e.target.className === 'ov open' && setIsCreateModalOpen(false)}>
           <div className="mbox">

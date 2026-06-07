@@ -20,6 +20,9 @@ export default function LogisticsUpdates() {
   const [archOpen, setArchOpen] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '' });
 
+  // 🟢 סטייט למודאל אישור ארכוב/סגירת תקלה
+  const [archiveConfirm, setArchiveConfirm] = useState({ open: false, item: null });
+
   // מאגר עדכונים סטטיים (עבור הוצאות, החזרות ונסיעות)
   const [staticFeed, setStaticFeed] = useState([
     { id: 'st_2', type: 'out', time: '28.05.26 | 19:42:10', who: 'מיכל דוד', text: 'הוצאו 12 מחשבים + 12 מטענים + 12 עכברים לקייטנת רמת גן. נהג: יוסי.', archived: false, task: false },
@@ -50,7 +53,7 @@ export default function LogisticsUpdates() {
     return () => clearInterval(interval);
   }, []);
 
-  // 🛠️ שליפת התקלות האמיתיות מתוך Supabase
+  // שליפת התקלות האמיתיות מתוך Supabase
   const fetchRealTimeFaults = async () => {
     try {
       if (!supabase) return;
@@ -85,7 +88,7 @@ export default function LogisticsUpdates() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // 🔄 מיזוג של העדכונים הסטטיים יחד עם התקלות האמיתיות מ-Supabase לתוך פיד אחיד
+  // מיזוג של העדכונים הסטטיים יחד עם התקלות האמיתיות מ-Supabase לתוך פיד אחיד
   const getCombinedFeed = () => {
     const mappedFaults = dbFaults.map(f => ({
       id: `fault_${f.id}`,
@@ -102,11 +105,10 @@ export default function LogisticsUpdates() {
     return [...mappedFaults, ...staticFeed];
   };
 
-  // ⚡ פונקציית העברה למסך משימות (הפיכת עדכון אקטיבי לטסק)
+  // ⚡ פונקציית העברה למסך משימות
   const handleCreateTask = async (item) => {
     if (item.isDb) {
       try {
-        // מעדכנים בסופאבייס שהתקלה עברה למצב משימה (is_task = true)
         const { error } = await supabase
           .from('faults')
           .update({ is_task: true })
@@ -125,11 +127,19 @@ export default function LogisticsUpdates() {
     }
   };
 
-  // 📂 סימון עדכון כנקרא מהיר והעברה לארכיון
-  const handleMarkRead = async (item) => {
+  // 📂 טריגר פתיחת מודאל אישור או ארכוב ישיר
+  const handleMarkRead = (item) => {
+    if (item.type === 'fault') {
+      setArchiveConfirm({ open: true, item });
+    } else {
+      executeArchive(item);
+    }
+  };
+
+  // ביצוע הארכוב בפועל לאחר אישור
+  const executeArchive = async (item) => {
     if (item.isDb) {
       try {
-        // מעדכנים בסופאבייס שהתקלה בארכיון (archived = true)
         const { error } = await supabase
           .from('faults')
           .update({ archived: true })
@@ -137,7 +147,7 @@ export default function LogisticsUpdates() {
 
         if (error) throw error;
         setDbFaults(prev => prev.map(f => f.id === item.dbId ? { ...f, archived: true } : f));
-        showToast('התקלה אורכבה בהצלחה בבסיס הנתונים 📂');
+        showToast('התקלה נסגרה סופית ואורכבה במערכת 📂');
       } catch (err) {
         console.error(err);
         showToast('⚠️ שגיאה בעדכון הארכיון בשרת');
@@ -146,6 +156,7 @@ export default function LogisticsUpdates() {
       setStaticFeed(prev => prev.map(e => e.id === item.id ? { ...e, archived: true } : e));
       showToast('העדכון סומן כנקרא והועבר לארכיון העדכונים');
     }
+    setArchiveConfirm({ open: false, item: null });
   };
 
   const typeColors = {
@@ -208,6 +219,10 @@ export default function LogisticsUpdates() {
         .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111f35; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 22px rgba(0,229,160,0.18); transition: transform 0.28s; z-index: 300; text-align: center; pointer-events: none; }
         .toast.show { transform: translateX(-50%) translateY(0); }
         
+        .ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+        .ov.open { display: flex; }
+        .mbox { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 480px; max-width: 95vw; box-shadow: 0 0 50px rgba(0,212,255,0.15); direction: rtl; text-align: right; position: relative; overflow: hidden; }
+
         .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #162540; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; user-select: none; }
         .player-toggle-btn { color: #00d4ff; font-size: 14px; display: flex; align-items: center; }
         .player-toggle-btn.playing { color: #00e5a0; }
@@ -249,7 +264,6 @@ export default function LogisticsUpdates() {
           </div>
         </div>
 
-        {/* WORKSPACE LAYOUT */}
         <div className="updates-body">
           {/* RIGHT SIDE: FEED (65%) */}
           <div style={{ flex: '0 0 65%', display: 'flex', flexDirection: 'column', borderLeft: '1px solid rgba(0,212,255,0.1)', overflow: 'hidden' }}>
@@ -272,7 +286,7 @@ export default function LogisticsUpdates() {
                 const c = typeColors[e.type] || typeColors.fault;
                 return (
                   <div key={e.id} style={{ background: c.bg, border: `1px solid ${c.border}`, borderRight: `3px solid ${c.accent}`, borderRadius: '10px', padding: '14px 16px', transition: 'all 0.3s', opacity: e.task ? 0.6 : 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', marginBottom: '8px', gap: '10px', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', gap: '10px', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: '10px', background: c.bg, border: `1px solid ${c.border}`, color: c.accent, padding: '3px 10px', borderRadius: '5px', fontWeight: 700 }}>{c.label}</span>
                       <span style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)', fontFamily: 'Orbitron, monospace', letterSpacing: '0.5px' }}>{e.time}</span>
                     </div>
@@ -340,7 +354,7 @@ export default function LogisticsUpdates() {
 
             <div className="card">
               <div className="clbl"><div className="clbl-dot" style={{ background: '#ff4560' }}></div>תקלות — יעילות טיפול</div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', marginBottom: '10px', justifyContent: 'space-between' }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '26px', fontWeight: 900, color: '#ff4560' }}>{dbFaults.filter(f=>!f.archived && !f.is_task).length}</div>
                   <div style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>פתוחות</div>
@@ -350,7 +364,7 @@ export default function LogisticsUpdates() {
                     <div style={{ height: '100%', width: '75%', background: 'linear-gradient(90deg, #ff4560, #00e5a0)', borderRadius: '3px' }}></div>
                   </div>
                 </div>
-                <div style={{ textAlignment: 'center' }}>
+                <div style={{ textAlign: 'center' }}>
                   <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '26px', fontWeight: 900, color: '#00e5a0' }}>{dbFaults.filter(f=>f.archived).length}</div>
                   <div style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>אורכבו</div>
                 </div>
@@ -359,6 +373,25 @@ export default function LogisticsUpdates() {
           </div>
         </div>
       </div>
+
+      {/* 🟢 מודאל אישור ארכוב/סגירת תקלה חכם (דרישה 1) */}
+      {archiveConfirm.open && (
+        <div className="ov open" onClick={() => setArchiveConfirm({ open: false, item: null })}>
+          <div className="mbox" style={{ borderborderColor: '#ff4560' }}>
+            <div className="modal-head">
+              <div style={{ fontSize: '22px', marginLeft: '10px' }}>⚠️</div>
+              <div className="modal-title-text" style={{ fontSize: '16px', color: '#ff4560' }}>אזהרת חמ"ל לוגיסטיקה</div>
+            </div>
+            <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#ffffff', marginBottom: '22px', textAlign: 'right' }}>
+              בחרת להעביר את התקלה הזו לארכיון והמשמעות שהתקלה הזו תיסגר - האם בכל זאת להעביר להארכיון?
+            </div>
+            <div className="mf2" style={{ marginTop: '0', justifyContent: 'flex-start' }}>
+              <button type="button" className="send-btn" style={{ background: 'rgba(255,69,96,0.12)', borderborderColor: '#ff4560', color: '#ff4560' }} onClick={() => executeArchive(archiveConfirm.item)}>כן, סגור תקלה</button>
+              <button type="button" className="mbtn-cancel" style={{ marginLeft: '0', marginRight: '10px' }} onClick={() => setArchiveConfirm({ open: false, item: null })}>לא, ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TOAST SYSTEM */}
       <div className={`toast ${toast.show ? 'show' : ''}`}>✓ {toast.message}</div>
