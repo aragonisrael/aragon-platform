@@ -32,7 +32,7 @@ export default function LogisticsDashboard() {
   const [camps, setCamps] = useState([]);
   const [loadingCamps, setLoadingCamps] = useState(true);
 
-  // 🛠️ סטייט תקלות מחובר בזמן אמת ל-Supabase
+  // 🛠️ סטייט תקלות מסונן בזמן אמת (רק פתוחות!)
   const [faults, setFaults] = useState([]);
   const [loadingFaults, setLoadingFaults] = useState(true);
 
@@ -95,7 +95,7 @@ export default function LogisticsDashboard() {
     getCampsData();
   }, []);
 
-  // 🛠️ שליפת תקלות בזמן אמת מ-Supabase (חדש - שומר על הדאטה ברענן)
+  // 🛠️ שליפת תקלות פתוחות בלבד מ-Supabase (.eq('archived', false))
   useEffect(() => {
     async function getFaultsData() {
       try {
@@ -103,13 +103,13 @@ export default function LogisticsDashboard() {
         const { data, error } = await supabase
           .from('faults')
           .select('*')
-          .order('id', { ascending: false }); // התקלות החדשות יופיעו למעלה
+          .eq('archived', false) // 🟢 התיקון הקריטי: שולף רק תקלות שלא נסגרו/אורכבו!
+          .order('id', { ascending: false });
 
         if (error) throw error;
         if (data) setFaults(data);
       } catch (err) {
-        console.log("Supabase faults omitted or table missing - using local fallback:", err);
-        // פולבק מקומי כדי שהעיצוב לא יישבר אם הטבלה עוד לא קיימת בסופאבייס
+        console.log("Supabase faults error - using local fallback:", err);
         setFaults([
           { id: 1, reporter: 'אריה כהן', summary: '💻 מחשב × 2', description: 'מסך שבור ולא נדלק' },
           { id: 2, reporter: 'רחל לוי', summary: '🖱 עכבר × 2', description: 'חיישן אופטי מזייף' }
@@ -157,7 +157,6 @@ export default function LogisticsDashboard() {
     setIsModalOpen(true);
   };
 
-  // 📤 שליחת הטופס - מעכשיו מעדכן ישירות את ה-Database
   const handleQuickSubmit = async (e) => {
     e.preventDefault();
     
@@ -176,41 +175,36 @@ export default function LogisticsDashboard() {
       return;
     }
 
-    // 🛠️ שיגור תקלה אמיתית ל-Supabase
     if (modalType === 'fault') {
       const newFaultRow = {
         reporter: modalManager,
         summary: formattedGear,
-        description: modalDescription.trim() ? modalDescription : 'לא פורט'
+        description: modalDescription.trim() ? modalDescription : 'לא פורט',
+        archived: false,
+        is_task: false
       };
 
       try {
         if (!supabase) throw new Error("Supabase client missing");
-        
-        // מכניסים לטבלת faults בסופאבייס
         const { data, error } = await supabase
           .from('faults')
           .insert([newFaultRow])
           .select();
 
         if (error) throw error;
-        
         if (data) {
-          setFaults(prev => [data[0], ...prev]); // מוסיף לטבלה במסך מיד מהדאטהבייס
+          setFaults(prev => [data[0], ...prev]);
           showToast('🛠️ תקלה נשמרה בריאל-טיים בבסיס הנתונים!');
         }
       } catch (err) {
-        console.error("Error inserting fault to Supabase:", err);
-        // פולבק מקומי למקרה שיש שגיאת רשת
+        console.error(err);
         setFaults(prev => [{ id: Date.now(), ...newFaultRow }, ...prev]);
-        showToast('⚠️ נשמר מקומית בלבד - שגיאה בחיבור לשרת');
+        showToast('⚠️ נשמר מקומית - שגיאה בחיבור לשרת');
       }
-      
       setIsModalOpen(false);
       return;
     }
 
-    // לוגיקה רגילה להוצאה/החזרה מהירה
     const newUpdate = {
       id: Date.now(),
       type: modalType,
@@ -352,13 +346,6 @@ export default function LogisticsDashboard() {
         .send-btn:hover:not(:disabled) { background: rgba(0,229,160,0.16); box-shadow: 0 0 10px rgba(0,229,160,0.2); }
         .send-btn:disabled { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.07); color: rgba(160,185,215,0.3); cursor: default; }
 
-        .missions-simulation-card { background: #0c1729; border: 1px solid rgba(139,92,246,0.2); border-radius: 12px; padding: 18px 20px; margin-top: 5px; }
-        .task-item-row { display: flex; align-items: center; justify-content: space-between; background: #111f35; padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; border-right: 3px solid #8b5cf6; }
-        .task-info-title { font-weight: 700; font-size: 13.5px; color: #ffffff; }
-        .task-info-sub { font-size: 11.5px; color: rgba(160,185,215,0.6); margin-top: 2px; }
-        .btn-task-done { background: rgba(0,229,160,0.1); border: 1px solid #00e5a0; color: #00e5a0; padding: 4px 14px; border-radius: 6px; font-family: 'Heebo'; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
-        .btn-task-done:hover { background: rgba(0,229,160,0.2); box-shadow: 0 0 10px rgba(0,229,160,0.2); }
-
         .ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
         .ov.open { display: flex; }
         .mbox { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 520px; max-width: 95vw; box-shadow: 0 0 50px rgba(0,212,255,0.15); direction: rtl; text-align: right; position: relative; overflow: hidden; }
@@ -372,7 +359,6 @@ export default function LogisticsDashboard() {
         .mfr { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
         .mfl { font-size: 11px; color: rgba(0,212,255,0.55); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
         .mfi, .mfs { width: 100%; background: #111f35; border: 1px solid rgba(0,212,255,0.25); border-radius: 7px; color: #ffffff; padding: 10px 13px; font-family: 'Heebo', sans-serif; font-size: 13.5px; direction: rtl; outline: none; }
-        .mfi:focus, .mfs:focus { border-color: #00d4ff; box-shadow: 0 0 8px rgba(0,212,255,0.15); }
         
         .mini-gear-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
         .mg-box { background: #111f35; border: 1px solid rgba(0,212,255,0.12); border-radius: 7px; padding: 8px; display: flex; flex-direction: column; gap: 4px; align-items: center; }
@@ -383,16 +369,6 @@ export default function LogisticsDashboard() {
         .update-btn:hover { background: rgba(0,212,255,0.22); box-shadow: 0 0 18px rgba(0,212,255,0.2); }
         .mbtn-cancel { padding: 12px 18px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 8px; color: rgba(160,185,215,0.5); font-family: 'Heebo', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; }
         .mf2 { display: flex; gap: 10px; margin-top: 20px; }
-
-        .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #162540; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; user-select: none; }
-        .player-toggle-btn { color: #00d4ff; font-size: 14px; display: flex; align-items: center; }
-        .player-toggle-btn.playing { color: #00e5a0; }
-        .player-station-text { font-size: 11px; font-family: 'Orbitron', monospace; color: rgba(160,185,215,0.5); letter-spacing: 1px; font-weight: bold; }
-        .cyber-music-player.playing .player-station-text { color: #00e5a0; }
-        .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
-        .visualizer-bar { width: 2px; height: 3px; background: #00e5a0; }
-        .cyber-music-player.playing .visualizer-bar { animation: wavePulse 0.6s ease-in-out infinite alternate; }
-        @keyframes wavePulse { 0% { height: 3px; } 100% { height: 10px; } }
 
         .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111f35; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 22px rgba(0,229,160,0.18); transition: transform 0.28s; z-index: 300; text-align: center; pointer-events: none; }
         .toast.show { transform: translateX(-50%) translateY(0); }
@@ -439,25 +415,8 @@ export default function LogisticsDashboard() {
             <button className="abtn abtn-fault" onClick={() => handleOpenQuickModal('fault')}><span className="abtn-icon">🛠️</span> פתיחת תקלה במערכת</button>
           </div>
 
-          {updates.length > 0 && (
-            <div className="live-updates-area">
-              <div style={{ fontSize: '13px', fontWeight: '800', color: '#00d4ff', display: 'flex', alignItems: 'center', gap: '6px' }}>                <i className="ti ti-bell-ringing animate-bounce"></i> עדכוני ציוד חדשים שטרם נקראו:
-              </div>
-              {updates.map(item => (
-                <div key={item.id} className={`update-row-item ${item.type}`}>
-                  <div className="update-meta">
-                    <strong>[{item.time}]</strong> {item.type === 'out' ? '📤 הוצאה ל-' : '📥 החזרה מ-'}<strong>{item.target}</strong> | אחראי: {item.responsible} <span style={{ color: '#00d4ff', marginRight: '10px' }}>{item.gearSummary}</span>
-                  </div>
-                  <div className="update-actions-btns">
-                    <button className="up-btn up-btn-read" onClick={() => handleMarkAsRead(item.id)}>סמן כנקרא</button>
-                    <button className="up-btn up-btn-work" onClick={() => handleTransferToTasks(item)}>העבר לטיפול</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
           <div className="mid-row">
+            {/* רכיב תקלות דינמי מסונכרן לחלוטין לחמ"ל */}
             <div className="card">
               <div className="clbl"><div className="clbl-dot" style={{ background: '#ff4560' }}></div>תקלות ממתינות לטיפול</div>
               <div className="malf-top">
@@ -570,23 +529,6 @@ export default function LogisticsDashboard() {
               </table>
             </div>
           </div>
-
-          {tasks.length > 0 && (
-            <div className="missions-simulation-card">
-              <div className="clbl" style={{ marginBottom: '12px' }}>
-                <div className="clbl-dot" style={{ background: '#8b5cf6' }}></div> חמ"ל שטח ותקלות (עמוד משימות מסונכרן)
-              </div>
-              {tasks.map(task => (
-                <div key={task.id} className="task-item-row">
-                  <div>
-                    <div className="task-info-title">{task.title}</div>
-                    <div className="task-info-sub">{task.sub}</div>
-                  </div>
-                  <button className="btn-task-done" onClick={() => handleCompleteTask(task.id)}>בוצע</button>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
