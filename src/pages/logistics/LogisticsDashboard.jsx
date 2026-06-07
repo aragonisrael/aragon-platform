@@ -39,12 +39,9 @@ export default function LogisticsDashboard() {
   // מערכת טוסט התראות פנימית
   const [toast, setToast] = useState({ show: false, message: '' });
   
-  // מאגר נסיעות ושילוח
-  const [trips, setTrips] = useState([
-    { id: 1, date: '28.05 | 20:15', name: 'אריה כהן', gearTake: '💻×2 (תקול)', gearGive: '💻×1 🔌×1', status: 'ready' },
-    { id: 2, date: '28.05 | 17:30', name: 'רחל לוי', gearTake: '🖱×2 (תקול)', gearGive: '🖱×2 (חדש)', status: 'ready' },
-    { id: 3, date: '29.05 | 11:00', name: 'ישראל ישראלי', gearTake: '🔌×1 (תקול)', gearGive: '🔌×1 (תקין)', status: 'prep' }
-  ]);
+  // 🚚 🟢 סטייט נסיעות מחובר דינמית ל-Supabase (הדוגמאות הישנות נמחקו לבקשתך!)
+  const [trips, setTrips] = useState([]);
+  const [loadingTrips, setLoadingTrips] = useState(true);
 
   const GEAR_ITEMS = [
     { key: 'laptops', label: 'מחשבים', icon: '💻' },
@@ -95,7 +92,7 @@ export default function LogisticsDashboard() {
     getCampsData();
   }, []);
 
-  // 🛠️ שליפת תקלות פתוחות בלבד מ-Supabase (.eq('archived', false))
+  // 🛠️ שליפת תקלות פתוחות בלבד מ-Supabase
   useEffect(() => {
     async function getFaultsData() {
       try {
@@ -121,6 +118,27 @@ export default function LogisticsDashboard() {
     getFaultsData();
   }, []);
 
+  // 🚚 🟢 שליפת נסיעות ושילוחים אמיתיים מתוך Supabase
+  useEffect(() => {
+    async function getTripsData() {
+      try {
+        if (!supabase) return;
+        const { data, error } = await supabase
+          .from('trips')
+          .select('*')
+          .order('id', { ascending: false });
+
+        if (error) throw error;
+        if (data) setTrips(data);
+      } catch (err) {
+        console.log("Error loading live trips from database:", err);
+      } finally {
+        setLoadingTrips(false);
+      }
+    }
+    getTripsData();
+  }, []);
+
   const calculateDaysLeft = (dateString) => {
     const today = new Date();
     const target = new Date(dateString);
@@ -143,9 +161,24 @@ export default function LogisticsDashboard() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  const handleSendTrip = (id) => {
-    setTrips(prev => prev.map(t => t.id === id ? { ...t, status: 'departed' } : t));
-    showToast('נסיעה סומנה — יצא לדרך 🚚');
+  // 🚚 🟢 ביצוע נסיעה ועדכון הסטטוס ישירות ב-Database של Supabase
+  const handleSendTrip = async (id) => {
+    try {
+      if (!supabase) return;
+      
+      const { error } = await supabase
+        .from('trips')
+        .update({ status: 'departed' })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setTrips(prev => prev.map(t => t.id === id ? { ...t, status: 'departed' } : t));
+      showToast('נסיעה סומנה — יצא לדרך 🚚');
+    } catch (err) {
+      console.error(err);
+      showToast('⚠️ שגיאה בעדכון הסטטוס בשרת');
+    }
   };
 
   const handleOpenQuickModal = (type) => {
@@ -175,7 +208,7 @@ export default function LogisticsDashboard() {
       return;
     }
 
-    // 🛠️ שיגור תקלה ל-Supabase
+    // שיגור תקלה ל-Supabase
     if (modalType === 'fault') {
       const newFaultRow = {
         reporter: modalManager,
@@ -206,7 +239,7 @@ export default function LogisticsDashboard() {
       return;
     }
 
-    // 📤 📥 🟢 תיקון קריטי: שיגור הוצאה או החזרה מהירה ישירות לשרת בסופאבייס למעקב ריאל-טיים
+    // שיגור הוצאה או החזרה מהירה ישירות לשרת בסופאבייס
     try {
       if (!supabase) throw new Error("Supabase client missing");
       const { error } = await supabase
@@ -232,28 +265,6 @@ export default function LogisticsDashboard() {
     }
 
     setIsModalOpen(false);
-  };
-
-  const handleMarkAsRead = (id) => {
-    setUpdates(prev => prev.filter(item => item.id !== id));
-    showToast('העדכון הועבר לארכיון בהצלחה 📂');
-  };
-
-  const handleTransferToTasks = (updateItem) => {
-    const newTask = {
-      id: updateItem.id,
-      title: `${updateItem.type === 'out' ? '📦 וידוא הגעה:' : '🔄 בדיקת החזרה:'} ${updateItem.target}`,
-      sub: `באחריות: ${updateItem.responsible} | ציוד: ${updateItem.gearSummary}`,
-      category: 'חמ"ל שטח ותקלות'
-    };
-    setTasks(prev => [newTask, ...prev]);
-    setUpdates(prev => prev.filter(item => item.id !== updateItem.id));
-    showToast('הועבר לטיפול בעמוד המשימות ⚡');
-  };
-
-  const handleCompleteTask = (id) => {
-    setTasks(prev => prev.filter(task => task.id !== id));
-    showToast('המשימה בוצעה והועברה לארכיון משימות ✅');
   };
 
   return (
@@ -400,11 +411,6 @@ export default function LogisticsDashboard() {
         <div className="topbar">
           <div className="topbar-title">ARAGON · LOGISTICS HQ</div>
           <div className="topbar-r">
-            <div className={`cyber-music-player ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
-              <div className="player-toggle-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i ></div>
-              <div className="player-station-text">HQ RADIO</div>
-              <div className="audio-visualizer-wave"><div className="visualizer-bar"></div><div className="visualizer-bar"></div><div className="visualizer-bar"></div></div>
-            </div>
             <div className="live"><div className="ld"></div>LIVE MATRIX</div>
             <div className="clk">{clk}</div>
           </div>
