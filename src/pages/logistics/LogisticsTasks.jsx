@@ -30,6 +30,9 @@ export default function LogisticsTasks() {
   const [createTaskText, setCreateTaskText] = useState('');
   const [createTaskTargetCol, setCreateTaskTargetCol] = useState('field'); // 'field' | 'camp'
 
+  // 🟢 סטייט לפופ-אפ אישור ביצוע משימה (אישור / ביטול)
+  const [doneConfirm, setDoneConfirm] = useState({ open: false, id: null, col: null });
+
   // ── 🗑️ מאגר משימות קשיח מקומי - נוקה לבקשתך ──
   const [fieldTasks, setFieldTasks] = useState([]);
 
@@ -112,27 +115,29 @@ export default function LogisticsTasks() {
         badgeColor: '#ff4560',
         instructor: 'חמ"ל שטח',
         time: nowTime,
-        title: 'משימה לוגיסטית ידנית',
+        title: 'משימת שטח ידנית',
         body: createTaskText,
-        borderC: 'rgba(255,69,96,0.25)',
-        bgC: 'rgba(255,69,96,0.04)',
-        gearList: []
+        borderC: 'rgba(255,69,96,0.35)',
+        bgC: '#0c1729',
+        isCustom: true
       };
       setFieldTasks([newTask, ...fieldTasks]);
-      showToast('המשימה נוספה בהצלחה לחמ"ל שטח ותקלות 🚀');
+      showToast('המשימה נוספה בהצלחה לחמ"ל שטח 🚀');
     } else {
       const newTask = {
         id: newId,
-        badge: '🏕️ הכנה ידנית',
+        badge: '🏕️ משימת קייטנה',
+        badgeColor: '#00d4ff',
+        instructor: 'חמ"ל קייטנות',
         time: nowTime,
-        title: 'ניהול הכנות קייטנה',
-        who: 'עודכן ישירות מהפיקוד המרכזי',
-        bgC: 'rgba(0,212,255,0.04)',
-        borderC: 'rgba(0,212,255,0.25)',
-        checklist: [{ label: createTaskText, done: false, status: 'טרם בוצע', color: '#00d4ff' }]
+        title: 'משימת קייטנה ידנית',
+        body: createTaskText,
+        borderC: 'rgba(0,212,255,0.35)',
+        bgC: '#0c1729',
+        isCustom: true
       };
       setCampTasks([newTask, ...campTasks]);
-      showToast('המשימה נוספה בהצלחה ללוח הכנת קייטנות 🏕️');
+      showToast('המשימה נוספה בהצלחה ללוח קייטנות 🏕️');
     }
 
     setIsCreateModalOpen(false);
@@ -324,9 +329,13 @@ export default function LogisticsTasks() {
         .arch-list { display: flex; max-height: 130px; overflow-y: auto; padding: 0 14px 10px; flex-direction: column; gap: 5px; }
         .arch-item { display: flex; align-items: center; justify-content: space-between; padding: 5px 9px; background: rgba(0,229,160,0.04); border: 1px solid rgba(0,229,160,0.12); border-radius: 6px; font-size: 12px; }
         
-        .ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+        .ov { display: none; position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; background: rgba(4,11,24,0.92); z-index: 99999; align-items: center; justify-content: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         .ov.open { display: flex; }
-        .mbox { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 480px; max-width: 95vw; box-shadow: 0 0 50px rgba(0,212,255,0.15); direction: rtl; text-align: right; position: relative; overflow: hidden; }
+        .mbox { background: #0c1729; border: 1px solid rgba(0,212,255,0.3); border-radius: 14px; padding: 26px; width: 460px; max-width: 90vw; box-shadow: 0 0 50px rgba(0,212,255,0.2); direction: rtl; text-align: right; position: relative; overflow: hidden; }
+        
+        /* הוספת עיצוב כפתור סגירה למודאלים שנעלם */
+        .modal-close-btn { position: absolute; left: 16px; top: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: rgba(160,185,215,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .modal-close-btn:hover { background: rgba(255,69,96,0.12); color: #ff4560; }
       `}</style>
 
       {/* SIDEBAR NAVIGATION */}
@@ -593,8 +602,41 @@ export default function LogisticsTasks() {
         </div>
       )}
 
-      {/* TOAST FEEDBACK */}
-      <div className={`toast ${toast.show ? 'show' : ''}`}>✓ {toast.message}</div>
+      {/* 🟢 פופ-אפ אישור ביצוע משימה חכם (אישור / ביטול) */}
+      {doneConfirm.open && (
+        <div className="ov open" style={{ position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh', zIndex: 99999 }}>
+          <div className="mbox" style={{ borderColor: '#00e5a0' }}>
+            <div className="modal-head">
+              <div style={{ fontSize: '22px', marginLeft: '10px' }}>❓</div>
+              <div className="modal-title-text" style={{ color: '#00e5a0' }}>אישור ביצוע משימה</div>
+            </div>
+            <div style={{ fontSize: '14px', color: '#ffffff', marginBottom: '20px', textAlign: 'right' }}>
+              האם המשימה בוצעה בהצלחה?
+            </div>
+            <div className="mf2" style={{ marginTop: '0', justifyContent: 'flex-start' }}>
+              <button 
+                type="button" 
+                className="send-btn" 
+                style={{ background: 'rgba(0,229,160,0.12)', borderColor: '#00e5a0', color: '#00e5a0', padding: '8px 20px' }} 
+                onClick={() => {
+                  handleTaskAction(doneConfirm.id, doneConfirm.col, 'done');
+                  setDoneConfirm({ open: false, id: null, col: null });
+                }}
+              >
+                אישור
+              </button>
+              <button 
+                type="button" 
+                className="mbtn-cancel" 
+                style={{ marginLeft: '0', marginRight: '10px', padding: '8px 20px' }} 
+                onClick={() => setDoneConfirm({ open: false, id: null, col: null })}
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
