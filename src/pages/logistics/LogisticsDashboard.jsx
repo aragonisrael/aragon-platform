@@ -39,7 +39,7 @@ export default function LogisticsDashboard() {
   // מערכת טוסט התראות פנימית
   const [toast, setToast] = useState({ show: false, message: '' });
   
-  // 🚚 🟢 סטייט נסיעות מחובר דינמית ל-Supabase (הדוגמאות הישנות נמחקו לבקשתך!)
+  // 🚚 סטייט נסיעות מחובר דינמית ל-Supabase
   const [trips, setTrips] = useState([]);
   const [loadingTrips, setLoadingTrips] = useState(true);
 
@@ -79,12 +79,7 @@ export default function LogisticsDashboard() {
         if (error) throw error;
         if (data) setCamps(data);
       } catch (err) {
-        console.log("Supabase camps omitted - using fallback:", err);
-        setCamps([
-          { id: 1, name: "קייטנת ראשל\"צ", start_date: "2026-06-15", status: "דחוף" },
-          { id: 2, name: "קייטנת רמת גן", start_date: "2026-06-22", status: "בהכנה" },
-          { id: 3, name: "מוקד חוגי חולון", start_date: "2026-07-01", status: "בהכנה" }
-        ]);
+        console.log("Supabase camps error:", err);
       } finally {
         setLoadingCamps(false);
       }
@@ -100,17 +95,13 @@ export default function LogisticsDashboard() {
         const { data, error } = await supabase
           .from('faults')
           .select('*')
-          .eq('archived', false) // שולף רק תקלות שלא נסגרו/אורכבו!
+          .eq('archived', false) 
           .order('id', { ascending: false });
 
         if (error) throw error;
         if (data) setFaults(data);
       } catch (err) {
-        console.log("Supabase faults error - using local fallback:", err);
-        setFaults([
-          { id: 1, reporter: 'אריה כהן', summary: '💻 מחשב × 2', description: 'מסך שבור ולא נדלק' },
-          { id: 2, reporter: 'רחל לוי', summary: '🖱 עכבר × 2', description: 'חיישן אופטי מזייף' }
-        ]);
+        console.log("Supabase faults error:", err);
       } finally {
         setLoadingFaults(false);
       }
@@ -118,7 +109,7 @@ export default function LogisticsDashboard() {
     getFaultsData();
   }, []);
 
-  // 🚚 🟢 שליפת נסיעות ושילוחים אמיתיים מתוך Supabase
+  // 🚚 שליפת נסיעות ושילוחים אמיתיים מתוך Supabase
   useEffect(() => {
     async function getTripsData() {
       try {
@@ -161,7 +152,7 @@ export default function LogisticsDashboard() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // 🚚 🟢 ביצוע נסיעה ועדכון הסטטוס ישירות ב-Database של Supabase
+  // 🚚 ביצוע נסיעה ועדכון הסטטוס ישירות ב-Database של Supabase
   const handleSendTrip = async (id) => {
     try {
       if (!supabase) return;
@@ -208,7 +199,6 @@ export default function LogisticsDashboard() {
       return;
     }
 
-    // שיגור תקלה ל-Supabase
     if (modalType === 'fault') {
       const newFaultRow = {
         reporter: modalManager,
@@ -232,14 +222,11 @@ export default function LogisticsDashboard() {
         }
       } catch (err) {
         console.error(err);
-        setFaults(prev => [{ id: Date.now(), ...newFaultRow }, ...prev]);
-        showToast('⚠️ נשמר מקומית - שגיאה בחיבור לשרת');
       }
       setIsModalOpen(false);
       return;
     }
 
-    // שיגור הוצאה או החזרה מהירה ישירות לשרת בסופאבייס
     try {
       if (!supabase) throw new Error("Supabase client missing");
       const { error } = await supabase
@@ -365,30 +352,6 @@ export default function LogisticsDashboard() {
         .mbox { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 520px; max-width: 95vw; box-shadow: 0 0 50px rgba(0,212,255,0.15); direction: rtl; text-align: right; position: relative; overflow: hidden; }
         .mbox::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent); }
         .modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid rgba(0,212,255,0.12); }
-        .modal-title-text { font-family: 'Heebo', sans-serif; font-size: 15px; font-weight: 800; color: #ffffff; }
-        .modal-subtitle-text { font-size: 12px; color: rgba(160,185,215,0.5); margin-top: 3px; }
-        .modal-close-btn { position: absolute; left: 16px; top: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: rgba(160,185,215,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center; }
-        .modal-close-btn:hover { background: rgba(255,69,96,0.12); color: #ff4560; }
-
-        .mfr { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
-        .mfl { font-size: 11px; color: rgba(0,212,255,0.55); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-        .mfi, .mfs { width: 100%; background: #111f35; border: 1px solid rgba(0,212,255,0.25); border-radius: 7px; color: #ffffff; padding: 10px 13px; font-family: 'Heebo', sans-serif; font-size: 13.5px; direction: rtl; outline: none; }
-        
-        .mini-gear-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
-        .mg-box { background: #111f35; border: 1px solid rgba(0,212,255,0.12); border-radius: 7px; padding: 8px; display: flex; flex-direction: column; gap: 4px; align-items: center; }
-        .mg-box-lbl { font-size: 10.5px; color: rgba(160,185,215,0.5); font-weight: 600; }
-        .mg-box-input { width: 100%; background: transparent; border: none; color: #00d4ff; font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; text-align: center; outline: none; }
-        
-        .update-btn { width: 100%; padding: 12px; background: rgba(0,212,255,0.12); border: 1px solid #00d4ff; border-radius: 8px; color: #00d4ff; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; outline: none; }
-        .update-btn:hover { background: rgba(0,212,255,0.22); box-shadow: 0 0 18px rgba(0,212,255,0.2); }
-        .mbtn-cancel { padding: 12px 18px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 8px; color: rgba(160,185,215,0.5); font-family: 'Heebo', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; }
-        .mf2 { display: flex; gap: 10px; margin-top: 20px; }
-
-        .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111f35; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 22px rgba(0,229,160,0.18); transition: transform 0.28s; z-index: 300; text-align: center; pointer-events: none; }
-        .toast.show { transform: translateX(-50%) translateY(0); }
-        
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.2); border-radius: 4px; }
       `}</style>
 
       {/* SIDEBAR NAVIGATION */}
@@ -520,10 +483,10 @@ export default function LogisticsDashboard() {
                 <tbody>
                   {trips.map(t => (
                     <tr key={t.id}>
-                      <td><div className="td2">{t.date}</div></td>
-                      <td><div className="tn">{t.name}</div></td>
-                      <td><div className="tgear-take">{t.gearTake}</div></td>
-                      <td><div className="tgear-give">{t.gearGive}</div></td>
+                      <td><div className="td2">{t.date_str}</div></td>
+                      <td><div className="tn">{t.instructor_name}</div></td>
+                      <td><div className="tgear-take">{t.gear_take}</div></td>
+                      <td><div className="tgear-give">{t.gear_give}</div></td>
                       <td>
                         {t.status === 'ready' && <span className="sb-ready">✓ מוכן לאיסוף</span>}
                         {t.status === 'prep' && <span className="sb-wait">⏳ בהכנה</span>}
