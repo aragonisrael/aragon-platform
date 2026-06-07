@@ -133,11 +133,12 @@ export default function LogisticsDashboard() {
         if (!supabase) return;
         const { data, error } = await supabase
           .from('users')
-          .select('username')
+          .select('full_name, username')
           .eq('role', 'instructor');
         
         if (error) throw error;
-        if (data) setDbInstructors(data.map(u => u.username));
+        // מושך את השם המלא, ואם הוא ריק לוקח את שם המשתמש כגיבוי
+        if (data) setDbInstructors(data.map(u => u.full_name || u.username));
       } catch (err) {
         console.log("Error loading instructors:", err);
       }
