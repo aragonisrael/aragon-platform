@@ -10,7 +10,7 @@ import aragonLogo from '../../assets/aragonlogo.png';
 export default function LogisticsUpdates() {
   const navigate = useNavigate();
 
-  // סטייט תפעולי גלובלי למסך
+  // ── סטייט תפעולי גלובלי למסך ──
   const [isPlaying, setIsPlaying] = useState(false);
   const [clk, setClk] = useState('00:00:00');
   const [todayDate, setTodayDate] = useState('');
@@ -23,10 +23,10 @@ export default function LogisticsUpdates() {
   // סטייט למודאל אישור ארכוב/סגירת תקלה
   const [archiveConfirm, setArchiveConfirm] = useState({ open: false, item: null });
 
-  // 🟢 סטייט חדש לניהול רשימת האלמנטים שנמצאים כרגע באנימציית דעיכה
+  // 🟢 ניהול רשימת האלמנטים שנמצאים כרגע באנימציית דעיכה
   const [fadingIds, setFadingIds] = useState([]);
 
-  // 🟢 סטייט למודאל החזרת ציוד מותאם אישית
+  // סטייט למודאל החזרת ציוד מותאם אישית
   const [returnModal, setReturnModal] = useState({
     open: false,
     item: null,
@@ -35,7 +35,7 @@ export default function LogisticsUpdates() {
 
   // מאגר עדכונים ותקלות חיות מתוך בסיס הנתונים (Supabase)
   const [dbFaults, setDbFaults] = useState([]);
-  const [dbTransfers, setDbTransfers] = useState([]); // קליטת שילוחי ציוד מהדשבורד
+  const [dbTransfers, setDbTransfers] = useState([]); 
 
   const GEAR_ITEMS = [
     { key: 'laptops', label: 'מחשבים', icon: '💻' },
@@ -65,12 +65,11 @@ export default function LogisticsUpdates() {
     return () => clearInterval(interval);
   }, []);
 
-  // 🟢 שליפת תקלות ושילוחי ציוד בריאל-טיים מסופאבייס
+  // שליפת תקלות ושילוחי ציוד בריאל-טיים מסופאבייס
   const fetchLiveDatabaseData = async () => {
     try {
       if (!supabase) return;
       
-      // שליפת תקלות
       const { data: faultsData, error: faultsErr } = await supabase
         .from('faults')
         .select('*')
@@ -78,7 +77,6 @@ export default function LogisticsUpdates() {
       if (faultsErr) throw faultsErr;
       if (faultsData) setDbFaults(faultsData);
 
-      // שליפת שילוחי ציוד מהדשבורד (הוצאות/החזרות)
       const { data: transfersData, error: transfersErr } = await supabase
         .from('equipment_transfers')
         .select('*')
@@ -110,7 +108,7 @@ export default function LogisticsUpdates() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // 🟢 מיזוג כל הנתונים האמיתיים מסופאבייס לפיד מאוחד ודינמי
+  // מיזוג כל הנתונים האמיתיים מסופאבייס לפיד מאוחד ודינמי
   const getCombinedFeed = () => {
     const mappedFaults = dbFaults.map(f => ({
       id: `fault_${f.id}`,
@@ -131,6 +129,12 @@ export default function LogisticsUpdates() {
         .map(([key, val]) => `${GEAR_ITEMS.find(g => g.key === key)?.icon} × ${val}`)
         .join(' | ');
 
+      // 🟢 התאמת הנוסח המדויק שביקשת למקרה של החזרת ציוד מהירה שטרם אושרה
+      const isPendingIn = t.type === 'in' && t.status === 'pending';
+      const cardText = isPendingIn 
+        ? `שים לב הציוד ${summaryList} מהאחראי ${t.responsible} חזר למשרד יש לטפל בו ולשבץ אותו במדפים שלו .`
+        : `יעד: ${t.target} | פירוט חומרה בשילוח: ${summaryList}`;
+
       return {
         id: `transfer_${t.id}`,
         dbId: t.id,
@@ -138,7 +142,7 @@ export default function LogisticsUpdates() {
         type: t.type, // 'out' | 'in'
         time: new Date(t.created_at || Date.now()).toLocaleString('he-IL', { hour: '2-digit', minute: '2-digit' }),
         who: t.responsible,
-        text: `יעד: ${t.target} | פירוט חומרה בשילוח: ${summaryList}`,
+        text: cardText,
         archived: t.status === 'completed',
         task: false,
         originalGear: { laptops: t.laptops, tablets: t.tablets, chargers: t.chargers, mice: t.mice, routers: t.routers, suitcases: t.suitcases }
@@ -148,7 +152,6 @@ export default function LogisticsUpdates() {
     return [...mappedFaults, ...mappedTransfers];
   };
 
-  // ⚡ פונקציית העברה למסך משימות
   const handleCreateTask = async (item) => {
     if (item.isFault) {
       try {
@@ -167,7 +170,7 @@ export default function LogisticsUpdates() {
     }
   };
 
-  // 📂 🟢 פונקציית סימון כנקרא הכוללת הפעלת אפקט דעיכה למספר שניות
+  // פונקציית סימון כנקרא הכוללת הפעלת אפקט דעיכה למספר שניות
   const handleMarkRead = (item) => {
     if (item.type === 'fault') {
       setArchiveConfirm({ open: true, item });
@@ -176,13 +179,13 @@ export default function LogisticsUpdates() {
     }
   };
 
-  // הפעלת האנימציה ולאחריה ביצוע הארכוב בדאטהבייס
+  // 🟢 הפעלת האנימציה המבוקשת (דעיכה וטשטוש) ולאחריה ביצוע הארכוב בפועל
   const triggerFadeAndArchive = (item) => {
-    setFadingIds(prev => [...prev, item.id]); // הוספת ה-ID לרשימת הדוהים
+    setFadingIds(prev => [...prev, item.id]); 
     setTimeout(() => {
       executeArchive(item);
-      setFadingIds(prev => prev.filter(id => id !== item.id)); // ניקוי הסטייט
-    }, 2200); // 2.2 שניות דעיכה לעיני המשתמש
+      setFadingIds(prev => prev.filter(id => id !== item.id)); 
+    }, 2200); 
   };
 
   // ביצוע הארכוב בפועל
@@ -202,7 +205,7 @@ export default function LogisticsUpdates() {
     setArchiveConfirm({ open: false, item: null });
   };
 
-  // 🟢 פתיחת מודאל החזרת הציוד המורכב
+  // פתיחת מודאל החזרת הציוד המורכב
   const handleOpenReturnModal = (item) => {
     setReturnModal({
       open: true,
@@ -215,7 +218,6 @@ export default function LogisticsUpdates() {
   const handleReturnSubmit = async (e) => {
     e.preventDefault();
     try {
-      // עדכון הסטטוס של השילוח המקורי ל-completed (נפתר)
       const { error } = await supabase
         .from('equipment_transfers')
         .update({ status: 'completed' })
@@ -223,7 +225,6 @@ export default function LogisticsUpdates() {
 
       if (error) throw error;
 
-      // הזרקת שילוח החזרה (in) נגדי כדי לעדכן את המלאי הכללי
       await supabase.from('equipment_transfers').insert([{
         type: 'in',
         target: 'החזרה למלאי משרד מתוך שילוח שטח',
@@ -241,9 +242,12 @@ export default function LogisticsUpdates() {
     }
   };
 
+  // ── הגדרת העיצובים והמלבנים הצבעוניים ──
   const typeColors = {
     fault: { bg: 'rgba(255,69,96,0.08)', border: 'rgba(255,69,96,0.25)', accent: '#ff4560', label: 'תקלה בשטח' },
     out: { bg: 'rgba(255, 69, 96, 0.12)', border: '#ff4560', accent: '#ff4560', label: '⚠️ דחוף — ממתין להחזרה' },
+    // 🟢 מלבן התראה אדום עם סימן קריאה עבור החזרת ציוד מהירה שממתינה לאישור במשרד
+    in_pending: { bg: 'rgba(255, 69, 96, 0.12)', border: '#ff4560', accent: '#ff4560', label: '⚠️ התראת חמ"ל — ציוד חזר למשרד' },
     in: { bg: 'rgba(0,212,255,0.06)', border: 'rgba(0,212,255,0.2)', accent: '#00d4ff', label: 'החזרת ציוד למשרד' },
     trip: { bg: 'rgba(245,200,66,0.06)', border: 'rgba(245,200,66,0.2)', accent: '#f5c842', label: 'נסיעה' }
   };
@@ -314,9 +318,6 @@ export default function LogisticsUpdates() {
         <button className="nb" onClick={() => navigate('/admin/logistics')}><i className="ti ti-home"></i>בית</button>
         <button className="nb on"><i className="ti ti-bell"></i>עדכונים</button>
         <button className="nb" onClick={() => navigate('/admin/logistics/tasks')}><i className="ti ti-list-check"></i>Missions</button>
-        <div className="nb-sep"></div>
-        <button className="nb" onClick={() => navigate('/admin/logistics/classes')}><i className="ti ti-device-laptop"></i>חוגים</button>
-        <button className="nb" onClick={() => navigate('/admin/logistics/camps')}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 17 22 12"/></svg>קייטנות</button>
       </div>
 
       <div className="main">
@@ -339,11 +340,11 @@ export default function LogisticsUpdates() {
             {/* Main scroll list */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {visibleFeed.map(e => {
-                // 🟢 בדיקה האם מדובר בהוצאת ציוד פעילה שדורשת מלבן התראה אדום עם סימן קריאה
                 const isOutPending = e.type === 'out' && !e.archived;
-                const c = isOutPending ? typeColors.out : (typeColors[e.type] || typeColors.fault);
-                
-                // בדיקה האם כרגע הכרטיסייה נמצאת באנימציית דעיכה
+                // 🟢 בדיקה האם מדובר בהחזרת ציוד מהירה אקטיבית שדורשת מלבן התראה אדום
+                const isTransferInPending = e.type === 'in' && !e.archived;
+
+                const c = isOutPending ? typeColors.out : isTransferInPending ? typeColors.in_pending : (typeColors[e.type] || typeColors.fault);
                 const isFading = fadingIds.includes(e.id);
 
                 return (
@@ -356,7 +357,7 @@ export default function LogisticsUpdates() {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: '10px', background: 'rgba(4,11,24,0.4)', color: c.accent, padding: '3px 10px', borderRadius: '5px', fontWeight: 700 }}>
-                        {isOutPending ? '⚠️ התראת חמ"ל — הוצאת ציוד בשטח' : c.label}
+                        {c.label}
                       </span>
                       <span style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)', fontFamily: 'Orbitron, monospace' }}>{e.time}</span>
                     </div>
@@ -364,10 +365,14 @@ export default function LogisticsUpdates() {
                     <div style={{ fontSize: '13px', color: 'rgba(220,235,255,0.72)', lineHeight: 1.55, marginBottom: '12px' }}>{e.text}</div>
                     <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px', display: 'flex', gap: '8px', alignItems: 'center' }}>
                       
-                      {/* 🟢 הצגת כפתור החזר ציוד ייעודי עבור התראות הוצאה חמות */}
                       {isOutPending ? (
                         <button className="send-btn" style={{ background: 'rgba(0,229,160,0.12)', borderColor: '#00e5a0', color: '#00e5a0' }} onClick={() => handleOpenReturnModal(e)}>
                           <i className="ti ti-arrow-down-left"></i> החזר ציוד
+                        </button>
+                      ) : isTransferInPending ? (
+                        // 🟢 כפתור "הוחזר בהצלחה" המבוקש עבור התראות החזרה מהירה חמות
+                        <button className="send-btn" style={{ background: 'rgba(0,229,160,0.12)', borderColor: '#00e5a0', color: '#00e5a0' }} onClick={() => handleMarkRead(e)}>
+                          <i className="ti ti-check"></i> הוחזר בהצלחה
                         </button>
                       ) : e.isFault && !e.task ? (
                         <button className="send-btn" onClick={() => handleCreateTask(e)}><i className="ti ti-list-check"></i>העבר לטיפול</button>
@@ -415,7 +420,7 @@ export default function LogisticsUpdates() {
             
             <div className="card">
               <div className="clbl"><div className="clbl-dot" style={{ background: '#ff4560' }}></div>תקלות — יעילות טיפול</div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', justifyContent: 'space-between' }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '26px', fontWeight: 900, color: '#ff4560' }}>{dbFaults.filter(f=>!f.archived && !f.is_task).length}</div>
                   <div style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>פתוחות</div>
@@ -432,7 +437,6 @@ export default function LogisticsUpdates() {
               </div>
             </div>
 
-            {/* 🟢 3. רכיב מדד חדש: סך הכל הוצאות ציוד שממתינות לחזרה מהשטח */}
             <div className="card" style={{ borderColor: 'rgba(255,69,96,0.35)' }}>
               <div className="clbl"><div className="clbl-dot" style={{ background: '#ff4560' }}></div>סטטוס שילוח פעיל בשטח</div>
               <div style={{ background: 'rgba(255,69,96,0.04)', border: '1px solid rgba(255,69,96,0.18)', borderRadius: '8px', padding: '14px 10px', textAnomalous: 'center', textAlign: 'center' }}>
@@ -464,7 +468,7 @@ export default function LogisticsUpdates() {
         </div>
       )}
 
-      {/* 🟢 4. מודאל החזרת ציוד דינמי וחכם עם תצוגת "מתוך X פריטים" */}
+      {/* מודאל החזרת ציוד דינמי וחכם */}
       {returnModal.open && (
         <div className="ov open" onClick={() => setReturnModal({ open: false, item: null, gear: {} })}>
           <div className="mbox" style={{ borderborderColor: '#00e5a0' }}>
@@ -480,7 +484,7 @@ export default function LogisticsUpdates() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
                 {GEAR_ITEMS.map(g => {
                   const maxQty = returnModal.item?.originalGear?.[g.key] || 0;
-                  if (maxQty === 0) return null; // מציג שדות רק עבור מוצרים שבאמת יצאו בשילוח הספציפי הזה!
+                  if (maxQty === 0) return null;
 
                   return (
                     <div key={g.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#111f35', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(0,212,255,0.1)' }}>
