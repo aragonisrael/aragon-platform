@@ -83,6 +83,11 @@ export default function LogisticsDashboard() {
         if (data) setCamps(data);
       } catch (err) {
         console.log("Supabase camps omitted - using fallback:", err);
+        setCamps([
+          { id: 1, name: "קייטנת ראשל\"צ", start_date: "2026-06-15", status: "דחוף" },
+          { id: 2, name: "קייטנת רמת גן", start_date: "2026-06-22", status: "בהכנה" },
+          { id: 3, name: "מוקד חוגי חולון", start_date: "2026-07-01", status: "בהכנה" }
+        ]);
       } finally {
         setLoadingCamps(false);
       }
@@ -90,7 +95,7 @@ export default function LogisticsDashboard() {
     getCampsData();
   }, []);
 
-  // 🛠️ שליפת תקלות פתוחות בלבד מ-Supabase
+  // 🛠️ שליפת תקלות פתוחות בלבד מ-Supabase (.eq('archived', false))
   useEffect(() => {
     async function getFaultsData() {
       try {
@@ -98,13 +103,17 @@ export default function LogisticsDashboard() {
         const { data, error } = await supabase
           .from('faults')
           .select('*')
-          .eq('archived', false)
+          .eq('archived', false) // שולף רק תקלות שלא נסגרו/אורכבו!
           .order('id', { ascending: false });
 
         if (error) throw error;
         if (data) setFaults(data);
       } catch (err) {
         console.log("Supabase faults error - using local fallback:", err);
+        setFaults([
+          { id: 1, reporter: 'אריה כהן', summary: '💻 מחשב × 2', description: 'מסך שבור ולא נדלק' },
+          { id: 2, reporter: 'רחל לוי', summary: '🖱 עכבר × 2', description: 'חיישן אופטי מזייף' }
+        ]);
       } finally {
         setLoadingFaults(false);
       }
@@ -177,18 +186,27 @@ export default function LogisticsDashboard() {
       };
 
       try {
-        const { data, error } = await supabase.from('faults').insert([newFaultRow]).select();
+        if (!supabase) throw new Error("Supabase client missing");
+        const { data, error } = await supabase
+          .from('faults')
+          .insert([newFaultRow])
+          .select();
+
         if (error) throw error;
-        if (data) setFaults(prev => [data[0], ...prev]);
-        showToast('🛠️ תקלה נשמרה בריאל-טיים בבסיס הנתונים!');
+        if (data) {
+          setFaults(prev => [data[0], ...prev]);
+          showToast('🛠️ תקלה נשמרה בריאל-טיים בבסיס הנתונים!');
+        }
       } catch (err) {
         console.error(err);
+        setFaults(prev => [{ id: Date.now(), ...newFaultRow }, ...prev]);
+        showToast('⚠️ נשמר מקומית - שגיאה בחיבור לשרת');
       }
       setIsModalOpen(false);
       return;
     }
 
-    // 📤 📥 🟢 שיגור הוצאה או החזרה מהירה ישירות לטבלת השרת החדשה בסופאבייס
+    // 📤 📥 🟢 תיקון קריטי: שיגור הוצאה או החזרה מהירה ישירות לשרת בסופאבייס למעקב ריאל-טיים
     try {
       if (!supabase) throw new Error("Supabase client missing");
       const { error } = await supabase
@@ -305,6 +323,61 @@ export default function LogisticsDashboard() {
         .ev-list { display: flex; flex-direction: column; gap: 9px; }
         .ev-row { display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 10px; padding: 9px 11px; background: #111f35; border-radius: 8px; border: 1px solid rgba(0,212,255,0.1); }
         .ev-dbox { text-align: center; background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.18); border-radius: 7px; padding: 5px 3px; min-width: 48px; }
+        .ev-day { font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; color: #00d4ff; line-height: 1; }
+        .ev-mon { font-size: 9px; color: rgba(160,185,215,0.5); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+        .ev-name { font-weight: 600; font-size: 13px; color: #ffffff; }
+        .ev-prep { font-size: 11px; color: rgba(160,185,215,0.5); margin-top: 3px; }
+        
+        .chip { font-size: 10px; padding: 3px 9px; border-radius: 5px; font-weight: 700; white-space: nowrap; }
+        .chip-hot { background: rgba(255,69,96,0.1); color: #ff4560; border: 1px solid rgba(255,69,96,0.22); }
+        .chip-go { background: rgba(245,200,66,0.1); color: #f5c842; border: 1px solid rgba(245,200,66,0.22); }
+        
+        .ttbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .ttbl thead tr { border-bottom: 1px solid rgba(0,212,255,0.25); }
+        .ttbl th { font-size: 11px; font-weight: 700; color: rgba(160,185,215,0.6); text-transform: uppercase; padding: 0 12px 12px; text-align: right; }
+        .ttbl td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.04); text-align: right; vertical-align: middle; }
+        .tn { font-weight: 700; font-size: 13.5px; color: #ffffff; }
+        .td2 { font-size: 11px; color: #00d4ff; font-family: 'Orbitron', monospace; font-weight: 600; }
+        .tgear-take { font-size: 12px; color: #ff4560; font-weight: 600; }
+        .tgear-give { font-size: 12px; color: #00e5a0; font-weight: 600; }
+        
+        .sb-ready { display: inline-flex; align-items: center; gap: 4px; background: rgba(0,229,160,0.08); color: #00e5a0; border: 1px solid rgba(0,229,160,0.22); border-radius: 5px; padding: 3px 10px; font-weight: 700; }
+        .sb-wait { background: rgba(245,200,66,0.08); color: #f5c842; border: 1px solid rgba(245,200,66,0.2); border-radius: 5px; padding: 3px 10px; font-weight: 700; }
+        .sb-departed { background: rgba(0,212,255,0.08); color: #00d4ff; border: 1px solid rgba(0,212,255,0.22); border-radius: 5px; padding: 3px 10px; font-weight: 700; }
+        
+        .send-btn { padding: 5px 16px; background: rgba(0,229,160,0.07); border: 1px solid rgba(0,229,160,0.22); border-radius: 6px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer; transition: all 0.18s; }
+        .send-btn:hover:not(:disabled) { background: rgba(0,229,160,0.16); box-shadow: 0 0 10px rgba(0,229,160,0.2); }
+        .send-btn:disabled { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.07); color: rgba(160,185,215,0.3); cursor: default; }
+
+        .ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+        .ov.open { display: flex; }
+        .mbox { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 520px; max-width: 95vw; box-shadow: 0 0 50px rgba(0,212,255,0.15); direction: rtl; text-align: right; position: relative; overflow: hidden; }
+        .mbox::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent); }
+        .modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid rgba(0,212,255,0.12); }
+        .modal-title-text { font-family: 'Heebo', sans-serif; font-size: 15px; font-weight: 800; color: #ffffff; }
+        .modal-subtitle-text { font-size: 12px; color: rgba(160,185,215,0.5); margin-top: 3px; }
+        .modal-close-btn { position: absolute; left: 16px; top: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: rgba(160,185,215,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .modal-close-btn:hover { background: rgba(255,69,96,0.12); color: #ff4560; }
+
+        .mfr { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+        .mfl { font-size: 11px; color: rgba(0,212,255,0.55); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .mfi, .mfs { width: 100%; background: #111f35; border: 1px solid rgba(0,212,255,0.25); border-radius: 7px; color: #ffffff; padding: 10px 13px; font-family: 'Heebo', sans-serif; font-size: 13.5px; direction: rtl; outline: none; }
+        
+        .mini-gear-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+        .mg-box { background: #111f35; border: 1px solid rgba(0,212,255,0.12); border-radius: 7px; padding: 8px; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+        .mg-box-lbl { font-size: 10.5px; color: rgba(160,185,215,0.5); font-weight: 600; }
+        .mg-box-input { width: 100%; background: transparent; border: none; color: #00d4ff; font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; text-align: center; outline: none; }
+        
+        .update-btn { width: 100%; padding: 12px; background: rgba(0,212,255,0.12); border: 1px solid #00d4ff; border-radius: 8px; color: #00d4ff; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; outline: none; }
+        .update-btn:hover { background: rgba(0,212,255,0.22); box-shadow: 0 0 18px rgba(0,212,255,0.2); }
+        .mbtn-cancel { padding: 12px 18px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 8px; color: rgba(160,185,215,0.5); font-family: 'Heebo', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; }
+        .mf2 { display: flex; gap: 10px; margin-top: 20px; }
+
+        .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111f35; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 22px rgba(0,229,160,0.18); transition: transform 0.28s; z-index: 300; text-align: center; pointer-events: none; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.2); border-radius: 4px; }
       `}</style>
 
       {/* SIDEBAR NAVIGATION */}
@@ -346,6 +419,7 @@ export default function LogisticsDashboard() {
           </div>
 
           <div className="mid-row">
+            {/* רכיב תקלות דינמי מסונכרן לחלוטין לחמ"ל */}
             <div className="card">
               <div className="clbl"><div className="clbl-dot" style={{ background: '#ff4560' }}></div>תקלות ממתינות לטיפול</div>
               <div className="malf-top">
@@ -354,7 +428,7 @@ export default function LogisticsDashboard() {
               </div>
               <div className="malf-feed">
                 {loadingFaults ? (
-                  <div style={{ color: '#ff4560', fontSize: '12px' }}>טוען תקלות...</div>
+                  <div style={{ color: '#ff4560', fontSize: '12px' }}>טוען תקלות ממאגר המידע...</div>
                 ) : faults.length === 0 ? (
                   <div style={{ color: '#00e5a0', fontSize: '12px' }}>✓ אין תקלות פתוחות במערכת!</div>
                 ) : (
@@ -391,6 +465,73 @@ export default function LogisticsDashboard() {
               </div>
             </div>
           </div>
+
+          <div className="bot-row">
+            <div className="card">
+              <div className="clbl"><div className="clbl-dot" style={{ background: '#f5c842' }}></div>קייטנות ואירועים קרובים</div>
+              <div className="ev-list">
+                {loadingCamps ? (
+                  <div style={{ color: '#00d4ff', fontSize: '12px' }}>טוען נתונים מחמ"ל קייטנות...</div>
+                ) : (
+                  camps.map(camp => {
+                    const dateObj = new Date(camp.start_date);
+                    const day = dateObj.getDate() || '—';
+                    const month = dateObj.toLocaleDateString('he-IL', { month: 'short' }) || 'יוני';
+                    
+                    return (
+                      <div key={camp.id} className="ev-row">
+                        <div className="ev-dbox">
+                          <div className="ev-day">{day}</div>
+                          <div className="ev-mon">{month}</div>
+                        </div>
+                        <div>
+                          <div className="ev-name">{camp.name}</div>
+                          <div className="ev-prep">🛠 מוכנות ציוד: {calculateDaysLeft(camp.start_date)}</div>
+                        </div>
+                        <span className={`chip ${camp.status === 'דחוף' ? 'chip-hot' : 'chip-go'}`}>
+                          {camp.status === 'דחוף' ? '⚡ דחוף' : 'בהכנה'}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="clbl"><div className="clbl-dot" style={{ background: '#f5c842' }}></div>נסיעות ושילוח לביצוע</div>
+              <table className="ttbl">
+                <thead>
+                  <tr>
+                    <th>תאריך פתיחה</th>
+                    <th>מדריך</th>
+                    <th>ציוד לקחת</th>
+                    <th>ציוד לתת</th>
+                    <th>סטטוס</th>
+                    <th>פעולה</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trips.map(t => (
+                    <tr key={t.id}>
+                      <td><div className="td2">{t.date}</div></td>
+                      <td><div className="tn">{t.name}</div></td>
+                      <td><div className="tgear-take">{t.gearTake}</div></td>
+                      <td><div className="tgear-give">{t.gearGive}</div></td>
+                      <td>
+                        {t.status === 'ready' && <span className="sb-ready">✓ מוכן לאיסוף</span>}
+                        {t.status === 'prep' && <span className="sb-wait">⏳ בהכנה</span>}
+                        {t.status === 'departed' && <span className="sb-departed">🚚 יצא לדרך</span>}
+                      </td>
+                      <td>
+                        <button className="send-btn" onClick={() => handleSendTrip(t.id)} disabled={t.status !== 'ready'}>ביצוע</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -399,6 +540,7 @@ export default function LogisticsDashboard() {
         <div className="ov open" onClick={(e) => e.target.className === 'ov open' && setIsModalOpen(false)}>
           <div className="mbox">
             <button className="modal-close-btn" onClick={() => setIsModalOpen(false)}>×</button>
+            
             <div className="modal-head">
               <div className="av av-temp" style={{ 
                 background: modalType === 'out' ? 'rgba(0, 229, 160, 0.12)' : modalType === 'in' ? 'rgba(0, 212, 255, 0.12)' : 'rgba(255, 69, 96, 0.12)', 
@@ -421,45 +563,93 @@ export default function LogisticsDashboard() {
               {modalType === 'out' && (
                 <div className="mfr">
                   <label className="mfl">יעד מוקד החוג / שם קייטנה</label>
-                  <input className="mfi" type="text" placeholder="למשל: בית ספר אלון..." value={modalLineName} onChange={(e) => setModalLineName(e.target.value)} />
+                  <input 
+                    className="mfi" 
+                    type="text" 
+                    placeholder="למשל: בית ספר אלון, מוקד ראשל''צ..." 
+                    value={modalLineName} 
+                    onChange={(e) => setModalLineName(e.target.value)} 
+                  />
                 </div>
               )}
 
               <div className="mfr">
-                <label className="mfl">הגורם האחראי</label>
+                <label className="mfl">
+                  {modalType === 'out' && 'מדריך אחראי לוקח'}
+                  {modalType === 'in' && 'מדריך / גורם מחזיר'}
+                  {modalType === 'fault' && 'הגורם המדווח על התקלה'}
+                </label>
                 <select className="mfs" value={modalManager} onChange={(e) => setModalManager(e.target.value)}>
                   <option value="מנהל לוגיסטיקה">👤 מנהל לוגיסטיקה</option>
+                  <option value="מנהלת משרד">👤 מנהלת משרד</option>
+                  <option value="מנהל הדרכה">👤 מנהל הדרכה</option>
                   <option value="אריה כהן">👨‍🏫 אריה כהן</option>
                   <option value="רחל לוי">👨‍🏫 רחל לוי</option>
+                  <option value="ישראל ישראלי">👨‍🏫 ישראל ישראלי</option>
+                  <option value="מיכל דוד">👨‍🏫 מיכל דוד</option>
                 </select>
               </div>
 
               {modalType === 'fault' && (
                 <div className="mfr">
                   <label className="mfl">פרט מה התקלה</label>
-                  <textarea className="mfi" rows="3" style={{ height: '80px', resize: 'none', padding: '10px' }} placeholder="פירוט התקלה..." value={modalDescription} onChange={(e) => setModalDescription(e.target.value)}/>
+                  <textarea 
+                    className="mfi" 
+                    rows="3"
+                    style={{ height: '80px', resize: 'none', padding: '10px' }}
+                    placeholder="למשל: מחשב אחד לא נדלק, חסר כבל ספק כוח לראוטר..."
+                    value={modalDescription}
+                    onChange={(e) => setModalDescription(e.target.value)}
+                  />
                 </div>
               )}
 
+              <div style={{ 
+                fontSize: '11px', 
+                color: modalType === 'out' ? '#00e5a0' : modalType === 'in' ? '#00d4ff' : '#ff4560', 
+                fontWeight: '700', marginBottom: '8px', textTransform: 'uppercase' 
+              }}>
+                {modalType === 'fault' ? 'כמויות חומרה תקולה בספירה ידנית' : 'כמויות בספירה ידנית לחמ"ל'}
+              </div>
+              
               <div className="mini-gear-grid">
                 {GEAR_ITEMS.map(g => (
                   <div key={g.key} className="mg-box">
                     <span className="mg-box-lbl">{g.icon} {g.label}</span>
-                    <input className="mg-box-input" type="number" min="0" value={modalGear[g.key]} onChange={(e) => setModalGear({ ...modalGear, [g.key]: parseInt(e.target.value, 10) || 0 })} />
+                    <input 
+                      className="mg-box-input" 
+                      type="number" 
+                      min="0" 
+                      value={modalGear[g.key]} 
+                      onChange={(e) => setModalGear({ ...modalGear, [g.key]: parseInt(e.target.value, 10) || 0 })} 
+                    />
                   </div>
                 ))}
               </div>
 
               <div className="mf2">
                 <button type="button" className="mbtn-cancel" onClick={() => setIsModalOpen(false)}>ביטול</button>
-                <button className="update-btn" type="submit" style={{ background: modalType === 'out' ? 'rgba(0, 229, 160, 0.12)' : modalType === 'in' ? 'rgba(0, 212, 255, 0.12)' : 'rgba(255, 69, 96, 0.12)', borderColor: modalType === 'out' ? '#00e5a0' : modalType === 'in' ? '#00d4ff' : '#ff4560', color: modalType === 'out' ? '#00e5a0' : modalType === 'in' ? '#00d4ff' : '#ff4560' }}>
-                  אשר ושגר
+                <button 
+                  className="update-btn" 
+                  type="submit" 
+                  style={{ 
+                    background: modalType === 'out' ? 'rgba(0, 229, 160, 0.12)' : modalType === 'in' ? 'rgba(0, 212, 255, 0.12)' : 'rgba(255, 69, 96, 0.12)', 
+                    borderColor: modalType === 'out' ? '#00e5a0' : modalType === 'in' ? '#00d4ff' : '#ff4560',
+                    color: modalType === 'out' ? '#00e5a0' : modalType === 'in' ? '#00d4ff' : '#ff4560'
+                  }}
+                >
+                  {modalType === 'out' && <><i className="ti ti-arrow-up-right"></i> אשר ושגר הוצאה</>}
+                  {modalType === 'in' && <><i className="ti ti-arrow-down-left"></i> אשר והזן החזרה</>}
+                  {modalType === 'fault' && <><i className="ti ti-tool"></i> פתח תקלה במערכת</>}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* TOAST SYSTEM */}
+      <div className={`toast ${toast.show ? 'show' : ''}`}>✓ {toast.message}</div>
     </div>
   );
 }
