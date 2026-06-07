@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+// 🔌 ייבוא קליינט סופאבייס הרשמי של הפרויקט שלך
+import { supabase } from '../../supabaseClient';
+
 // ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
 import aragonLogo from '../../assets/aragonlogo.png';
 
@@ -17,15 +20,16 @@ export default function LogisticsUpdates() {
   const [archOpen, setArchOpen] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '' });
 
-  // מאגר העדכונים הדינמי מתוך קוד המקור
-  const [feedData, setFeedData] = useState([
-    { id: 1, type: 'fault', time: '28.05.26 | 20:15:30', who: 'אריה כהן', text: 'דווח על 2 מחשבים תקולים (מערכת הפעלה לא עולה) במוקד בן גוריון, רמת גן.', archived: false, task: false },
-    { id: 2, type: 'out', time: '28.05.26 | 19:42:10', who: 'מיכל דוד', text: 'הוצאו 12 מחשבים + 12 מטענים + 12 עכברים לקייטנת רמת גן. נהג: יוסי.', archived: false, task: false },
-    { id: 3, type: 'in', time: '28.05.26 | 18:55:04', who: 'נועם ברק', text: 'הוחזרו 6 מחשבים ו-5 מטענים ממוקד ויצמן פ"ת. הכל תקין.', archived: false, task: false },
-    { id: 4, type: 'trip', time: '28.05.26 | 18:20:47', who: 'יוסי הנהג', text: 'נסיעה יצאה לדרך — בן גוריון ר"ג. ציוד: 💻×1 🔌×1. ETA: 19:10.', archived: false, task: false },
-    { id: 5, type: 'fault', time: '28.05.26 | 17:30:12', who: 'רחל לוי', text: 'דווח על 2 עכברים לא מגיבים (USB תקול) בביה"ס בגין, תל אביב.', archived: false, task: false },
-    { id: 6, type: 'out', time: '28.05.26 | 16:05:33', who: 'ישראל ישראלי', text: 'הוצא מטען × 1 לביה"ס ויצמן, פ"ת. מצב: בדרך למדריך.', archived: false, task: false },
+  // מאגר עדכונים סטטיים (עבור הוצאות, החזרות ונסיעות)
+  const [staticFeed, setStaticFeed] = useState([
+    { id: 'st_2', type: 'out', time: '28.05.26 | 19:42:10', who: 'מיכל דוד', text: 'הוצאו 12 מחשבים + 12 מטענים + 12 עכברים לקייטנת רמת גן. נהג: יוסי.', archived: false, task: false },
+    { id: 'st_3', type: 'in', time: '28.05.26 | 18:55:04', who: 'נועם ברק', text: 'הוחזרו 6 מחשבים ו-5 מטענים ממוקד ויצמן פ"ת. הכל תקין.', archived: false, task: false },
+    { id: 'st_4', type: 'trip', time: '28.05.26 | 18:20:47', who: 'יוסי הנהג', text: 'נסיעה יצאה לדרך — בן גוריון ר"ג. ציוד: 💻×1 🔌×1. ETA: 19:10.', archived: false, task: false },
+    { id: 'st_6', type: 'out', time: '28.05.26 | 16:05:33', who: 'ישראל ישראלי', text: 'הוצא מטען × 1 לביה"ס ויצמן, פ"ת. מצב: בדרך למדריך.', archived: false, task: false },
   ]);
+
+  // סטייט ייעודי לתקלות בזמן אמת מ-Supabase
+  const [dbFaults, setDbFaults] = useState([]);
 
   const showToast = (msg) => {
     setToast({ show: true, message: msg });
@@ -46,7 +50,27 @@ export default function LogisticsUpdates() {
     return () => clearInterval(interval);
   }, []);
 
-  // סנכרן את מצב כפתור הנגן מול האודיו הגלובלי ב-App.jsx
+  // 🛠️ שליפת התקלות האמיתיות מתוך Supabase
+  const fetchRealTimeFaults = async () => {
+    try {
+      if (!supabase) return;
+      const { data, error } = await supabase
+        .from('faults')
+        .select('*')
+        .order('id', { ascending: false });
+      
+      if (error) throw error;
+      if (data) setDbFaults(data);
+    } catch (err) {
+      console.log("Error loading faults in updates screen:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchRealTimeFaults();
+  }, []);
+
+  // סנכרן את מצב כפתור הנגן
   useEffect(() => {
     const globalAudio = document.getElementById('hq-cyber-radio');
     if (globalAudio) {
@@ -61,19 +85,67 @@ export default function LogisticsUpdates() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // פונקציית העברה למסך משימות (הפיכת עדכון אקטיבי לטסק)
-  const handleCreateTask = (id) => {
-    setFeedData(prev => prev.map(e => e.id === id ? { ...e, task: true } : e));
-    showToast('משימה נוצרה ושוגרה למסך המשימות ⚡');
-    setTimeout(() => {
-      setFeedData(prev => prev.map(e => e.id === id ? { ...e, archived: true } : e));
-    }, 3000);
+  // 🔄 מיזוג של העדכונים הסטטיים יחד עם התקלות האמיתיות מ-Supabase לתוך פיד אחיד
+  const getCombinedFeed = () => {
+    const mappedFaults = dbFaults.map(f => ({
+      id: `fault_${f.id}`,
+      dbId: f.id,
+      isDb: true,
+      type: 'fault',
+      time: new Date(f.created_at || Date.now()).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }),
+      who: f.reporter,
+      text: `${f.summary} | פירוט: ${f.description}`,
+      archived: f.archived || false,
+      task: f.is_task || false
+    }));
+
+    return [...mappedFaults, ...staticFeed];
   };
 
-  // סימון עדכון כנקרא מהיר
-  const handleMarkRead = (id) => {
-    setFeedData(prev => prev.map(e => e.id === id ? { ...e, archived: true } : e));
-    showToast('העדכון סומן כנקרא והועבר לארכיון העדכונים');
+  // ⚡ פונקציית העברה למסך משימות (הפיכת עדכון אקטיבי לטסק)
+  const handleCreateTask = async (item) => {
+    if (item.isDb) {
+      try {
+        // מעדכנים בסופאבייס שהתקלה עברה למצב משימה (is_task = true)
+        const { error } = await supabase
+          .from('faults')
+          .update({ is_task: true })
+          .eq('id', item.dbId);
+
+        if (error) throw error;
+        setDbFaults(prev => prev.map(f => f.id === item.dbId ? { ...f, is_task: true } : f));
+        showToast('התקלה שוגרה לחמ"ל שטח ותקלות בעמוד המשימות! ⚡');
+      } catch (err) {
+        console.error(err);
+        showToast('⚠️ שגיאה בעדכון השרת');
+      }
+    } else {
+      setStaticFeed(prev => prev.map(e => e.id === item.id ? { ...e, task: true } : e));
+      showToast('משימה נוצרה ושוגרה למסך המשימות ⚡');
+    }
+  };
+
+  // 📂 סימון עדכון כנקרא מהיר והעברה לארכיון
+  const handleMarkRead = async (item) => {
+    if (item.isDb) {
+      try {
+        // מעדכנים בסופאבייס שהתקלה בארכיון (archived = true)
+        const { error } = await supabase
+          .from('faults')
+          .update({ archived: true })
+          .eq('id', item.dbId);
+
+        if (error) throw error;
+        setDbFaults(prev => prev.map(f => f.id === item.dbId ? { ...f, archived: true } : f));
+        showToast('התקלה אורכבה בהצלחה בבסיס הנתונים 📂');
+      } catch (err) {
+        console.error(err);
+        showToast('⚠️ שגיאה בעדכון הארכיון בשרת');
+      }
+    } else {
+      setStaticFeed(prev => prev.map(e => e.id === item.id ? { ...e, archived: true } : e));
+      showToast('העדכון סומן כנקרא והועבר לארכיון העדכונים');
+    }
   };
 
   const typeColors = {
@@ -83,8 +155,9 @@ export default function LogisticsUpdates() {
     trip: { bg: 'rgba(245,200,66,0.06)', border: 'rgba(245,200,66,0.2)', accent: '#f5c842', label: 'נסיעה' }
   };
 
-  const visibleFeed = feedData.filter(e => !e.archived && (feedFilter === 'all' || e.type === feedFilter));
-  const archivedFeed = feedData.filter(e => e.archived);
+  const combinedFeed = getCombinedFeed();
+  const visibleFeed = combinedFeed.filter(e => !e.archived && (feedFilter === 'all' || e.type === feedFilter));
+  const archivedFeed = combinedFeed.filter(e => e.archived);
 
   return (
     <div className="hq-global-wrapper">
@@ -95,7 +168,6 @@ export default function LogisticsUpdates() {
         *{ box-sizing: border-box; margin: 0; padding: 0; }
         .hq-global-wrapper { width: 100%; height: 100vh; background: #040b18; display: flex; font-family: 'Heebo', sans-serif; color: rgba(220,235,255,0.92); direction: rtl; overflow: hidden; }
         
-        /* SIDEBAR */
         .sidebar { width: 78px; background: #070f1e; border-left: 1px solid rgba(0,212,255,0.1); display: flex; flex-direction: column; align-items: center; padding: 18px 0 14px; gap: 4px; flex-shrink: 0; z-index: 10; }
         .sb-logo { width: 38px; height: 38px; margin-bottom: 18px; cursor: pointer; }
         .sb-logo img { width: 100%; height: 100%; object-fit: contain; }
@@ -115,7 +187,6 @@ export default function LogisticsUpdates() {
         @keyframes lp { 0%,100% { box-shadow: 0 0 0 0 rgba(0,229,160,0.5); } 60% { box-shadow: 0 0 0 5px rgba(0,229,160,0); } }
         .clk { font-family: 'Orbitron', monospace; font-size: 13px; color: #00d4ff; letter-spacing: 2px; font-weight: 600; }
 
-        /* BODY SPLIT */
         .updates-body { flex: 1; display: flex; flex-direction: row-reverse; overflow: hidden; }
         
         .uf-btn { padding: 5px 14px; border-radius: 6px; border: 1px solid rgba(0,212,255,0.1); background: transparent; color: rgba(160,185,215,0.5); font-family: 'Heebo', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; margin-left: 6px; }
@@ -127,7 +198,7 @@ export default function LogisticsUpdates() {
         .clbl { font-size: 10px; letter-spacing: 2px; color: rgba(160,185,215,0.5); text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
         .clbl-dot { width: 5px; height: 5px; border-radius: 50%; }
 
-        .arch-item { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; margin-bottom: 4px; }
+        .arch-item { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; margin-bottom: 4px; width: 100%; }
         
         .send-btn { padding: 6px 14px; background: rgba(0,212,255,0.1); border: 1px solid #00d4ff; border-radius: 6px; color: #00d4ff; font-family: 'Heebo', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
         .send-btn:hover { background: rgba(0,212,255,0.2); }
@@ -148,7 +219,7 @@ export default function LogisticsUpdates() {
         @keyframes wavePulse { 0% { height: 3px; } 100% { height: 10px; } }
       `}</style>
 
-      {/* SIDEBAR NAVIGATION — קבוע ומחוטב בין קבצים נפרדים */}
+      {/* SIDEBAR NAVIGATION */}
       <div className="sidebar">
         <div className="sb-logo" onClick={() => navigate('/admin')}>
           <img src={aragonLogo} alt="Aragon Platform Logo" />
@@ -178,12 +249,11 @@ export default function LogisticsUpdates() {
           </div>
         </div>
 
-        {/* UPDATES LAYOUT WORKSPACE SPLIT FRAME */}
+        {/* WORKSPACE LAYOUT */}
         <div className="updates-body">
           {/* RIGHT SIDE: FEED (65%) */}
           <div style={{ flex: '0 0 65%', display: 'flex', flexDirection: 'column', borderLeft: '1px solid rgba(0,212,255,0.1)', overflow: 'hidden' }}>
             
-            {/* Filter buttons header strip */}
             <div style={{ padding: '13px 20px', borderBottom: '1px solid rgba(0,212,255,0.1)', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, background: '#070f1e' }}>
               <span style={{ fontSize: '10px', letterSpacing: '2px', color: 'rgba(160,185,215,0.5)', textTransform: 'uppercase' }}>סינון:</span>
               <button className={`uf-btn ${feedFilter === 'all' ? 'on' : ''}`} onClick={() => setFeedFilter('all')}>הכל</button>
@@ -196,32 +266,32 @@ export default function LogisticsUpdates() {
               </div>
             </div>
 
-            {/* Main scroll list container */}
+            {/* Main scroll list */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {visibleFeed.map(e => {
                 const c = typeColors[e.type] || typeColors.fault;
                 return (
                   <div key={e.id} style={{ background: c.bg, border: `1px solid ${c.border}`, borderRight: `3px solid ${c.accent}`, borderRadius: '10px', padding: '14px 16px', transition: 'all 0.3s', opacity: e.task ? 0.6 : 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', marginBottom: '8px', gap: '10px', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: '10px', background: c.bg, border: `1px solid ${c.border}`, color: c.accent, padding: '3px 10px', borderRadius: '5px', fontWeight: 700 }}>{c.label}</span>
                       <span style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)', fontFamily: 'Orbitron, monospace', letterSpacing: '0.5px' }}>{e.time}</span>
                     </div>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(220,235,255,0.92)', marginBottom: '5px' }}>המדריך: {e.who}</div>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(220,235,255,0.92)', marginBottom: '5px' }}>הגורם: {e.who}</div>
                     <div style={{ fontSize: '13px', color: 'rgba(220,235,255,0.72)', lineHeight: 1.55, marginBottom: '12px' }}>{e.text}</div>
                     <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px', display: 'flex', gap: '8px', alignItems: 'center' }}>
                       {e.task ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 700, color: '#f5c842', background: 'rgba(245,200,66,0.08)', border: '1px solid rgba(245,200,66,0.2)', padding: '5px 13px', borderRadius: '6px' }}>⏳ בטיפול — נשלח למשימות</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 700, color: '#f5c842', background: 'rgba(245,200,66,0.08)', border: '1px solid rgba(245,200,66,0.2)', padding: '5px 13px', borderRadius: '6px' }}>⏳ בטיפול — נשלח לחמ"ל משימות</span>
                       ) : (
-                        <button className="send-btn" onClick={() => handleCreateTask(e.id)}>העבר לטיפול</button>
+                        <button className="send-btn" onClick={() => handleCreateTask(e)}><i className="ti ti-list-check" style={{marginLeft: '4px'}}></i>העבר לטיפול</button>
                       )}
-                      <button className="mbtn-cancel" onClick={() => handleMarkRead(e.id)}>סמן כנקרא</button>
+                      <button className="mbtn-cancel" onClick={() => handleMarkRead(e)}>סמן כנקרא</button>
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            {/* CLOSED ARCHIVE ACCORDION */}
+            {/* ARCHIVE ACCORDION */}
             <div style={{ borderTop: '1px solid rgba(0,212,255,0.1)', background: '#070f1e', flexShrink: 0 }}>
               <div onClick={() => setArchOpen(!archOpen)} style={{ padding: '10px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', letterSpacing: '2px', color: 'rgba(160,185,215,0.5)', textTransform: 'uppercase', userSelect: 'none' }}>
                 <i className="ti ti-chevron-down" style={{ transform: archOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', fontSize: '14px' }}></i>
@@ -237,7 +307,7 @@ export default function LogisticsUpdates() {
                           <span style={{ fontSize: '10px', color: c.accent, fontWeight: 700, marginLeft: '8px' }}>{c.label}</span>
                           <span style={{ fontSize: '12px', color: 'rgba(160,185,215,0.6)' }}>{e.who} — {e.text.substring(0, 50)}...</span>
                         </div>
-                        <span style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)', fontFamily: 'Orbitron, monospace', marginRight: '10px' }}>{e.time.split('|')[1]}</span>
+                        <span style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)', fontFamily: 'Orbitron, monospace', marginRight: '10px' }}>{e.time}</span>
                       </div>
                     );
                   })}
@@ -252,7 +322,6 @@ export default function LogisticsUpdates() {
               סיכום יומי חמ"ל — {todayDate}
             </div>
             
-            {/* Movement Stats Box */}
             <div className="card">
               <div className="clbl"><div className="clbl-dot" style={{ background: '#00d4ff' }}></div>תנועות ציוד היום</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -267,62 +336,32 @@ export default function LogisticsUpdates() {
                   <div style={{ fontSize: '11px', color: 'rgba(160,185,215,0.5)', marginTop: '3px' }}>פריטים</div>
                 </div>
               </div>
-              <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(160,185,215,0.5)', paddingTop: '10px', borderTop: '1px solid rgba(0,212,255,0.1)' }}>
-                <span>💻 לפטופים: יצאו 8 / חזרו 6</span>
-                <span>🖱 עכברים: יצאו 4 / חזרו 3</span>
-              </div>
             </div>
 
-            {/* Efficiency Box */}
             <div className="card">
               <div className="clbl"><div className="clbl-dot" style={{ background: '#ff4560' }}></div>תקלות — יעילות טיפול</div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '26px', fontWeight: 900, color: '#ff4560' }}>3</div>
-                  <div style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>נפתחו</div>
+                  <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '26px', fontWeight: 900, color: '#ff4560' }}>{dbFaults.filter(f=>!f.archived && !f.is_task).length}</div>
+                  <div style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>פתוחות</div>
                 </div>
                 <div style={{ flex: 1, margin: '0 14px' }}>
                   <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: '66%', background: 'linear-gradient(90deg, #ff4560, #00e5a0)', borderRadius: '3px' }}></div>
+                    <div style={{ height: '100%', width: '75%', background: 'linear-gradient(90deg, #ff4560, #00e5a0)', borderRadius: '3px' }}></div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(160,185,215,0.5)', marginTop: '4px' }}><span>0%</span><span>66%</span><span>100%</span></div>
                 </div>
                 <div style={{ textAlignment: 'center' }}>
-                  <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '26px', fontWeight: 900, color: '#00e5a0' }}>2</div>
-                  <div style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>נסגרו</div>
-                </div>
-              </div>
-              <div style={{ background: 'rgba(0,229,160,0.06)', border: '1px solid rgba(0,229,160,0.15)', borderRadius: '6px', padding: '8px 12px', fontSize: '12px', color: 'rgba(0,229,160,0.8)', textAnomalous: 'center', textAlign: 'center' }}>
-                ✓ יעילות טיפול היום: 66%
-              </div>
-            </div>
-
-            {/* Activity Box */}
-            <div className="card">
-              <div className="clbl"><div className="clbl-dot" style={{ background: '#8b5cf6' }}></div>פעילות לפי סוג אירוע</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '5px' }}><span style={{ color: '#00e5a0' }}>הוצאות</span><span style={{ color: 'rgba(160,185,215,0.5)' }}>7</span></div>
-                  <div style={{ height: '5px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}><div style={{ height: '100%', width: '70%', background: '#00e5a0', borderRadius: '3px' }}></div></div>
-                </div>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '5px' }}><span style={{ color: '#00d4ff' }}>החזרות</span><span style={{ color: 'rgba(160,185,215,0.5)' }}>5</span></div>
-                  <div style={{ height: '5px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}><div style={{ height: '100%', width: '50%', background: '#00d4ff', borderRadius: '3px' }}></div></div>
-                </div>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '5px' }}><span style={{ color: '#ff4560' }}>תקלות</span><span style={{ color: 'rgba(160,185,215,0.5)' }}>3</span></div>
-                  <div style={{ height: '5px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}><div style={{ height: '100%', width: '30%', background: '#ff4560', borderRadius: '3px' }}></div></div>
+                  <div style={{ fontFamily: 'Orbitron, monospace', fontSize: '26px', fontWeight: 900, color: '#00e5a0' }}>{dbFaults.filter(f=>f.archived).length}</div>
+                  <div style={{ fontSize: '10px', color: 'rgba(160,185,215,0.5)' }}>אורכבו</div>
                 </div>
               </div>
             </div>
-
           </div>
         </div>
-
       </div>
 
       {/* TOAST SYSTEM */}
-      <div className={`toast ${toast.message ? 'show' : ''}`}>✓ {toast.message}</div>
+      <div className={`toast ${toast.show ? 'show' : ''}`}>✓ {toast.message}</div>
     </div>
   );
 }
