@@ -107,7 +107,7 @@ export default function LogisticsTasks() {
     return () => clearInterval(interval);
   }, []);
 
-  // 🟢 שליפת התקלות שהועברו לטיפול (is_task = true וטרם אורכבו) מתוך Supabase
+  // שליפת התקלות שהועברו לטיפול מתוך Supabase
   const fetchFaultTasks = async () => {
     try {
       if (!supabase) return;
@@ -164,7 +164,7 @@ export default function LogisticsTasks() {
         badgeColor: '#ff4560',
         instructor: 'חמ"ל שטח',
         time: nowTime,
-        title: 'משימה לוגיסטית ידנית',
+        title: 'Mishama',
         body: createTaskText,
         borderC: 'rgba(255,69,96,0.25)',
         bgC: 'rgba(255,69,96,0.04)',
@@ -190,74 +190,100 @@ export default function LogisticsTasks() {
     setIsCreateModalOpen(false);
   };
 
-  // 🟢 עדכון ניהול כפתורי משימה - מעדכן את Supabase עבור תקלות חיות מהדאטהבייס
-  const handleTaskAction = async (id, col, actionType) => {
+  // 🟢 ג'נרטור נסיעה חדשה - דוחף שילוח אמיתי לטבלת trips וסוגר את התקלה מהמערכת
+  const handleSendToTrip = async (task) => {
+    try {
+      if (!supabase) return;
+      const nowTime = new Date().toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }) + ' | ' + new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+      
+      // 1. הזרקת שורה לטבלת trips החדשה
+      const { error: tripErr } = await supabase
+        .from('trips')
+        .insert([{
+          date_str: nowTime,
+          instructor_name: task.instructor,
+          gear_take: `${task.rawSummary} (תקול)`,
+          gear_give: task.rawSummary,
+          status: 'ready'
+        }]);
+      if (tripErr) throw tripErr;
+
+      // 2. סגירת התקלה (ארכוב)
+      const { error: faultErr } = await supabase
+        .from('faults')
+        .update({ archived: true })
+        .eq('id', task.dbId);
+      if (faultErr) throw faultErr;
+
+      setDbFaultTasks(prev => prev.filter(x => x.id !== task.dbId));
+      showToast('🚚 התקלה נסגרה ושוגרה בהצלחה לדשבורד הראשי לביצוע שילוח!');
+    } catch (err) {
+      console.error(err);
+      showToast('⚠️ תקלה בעיבוד השיגור לנסיעה בשרת');
+    }
+  };
+
+  // 🟢 סגירה ישירה של התקלה מהלוח ללא צורך בשילוח נסיעה
+  const handleCloseFaultDirectly = async (task) => {
+    try {
+      if (!supabase) return;
+      const { error } = await supabase
+        .from('faults')
+        .update({ archived: true })
+        .eq('id', task.dbId);
+
+      if (error) throw error;
+      setDbFaultTasks(prev => prev.filter(x => x.id !== task.dbId));
+      showToast('🛠️ התקלה נסגרה, נחשבת כפתורה ונעלמה מכל המסכים!');
+    } catch (err) {
+      console.error(err);
+      showToast('⚠️ שגיאה בסגירת התקלה בשרת');
+    }
+  };
+
+  // ניהול משימות רגילות קשיחות
+  const handleTaskAction = (id, col, actionType) => {
     let taskTitle = '';
-    const isDbItem = typeof id === 'string' && id.startsWith('db_fault_');
-
-    if (isDbItem) {
-      const realDbId = parseInt(id.replace('db_fault_', ''), 10);
-      const targetFault = dbFaultTasks.find(x => x.id === realDbId);
-      taskTitle = targetFault ? `תקלה: ${targetFault.summary}` : 'תקלה בשטח';
-
-      try {
-        // מעדכנים בסופאבייס שהתקלה נסגרה/אורכבה סופית מהטיפול
-        const { error } = await supabase
-          .from('faults')
-          .update({ archived: true })
-          .eq('id', realDbId);
-
-        if (error) throw error;
-        setDbFaultTasks(prev => prev.filter(x => x.id !== realDbId));
-      } catch (err) {
-        console.error("Error archiving fault task:", err);
-        showToast('⚠️ שגיאה בעדכון השרת');
-        return;
-      }
-    } else {
-      if (col === 'field') {
-        const task = fieldTasks.find(x => x.id === id);
-        taskTitle = task ? task.title : 'משימת שטח';
-        setFieldTasks(prev => prev.filter(x => x.id !== id));
-      } else if (col === 'camp') {
-        const task = campTasks.find(x => x.id === id);
-        taskTitle = task ? task.title : 'משימת קייטנה';
-        setCampTasks(prev => prev.filter(x => x.id !== id));
-      } else if (col === 'alert') {
-        const task = alertTasks.find(x => x.id === id);
-        taskTitle = task ? task.title : 'התראה חכמה';
-        setAlertTasks(prev => prev.filter(x => x.id !== id));
-      }
+    if (col === 'field') {
+      const task = fieldTasks.find(x => x.id === id);
+      taskTitle = task ? task.title : 'משימת שטח';
+      setFieldTasks(prev => prev.filter(x => x.id !== id));
+    } else if (col === 'camp') {
+      const task = campTasks.find(x => x.id === id);
+      taskTitle = task ? task.title : 'משימת קייטנה';
+      setCampTasks(prev => prev.filter(x => x.id !== id));
+    } else if (col === 'alert') {
+      const task = alertTasks.find(x => x.id === id);
+      taskTitle = task ? task.title : 'התראה חכמה';
+      setAlertTasks(prev => prev.filter(x => x.id !== id));
     }
 
     const archiveMsg = actionType === 'done' ? 'בוצעה בהצלחה ✅' : 'סומנה כנקראה 👁️';
-    
     setArchives(prev => ({
       ...prev,
-      [col]: [...prev[col], { 
-        title: taskTitle, 
-        msg: archiveMsg, 
-        time: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) 
-      }]
+      [col]: [...prev[col], { title: taskTitle, msg: archiveMsg, time: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) }]
     }));
-
     showToast(actionType === 'done' ? 'המשימה סומנה כבוצעה והועברה לארכיון! ✓' : 'הועבר לארכיון הודעות שנקראו.');
   };
 
-  // 🟢 מיזוג התקלות החיות מסופאבייס יחד עם מערך המשימות הסטטי
+  // ── מיזוג התקלות החיות מסופאבייס עם הניסוח המדויק שביקשת ──
   const getCombinedFieldTasks = () => {
     const mappedDbFaults = dbFaultTasks.map(f => ({
       id: `db_fault_${f.id}`,
+      dbId: f.id,
       type: 'db_fault',
-      badge: '🛠️ תקלה בטיפול',
+      badge: '🛠️ תקלה בשטח',
       badgeColor: '#ff4560',
       instructor: f.reporter,
       time: new Date(f.created_at || Date.now()).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }),
       title: `חמ"ל תקלות: ${f.summary}`,
-      body: f.description,
+      // 🟢 הניסוח המדויק שלך כאן בהתאם לכמויות ולסוגי הציוד
+      body: `אנא הכן לנסיעה את פריטי הציוד הבאים: ${f.summary} עבור המדריך שפתח את התקלה : ${f.reporter} .`,
+      rawSummary: f.summary,
       borderC: 'rgba(255, 69, 96, 0.35)',
       bgC: 'rgba(255, 69, 96, 0.03)',
-      gearList: []
+      gearList: [],
+      isDbFault: true
     }));
 
     return [...mappedDbFaults, ...fieldTasks];
@@ -329,7 +355,6 @@ export default function LogisticsTasks() {
         .chk-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); width: 100%; box-sizing: border-box; }
         .chk-box { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid rgba(0,212,255,0.35); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .chk-lbl { font-size: 12px; color: rgba(220,235,255,0.92); flex: 1; text-align: right; }
-        .chk-status { font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 700; white-space: nowrap; margin-right: auto; }
 
         .act-strip { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 11px; margin-top: auto; width: 100%; }
         .act-btn-split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
@@ -341,8 +366,6 @@ export default function LogisticsTasks() {
 
         .snapshot-container { width: 100%; background: #070f1e; border: 1px solid rgba(0,212,255,0.12); border-radius: 10px; padding: 14px; margin-bottom: 4px; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
         .snapshot-row { display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 10px; }
-        .snapshot-row:last-child { border-bottom: none; padding-bottom: 0; }
-        .snapshot-label { font-size: 13px; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 6px; }
         .snapshot-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 2px; }
         .snap-tile { background: #0c1729; border: 1px solid rgba(0,212,255,0.06); border-radius: 6px; padding: 6px; text-align: center; display: flex; flex-direction: column; gap: 2px; }
         .snap-val { font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; }
@@ -356,16 +379,6 @@ export default function LogisticsTasks() {
         .ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
         .ov.open { display: flex; }
         .mbox { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 480px; max-width: 95vw; box-shadow: 0 0 50px rgba(0,212,255,0.15); direction: rtl; text-align: right; position: relative; overflow: hidden; }
-
-        .cyber-music-player { display: flex; align-items: center; gap: 10px; background: #040c18; border: 1px solid #162540; border-radius: 20px; padding: 4px 14px; margin-left: 12px; cursor: pointer; user-select: none; }
-        .player-toggle-btn { color: #00d4ff; font-size: 14px; display: flex; align-items: center; }
-        .player-toggle-btn.playing { color: #00e5a0; }
-        .player-station-text { font-size: 11px; font-family: 'Orbitron', monospace; color: rgba(160,185,215,0.5); letter-spacing: 1px; font-weight: bold; }
-        .cyber-music-player.playing .player-station-text { color: #00e5a0; }
-        .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
-        .visualizer-bar { width: 2px; height: 3px; background: #00e5a0; }
-        .cyber-music-player.playing .visualizer-bar { animation: wavePulse 0.6s ease-in-out infinite alternate; }
-        @keyframes wavePulse { 0% { height: 3px; } 100% { height: 10px; } }
       `}</style>
 
       {/* SIDEBAR NAVIGATION */}
@@ -388,11 +401,6 @@ export default function LogisticsTasks() {
         <div className="topbar">
           <div className="topbar-title">ARAGON · LOGISTICS HQ</div>
           <div className="topbar-r">
-            <div className={`cyber-music-player ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
-              <div className="player-toggle-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i></div>
-              <div className="player-station-text">HQ RADIO</div>
-              <div className="audio-visualizer-wave"><div className="visualizer-bar"></div><div className="visualizer-bar"></div><div className="visualizer-bar"></div></div>
-            </div>
             <div className="live"><div className="ld"></div>LIVE MATRIX</div>
             <div className="clk">{clk}</div>
           </div>
@@ -401,7 +409,7 @@ export default function LogisticsTasks() {
         {/* 3-COLUMN KANBAN TASKS BODY GRID */}
         <div className="tasks-body">
           
-          {/* COLUMN 1: FIELD OPS & FAULTS (חמ"ל שטח ותקלות - כולל תקלות מסופאבייס) */}
+          {/* COLUMN 1: FIELD OPS & FAULTS */}
           <div className="col">
             <div className="col-hdr">
               <div className="col-hdr-title">
@@ -438,11 +446,22 @@ export default function LogisticsTasks() {
                     </div>
                   )}
 
-                  {/* 2 כפתורים בלבד: סמן כנקרא / בוצע - שניהם סוגרים את התקלה בסופאבייס */}
                   <div className="act-strip">
                     <div className="act-btn-split">
-                      <button className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'field', 'read')}>סמן כנקרא</button>
-                      <button className="act-btn btn-success" onClick={() => handleTaskAction(task.id, 'field', 'done')}>בוצע</button>
+                      {/* 🟢 בדיקה דינמית: הצגת כפתורי הניתוב המדויקים שלך לתקלות חיות מהדאטהבייס */}
+                      {task.isDbFault ? (
+                        <>
+                          <button className="act-btn btn-read" style={{ borderColor: 'rgba(255,69,96,0.4)', color: '#ff4560' }} onClick={() => handleCloseFaultDirectly(task)}>סגור תקלה</button>
+                          <button className="act-btn btn-success" onClick={() => handleSendToTrip(task)}>
+                            <i className="ti ti-truck"></i> שלח לנסיעה
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button className="act-btn btn-read" onClick={() => handleTaskAction(task.id, 'field', 'read')}>סמן כנקרא</button>
+                          <button className="act-btn btn-success" onClick={() => handleTaskAction(task.id, 'field', 'done')}>בוצע</button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
