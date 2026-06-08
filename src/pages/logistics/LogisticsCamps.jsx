@@ -29,6 +29,9 @@ export default function LogisticsCamps() {
   const [checklistModal, setChecklistModal] = useState(null);
   const [isEditInventoryOpen, setIsEditInventoryOpen] = useState(false);
 
+  // 🟢 סטייט זמני לטקסט חופשי של פריט ציוד נוסף לכל מסלול
+  const [extraInputs, setExtraInputs] = useState({});
+
   const staffList = ['מתן', 'איתמר', 'שמנטה', 'אור ארליך', 'ישראל', 'אור', 'בתאל', 'רועי לוגיסטיקה'];
 
   // סטייט מעקב אחרי תיאום בתי ספר (Checkboxes) לפי מסלול וקייטנה
@@ -158,9 +161,15 @@ export default function LogisticsCamps() {
             science: { computersQty: 0, tabletsQty: 0, starProjector: 0 },
             law: { computersQty: 0, tabletsQty: 0 },
             finance: {},
-            robotics: { computersQty: 10, tabletsQty: 4, robotsQty: 8 }
+            robotics: { computersQty: 10, tabletsQty: 4, robotsQty: 8 },
+            extraItems: []
           }
         };
+
+        // הגנה מפני מצב שבו localRoutePackage קיים אך נוצר לפני הוספת השדה החדש
+        if (!localRoutePackage.roomConfigs.extraItems) {
+          localRoutePackage.roomConfigs.extraItems = [];
+        }
 
         return {
           id: track.id,
@@ -295,6 +304,61 @@ export default function LogisticsCamps() {
         }
       };
     }));
+  };
+
+  const updateConsoleRow = (routeId, index, field, value) => {
+    setRoutes(prev => prev.map(r => {
+      if (r.id !== routeId) return r;
+      const currentConsoles = r.roomConfigs?.gaming?.consoles || [];
+      const nextConsoles = [...currentConsoles];
+      if (nextConsoles[index]) {
+        nextConsoles[index] = { ...nextConsoles[index], [field]: value };
+      }
+      return {
+        ...r,
+        roomConfigs: {
+          ...r.roomConfigs,
+          gaming: { ...(r.roomConfigs?.gaming || {}), consoles: nextConsoles }
+        }
+      };
+    }));
+  };
+
+  // 🟢 הוספת פריט טקסט חופשי לרשימת ציוד נוסף במסלול
+  const addExtraItem = (routeId) => {
+    const text = extraInputs[routeId]?.trim();
+    if (!text) return;
+
+    setRoutes(prev => prev.map(r => {
+      if (r.id !== routeId) return r;
+      const currentItems = r.roomConfigs?.extraItems || [];
+      return {
+        ...r,
+        roomConfigs: {
+          ...r.roomConfigs,
+          extraItems: [...currentItems, text]
+        }
+      };
+    }));
+
+    setExtraInputs(prev => ({ ...prev, [routeId]: '' }));
+    showToast('פריט ציוד חופשי נוסף בהצלחה ✓');
+  };
+
+  // 🟢 הסרת פריט מרשימת ציוד נוסף במסלול
+  const removeExtraItem = (routeId, index) => {
+    setRoutes(prev => prev.map(r => {
+      if (r.id !== routeId) return r;
+      const currentItems = r.roomConfigs?.extraItems || [];
+      return {
+        ...r,
+        roomConfigs: {
+          ...r.roomConfigs,
+          extraItems: currentItems.filter((_, i) => i !== index)
+        }
+      };
+    }));
+    showToast('פריט הוסר מהמפרט 🗑️');
   };
 
   const saveRealInventoryTotals = (e) => {
@@ -835,6 +899,85 @@ export default function LogisticsCamps() {
                                   </div>
                                 )}
 
+                              {/* חדר רובוטיקה */}
+                              {uniqueRoomsInRoute.includes('robotics') && (
+                                  <div className="room-box">
+                                    <div className="room-box-title">🤖 חדר רובוטיקה</div>
+                                    <div className="cfg-row">
+                                      <span className="cfg-label">כמות מחשבים:</span>
+                                      <input 
+                                        className="cfg-input" 
+                                        type="number" 
+                                        min="0"
+                                        value={r.roomConfigs?.robotics?.computersQty || 0}
+                                        onChange={(e) => updateRoomConfig(r.id, 'robotics', 'computersQty', parseInt(e.target.value) || 0)}
+                                      />
+                                    </div>
+                                    <div className="cfg-row">
+                                      <span className="cfg-label">כמות טאבלטים:</span>
+                                      <input 
+                                        className="cfg-input" 
+                                        type="number" 
+                                        min="0"
+                                        value={r.roomConfigs?.robotics?.tabletsQty || 0}
+                                        onChange={(e) => updateRoomConfig(r.id, 'robotics', 'tabletsQty', parseInt(e.target.value) || 0)}
+                                      />
+                                    </div>
+                                    <div className="cfg-row">
+                                      <span className="cfg-label" style={{ color: '#a78bfa' }}>🤖 כמות רובוטים:</span>
+                                      <input 
+                                        className="cfg-input" 
+                                        type="number" 
+                                        min="0"
+                                        value={r.roomConfigs?.robotics?.robotsQty || 0}
+                                        onChange={(e) => updateRoomConfig(r.id, 'robotics', 'robotsQty', parseInt(e.target.value) || 0)}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* 🟢 משבצת קבועה תמיד: ניהול רשימת ציוד נוסף חופשי */}
+                                <div className="room-box" style={{ borderColor: 'rgba(56, 189, 248, 0.3)' }}>
+                                  <div className="room-box-title" style={{ color: '#00d4ff' }}><i className="ti ti-box-padding"></i> 📦 ציוד נוסף למסלול</div>
+                                  
+                                  <div style={{ display: 'flex', gap: '6px', marginBottom: '4px' }}>
+                                    <input 
+                                      type="text" 
+                                      className="cfg-input" 
+                                      style={{ flex: 1, textAlign: 'right', width: 'auto', fontSize: '12px' }}
+                                      placeholder="הקלד פריט חופשי..." 
+                                      value={extraInputs[r.id] || ''}
+                                      onChange={(e) => setExtraInputs({ ...extraInputs, [r.id]: e.target.value })}
+                                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addExtraItem(r.id))}
+                                    />
+                                    <button 
+                                      type="button" 
+                                      className="cb cb-p" 
+                                      style={{ width: '32px', height: '32px', borderRadius: '6px', fontSize: '16px' }}
+                                      onClick={() => addExtraItem(r.id)}
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', maxHeight: '110px', overflowY: 'auto', paddingLeft: '2px' }}>
+                                    {(r.roomConfigs?.extraItems || []).map((item, idx) => (
+                                      <div key={idx} className="cfg-row" style={{ background: 'rgba(255,255,255,0.03)', padding: '5px 8px' }}>
+                                        <span style={{ fontSize: '12px', color: '#ffffff', fontWeight: '500' }}>{item}</span>
+                                        <button 
+                                          type="button" 
+                                          className="btn-trash-row" 
+                                          style={{ fontSize: '11px' }}
+                                          onClick={() => removeExtraItem(r.id, idx)}
+                                          title="מחק פריט"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+
                               </div>
 
                               {/* STAFF ASSIGNMENT FLOOR */}
@@ -1066,8 +1209,27 @@ export default function LogisticsCamps() {
                     </div>
                   );
                 })()}
-              </div>
 
+                {/* 🟢 הזרקה דינמית של רשימת הציוד הנוסף החופשי לצ׳ק ליסט לפני יציאה */}
+                {checklistModal.roomConfigs?.extraItems?.map((item, i) => {
+                  const key = `custom-extra-item-${i}`;
+                  const isChecked = checklistModal._checkedItems?.[key] || false;
+                  return (
+                    <div 
+                      key={key} 
+                      className={`checklist-item-row ${isChecked ? 'checked' : ''}`}
+                      onClick={() => setChecklistModal({ ...checklistModal, _checkedItems: { ...checklistModal._checkedItems, [key]: !isChecked } })}
+                    >
+                      <div className="cl-item-right">
+                        <div className="cl-checkbox">{isChecked && <i className="ti ti-check" style={{ fontSize: '8px' }}></i>}</div>
+                        <span>📦 {item}</span>
+                      </div>
+                      <span style={{ fontSize: '11px', color: '#00d4ff', fontWeight: 'bold' }}>ציוד חופשי</span>
+                    </div>
+                  );
+                })}
+              </div>
+              
               <div className="checklist-group">
                 <div className="checklist-group-title">סגל ושיבוץ תפעולי משודרג:</div>
                 <div className="checklist-item-row"><span>🏗️ אחראי פריסה והקמה מוסמך:</span><span style={{ color: '#00d4ff', fontWeight: 'bold' }}>{checklistModal.assignedSetup}</span></div>
