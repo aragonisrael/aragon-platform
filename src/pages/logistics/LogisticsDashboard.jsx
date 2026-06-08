@@ -692,7 +692,7 @@ export default function LogisticsDashboard() {
                       <div style={{ fontSize: '11.5px', color: 'rgba(160,185,215,0.3)', textAlign: 'center', padding: '10px 0' }}>אין נסיעות בארכיון</div>
                     ) : (
                       archivedTrips.map(t => (
-                        <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyEncoding: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px', fontSize: '12px', direction: 'rtl' }}>
+                        <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px', fontSize: '12px', direction: 'rtl' }}>
                           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                             <span style={{ color: '#00e5a0', fontWeight: 'bold' }}>✓ {t.instructor_name}</span>
                             <span style={{ color: 'rgba(160,185,215,0.6)' }}>{t.gear_give || 'שילוח חומרה'}</span>
