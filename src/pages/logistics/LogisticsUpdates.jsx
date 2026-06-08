@@ -200,6 +200,13 @@ export default function LogisticsUpdates() {
 
         // 🟢 זיכוי אוטומטי של ארנק המדריך בעמוד חוגים ברגע קליטת הציוד התקול חזרה במשרד
         if (item.type === 'in') {
+          // 🚚 אוטומציה: עדכון סטטוס הנסיעה בבסיס הנתונים ל-'completed' כדי שתעבור לארכיון בדשבורד
+          await supabase
+            .from('trips')
+            .update({ status: 'completed' })
+            .eq('instructor_name', item.who)
+            .eq('status', 'departed');
+
           const savedPack = localStorage.getItem('aragon_classes_persistent_package');
           if (savedPack) {
             const localPackage = JSON.parse(savedPack);
@@ -225,7 +232,7 @@ export default function LogisticsUpdates() {
           }
         }
       }
-      showToast('העדכון נסגר בהצלחה, ארנק המדריך זוכה והועבר לארכיון 📂✓');
+      showToast('העדכון נסגר בהצלחה, ארנק המדריך זוכה והנסיעה אורכבה 📂✓');
     } catch (err) {
       console.error("Error during execution archive setup:", err);
       showToast('⚠️ שגיאה בעיבוד השילוח והזיכרון במערכת');

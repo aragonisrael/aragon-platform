@@ -38,6 +38,7 @@ export default function LogisticsDashboard() {
   // 🚚 סטייט נסיעות מחובר דינמית ל-Supabase
   const [trips, setTrips] = useState([]);
   const [loadingTrips, setLoadingTrips] = useState(true);
+  const [isTripsArchOpen, setIsTripsArchOpen] = useState(false); // 🟢 שליטה בפתיחת ארכיון נסיעות
 
   // 👨‍🏫 סטייט למדריכים קבועים מהדאטהבייס
   const [dbInstructors, setDbInstructors] = useState([]);
@@ -368,6 +369,9 @@ export default function LogisticsDashboard() {
 
     setIsModalOpen(false);
   };
+  // 🟢 פיצול נסיעות פעילות לעומת נסיעות שהושלמו ואורכבו
+  const activeTrips = trips.filter(t => t.status !== 'completed');
+  const archivedTrips = trips.filter(t => t.status === 'completed');
 
   return (
     <div className="hq-global-wrapper">
@@ -649,7 +653,7 @@ export default function LogisticsDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {trips.map(t => (
+                  {activeTrips.map(t => (
                     <tr key={t.id}>
                       {/* 🟢 עמודת כפתור X כתום למחיקה מיידית של השורה */}
                       <td>
@@ -672,6 +676,34 @@ export default function LogisticsDashboard() {
                   ))}
                 </tbody>
               </table>
+            {/* 🟢 ארכיון נסיעות שהושלמו בתחתית הכרטיס */}
+            <div style={{ borderTop: '1px solid rgba(0,212,255,0.1)', marginTop: '16px', paddingTop: '12px' }}>
+                <div 
+                  onClick={() => setIsTripsArchOpen(!isTripsArchOpen)} 
+                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'rgba(160,185,215,0.5)', userSelect: 'none', fontWeight: '700' }}
+                >
+                  <i className="ti ti-chevron-down" style={{ transform: isTripsArchOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', fontSize: '14px' }}></i>
+                  ארכיון נסיעות שהושלמו ({archivedTrips.length})
+                </div>
+                
+                {isTripsArchOpen && (
+                  <div style={{ maxHeight: '140px', overflowY: 'auto', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px', paddingLeft: '4px' }}>
+                    {archivedTrips.length === 0 ? (
+                      <div style={{ fontSize: '11.5px', color: 'rgba(160,185,215,0.3)', textAlign: 'center', padding: '10px 0' }}>אין נסיעות בארכיון</div>
+                    ) : (
+                      archivedTrips.map(t => (
+                        <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyEncoding: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px', fontSize: '12px', direction: 'rtl' }}>
+                          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <span style={{ color: '#00e5a0', fontWeight: 'bold' }}>✓ {t.instructor_name}</span>
+                            <span style={{ color: 'rgba(160,185,215,0.6)' }}>{t.gear_give || 'שילוח חומרה'}</span>
+                          </div>
+                          <span style={{ fontFamily: 'Orbitron', fontSize: '10.5px', color: 'rgba(160,185,215,0.3)', marginRight: 'auto' }}>{t.date_str}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
