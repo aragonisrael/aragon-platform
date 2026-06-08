@@ -306,79 +306,42 @@ export default function LogisticsCamps() {
     }));
   };
 
-  // הוספת פריט טקסט חופשי לרשימת ציוד נוסף במסלול
-  const addExtraItem = (routeId) => {
-    const text = extraInputs[routeId]?.trim();
-    if (!text) return;
+// הוספת פריט טקסט חופשי לרשימת ציוד נוסף במסלול
+const addExtraItem = (routeId) => {
+  const text = extraInputs[routeId]?.trim();
+  if (!text) return;
 
-    setRoutes(prev => prev.map(r => {
-      if (r.id !== routeId) return r;
-      const currentItems = r.roomConfigs?.extraItems || [];
-      return {
-        ...r,
-        roomConfigs: {
-          ...r.roomConfigs,
-          extraItems: [...currentItems, text]
-        }
-      };
-    }));
+  setRoutes(prev => prev.map(r => {
+    if (r.id !== routeId) return r;
+    const currentItems = r.roomConfigs?.extraItems || [];
+    return {
+      ...r,
+      roomConfigs: {
+        ...r.roomConfigs,
+        extraItems: [...currentItems, text]
+      }
+    };
+  }));
 
-    setExtraInputs(prev => ({ ...prev, [routeId]: '' }));
-    showToast('פריט ציוד חופשי נוסף בהצלחה ✓');
-  };
+  setExtraInputs(prev => ({ ...prev, [routeId]: '' }));
+  showToast('פריט ציוד חופשי נוסף בהצלחה ✓');
+};
 
-  // הסרת פריט מרשימת ציוד נוסף במסלול
-  const removeExtraItem = (routeId, index) => {
-    setRoutes(prev => prev.map(r => {
-      if (r.id !== routeId) return r;
-      const currentItems = r.roomConfigs?.extraItems || [];
-      return {
-        ...r,
-        roomConfigs: {
-          ...r.roomConfigs,
-          extraItems: currentItems.filter((_, i) => i !== index)
-        }
-      };
-    }));
-    showToast('פריט הוסר מהמפרט 🗑️');
-  };
-
-  // 🟢 הוספת פריט טקסט חופשי לרשימת ציוד נוסף במסלול
-  const addExtraItem = (routeId) => {
-    const text = extraInputs[routeId]?.trim();
-    if (!text) return;
-
-    setRoutes(prev => prev.map(r => {
-      if (r.id !== routeId) return r;
-      const currentItems = r.roomConfigs?.extraItems || [];
-      return {
-        ...r,
-        roomConfigs: {
-          ...r.roomConfigs,
-          extraItems: [...currentItems, text]
-        }
-      };
-    }));
-
-    setExtraInputs(prev => ({ ...prev, [routeId]: '' }));
-    showToast('פריט ציוד חופשי נוסף בהצלחה ✓');
-  };
-
-  // 🟢 הסרת פריט מרשימת ציוד נוסף במסלול
-  const removeExtraItem = (routeId, index) => {
-    setRoutes(prev => prev.map(r => {
-      if (r.id !== routeId) return r;
-      const currentItems = r.roomConfigs?.extraItems || [];
-      return {
-        ...r,
-        roomConfigs: {
-          ...r.roomConfigs,
-          extraItems: currentItems.filter((_, i) => i !== index)
-        }
-      };
-    }));
-    showToast('פריט הוסר מהמפרט 🗑️');
-  };
+// הסרת פריט מרשימת ציוד נוסף במסלול
+const removeExtraItem = (routeId, index) => {
+  setRoutes(prev => prev.map(r => {
+    if (r.id !== routeId) return r;
+    const currentItems = r.roomConfigs?.extraItems || [];
+    return {
+      ...r,
+      roomConfigs: {
+        ...r.roomConfigs,
+        extraItems: currentItems.filter((_, i) => i !== index)
+      }
+    };
+  }));
+  showToast('פריט הוסר מהמפרט 🗑️');
+};
 
   const saveRealInventoryTotals = (e) => {
     e.preventDefault();
