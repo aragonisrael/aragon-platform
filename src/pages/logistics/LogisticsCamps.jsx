@@ -146,11 +146,10 @@ export default function LogisticsCamps() {
 
         const defaultStaff = trackCamps[0]?.setup_staff?.[0] || staffList[0] || 'רועי לוגיסטיקה';
 
-        return {
-          id: track.id,
-          name: track.label || `מסלול`,
-          status: trackCamps.length > 0 ? 'active' : 'prep',
-          cycles: cycles,
+        // 🟢 טעינת שיבוצי ציוד וכוח אדם שמורים מהזיכרון המקומי לחסינות רענון מלאה
+        const savedRouteData = localStorage.getItem('aragon_route_custom_data');
+        const parsedRouteData = savedRouteData ? JSON.parse(savedRouteData) : {};
+        const localRoutePackage = parsedRouteData[track.id] || {
           assignedSetup: defaultStaff,
           assignedTeardown: defaultStaff,
           roomConfigs: {
@@ -161,6 +160,16 @@ export default function LogisticsCamps() {
             finance: {},
             robotics: { computersQty: 10, tabletsQty: 4, robotsQty: 8 }
           }
+        };
+
+        return {
+          id: track.id,
+          name: track.label || `מסלול`,
+          status: trackCamps.length > 0 ? 'active' : 'prep',
+          cycles: cycles,
+          assignedSetup: localRoutePackage.assignedSetup,
+          assignedTeardown: localRoutePackage.assignedTeardown,
+          roomConfigs: localRoutePackage.roomConfigs
         };
       });
 
@@ -182,6 +191,21 @@ export default function LogisticsCamps() {
   useEffect(() => {
     fetchLiveCloudContext();
   }, []);
+
+  // 🟢 מנוע שמירה אוטומטית (Autosave) - כל שינוי חומרה או כוח אדם ננעל אוטומטית בזיכרון המקומי
+  useEffect(() => {
+    if (routes.length > 0) {
+      const dataToSave = {};
+      routes.forEach(r => {
+        dataToSave[r.id] = {
+          assignedSetup: r.assignedSetup,
+          assignedTeardown: r.assignedTeardown,
+          roomConfigs: r.roomConfigs
+        };
+      });
+      localStorage.setItem('aragon_route_custom_data', JSON.stringify(dataToSave));
+    }
+  }, [routes]);
 
   const toggleRadioPlay = () => {
     const globalAudio = document.getElementById('hq-cyber-radio');
