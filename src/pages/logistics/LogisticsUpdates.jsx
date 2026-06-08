@@ -188,7 +188,7 @@ export default function LogisticsUpdates() {
     }, 2200); 
   };
 
-  // ביצוע הארכוב בפועל
+  // ביצוע הארכוב בפועל והעברת הנתונים לארכיון
   const executeArchive = async (item) => {
     try {
       if (item.isFault) {
@@ -204,7 +204,7 @@ export default function LogisticsUpdates() {
           if (savedPack) {
             const localPackage = JSON.parse(savedPack);
             
-            // 🟢 ביצוע הצלבה חכמה: מוצאים את שם המשתמש באנגלית על בסיס השם בעברית מהעדכון
+            // ביצוע הצלבה חכמה: מוצאים את שם המשתמש באנגלית על בסיס השם בעברית מהעדכון
             const matchUser = usersList.find(u => u.full_name === item.who || u.username === item.who);
             const instructorKey = matchUser ? matchUser.username : item.who;
 
@@ -225,25 +225,10 @@ export default function LogisticsUpdates() {
           }
         }
       }
-              const currentKit = localPackage.overrides[instructorKey];
-              const returnedKit = item.originalGear || {};
-
-              // הפחתה בטוחה של הציוד מהארנק (מניעת ירידה מתחת ל-0)
-              currentKit.laptops = Math.max(0, (currentKit.laptops || 0) - (returnedKit.laptops || 0));
-              currentKit.tablets = Math.max(0, (currentKit.tablets || 0) - (returnedKit.tablets || 0));
-              currentKit.chargers = Math.max(0, (currentKit.chargers || 0) - (returnedKit.chargers || 0));
-              currentKit.mice = Math.max(0, (currentKit.mice || 0) - (returnedKit.mice || 0));
-              currentKit.routers = Math.max(0, (currentKit.routers || 0) - (returnedKit.routers || 0));
-              currentKit.robots = Math.max(0, (currentKit.robots || 0) - (returnedKit.suitcases || 0)); // סנכרון תואם למזוודות השטח
-
-              localStorage.setItem('aragon_classes_persistent_package', JSON.stringify(localPackage));
-            }
-          }
-        }
-      }
       showToast('העדכון נסגר בהצלחה, ארנק המדריך זוכה והועבר לארכיון 📂✓');
     } catch (err) {
-      console.error(err);
+      console.error("Error during execution archive setup:", err);
+      showToast('⚠️ שגיאה בעיבוד השילוח והזיכרון במערכת');
     }
     setArchiveConfirm({ open: false, item: null });
   };
