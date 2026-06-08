@@ -30,8 +30,14 @@ export default function LogisticsTasks() {
   const [createTaskText, setCreateTaskText] = useState('');
   const [createTaskTargetCol, setCreateTaskTargetCol] = useState('field'); // 'field' | 'camp'
 
-  // 🟢 סטייט לפופ-אפ אישור ביצוע משימה (אישור / ביטול)
-  const [doneConfirm, setDoneConfirm] = useState({ open: false, id: null, col: null });
+ // 🟢 סטייט לפופ-אפ אישור ביצוע משימה (אישור / ביטול)
+ const [doneConfirm, setDoneConfirm] = useState({ open: false, id: null, col: null });
+
+ // ✏️ סטייט לעריכת משימה ידנית קיימת ברשת
+ const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+ const [editTaskText, setEditTaskText] = useState('');
+ const [editingTaskId, setEditingTaskId] = useState(null);
+ const [editingTaskCol, setEditingTaskCol] = useState('field'); // 'field' | 'camp'
 
   // ── 🗑️ מאגר משימות קשיח מקומי - מחובר לזיכרון דפדפן ──
   const [fieldTasks, setFieldTasks] = useState(() => {
@@ -111,6 +117,28 @@ export default function LogisticsTasks() {
     setCreateTaskTargetCol(colType);
     setCreateTaskText('');
     setIsCreateModalOpen(true);
+  };
+
+  const openEditModal = (task, colType) => {
+    setEditingTaskId(task.id);
+    setEditingTaskCol(colType);
+    setEditTaskText(task.body);
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditTaskSubmit = (e) => {
+    e.preventDefault();
+    if (!editTaskText.trim()) {
+      showToast('⚠️ לא ניתן להשאיר משימה ריקה');
+      return;
+    }
+    if (editingTaskCol === 'field') {
+      setFieldTasks(prev => prev.map(t => t.id === editingTaskId ? { ...t, body: editTaskText } : t));
+    } else {
+      setCampTasks(prev => prev.map(t => t.id === editingTaskId ? { ...t, body: editTaskText } : t));
+    }
+    setIsEditModalOpen(false);
+    showToast('המשימה עודכנה בהצלחה! ✏️');
   };
 
   const handleCreateTaskSubmit = (e) => {
@@ -343,7 +371,21 @@ export default function LogisticsTasks() {
         .ov { display: none; position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; background: rgba(4,11,24,0.92); z-index: 99999; align-items: center; justify-content: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         .ov.open { display: flex; }
         .mbox { background: #0c1729; border: 1px solid rgba(0,212,255,0.3); border-radius: 14px; padding: 26px; width: 460px; max-width: 90vw; box-shadow: 0 0 50px rgba(0,212,255,0.2); direction: rtl; text-align: right; position: relative; overflow: hidden; }
-        
+
+        /* 📻 שדרוג רדיו אראגון - מסגרת גרדיאנט ניאון וכפתור מודגש */
+        .cyber-music-player { display: flex; align-items: center; gap: 10px; background: linear-gradient(#040c18, #040c18) padding-box, linear-gradient(135deg, #00d4ff 0%, #8b5cf6 100%) border-box; border: 1px solid transparent; border-radius: 20px; padding: 5px 14px; margin-left: 12px; cursor: pointer; user-select: none; box-shadow: 0 0 14px rgba(0, 212, 255, 0.12), 0 0 14px rgba(139, 92, 246, 0.12); transition: all 0.25s ease; }
+        .cyber-music-player:hover { box-shadow: 0 0 20px rgba(0, 212, 255, 0.25), 0 0 20px rgba(139, 92, 246, 0.25); transform: scale(1.02); }
+        .player-toggle-btn { background: #ffffff; color: #040b18; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; transition: all 0.2s; box-shadow: 0 0 8px rgba(255,255,255,0.4); }
+        .cyber-music-player.playing .player-toggle-btn { background: #00e5a0; color: #040b18; box-shadow: 0 0 8px #00e5a0; }
+        .player-station-text { font-family: 'Heebo', sans-serif; font-size: 12px; color: #ffffff; font-weight: 800; letter-spacing: 0.5px; }
+        .cyber-music-player.playing .player-station-text { background: linear-gradient(90deg, #00d4ff, #00e5a0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2px; height: 10px; margin-top: 1px; }
+        .visualizer-bar { width: 2px; height: 3px; background: rgba(0,212,255,0.4); border-radius: 1px; transition: all 0.2s; }
+        .cyber-music-player.playing .visualizer-bar { background: #00e5a0; animation: wavePulse 0.6s ease-in-out infinite alternate; }
+        .cyber-music-player.playing .visualizer-bar:nth-child(2) { animation-delay: 0.15s; }
+        .cyber-music-player.playing .visualizer-bar:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes wavePulse { 0% { height: 2px; } 100% { height: 11px; } }
+
         /* הוספת עיצוב כפתור סגירה למודאלים שנעלם */
         .modal-close-btn { position: absolute; left: 16px; top: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: rgba(160,185,215,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center; }
         .modal-close-btn:hover { background: rgba(255,69,96,0.12); color: #ff4560; }
@@ -369,6 +411,17 @@ export default function LogisticsTasks() {
         <div className="topbar">
           <div className="topbar-title">ARAGON · LOGISTICS HQ</div>
           <div className="topbar-r">
+            <div className={`cyber-music-player ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
+              <div className="player-toggle-btn">
+                <i className={isPlaying ? "ti ti-player-pause-filled" : "ti ti-player-play-filled"}></i>
+              </div>
+              <div className="player-station-text">רדיו אראגון</div>
+              <div className="audio-visualizer-wave">
+                <div className="visualizer-bar"></div>
+                <div className="visualizer-bar"></div>
+                <div className="visualizer-bar"></div>
+              </div>
+            </div>
             <div className="live"><div className="ld"></div>LIVE MATRIX</div>
             <div className="clk">{clk}</div>
           </div>
@@ -399,6 +452,11 @@ export default function LogisticsTasks() {
                       <div className="tcard-badge-wrap">
                         <span className="tcard-badge" style={{ background: 'rgba(255,69,96,0.06)', color: task.badgeColor, border: `1px solid ${task.borderC}` }}>{task.badge}</span>
                         {!task.isCustom && <span className="instructor-tag">👤 {task.instructor}</span>}
+                        {task.isCustom && (
+                          <button type="button" onClick={() => openEditModal(task, 'field')} style={{ background: 'transparent', border: 'none', color: '#00d4ff', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', marginRight: '4px' }} title="ערוך משימה">
+                            <i className="ti ti-edit"></i>
+                          </button>
+                        )}
                       </div>
                       <span className="tcard-time">{task.time}</span>
                     </div>
@@ -466,7 +524,14 @@ export default function LogisticsTasks() {
                 campTasks.map(task => (
                   <div key={task.id} className="tcard" style={{ background: task.bgC, borderColor: task.borderC }}>
                     <div className="tcard-top">
-                      <span className="tcard-badge" style={{ background: 'rgba(0,212,255,0.06)', color: '#00d4ff', border: `1px solid ${task.borderC}` }}>{task.badge}</span>
+                      <div className="tcard-badge-wrap">
+                        <span className="tcard-badge" style={{ background: 'rgba(0,212,255,0.06)', color: '#00d4ff', border: `1px solid ${task.borderC}` }}>{task.badge}</span>
+                        {task.isCustom && (
+                          <button type="button" onClick={() => openEditModal(task, 'camp')} style={{ background: 'transparent', border: 'none', color: '#00d4ff', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', marginRight: '4px' }} title="ערוך משימה">
+                            <i className="ti ti-edit"></i>
+                          </button>
+                        )}
+                      </div>
                       <span className="tcard-time">{task.time}</span>
                     </div>
 
@@ -666,6 +731,58 @@ export default function LogisticsTasks() {
                 ביטול
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✏️ מודאל עריכת משימה ידנית קיימת */}
+      {isEditModalOpen && (
+        <div className="ov open" onClick={(e) => e.target.className === 'ov open' && setIsEditModalOpen(false)}>
+          <div className="mbox" style={{ borderColor: '#00d4ff', padding: '24px' }}>
+            <button type="button" className="modal-close-btn" onClick={() => setIsEditModalOpen(false)}>×</button>
+            
+            <div className="modal-head" style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '22px', marginLeft: '10px' }}>✏️</div>
+              <div>
+                <div className="modal-title-text" style={{ color: '#00d4ff', fontSize: '16px', fontWeight: '800' }}>עריכת משימה חופשית</div>
+                <div className="modal-subtitle-text" style={{ fontSize: '12px', marginTop: '4px' }}>
+                  מקור המשימה: <span style={{ color: '#ffffff', fontWeight: '600' }}>{editingTaskCol === 'field' ? 'חמ"ל שטח ותקלות' : 'הכנת קייטנות'}</span>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleEditTaskSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="mfr" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label className="mfl" style={{ fontSize: '12px', fontWeight: '700', color: 'rgba(0,212,255,0.7)' }}>תוכן המשימה המעודכן</label>
+                <textarea 
+                  className="mfi" 
+                  rows="4" 
+                  required
+                  style={{ resize: 'none', fontFamily: 'Heebo', width: '100%', background: '#111f35', border: '1px solid rgba(0,212,255,0.25)', borderRadius: '8px', color: '#ffffff', padding: '12px', fontSize: '13.5px', outline: 'none', lineHeight: '1.5' }}
+                  placeholder="הקלד כאן את השינויים שלך..." 
+                  value={editTaskText}
+                  onChange={(e) => setEditTaskText(e.target.value)}
+                />
+              </div>
+
+              <div className="mf2" style={{ display: 'flex', gap: '12px', marginTop: '8px', justifyContent: 'flex-start' }}>
+                <button 
+                  type="button" 
+                  className="mbtn-cancel" 
+                  style={{ padding: '10px 24px', borderRadius: '8px', fontSize: '13.5px', fontWeight: '600', cursor: 'pointer' }}
+                  onClick={() => setIsEditModalOpen(false)}
+                >
+                  ביטול
+                </button>
+                <button 
+                  type="submit" 
+                  className="update-btn"
+                  style={{ padding: '10px 24px', background: 'rgba(0,212,255,0.12)', borderColor: '#00d4ff', color: '#00d4ff', borderRadius: '8px', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <i className="ti ti-device-floppy"></i> שמור שינויים
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
