@@ -24,9 +24,15 @@ export default function LogisticsClasses() {
   const [newLineManager, setNewLineManager] = useState('מנהל לוגיסטיקה');
   const [newLineGear, setNewLineGear] = useState({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 });
 
-  // 👨‍🏫 מאגר מדריכים וארנקי ציוד מורחב דינמית מתוך הדאטהבייס וזיכרון המכשיר
-  const [instructors, setInstructors] = useState([]);
-  const [isClassesLoaded, setIsClassesLoaded] = useState(false);
+  // 👨‍🏫 מאגר מדריכים וארנקי ציוד - טוען קווים זמניים מהזיכרון באופן מיידי
+  const [instructors, setInstructors] = useState(() => {
+    const savedPack = localStorage.getItem('aragon_classes_persistent_package');
+    if (savedPack) {
+      const parsed = JSON.parse(savedPack);
+      return parsed.tempLines || [];
+    }
+    return [];
+  });
 
   // רשימת פריטי חומרה מאוחדת ומורחבת ל-6 פריטים
   const GEAR = [
@@ -57,76 +63,71 @@ export default function LogisticsClasses() {
     if (globalAudio) setIsPlaying(!globalAudio.paused);
   }, []);
 
-  // 📥 שליפת מדריכים בכירים אמיתיים מ-Supabase ומיזוג כמויות ממאגר הזיכרון המקומי
-  useEffect(() => {
-    async function loadLiveInstructorsMatrix() {
-      try {
-        if (!supabase) return;
-        const { data, error } = await supabase
-          .from('users')
-          .select('username, full_name, city')
-          .eq('role', 'instructor'); // 🟢 מסנן מדריכים בכירים קבועים בלבד (ללא זמניים)
+// 📥 שליפת מדריכים בכירים אמיתיים מ-Supabase ומיזוגם עם ארנקי הציוד השמורים
+useEffect(() => {
+  async function loadLiveInstructorsMatrix() {
+    try {
+      if (!supabase) return;
+      const { data, error } = await supabase
+        .from('users')
+        .select('username, full_name, city')
+        .eq('role', 'instructor'); // מושך מדריכים קבועים בלבד
 
-        if (error) throw error;
+      if (error) throw error;
 
-        // טעינת החבילה השמורה מהזיכרון המקומי (שינויי כמויות וקווים זמניים)
-        const savedPack = localStorage.getItem('aragon_classes_persistent_package');
-        const localPackage = savedPack ? JSON.parse(savedPack) : { overrides: {}, tempLines: [] };
+      const savedPack = localStorage.getItem('aragon_classes_persistent_package');
+      const localPackage = savedPack ? JSON.parse(savedPack) : { overrides: {}, tempLines: [] };
 
-        const mappedDbInstructors = (data || []).map(u => {
-          const uId = u.username;
-          const uName = u.full_name || u.username;
-          const uCity = u.city || 'סניף ארצי';
+      const mappedDbInstructors = (data || []).map(u => {
+        const uId = u.username;
+        const uName = u.full_name || u.username;
+        const uCity = u.city || 'סניף ארצי';
 
-          // משיכת כמויות ציוד שמורות למדריך, או ערכי ברירת מחדל התחלתיים למזוודה
-          const kit = localPackage.overrides[uId] || {
-            laptops: 10, tablets: 0, chargers: 10, mice: 10, routers: 1, robots: 0
-          };
+        // משיכת כמויות ציוד שמורות מהזיכרון, או ערכי ברירת מחדל
+        const kit = localPackage.overrides[uId] || {
+          laptops: 10, tablets: 0, chargers: 10, mice: 10, routers: 1, robots: 0
+        };
 
-          return {
-            id: uId,
-            name: uName,
-            city: uCity,
-            laptops: kit.laptops,
-            tablets: kit.tablets,
-            chargers: kit.chargers,
-            mice: kit.mice,
-            routers: kit.routers,
-            robots: kit.robots,
-            isTempLine: false
-          };
-        });
-
-        // שילוב של הקווים הזמניים יחד עם המדריכים האמיתיים ששלפנו
-        setInstructors([...localPackage.tempLines, ...mappedDbInstructors]);
-        setIsClassesLoaded(true);
-      } catch (err) {
-        console.error("Error loading logistics instructors matrix:", err);
-      }
-    }
-    loadLiveInstructorsMatrix();
-  }, []);
-
-  // 🔄 מנוע שמירה אוטומטית (Autosave) - נועל שינויי ארנקים וקווים זמניים בדפדפן למניעת איבוד נתונים
-  useEffect(() => {
-    if (isClassesLoaded) {
-      const tempLines = instructors.filter(i => i.isTempLine);
-      const overrides = {};
-      
-      instructors.filter(i => !i.isTempLine).forEach(i => {
-        overrides[i.id] = {
-          laptops: i.laptops,
-          tablets: i.tablets,
-          chargers: i.chargers,
-          mice: i.mice,
-          routers: i.routers,
-          robots: i.robots
+        return {
+          id: uId,
+          name: uName,
+          city: uCity,
+          laptops: kit.laptops,
+          tablets: kit.tablets,
+          chargers: kit.chargers,
+          mice: kit.mice,
+          routers: kit.routers,
+          robots: kit.robots,
+          isTempLine: false
         };
       });
 
-      localStorage.setItem('aragon_classes_persistent_package', JSON.stringify({ overrides, tempLines }));
+      // מיזוג: שומרים על הקווים הזמניים הקיימים ומוסיפים את המדריכים מהדאטהבייס
+      setInstructors(prev => {
+        const currentTempLines = prev.filter(i => i.isTempLine);
+        return [...currentTempLines, ...mappedDbInstructors];
+      });
+    } catch (err) {
+      console.error("Error loading logistics instructors matrix:", err);
     }
-  }, [instructors, isClassesLoaded]);
+  }
+  loadLiveInstructorsMatrix();
+}, []);
+
+// 🟢 פונקציית עזר פנימית לנעילת המצב הנוכחי בזיכרון המכשיר בזמן אמת ללא סיכוני דריסה
+const saveCurrentMatrixToStorage = (updatedInstructors) => {
+  const tempLines = updatedInstructors.filter(i => i.isTempLine);
+  const overrides = {};
+  
+  updatedInstructors.filter(i => !i.isTempLine).forEach(i => {
+    overrides[i.id] = {
+      laptops: i.laptops, tablets: i.tablets, chargers: i.chargers,
+      mice: i.mice, routers: i.routers, robots: i.robots
+    };
+  });
+
+  localStorage.setItem('aragon_classes_persistent_package', JSON.stringify({ overrides, tempLines }));
+};
 
   const toggleRadioPlay = () => {
     const globalAudio = document.getElementById('hq-cyber-radio');
@@ -185,18 +186,22 @@ export default function LogisticsClasses() {
       return;
     }
 
-    setInstructors(prev => prev.map(i => {
-      if (i.id !== editId) return i;
-      return {
-        ...i,
-        laptops: i.laptops + deltas.laptops,
-        tablets: i.tablets + deltas.tablets,
-        chargers: i.chargers + deltas.chargers,
-        mice: i.mice + deltas.mice,
-        routers: i.routers + deltas.routers,
-        robots: i.robots + deltas.robots
-      };
-    }));
+    setInstructors(prev => {
+      const nextState = prev.map(i => {
+        if (i.id !== editId) return i;
+        return {
+          ...i,
+          laptops: i.laptops + deltas.laptops,
+          tablets: i.tablets + deltas.tablets,
+          chargers: i.chargers + deltas.chargers,
+          mice: i.mice + deltas.mice,
+          routers: i.routers + deltas.routers,
+          robots: i.robots + deltas.robots
+        };
+      });
+      saveCurrentMatrixToStorage(nextState); // נעילת שינויי הכמויות בזיכרון המקומי מיד
+      return nextState;
+    });
 
     closeModal();
     showToast(`ארנק הציוד של ${inst.name} עודכן בהצלחה ✓`);
@@ -220,7 +225,11 @@ export default function LogisticsClasses() {
       isTempLine: true
     };
 
-    setInstructors([newCustomLine, ...instructors]);
+    setInstructors(prev => {
+      const nextState = [newCustomLine, ...prev];
+      saveCurrentMatrixToStorage(nextState); // נעילת הקו הזמני החדש בזיכרון מיד
+      return nextState;
+    });
     setIsAddLineModalOpen(false);
     
     setNewLineName('');
@@ -504,7 +513,11 @@ export default function LogisticsClasses() {
                             onClick={(e) => {
                               e.stopPropagation(); // מונע פתיחה של מודאל עריכת כמויות
                               if (window.confirm(`האם אתה בטוח שברצונך למחוק ולהסיר את הקו הזמני "${inst.name}"?`)) {
-                                setInstructors(prev => prev.filter(x => x.id !== inst.id));
+                                setInstructors(prev => {
+                                  const nextState = prev.filter(x => x.id !== inst.id);
+                                  saveCurrentMatrixToStorage(nextState); // עדכון הזיכרון המקומי לאחר המחיקה
+                                  return nextState;
+                                });
                                 showToast('הקו הזמני נמחק והוסר בהצלחה מהלוח 🗑️');
                               }
                             }}
