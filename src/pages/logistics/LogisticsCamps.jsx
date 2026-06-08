@@ -32,6 +32,10 @@ export default function LogisticsCamps() {
   // 🟢 סטייט זמני לטקסט חופשי של פריט ציוד נוסף לכל מסלול
   const [extraInputs, setExtraInputs] = useState({});
 
+  // 🏕️ סטייט למודאל יצירת משימה מהירה ישירות לעמוד הכנת קייטנות
+  const [isFastTaskModalOpen, setIsFastTaskModalOpen] = useState(false);
+  const [fastTaskText, setFastTaskText] = useState('');
+
   const staffList = ['מתן', 'איתמר', 'שמנטה', 'אור ארליך', 'ישראל', 'אור', 'בתאל', 'רועי לוגיסטיקה'];
 
   // סטייט מעקב אחרי תיאום בתי ספר (Checkboxes) לפי מסלול וקייטנה
@@ -356,6 +360,42 @@ const removeExtraItem = (routeId, index) => {
     setIsEditInventoryOpen(true);
   };
 
+  // 🚀 פונקציית הזרקת משימה מהירה לעמוד משימות (הכנת קייטנות) דרך ה-localStorage המשותף
+  const handleFastTaskSubmit = (e) => {
+    e.preventDefault();
+    if (!fastTaskText.trim()) {
+      showToast('⚠️ לא ניתן ליצור משימה ריקה');
+      return;
+    }
+
+    const newId = `custom_${Date.now()}`;
+    const nowTime = new Date().toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }) + ' | ' + new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+
+    const newTask = {
+      id: newId,
+      badge: '🏕️ משימה ידנית',
+      badgeColor: '#00d4ff',
+      time: nowTime,
+      body: fastTaskText.trim(),
+      borderC: 'rgba(0,212,255,0.35)',
+      bgC: '#0c1729',
+      isCustom: true
+    };
+
+    try {
+      const saved = localStorage.getItem('aragon_camp_tasks');
+      const currentTasks = saved ? JSON.parse(saved) : [];
+      localStorage.setItem('aragon_camp_tasks', JSON.stringify([newTask, ...currentTasks]));
+      
+      setIsFastTaskModalOpen(false);
+      setFastTaskText('');
+      showToast('המשימה שוגרה בהצלחה ללוח הכנת קייטנות בעמוד המשימות! 🏕️');
+    } catch (err) {
+      console.error(err);
+      showToast('⚠️ תקלה בסנכרון המשימה לזיכרון');
+    }
+  };
+
   const filteredRoutes = routes.filter(r => {
     if (activeFilter === 'active') return r.status === 'active' && r.cycles.length > 0;
     if (activeFilter === 'prep') return r.cycles.length === 0;
@@ -506,6 +546,19 @@ const removeExtraItem = (routeId, index) => {
         .inv-form-label { font-size: 11.5px; color: #94a3b8; }
         .inv-form-input { background: #050b14; border: 1px solid rgba(167,139,250,0.3); border-radius: 6px; color: white; padding: 6px 10px; font-family: monospace; outline: none; font-size: 13px; }
 
+        /* 📻 שדרוג רדיו אראגון - מסגרת גרדיאנט ניאון וכפתור מודגש */
+        .cyber-music-player { display: flex; align-items: center; gap: 10px; background: linear-gradient(#040c18, #040c18) padding-box, linear-gradient(135deg, #00d4ff 0%, #8b5cf6 100%) border-box; border: 1px solid transparent; border-radius: 20px; padding: 5px 14px; margin-left: 12px; cursor: pointer; user-select: none; box-shadow: 0 0 14px rgba(0, 212, 255, 0.12), 0 0 14px rgba(139, 92, 246, 0.12); transition: all 0.25s ease; }
+        .cyber-music-player:hover { box-shadow: 0 0 20px rgba(0, 212, 255, 0.25), 0 0 20px rgba(139, 92, 246, 0.25); transform: scale(1.02); }
+        .player-toggle-btn { background: #ffffff; color: #040b18; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; transition: all 0.2s; box-shadow: 0 0 8px rgba(255,255,255,0.4); }
+        .cyber-music-player.playing .player-toggle-btn { background: #00e5a0; color: #040b18; box-shadow: 0 0 8px #00e5a0; }
+        .player-station-text { font-family: 'Heebo', sans-serif; font-size: 12px; color: #ffffff; font-weight: 800; letter-spacing: 0.5px; }
+        .cyber-music-player.playing .player-station-text { background: linear-gradient(90deg, #00d4ff, #00e5a0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .audio-visualizer-wave { display: flex; align-items: flex-end; gap: 2px; height: 10px; margin-top: 1px; }
+        .visualizer-bar { width: 2px; height: 3px; background: rgba(0,212,255,0.4); border-radius: 1px; transition: all 0.2s; }
+        .cyber-music-player.playing .visualizer-bar { background: #00e5a0; animation: wavePulse 0.6s ease-in-out infinite alternate; }
+        .cyber-music-player.playing .visualizer-bar:nth-child(2) { animation-delay: 0.15s; }
+        .cyber-music-player.playing .visualizer-bar:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes wavePulse { 0% { height: 2px; } 100% { height: 11px; } }
         /* 🔥 פתרון להודעת טוסט - מנותק לחלוטין מזרימת הדוקומנט וצף בטיל מלמעלה (הערה 1) */
         .toast { 
           position: fixed !important; 
@@ -562,10 +615,16 @@ const removeExtraItem = (routeId, index) => {
         <div className="topbar">
           <div className="topbar-title">ARAGON · LOGISTICS HQ</div>
           <div className="topbar-r">
-            <div className={`cyber-music-player ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
-              <div className="player-toggle-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i ></div>
-              <div className="player-station-text">HQ RADIO</div>
-              <div className="audio-visualizer-wave"><div className="visualizer-bar"></div><div className="visualizer-bar"></div><div className="visualizer-bar"></div></div>
+          <div className={`cyber-music-player ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
+              <div className="player-toggle-btn">
+                <i className={isPlaying ? "ti ti-player-pause-filled" : "ti ti-player-play-filled"}></i>
+              </div>
+              <div className="player-station-text">רדיו אראגון</div>
+              <div className="audio-visualizer-wave">
+                <div className="visualizer-bar"></div>
+                <div className="visualizer-bar"></div>
+                <div className="visualizer-bar"></div>
+              </div>
             </div>
             <div className="live"><div className="ld"></div>LIVE MATRIX</div>
             <div className="clk">{clk}</div>
@@ -615,6 +674,11 @@ const removeExtraItem = (routeId, index) => {
               <button className={`zb-btn ${activeFilter === 'all' ? 'on' : ''}`} onClick={() => setActiveFilter('all')}>הכל</button>
               <button className={`zb-btn ${activeFilter === 'active' ? 'on' : ''}`} onClick={() => setActiveFilter('active')}>אקטיבי בשטח</button>
               <button className={`zb-btn ${activeFilter === 'prep' ? 'on' : ''}`} onClick={() => setActiveFilter('prep')}>בשלבי תכנון (ריק)</button>
+              
+              {/* 🟢 כפתור הזרקת משימה מהירה ישירות לחמ"ל קייטנות בעמוד המשימות */}
+              <button type="button" className="col-create-btn" onClick={() => { setFastTaskText(''); setIsFastTaskModalOpen(true); }}>
+                <i className="ti ti-plus" style={{ marginLeft: '4px' }}></i> צור משימה מהירה
+              </button>
             </div>
 
             <div className="zone-scroll">
@@ -1267,6 +1331,58 @@ const removeExtraItem = (routeId, index) => {
                 <button className="modal-close-btn" type="button" onClick={() => setIsEditInventoryOpen(false)}>ביטול</button>
                 <button className="modal-print-btn" style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }} type="submit">
                   שמור מלאי מעודכן ✓
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🟢 מודאל משימה מהירה המשובץ ישירות לעמוד המשימות (עמודת קייטנות) */}
+      {isFastTaskModalOpen && (
+        <div className="modal-overlay" style={{ zIndex: 99999 }}>
+          <div className="modal-sheet" style={{ borderColor: '#00d4ff', padding: '24px', width: '460px', background: '#0c1729' }}>
+            <button type="button" className="modal-close-btn" onClick={() => setIsFastTaskModalOpen(false)}>×</button>
+            
+            <div className="modal-head" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ fontSize: '22px', marginLeft: '10px' }}>🏕️</div>
+              <div>
+                <div className="modal-title-text" style={{ color: '#00d4ff', fontSize: '16px', fontWeight: '800' }}>הזרקת משימה מהירה לקייטנות</div>
+                <div className="modal-subtitle-text" style={{ fontSize: '12px', marginTop: '4px', color: 'rgba(160,185,215,0.5)' }}>
+                  היעד: <span style={{ color: '#ffffff', fontWeight: '600' }}>עמוד המשימות ← עמודת הכנת קייטנות</span>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleFastTaskSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="mfr" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label className="mfl" style={{ fontSize: '12px', fontWeight: '700', color: 'rgba(0,212,255,0.7)', textTransform: 'uppercase' }}>פירוט המשימה (מלל חופשי)</label>
+                <textarea 
+                  className="mfi" 
+                  rows="4" 
+                  required
+                  style={{ resize: 'none', fontFamily: 'Heebo', width: '100%', background: '#111f35', border: '1px solid rgba(0,212,255,0.25)', borderRadius: '8px', color: '#ffffff', padding: '12px', fontSize: '13.5px', outline: 'none', lineHeight: '1.5' }}
+                  placeholder="הקלד כאן את פרטי המשימה המלאים..." 
+                  value={fastTaskText}
+                  onChange={(e) => setFastTaskText(e.target.value)}
+                />
+              </div>
+
+              <div className="mf2" style={{ display: 'flex', gap: '12px', marginTop: '8px', justifyContent: 'flex-start' }}>
+                <button 
+                  type="button" 
+                  className="mbtn-cancel" 
+                  style={{ padding: '10px 24px', borderRadius: '8px', fontSize: '13.5px', fontWeight: '600', cursor: 'pointer' }}
+                  onClick={() => setIsFastTaskModalOpen(false)}
+                >
+                  ביטול
+                </button>
+                <button 
+                  type="submit" 
+                  className="update-btn"
+                  style={{ padding: '10px 24px', background: 'rgba(0,212,255,0.12)', borderColor: '#00d4ff', color: '#00d4ff', borderRadius: '8px', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <i className="ti ti-plus"></i> פתח משימה
                 </button>
               </div>
             </form>
