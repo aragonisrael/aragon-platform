@@ -24,19 +24,9 @@ export default function LogisticsClasses() {
   const [newLineManager, setNewLineManager] = useState('מנהל לוגיסטיקה');
   const [newLineGear, setNewLineGear] = useState({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 });
 
-  // מאגר מדריכים וארנקי ציוד מורחב ומעודכן ל-6 פריטים
-  const [instructors, setInstructors] = useState([
-    { id: 'a1', name: 'אריה כהן', city: 'רמת גן', laptops: 10, tablets: 0, chargers: 8, mice: 10, routers: 1, robots: 0, isTempLine: false },
-    { id: 'a2', name: 'רחל לוי', city: 'תל אביב', laptops: 8, tablets: 15, chargers: 8, mice: 6, routers: 0, robots: 5, isTempLine: false },
-    { id: 'a3', name: 'מיכל דוד', city: 'תל מונד', laptops: 12, tablets: 0, chargers: 12, mice: 12, routers: 1, robots: 0, isTempLine: false },
-    { id: 'a4', name: 'ישראל ישראלי', city: 'רמת גן', laptops: 9, tablets: 0, chargers: 9, mice: 9, routers: 2, robots: 0, isTempLine: false },
-    { id: 'a5', name: 'נועם ברק', city: 'פרדסייה', laptops: 6, tablets: 20, chargers: 6, mice: 5, routers: 1, robots: 10, isTempLine: false }, // יקבל אזהרת עודף ציוד אדומה (20 טאבלטים)
-    { id: 'a6', name: 'שיר אלון', city: 'תל מונד', laptops: 11, tablets: 0, chargers: 11, mice: 11, routers: 1, robots: 0, isTempLine: false },
-    { id: 'a7', name: 'יהב כץ', city: 'תל אביב', laptops: 7, tablets: 8, chargers: 5, mice: 7, routers: 0, robots: 4, isTempLine: false },
-    { id: 'a8', name: 'דנה פרץ', city: 'פרדסייה', laptops: 10, tablets: 0, chargers: 10, mice: 9, routers: 1, robots: 0, isTempLine: false },
-    { id: 'a9', name: 'עמית שגב', city: 'רמת גן', laptops: 8, tablets: 0, chargers: 8, mice: 8, routers: 1, robots: 0, isTempLine: false },
-    { id: 'a10', name: 'מאיה רוזן', city: 'תל מונד', laptops: 5, tablets: 12, chargers: 4, mice: 5, routers: 0, robots: 6, isTempLine: false },
-  ]);
+  // 👨‍🏫 מאגר מדריכים וארנקי ציוד מורחב דינמית מתוך הדאטהבייס וזיכרון המכשיר
+  const [instructors, setInstructors] = useState([]);
+  const [isClassesLoaded, setIsClassesLoaded] = useState(false);
 
   // רשימת פריטי חומרה מאוחדת ומורחבת ל-6 פריטים
   const GEAR = [
@@ -66,6 +56,77 @@ export default function LogisticsClasses() {
     const globalAudio = document.getElementById('hq-cyber-radio');
     if (globalAudio) setIsPlaying(!globalAudio.paused);
   }, []);
+
+  // 📥 שליפת מדריכים בכירים אמיתיים מ-Supabase ומיזוג כמויות ממאגר הזיכרון המקומי
+  useEffect(() => {
+    async function loadLiveInstructorsMatrix() {
+      try {
+        if (!supabase) return;
+        const { data, error } = await supabase
+          .from('users')
+          .select('username, full_name, city')
+          .eq('role', 'instructor'); // 🟢 מסנן מדריכים בכירים קבועים בלבד (ללא זמניים)
+
+        if (error) throw error;
+
+        // טעינת החבילה השמורה מהזיכרון המקומי (שינויי כמויות וקווים זמניים)
+        const savedPack = localStorage.getItem('aragon_classes_persistent_package');
+        const localPackage = savedPack ? JSON.parse(savedPack) : { overrides: {}, tempLines: [] };
+
+        const mappedDbInstructors = (data || []).map(u => {
+          const uId = u.username;
+          const uName = u.full_name || u.username;
+          const uCity = u.city || 'סניף ארצי';
+
+          // משיכת כמויות ציוד שמורות למדריך, או ערכי ברירת מחדל התחלתיים למזוודה
+          const kit = localPackage.overrides[uId] || {
+            laptops: 10, tablets: 0, chargers: 10, mice: 10, routers: 1, robots: 0
+          };
+
+          return {
+            id: uId,
+            name: uName,
+            city: uCity,
+            laptops: kit.laptops,
+            tablets: kit.tablets,
+            chargers: kit.chargers,
+            mice: kit.mice,
+            routers: kit.routers,
+            robots: kit.robots,
+            isTempLine: false
+          };
+        });
+
+        // שילוב של הקווים הזמניים יחד עם המדריכים האמיתיים ששלפנו
+        setInstructors([...localPackage.tempLines, ...mappedDbInstructors]);
+        setIsClassesLoaded(true);
+      } catch (err) {
+        console.error("Error loading logistics instructors matrix:", err);
+      }
+    }
+    loadLiveInstructorsMatrix();
+  }, []);
+
+  // 🔄 מנוע שמירה אוטומטית (Autosave) - נועל שינויי ארנקים וקווים זמניים בדפדפן למניעת איבוד נתונים
+  useEffect(() => {
+    if (isClassesLoaded) {
+      const tempLines = instructors.filter(i => i.isTempLine);
+      const overrides = {};
+      
+      instructors.filter(i => !i.isTempLine).forEach(i => {
+        overrides[i.id] = {
+          laptops: i.laptops,
+          tablets: i.tablets,
+          chargers: i.chargers,
+          mice: i.mice,
+          routers: i.routers,
+          robots: i.robots
+        };
+      });
+
+      localStorage.setItem('aragon_classes_persistent_package', JSON.stringify({ overrides, tempLines }));
+    }
+  }, [instructors, isClassesLoaded]);
 
   const toggleRadioPlay = () => {
     const globalAudio = document.getElementById('hq-cyber-radio');
@@ -436,7 +497,21 @@ export default function LogisticsClasses() {
                       
                       {/* 🟢 מיכל אייקונים מאוחד בצד שמאל הקיצוני של הכרטיסייה */}
                       <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        {inst.isTempLine && <span style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#a78bfa', fontSize: '9px', fontWeight: '800', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(139, 92, 246, 0.3)' }}>קו זמני</span>}
+                        {inst.isTempLine && (
+                          <button
+                            type="button"
+                            style={{ background: 'rgba(255, 69, 96, 0.08)', border: '1px solid rgba(255, 69, 96, 0.3)', color: '#ff4560', fontSize: '9.5px', fontWeight: '800', padding: '3px 8px', borderRadius: '5px', cursor: 'pointer', fontFamily: 'Heebo' }}
+                            onClick={(e) => {
+                              e.stopPropagation(); // מונע פתיחה של מודאל עריכת כמויות
+                              if (window.confirm(`האם אתה בטוח שברצונך למחוק ולהסיר את הקו הזמני "${inst.name}"?`)) {
+                                setInstructors(prev => prev.filter(x => x.id !== inst.id));
+                                showToast('הקו הזמני נמחק והוסר בהצלחה מהלוח 🗑️');
+                              }
+                            }}
+                          >
+                            ✕ מחק קו
+                          </button>
+                        )}
                         {!inst.isTempLine && hw && <i className="ti ti-alert-triangle" style={{ color: '#ff8c42', fontSize: '16px' }} title="פער במזוודה"></i>}
                         {/* 🟢 הוספת סימן קריאה אדום נוסף במידה ויש עודף ציוד מעל 15 יחידות */}
                         {!inst.isTempLine && hasExcessGear && <i className="ti ti-alert-circle animate-pulse" style={{ color: '#ff4560', fontSize: '16px' }} title="אזהרת עודף ציוד"></i>}
