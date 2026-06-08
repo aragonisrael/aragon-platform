@@ -559,6 +559,13 @@ const removeExtraItem = (routeId, index) => {
         .cyber-music-player.playing .visualizer-bar:nth-child(2) { animation-delay: 0.15s; }
         .cyber-music-player.playing .visualizer-bar:nth-child(3) { animation-delay: 0.3s; }
         @keyframes wavePulse { 0% { height: 2px; } 100% { height: 11px; } }
+        /* 🟢 עיצוב פרימיום ניאון מזמין לכפתור צור משימה מהירה */
+        .col-create-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 18px; background: linear-gradient(#0c1729, #0c1729) padding-box, linear-gradient(135deg, #00d4ff 0%, #8b5cf6 100%) border-box; border: 1px solid transparent; border-radius: 8px; color: #ffffff; font-family: 'Heebo', sans-serif; font-size: 12.5px; font-weight: 900; cursor: pointer; white-space: nowrap; margin-right: auto; box-shadow: 0 0 12px rgba(0, 212, 255, 0.15); transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .col-create-btn:hover { background: linear-gradient(rgba(0, 212, 255, 0.1), rgba(139, 92, 246, 0.1)) padding-box, linear-gradient(135deg, #00d4ff 0%, #8b5cf6 100%) border-box; box-shadow: 0 0 20px rgba(0, 212, 255, 0.4), 0 0 20px rgba(139, 92, 246, 0.25); transform: translateY(-1.5px); color: #00d4ff; }
+        
+        /* כפתור סגירה חכם למודאלים */
+        .modal-close-btn { position: absolute; left: 16px; top: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: rgba(160,185,215,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center; outline: none; }
+        .modal-close-btn:hover { background: rgba(255,69,96,0.12); color: #ff4560; }
         /* 🔥 פתרון להודעת טוסט - מנותק לחלוטין מזרימת הדוקומנט וצף בטיל מלמעלה (הערה 1) */
         .toast { 
           position: fixed !important; 
