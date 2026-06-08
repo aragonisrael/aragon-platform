@@ -226,13 +226,12 @@ export default function LogisticsDashboard() {
         localPackage.overrides[instructorId] = { laptops: 10, tablets: 0, chargers: 10, mice: 10, routers: 1, robots: 0 };
       }
 
-      // הוספת הציוד התקין החדש למזוודה שלו בשטח
-      localPackage.overrides[instructorId].laptops += giveGear.laptops;
-      localPackage.overrides[instructorId].tablets += giveGear.tablets;
-      localPackage.overrides[instructorId].chargers += giveGear.chargers;
-      localPackage.overrides[instructorId].mice += giveGear.mice;
-      localPackage.overrides[instructorId].routers += giveGear.routers;
-      localPackage.overrides[instructorId].robots = (localPackage.overrides[instructorId].robots || 0) + gear.suitcases; // סנכרון מול עמוד חוגים
+      // 🟢 הוספת הציוד התקין החדש למזוודה שלו בשטח (סנכרון מול עמוד חוגים)
+      localPackage.overrides[instructorId].laptops = (localPackage.overrides[instructorId].laptops || 0) + giveGear.laptops;
+      localPackage.overrides[instructorId].tablets = (localPackage.overrides[instructorId].tablets || 0) + giveGear.tablets;
+      localPackage.overrides[instructorId].chargers = (localPackage.overrides[instructorId].chargers || 0) + giveGear.chargers;
+      localPackage.overrides[instructorId].mice = (localPackage.overrides[instructorId].mice || 0) + giveGear.mice;
+      localPackage.overrides[instructorId].routers = (localPackage.overrides[instructorId].routers || 0) + giveGear.routers;
 
       localStorage.setItem('aragon_classes_persistent_package', JSON.stringify(localPackage));
 
@@ -661,12 +660,13 @@ export default function LogisticsDashboard() {
                       <td><div className="tgear-take">{t.gear_take}</div></td>
                       <td><div className="tgear-give">{t.gear_give}</div></td>
                       <td>
-                      {t.status === 'ready' && <span className="sb-ready">✓ מוכן לאיסוף</span>}
+                        {t.status === 'ready' && <span className="sb-ready">✓ מוכן לאיסוף</span>}
                         {t.status === 'prep' && <span className="sb-wait">⏳ בהכנה</span>}
                         {t.status === 'departed' && <span className="sb-wait" style={{ background: 'rgba(255,140,66,0.08)', color: '#ff8c42', border: '1px solid rgba(255,140,66,0.25)' }}>⏳ ממתין להחזר ציוד</span>}
                       </td>
                       <td>
-                        <button className="send-btn" onClick={() => handleSendTrip(t.id)} disabled={t.status !== 'ready'}>ביצוע</button>
+                        {/* 🟢 כפתור משוחרר: לחיץ בכל מצב, וננעל רק אחרי שהנהג כבר יצא לדרך למניעת כפילויות */}
+                        <button className="send-btn" onClick={() => handleSendTrip(t.id)} disabled={t.status === 'departed'}>ביצוע</button>
                       </td>
                     </tr>
                   ))}
