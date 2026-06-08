@@ -306,22 +306,41 @@ export default function LogisticsCamps() {
     }));
   };
 
-  const updateConsoleRow = (routeId, index, field, value) => {
+  // הוספת פריט טקסט חופשי לרשימת ציוד נוסף במסלול
+  const addExtraItem = (routeId) => {
+    const text = extraInputs[routeId]?.trim();
+    if (!text) return;
+
     setRoutes(prev => prev.map(r => {
       if (r.id !== routeId) return r;
-      const currentConsoles = r.roomConfigs?.gaming?.consoles || [];
-      const nextConsoles = [...currentConsoles];
-      if (nextConsoles[index]) {
-        nextConsoles[index] = { ...nextConsoles[index], [field]: value };
-      }
+      const currentItems = r.roomConfigs?.extraItems || [];
       return {
         ...r,
         roomConfigs: {
           ...r.roomConfigs,
-          gaming: { ...(r.roomConfigs?.gaming || {}), consoles: nextConsoles }
+          extraItems: [...currentItems, text]
         }
       };
     }));
+
+    setExtraInputs(prev => ({ ...prev, [routeId]: '' }));
+    showToast('פריט ציוד חופשי נוסף בהצלחה ✓');
+  };
+
+  // הסרת פריט מרשימת ציוד נוסף במסלול
+  const removeExtraItem = (routeId, index) => {
+    setRoutes(prev => prev.map(r => {
+      if (r.id !== routeId) return r;
+      const currentItems = r.roomConfigs?.extraItems || [];
+      return {
+        ...r,
+        roomConfigs: {
+          ...r.roomConfigs,
+          extraItems: currentItems.filter((_, i) => i !== index)
+        }
+      };
+    }));
+    showToast('פריט הוסר מהמפרט 🗑️');
   };
 
   // 🟢 הוספת פריט טקסט חופשי לרשימת ציוד נוסף במסלול
@@ -1229,7 +1248,7 @@ export default function LogisticsCamps() {
                   );
                 })}
               </div>
-              
+
               <div className="checklist-group">
                 <div className="checklist-group-title">סגל ושיבוץ תפעולי משודרג:</div>
                 <div className="checklist-item-row"><span>🏗️ אחראי פריסה והקמה מוסמך:</span><span style={{ color: '#00d4ff', fontWeight: 'bold' }}>{checklistModal.assignedSetup}</span></div>
