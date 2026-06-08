@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+// 🔌 ייבוא קליינט סופאבייס הרשמי של הפרויקט שלך
+import { supabase } from '../../supabaseClient';
+
 // ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
 import aragonLogo from '../../assets/aragonlogo.png';
 
