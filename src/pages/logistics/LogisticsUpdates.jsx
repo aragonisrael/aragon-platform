@@ -32,6 +32,7 @@ export default function LogisticsUpdates() {
   // מאגר עדכונים ותקלות חיות מתוך בסיס הנתונים (Supabase)
   const [dbFaults, setDbFaults] = useState([]);
   const [dbTransfers, setDbTransfers] = useState([]); 
+  const [usersList, setUsersList] = useState([]); // 🟢 מאגר הצלבת שמות מלאים מול יוזרים של מדריכים
 
   const GEAR_ITEMS = [
     { key: 'laptops', label: 'מחשבים', icon: '💻' },
@@ -79,6 +80,10 @@ export default function LogisticsUpdates() {
         .order('id', { ascending: false });
       if (transfersErr) throw transfersErr;
       if (transfersData) setDbTransfers(transfersData);
+
+      // 🟢 שליפת המשתמשים מהדאטהבייס לצורך הצלבת מפתחות הארנק באותה קריאה
+      const { data: usersData } = await supabase.from('users').select('username, full_name');
+      if (usersData) setUsersList(usersData);
 
     } catch (err) {
       console.log("Error syncing updates screen data with Supabase:", err);
@@ -198,9 +203,28 @@ export default function LogisticsUpdates() {
           const savedPack = localStorage.getItem('aragon_classes_persistent_package');
           if (savedPack) {
             const localPackage = JSON.parse(savedPack);
-            const instructorKey = item.who; // שם המדריך או ה-username שלו
+            
+            // 🟢 ביצוע הצלבה חכמה: מוצאים את שם המשתמש באנגלית על בסיס השם בעברית מהעדכון
+            const matchUser = usersList.find(u => u.full_name === item.who || u.username === item.who);
+            const instructorKey = matchUser ? matchUser.username : item.who;
 
             if (localPackage.overrides && localPackage.overrides[instructorKey]) {
+              const currentKit = localPackage.overrides[instructorKey];
+              const returnedKit = item.originalGear || {};
+
+              // זיכוי והפחתה בטוחה של הציוד מהארנק הדיגיטלי (מניעת ירידה מתחת ל-0)
+              currentKit.laptops = Math.max(0, (currentKit.laptops || 0) - (returnedKit.laptops || 0));
+              currentKit.tablets = Math.max(0, (currentKit.tablets || 0) - (returnedKit.tablets || 0));
+              currentKit.chargers = Math.max(0, (currentKit.chargers || 0) - (returnedKit.chargers || 0));
+              currentKit.mice = Math.max(0, (currentKit.mice || 0) - (returnedKit.mice || 0));
+              currentKit.routers = Math.max(0, (currentKit.routers || 0) - (returnedKit.routers || 0));
+              currentKit.robots = Math.max(0, (currentKit.robots || 0) - (returnedKit.suitcases || 0)); // סנכרון תואם למזוודות ורובוטים
+
+              localStorage.setItem('aragon_classes_persistent_package', JSON.stringify(localPackage));
+            }
+          }
+        }
+      }
               const currentKit = localPackage.overrides[instructorKey];
               const returnedKit = item.originalGear || {};
 
