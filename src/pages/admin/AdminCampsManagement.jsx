@@ -258,7 +258,43 @@ export default function AdminCampsManagement() {
             compounds: comps
           };
         });
+        
         setCamps(mappedCamps);
+
+        // 🟢 חסינות רענון אבסולוטית: אם יש קייטנות בענן אך מבנה הלוח מקומית ריק - נשחזר אותו אוטומטית!
+        const savedConfig = localStorage.getItem('aragon_camp_board_config');
+        if (mappedCamps.length > 0 && (!savedConfig || localStorage.getItem('aragon_camp_tracks') === '[]')) {
+          
+          // מציאת כל המסלולים הייחודיים שקיימים כרגע בתוך הדאטהבייס
+          const uniqueTrackIds = Array.from(new Set(mappedCamps.map(c => c.trackId).filter(Boolean)));
+          if (uniqueTrackIds.length === 0) uniqueTrackIds.push('track_1', 'track_2', 'track_3');
+          uniqueTrackIds.sort();
+
+          const reconstructedTracks = uniqueTrackIds.map(tid => ({
+            id: tid,
+            label: `מסלול ${tid.replace('track_', '')}`
+          }));
+
+          // הגדרת תאריכי עוגן רשמיים של הקיץ
+          const startD = '2026-07-01';
+          const endD = '2026-08-20';
+          const configObj = {
+            startDate: startD,
+            endDate: endD,
+            totalHours: '07:00 - 16:00',
+            netHours: '08:00 - 13:00'
+          };
+
+          const computedWeeks = generateWeeklyColumns(startD, endD);
+
+          setBoardConfig(configObj);
+          setBoardWeeks(computedWeeks);
+          setTracks(reconstructedTracks);
+
+          localStorage.setItem('aragon_camp_board_config', JSON.stringify(configObj));
+          localStorage.setItem('aragon_camp_board_weeks', JSON.stringify(computedWeeks));
+          localStorage.setItem('aragon_camp_tracks', JSON.stringify(reconstructedTracks));
+        }
       }
     } catch (err) {
       console.error("Error loading persisted camps:", err);
@@ -314,8 +350,10 @@ export default function AdminCampsManagement() {
     localStorage.setItem('aragon_camp_board_weeks', JSON.stringify(computedWeeks));
     localStorage.setItem('aragon_camp_tracks', JSON.stringify(initialTracksArray));
 
-    fetchLiveCampsDataFromCloud(); 
     setIsSetupModalOpen(false);
+    setTimeout(() => {
+      fetchLiveCampsDataFromCloud();
+    }, 100);
     showToast('🚀 לוח מסלולי קייטנות ומחזורים שבועיים נוצר בהצלחה!');
   };
 
@@ -501,6 +539,12 @@ export default function AdminCampsManagement() {
   };
 
   const handleResetEntireBoard = () => {
+    // 🟢 חסימת איפוס: מונע מחיקת קווים ומסלולים כל עוד קיימות קייטנות חיות בלוח
+    if (camps.length > 0) {
+      alert('⚠️ פעולה חסומה: לא ניתן לאפס את הלוח הנוכחי כל עוד קיימות קייטנות משובצות במסלולים!\n\nעלייך להיכנס לכל קייטנה בלוח, ללחוץ עליה, לבחור "ערוך" ולמחוק אותה לצמיתות מהענן. רק כאשר הלוח יהיה נקי לחלוטין מקייטנות, מערכת האבטחה תאפשר לאפס את מבנה הלוח.');
+      return;
+    }
+
     if (!window.confirm('⚠️ אזהרה! האם למחוק לחלוטין את לוח הקייטנות האקטיבי וכל השיבוצים בתוכו?')) return;
     setBoardConfig(null);
     setBoardWeeks([]);
