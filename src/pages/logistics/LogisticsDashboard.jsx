@@ -41,6 +41,7 @@ export default function LogisticsDashboard() {
 
   // 👨‍🏫 סטייט למדריכים קבועים מהדאטהבייס
   const [dbInstructors, setDbInstructors] = useState([]);
+  const [rawInstructorsList, setRawInstructorsList] = useState([]); // 🟢 מאגר גולמי להצלבת שמות ויוזרים
 
   const GEAR_ITEMS = [
     { key: 'laptops', label: 'מחשבים', icon: '💻' },
@@ -136,9 +137,11 @@ export default function LogisticsDashboard() {
           .select('full_name, username')
           .eq('role', 'instructor');
         
-        if (error) throw error;
-        // מושך את השם המלא, ואם הוא ריק לוקח את שם המשתמש כגיבוי
-        if (data) setDbInstructors(data.map(u => u.full_name || u.username));
+          if (error) throw error;
+          if (data) {
+            setRawInstructorsList(data); // 🟢 שומר את המקור להצלבה בריאל-טיים
+            setDbInstructors(data.map(u => u.full_name || u.username));
+          }
       } catch (err) {
         console.log("Error loading instructors:", err);
       }
@@ -170,23 +173,92 @@ export default function LogisticsDashboard() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  // 🚚 ביצוע נסיעה ועדכון הסטטוס ישירות ב-Database של Supabase
+  // 🟢 מנוע פענוח טקסט חופשי לחילוץ כמויות ציוד מתוך שורות שילוח ונסיעות
+  const parseGearQuantities = (gearStr) => {
+    const gear = { laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, suitcases: 0 };
+    if (!gearStr) return gear;
+    
+    gearStr.split('|').forEach(part => {
+      const match = part.match(/×\s*(\d+)/);
+      if (match) {
+        const qty = parseInt(match[1], 10) || 0;
+        const txt = part.toLowerCase();
+        if (txt.includes('💻') || txt.includes('מחשב')) gear.laptops += qty;
+        if (txt.includes('📱') || txt.includes('טאבלט')) gear.tablets += qty;
+        if (txt.includes('🔌') || txt.includes('מטען')) gear.chargers += qty;
+        if (txt.includes('🖱') || txt.includes('עכבר')) gear.mice += qty;
+        if (txt.includes('📶') || txt.includes('ראוטר')) gear.routers += qty;
+        if (txt.includes('🧳') || txt.includes('מזוודה')) gear.suitcases += qty;
+      }
+    });
+    return gear;
+  };
+
+  // 🚚 ביצוע נסיעה משוכלל - מעדכן סטטוס, מחייב ארנק מדריך ומזרז התראת החזרה לחמ"ל
   const handleSendTrip = async (id) => {
     try {
       if (!supabase) return;
       
-      const { error } = await supabase
+      // 1. איתור הנסיעה הספציפית מתוך הסטייט
+      const targetTrip = trips.find(t => t.id === id);
+      if (!targetTrip) return;
+
+      // 2. עדכון סטטוס הנסיעה ב-Supabase ל-'departed'
+      const { error: tripUpdateErr } = await supabase
         .from('trips')
         .update({ status: 'departed' })
         .eq('id', id);
+      if (tripUpdateErr) throw tripUpdateErr;
 
-      if (error) throw error;
+      // 3. פענוח כמויות הציוד שהנהג נותן (ציוד תקין) ולוקח (ציוד תקול)
+      const giveGear = parseGearQuantities(targetTrip.gear_give);
+      const takeGear = parseGearQuantities(targetTrip.gear_take);
 
+      // 4. הצלבת שם המדריך לטובת מציאת ה-username שלו לצורך עדכון הארנק
+      const matchUser = rawInstructorsList.find(u => u.full_name === targetTrip.instructor_name || u.username === targetTrip.instructor_name);
+      const instructorId = matchUser ? matchUser.username : targetTrip.instructor_name;
+
+      // 5. טעינת ועדכון ארנק הציוד של המדריך ב-localStorage (הוספת הציוד התקין שסופק לו)
+      const savedPack = localStorage.getItem('aragon_classes_persistent_package');
+      const localPackage = savedPack ? JSON.parse(savedPack) : { overrides: {}, tempLines: [] };
+      
+      if (!localPackage.overrides[instructorId]) {
+        localPackage.overrides[instructorId] = { laptops: 10, tablets: 0, chargers: 10, mice: 10, routers: 1, robots: 0 };
+      }
+
+      // הוספת הציוד התקין החדש למזוודה שלו בשטח
+      localPackage.overrides[instructorId].laptops += giveGear.laptops;
+      localPackage.overrides[instructorId].tablets += giveGear.tablets;
+      localPackage.overrides[instructorId].chargers += giveGear.chargers;
+      localPackage.overrides[instructorId].mice += giveGear.mice;
+      localPackage.overrides[instructorId].routers += giveGear.routers;
+      localPackage.overrides[instructorId].robots = (localPackage.overrides[instructorId].robots || 0) + gear.suitcases; // סנכרון מול עמוד חוגים
+
+      localStorage.setItem('aragon_classes_persistent_package', JSON.stringify(localPackage));
+
+      // 6. הקמת שורת התראת "החזר ציוד תקול" ממתינה (Pending In) בטבלת equipment_transfers
+      const { error: transferErr } = await supabase
+        .from('equipment_transfers')
+        .insert([{
+          type: 'in', // סוג החזרה למשרד
+          target: `איסוף תקול: ${targetTrip.instructor_name}`,
+          responsible: targetTrip.instructor_name,
+          laptops: takeGear.laptops,
+          tablets: takeGear.tablets,
+          chargers: takeGear.chargers,
+          mice: takeGear.mice,
+          routers: takeGear.routers,
+          suitcases: takeGear.suitcases,
+          status: 'pending' // ממתין לאישור מנהל הלוגיסטיקה במשרד
+        }]);
+      if (transferErr) throw transferErr;
+
+      // 7. עדכון הסטייט המקומי במסך
       setTrips(prev => prev.map(t => t.id === id ? { ...t, status: 'departed' } : t));
-      showToast('נסיעה סומנה — יצא לדרך 🚚');
+      showToast('השילוח בוצע! ארנק המדריך חויב, והתראת החזרה שוגרה לחמ"ל 🚚📦');
     } catch (err) {
       console.error(err);
-      showToast('⚠️ שגיאה בעדכון הסטטוס בשרת');
+      showToast('⚠️ שגיאה בעיבוד השילוח המאובטח');
     }
   };
 
@@ -589,9 +661,9 @@ export default function LogisticsDashboard() {
                       <td><div className="tgear-take">{t.gear_take}</div></td>
                       <td><div className="tgear-give">{t.gear_give}</div></td>
                       <td>
-                        {t.status === 'ready' && <span className="sb-ready">✓ מוכן לאיסוף</span>}
+                      {t.status === 'ready' && <span className="sb-ready">✓ מוכן לאיסוף</span>}
                         {t.status === 'prep' && <span className="sb-wait">⏳ בהכנה</span>}
-                        {t.status === 'departed' && <span className="sb-departed">🚚 יצא לדרך</span>}
+                        {t.status === 'departed' && <span className="sb-wait" style={{ background: 'rgba(255,140,66,0.08)', color: '#ff8c42', border: '1px solid rgba(255,140,66,0.25)' }}>⏳ ממתין להחזר ציוד</span>}
                       </td>
                       <td>
                         <button className="send-btn" onClick={() => handleSendTrip(t.id)} disabled={t.status !== 'ready'}>ביצוע</button>

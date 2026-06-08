@@ -192,8 +192,32 @@ export default function LogisticsUpdates() {
       } else if (item.isTransfer) {
         await supabase.from('equipment_transfers').update({ status: 'completed' }).eq('id', item.dbId);
         setDbTransfers(prev => prev.map(t => t.id === item.dbId ? { ...t, status: 'completed' } : t));
+
+        // 🟢 זיכוי אוטומטי של ארנק המדריך בעמוד חוגים ברגע קליטת הציוד התקול חזרה במשרד
+        if (item.type === 'in') {
+          const savedPack = localStorage.getItem('aragon_classes_persistent_package');
+          if (savedPack) {
+            const localPackage = JSON.parse(savedPack);
+            const instructorKey = item.who; // שם המדריך או ה-username שלו
+
+            if (localPackage.overrides && localPackage.overrides[instructorKey]) {
+              const currentKit = localPackage.overrides[instructorKey];
+              const returnedKit = item.originalGear || {};
+
+              // הפחתה בטוחה של הציוד מהארנק (מניעת ירידה מתחת ל-0)
+              currentKit.laptops = Math.max(0, (currentKit.laptops || 0) - (returnedKit.laptops || 0));
+              currentKit.tablets = Math.max(0, (currentKit.tablets || 0) - (returnedKit.tablets || 0));
+              currentKit.chargers = Math.max(0, (currentKit.chargers || 0) - (returnedKit.chargers || 0));
+              currentKit.mice = Math.max(0, (currentKit.mice || 0) - (returnedKit.mice || 0));
+              currentKit.routers = Math.max(0, (currentKit.routers || 0) - (returnedKit.routers || 0));
+              currentKit.robots = Math.max(0, (currentKit.robots || 0) - (returnedKit.suitcases || 0)); // סנכרון תואם למזוודות השטח
+
+              localStorage.setItem('aragon_classes_persistent_package', JSON.stringify(localPackage));
+            }
+          }
+        }
       }
-      showToast('העדכון נסגר בהצלחה והועבר לארכיון 📂');
+      showToast('העדכון נסגר בהצלחה, ארנק המדריך זוכה והועבר לארכיון 📂✓');
     } catch (err) {
       console.error(err);
     }
@@ -361,7 +385,7 @@ export default function LogisticsUpdates() {
                           <i className="ti ti-arrow-down-left"></i> החזר ציוד
                         </button>
                       ) : isTransferInPending ? (
-                        <button className="send-btn" style={{ background: 'rgba(0,229,160,0.12)', borderColor: '#00e5a0', color: '#00e5a0' }} onClick={() => handleMarkRead(e)}>
+                        <button className="send-btn" style={{ background: 'rgba(0,229,160,0.12)', borderColor: '#00e5a0', color: '#00e5a0' }} onClick={() => handleOpenReturnModal(e)}>
                           <i className="ti ti-check"></i> הוחזר בהצלחה
                         </button>
                       ) : e.isFault && !e.task ? (
