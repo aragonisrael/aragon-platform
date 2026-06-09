@@ -19,6 +19,10 @@ export default function LogisticsClasses() {
   const [editId, setEditId] = useState(null);
   const [isAddLineModalOpen, setIsAddLineModalOpen] = useState(false);
 
+  // 🛠️ סטייט למודאל משימה מהירה לחמ"ל שטח ותקלות
+  const [isFastTaskModalOpen, setIsFastTaskModalOpen] = useState(false);
+  const [fastTaskText, setFastTaskText] = useState('');
+
   // סטייט שינויים (Deltas) מורחב ל-6 פריטים עבור מודאל עדכון ארנק מדריך
   const [deltas, setDeltas] = useState({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 });
 
@@ -64,7 +68,6 @@ export default function LogisticsClasses() {
     try {
       if (!supabase) return;
       
-      // 1. שליפת המדריכים הקבועים מטבלת המשתמשים
       const { data: dbUsers, error: usersErr } = await supabase
         .from('users')
         .select('username, full_name, city')
@@ -72,7 +75,6 @@ export default function LogisticsClasses() {
 
       if (usersErr) throw usersErr;
 
-      // 2. שליפת ארנקי הציוד החיים מתוך טבלת instructor_gear החדשה בענן
       const { data: cloudGear, error: gearErr } = await supabase
         .from('instructor_gear')
         .select('*');
@@ -86,11 +88,9 @@ export default function LogisticsClasses() {
         });
       }
 
-      // 3. משיכת הקווים הזמניים מתוך הזיכרון המקומי של המשרד
       const savedPack = localStorage.getItem('aragon_classes_persistent_package');
       const localTempLines = savedPack ? (JSON.parse(savedPack).tempLines || []) : [];
 
-      // 4. מיזוג והצלבת נתוני החומרה לכל מדריך
       const mappedDbInstructors = (dbUsers || []).map(u => {
         const uId = u.username;
         const kit = gearMap[uId] || { laptops: 10, tablets: 0, chargers: 10, mice: 10, routers: 1, robots: 0 };
@@ -156,7 +156,6 @@ export default function LogisticsClasses() {
     setDeltas(prev => ({ ...prev, [key]: prev[key] + dir }));
   };
 
-  // ── 🟢 שמירה דינמית: עדכון וסנכרון כמויות אונליין ישירות לענן ──
   const applyUpdate = async () => {
     if (!editId) return;
     const inst = instructors.find(i => i.id === editId);
@@ -170,7 +169,6 @@ export default function LogisticsClasses() {
     const nextRobots = inst.robots + deltas.robots;
 
     if (inst.isTempLine) {
-      // עדכון מקומי לקווים זמניים
       const nextState = instructors.map(i => i.id === editId ? {
         ...i, laptops: nextLaptops, tablets: nextTablets, chargers: nextChargers, mice: nextMice, routers: nextRouters, robots: nextRobots
       } : i);
@@ -181,7 +179,6 @@ export default function LogisticsClasses() {
       const localPackage = savedPack ? JSON.parse(savedPack) : { overrides: {}, tempLines: [] };
       localStorage.setItem('aragon_classes_persistent_package', JSON.stringify({ ...localPackage, tempLines }));
     } else {
-      // 🚀 סנכרון ישיר לענן עבור מדריכים קבועים ברשת!
       try {
         const { error } = await supabase
           .from('instructor_gear')
@@ -198,7 +195,6 @@ export default function LogisticsClasses() {
 
         if (error) throw error;
 
-        // עדכון הסטייט המקומי במסך רק לאחר הצלחת הקריאה בענן
         setInstructors(prev => prev.map(i => i.id === editId ? {
           ...i, laptops: nextLaptops, tablets: nextTablets, chargers: nextChargers, mice: nextMice, routers: nextRouters, robots: nextRobots
         } : i));
@@ -244,6 +240,42 @@ export default function LogisticsClasses() {
     setNewLineManager('מנהל לוגיסטיקה');
     setNewLineGear({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 });
     showToast(`🚀 קו זמני חדש "${newCustomLine.name}" נוצר והתווסף ללוח!`);
+  };
+
+  // 🛠️ פונקציית הזרקת משימה מהירה לעמוד משימות תחת עמודת חמ"ל שטח ותקלות
+  const handleFastTaskSubmit = (e) => {
+    e.preventDefault();
+    if (!fastTaskText.trim()) {
+      showToast('⚠️ לא ניתן ליצור משימה ריקה');
+      return;
+    }
+
+    const newId = `custom_${Date.now()}`;
+    const nowTime = new Date().toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }) + ' | ' + new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+
+    const newTask = {
+      id: newId,
+      badge: '🛠️ חמ"ל שטח ותקלות', // 🟢 מנותב ישירות לעמודת חמ"ל שטח ותקלות
+      badgeColor: '#ff4560',       // צבע אדום ניאון תואם לתקלות
+      time: nowTime,
+      body: fastTaskText.trim(),
+      borderC: 'rgba(255,69,96,0.35)',
+      bgC: '#0c1729',
+      isCustom: true
+    };
+
+    try {
+      const saved = localStorage.getItem('aragon_camp_tasks');
+      const currentTasks = saved ? JSON.parse(saved) : [];
+      localStorage.setItem('aragon_camp_tasks', JSON.stringify([newTask, ...currentTasks]));
+      
+      setIsFastTaskModalOpen(false);
+      setFastTaskText('');
+      showToast('המשימה שוגרה בהצלחה ללוח חמ"ל שטח ותקלות! 🛠️');
+    } catch (err) {
+      console.error(err);
+      showToast('⚠️ תקלה בסנכרון המשימה לזיכרון');
+    }
   };
 
   // חישוב מונים כלליים לפאנל הסיכום הצידי
@@ -300,6 +332,10 @@ export default function LogisticsClasses() {
         .btn-audit { background: rgba(0, 229, 160, 0.06); border-color: rgba(0, 229, 160, 0.35); color: #00e5a0; }
         .btn-audit:hover { background: rgba(0, 229, 160, 0.15); box-shadow: 0 0 12px rgba(0, 229, 160, 0.2); }
 
+        /* עיצוב פרימיום ניאון מזמין לכפתור צור משימה מהירה */
+        .col-create-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 18px; background: linear-gradient(#0c1729, #0c1729) padding-box, linear-gradient(135deg, #00d4ff 0%, #8b5cf6 100%) border-box; border: 1px solid transparent; border-radius: 8px; color: #ffffff; font-family: 'Heebo', sans-serif; font-size: 12.5px; font-weight: 900; cursor: pointer; white-space: nowrap; margin-right: auto; box-shadow: 0 0 12px rgba(0, 212, 255, 0.15); transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .col-create-btn:hover { background: linear-gradient(rgba(0, 212, 255, 0.1), rgba(139, 92, 246, 0.1)) padding-box, linear-gradient(135deg, #00d4ff 0%, #8b5cf6 100%) border-box; box-shadow: 0 0 20px rgba(0, 212, 255, 0.4), 0 0 20px rgba(139, 92, 246, 0.25); transform: translateY(-1.5px); color: #00d4ff; }
+
         .matrix-area { flex: 0 0 75%; display: flex; flex-direction: column; overflow: hidden; }
         .matrix-scroll { flex: 1; overflow-y: auto; padding: 16px 18px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 13px; align-content: start; }
 
@@ -352,6 +388,7 @@ export default function LogisticsClasses() {
         .ub-row:last-child { border-bottom: none; }
         .ub-av { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,140,66,0.1); border: 1px solid rgba(255,140,66,0.25); display: flex; align-items: center; justify-content: center; font-family: 'Orbitron', monospace; font-size: 9px; font-weight: 700; color: #ff8c42; flex-shrink: 0; }
 
+        /* MODALS */
         .modal-ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
         .modal-ov.open { display: flex; }
         .modal-box { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 480px; max-width: 96vw; box-shadow: 0 0 50px rgba(0,212,255,0.12); direction: rtl; position: relative; overflow: hidden; text-align: right; }
@@ -383,7 +420,6 @@ export default function LogisticsClasses() {
         .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(60px); background: #111f35; border: 1px solid #00e5a0; border-radius: 8px; padding: 12px 26px; color: #00e5a0; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 0 22px rgba(0,229,160,0.18); transition: transform 0.28s; z-index: 300; text-align: center; pointer-events: none; }
         .toast.show { transform: translateX(-50%) translateY(0); }
         
-        /* 📻 שדרוג רדיו אראגון - מסגרת גרדיאנט ניאון וכפתור מודגש */
         .cyber-music-player { display: flex; align-items: center; gap: 10px; background: linear-gradient(#040c18, #040c18) padding-box, linear-gradient(135deg, #00d4ff 0%, #8b5cf6 100%) border-box; border: 1px solid transparent; border-radius: 20px; padding: 5px 14px; margin-left: 12px; cursor: pointer; user-select: none; box-shadow: 0 0 14px rgba(0, 212, 255, 0.12), 0 0 14px rgba(139, 92, 246, 0.12); transition: all 0.25s ease; }
         .cyber-music-player:hover { box-shadow: 0 0 20px rgba(0, 212, 255, 0.25), 0 0 20px rgba(139, 92, 246, 0.25); transform: scale(1.02); }
         .player-toggle-btn { background: #ffffff; color: #040b18; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; transition: all 0.2s; box-shadow: 0 0 8px rgba(255,255,255,0.4); }
@@ -397,6 +433,9 @@ export default function LogisticsClasses() {
         .cyber-music-player.playing .visualizer-bar:nth-child(3) { animation-delay: 0.3s; }
         @keyframes wavePulse { 0% { height: 2px; } 100% { height: 11px; } }
         
+        .modal-close-btn { position: absolute; left: 16px; top: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: rgba(160,185,215,0.5); font-size: 16px; display: flex; align-items: center; justify-content: center; outline: none; }
+        .modal-close-btn:hover { background: rgba(255,69,96,0.12); color: #ff4560; }
+
         .mfr { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
         .mfl { font-size: 11px; color: rgba(0,212,255,0.55); font-weight: 700; text-transform: uppercase; }
         .mfi, .mfs { width: 100%; background: #111f35; border: 1px solid rgba(0,212,255,0.25); border-radius: 7px; color: #ffffff; padding: 10px 13px; font-family: 'Heebo', sans-serif; font-size: 13.5px; direction: rtl; outline: none; }
@@ -485,6 +524,10 @@ export default function LogisticsClasses() {
                 </button>
                 <button className="act-btn-classes btn-audit" onClick={() => showToast('מפעיל סבב ביקורת מלאי ומזוודות שטח מקיף 🔍')}>
                   <i className="ti ti-clipboard-check" style={{ fontSize: '14px' }}></i>בצע ביקורת
+                </button>
+                {/* 🟢 כפתור הזרקת משימה מהירה לחמ"ל שטח ותקלות */}
+                <button type="button" className="col-create-btn" onClick={() => { setFastTaskText(''); setIsFastTaskModalOpen(true); }}>
+                  <i className="ti ti-plus" style={{ marginLeft: '4px' }}></i> צור משימה מהירה
                 </button>
               </div>
               <div style={{ marginRight: 'auto', fontSize: '11px', color: 'rgba(160,185,215,0.4)', fontWeight: '700', textTransform: 'uppercase', fontFamily: 'Orbitron, monospace' }}>
@@ -660,8 +703,60 @@ export default function LogisticsClasses() {
               </div>
 
               <button className="update-btn" type="submit" style={{ background: 'rgba(139, 92, 246, 0.12)', borderColor: '#8b5cf6', color: '#a78bfa' }}>
-                <i className="ti ti-circle-plus"></i>צור קו והזרק למערכת
+                <i className="ti ti-circle-plus"></i>צור קו והצרק למערכת
               </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 🟢 מודאל משימה מהירה המשובץ ישירות לעמוד המשימות (עמודת חמ"ל שטח ותקלות) ─── */}
+      {isFastTaskModalOpen && (
+        <div className="modal-overlay" style={{ zIndex: 99999 }}>
+          <div className="modal-sheet" style={{ borderColor: '#ff4560', padding: '24px', width: '460px', background: '#0c1729' }}>
+            <button type="button" className="modal-close-btn" onClick={() => setIsFastTaskModalOpen(false)}>×</button>
+            
+            <div className="modal-head" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(255,45,96,0.12)', paddingBottom: '12px' }}>
+              <div style={{ fontSize: '22px', marginLeft: '10px' }}>🛠️</div>
+              <div>
+                <div className="modal-title-text" style={{ color: '#ff4560', fontSize: '16px', fontWeight: '800' }}>הזרקת משימה מהירה לחמ"ל ותקלות</div>
+                <div className="modal-subtitle-text" style={{ fontSize: '12px', marginTop: '4px', color: 'rgba(160,185,215,0.5)' }}>
+                  היעד: <span style={{ color: '#ffffff', fontWeight: '600' }}>עמוד המשימות ← עמודת חמ"ל שטח ותקלות</span>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleFastTaskSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="mfr" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label className="mfl" style={{ fontSize: '12px', fontWeight: '700', color: 'rgba(255,69,96,0.7)', textTransform: 'uppercase' }}>פירוט המשימה (מלל חופשי)</label>
+                <textarea 
+                  className="mfi" 
+                  rows="4" 
+                  required
+                  style={{ resize: 'none', fontFamily: 'Heebo', width: '100%', background: '#111f35', border: '1px solid rgba(255,69,96,0.25)', borderRadius: '8px', color: '#ffffff', padding: '12px', fontSize: '13.5px', outline: 'none', lineHeight: '1.5' }}
+                  placeholder="הקלד כאן את פרטי המשימה והתקלה המלאים..." 
+                  value={fastTaskText}
+                  onChange={(e) => setFastTaskText(e.target.value)}
+                />
+              </div>
+
+              <div className="mf2" style={{ display: 'flex', gap: '12px', marginTop: '8px', justifyContent: 'flex-start' }}>
+                <button 
+                  type="button" 
+                  className="mbtn-cancel" 
+                  style={{ padding: '10px 24px', borderRadius: '8px', fontSize: '13.5px', fontWeight: '600', cursor: 'pointer' }}
+                  onClick={() => setIsFastTaskModalOpen(false)}
+                >
+                  ביטול
+                </button>
+                <button 
+                  type="submit" 
+                  className="update-btn"
+                  style={{ padding: '10px 24px', background: 'rgba(255,69,96,0.12)', borderColor: '#ff4560', color: '#ff4560', borderRadius: '8px', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <i className="ti ti-plus"></i> פתח משימה
+                </button>
+              </div>
             </form>
           </div>
         </div>
