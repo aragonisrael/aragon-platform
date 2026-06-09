@@ -219,22 +219,27 @@ export default function LogisticsDashboard() {
       const matchUser = rawInstructorsList.find(u => u.full_name === targetTrip.instructor_name || u.username === targetTrip.instructor_name);
       const instructorId = matchUser ? matchUser.username : targetTrip.instructor_name;
 
-      // 5. טעינת ועדכון ארנק הציוד של המדריך ב-localStorage (הוספת הציוד התקין שסופק לו)
-      const savedPack = localStorage.getItem('aragon_classes_persistent_package');
-      const localPackage = savedPack ? JSON.parse(savedPack) : { overrides: {}, tempLines: [] };
-      
-      if (!localPackage.overrides[instructorId]) {
-        localPackage.overrides[instructorId] = { laptops: 10, tablets: 0, chargers: 10, mice: 10, routers: 1, robots: 0 };
-      }
+      // 🟢 5. אונליין: עדכון ארנק הציוד של המדריך ישירות ב-Supabase (הוספת הציוד התקין החדש שסופק לו)
+      const { data: currentGearData } = await supabase
+        .from('instructor_gear')
+        .select('*')
+        .eq('username', instructorId)
+        .single();
 
-      // 🟢 הוספת הציוד התקין החדש למזוודה שלו בשטח (סנכרון מול עמוד חוגים)
-      localPackage.overrides[instructorId].laptops = (localPackage.overrides[instructorId].laptops || 0) + giveGear.laptops;
-      localPackage.overrides[instructorId].tablets = (localPackage.overrides[instructorId].tablets || 0) + giveGear.tablets;
-      localPackage.overrides[instructorId].chargers = (localPackage.overrides[instructorId].chargers || 0) + giveGear.chargers;
-      localPackage.overrides[instructorId].mice = (localPackage.overrides[instructorId].mice || 0) + giveGear.mice;
-      localPackage.overrides[instructorId].routers = (localPackage.overrides[instructorId].routers || 0) + giveGear.routers;
+      const currentKit = currentGearData || { laptops: 10, tablets: 0, chargers: 10, mice: 10, routers: 1, robots: 0 };
 
-      localStorage.setItem('aragon_classes_persistent_package', JSON.stringify(localPackage));
+      await supabase
+        .from('instructor_gear')
+        .upsert({
+          username: instructorId,
+          laptops: (currentKit.laptops || 0) + giveGear.laptops,
+          tablets: (currentKit.tablets || 0) + giveGear.tablets,
+          chargers: (currentKit.chargers || 0) + giveGear.chargers,
+          mice: (currentKit.mice || 0) + giveGear.mice,
+          routers: (currentKit.routers || 0) + giveGear.routers,
+          robots: (currentKit.robots || 0) + (giveGear.suitcases || 0), // סנכרון תואם בין שילוח מזוודות לעמודת רובוטים
+          updated_at: new Date()
+        });
 
       // 6. הקמת שורת התראת "החזר ציוד תקול" ממתינה (Pending In) בטבלת equipment_transfers
       const { error: transferErr } = await supabase

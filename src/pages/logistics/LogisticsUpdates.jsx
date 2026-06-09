@@ -198,7 +198,7 @@ export default function LogisticsUpdates() {
         await supabase.from('equipment_transfers').update({ status: 'completed' }).eq('id', item.dbId);
         setDbTransfers(prev => prev.map(t => t.id === item.dbId ? { ...t, status: 'completed' } : t));
 
-        // 🟢 זיכוי אוטומטי של ארנק המדריך בעמוד חוגים ברגע קליטת הציוד התקול חזרה במשרד
+        // 🟢 זיכוי אוטומטי של ארנק המדריך בענן ברגע קליטת הציוד התקול חזרה במשרד
         if (item.type === 'in') {
           // 🚚 אוטומציה: עדכון סטטוס הנסיעה בבסיס הנתונים ל-'completed' כדי שתעבור לארכיון בדשבורד
           await supabase
@@ -207,29 +207,33 @@ export default function LogisticsUpdates() {
             .eq('instructor_name', item.who)
             .eq('status', 'departed');
 
-          const savedPack = localStorage.getItem('aragon_classes_persistent_package');
-          if (savedPack) {
-            const localPackage = JSON.parse(savedPack);
-            
-            // ביצוע הצלבה חכמה: מוצאים את שם המשתמש באנגלית על בסיס השם בעברית מהעדכון
-            const matchUser = usersList.find(u => u.full_name === item.who || u.username === item.who);
-            const instructorKey = matchUser ? matchUser.username : item.who;
+          // ביצוע הצלבה חכמה: מוצאים את שם המשתמש באנגלית על בסיס השם בעברית מהעדכון
+          const matchUser = usersList.find(u => u.full_name === item.who || u.username === item.who);
+          const instructorKey = matchUser ? matchUser.username : item.who;
 
-            if (localPackage.overrides && localPackage.overrides[instructorKey]) {
-              const currentKit = localPackage.overrides[instructorKey];
-              const returnedKit = item.originalGear || {};
+          // שליפת הארנק הנוכחי מהענן של סופאבייס לביצוע הזיכוי
+          const { data: currentGearData } = await supabase
+            .from('instructor_gear')
+            .select('*')
+            .eq('username', instructorKey)
+            .single();
 
-              // זיכוי והפחתה בטוחה של הציוד מהארנק הדיגיטלי (מניעת ירידה מתחת ל-0)
-              currentKit.laptops = Math.max(0, (currentKit.laptops || 0) - (returnedKit.laptops || 0));
-              currentKit.tablets = Math.max(0, (currentKit.tablets || 0) - (returnedKit.tablets || 0));
-              currentKit.chargers = Math.max(0, (currentKit.chargers || 0) - (returnedKit.chargers || 0));
-              currentKit.mice = Math.max(0, (currentKit.mice || 0) - (returnedKit.mice || 0));
-              currentKit.routers = Math.max(0, (currentKit.routers || 0) - (returnedKit.routers || 0));
-              currentKit.robots = Math.max(0, (currentKit.robots || 0) - (returnedKit.suitcases || 0)); // סנכרון תואם למזוודות ורובוטים
+          const currentKit = currentGearData || { laptops: 10, tablets: 0, chargers: 10, mice: 10, routers: 1, robots: 0 };
+          const returnedKit = item.originalGear || {};
 
-              localStorage.setItem('aragon_classes_persistent_package', JSON.stringify(localPackage));
-            }
-          }
+          // הפחתה וזיכוי בטוח (מניעת ירידה מתחת ל-0) ודחיפה חזרה אונליין לענן
+          await supabase
+            .from('instructor_gear')
+            .upsert({
+              username: instructorKey,
+              laptops: Math.max(0, (currentKit.laptops || 0) - (returnedKit.laptops || 0)),
+              tablets: Math.max(0, (currentKit.tablets || 0) - (returnedKit.tablets || 0)),
+              chargers: Math.max(0, (currentKit.chargers || 0) - (returnedKit.chargers || 0)),
+              mice: Math.max(0, (currentKit.mice || 0) - (returnedKit.mice || 0)),
+              routers: Math.max(0, (currentKit.routers || 0) - (returnedKit.routers || 0)),
+              robots: Math.max(0, (currentKit.robots || 0) - (returnedKit.suitcases || 0)), // התאמה בין החזרת מזוודות לעמודת רובוטים
+              updated_at: new Date()
+            });
         }
       }
       showToast('העדכון נסגר בהצלחה, ארנק המדריך זוכה והנסיעה אורכבה 📂✓');
