@@ -83,8 +83,26 @@ export default function InstructorProfile() {
     const savedPack = localStorage.getItem('aragon_classes_persistent_package');
     if (savedPack) {
       const localPackage = JSON.parse(savedPack);
-      if (localPackage.overrides && localPackage.overrides[loggedUser]) {
-        setMyGear(localPackage.overrides[loggedUser]);
+      
+      // 🟢 הצלבה דו-כיוונית חכמה: בודק קודם לפי שם משתמש באנגלית, ואז לפי שם מלא בעברית
+      let gearData = null;
+      if (localPackage.overrides) {
+        if (localPackage.overrides[loggedUser]) {
+          gearData = localPackage.overrides[loggedUser];
+        } else if (localPackage.overrides[instructorName]) {
+          gearData = localPackage.overrides[instructorName];
+        }
+      }
+
+      if (gearData) {
+        setMyGear({
+          laptops: gearData.laptops ?? 10,
+          tablets: gearData.tablets ?? 0,
+          chargers: gearData.chargers ?? 10,
+          mice: gearData.mice ?? 10,
+          routers: gearData.routers ?? 1,
+          robots: gearData.robots ?? 0
+        });
       }
     }
   };
@@ -201,10 +219,10 @@ export default function InstructorProfile() {
     fetchProfileData();
   }, [loggedUser]);
 
-  // 💻 טעינה מיידית ועצמאית של ארנק הציוד מה-localStorage ברגע עליית המסך ללא שיהוי של שרת
+  // 💻 טעינה וסנכרון אקטיבי של ארנק הציוד - עוקב גם אחרי שם המשתמש וגם אחרי השם בעברית מהענן
   useEffect(() => {
     syncMyGearWallet();
-  }, [loggedUser]);
+  }, [loggedUser, instructorName]);
 
   // האזנה אקטיבית לשינויים מקומיים במלאי (במידה ומנהל הלוגיסטיקה מאשר החזרה ומזכה)
   useEffect(() => {
