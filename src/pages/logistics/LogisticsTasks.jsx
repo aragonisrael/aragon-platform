@@ -234,14 +234,19 @@ export default function LogisticsTasks() {
   // ניהול משימות רגילות קשיחות
   const handleTaskAction = (id, col, actionType) => {
     let taskTitle = '';
-    if (col === 'field') {
+    
+    // 🟢 בדיקה חכמה מאיזה מערך למחוק את המשימה כדי לתמוך בהזרקות חוצות-עמודות
+    if (fieldTasks.some(x => x.id === id)) {
       const task = fieldTasks.find(x => x.id === id);
-      taskTitle = task ? task.title : 'משימת שטח';
+      taskTitle = task ? (task.body || task.title) : 'משימת שטח';
       setFieldTasks(prev => prev.filter(x => x.id !== id));
-    } else if (col === 'camp') {
+      col = 'field';
+    } else if (campTasks.some(x => x.id === id)) {
       const task = campTasks.find(x => x.id === id);
-      taskTitle = task ? task.title : 'משימת קייטנה';
+      taskTitle = task ? (task.body || task.title) : 'משימת קייטנה';
       setCampTasks(prev => prev.filter(x => x.id !== id));
+      // אם המשימה הגיעה מעמוד חוגים לחמ"ל שטח, ננתב את הארכוב שלה לעמודת שטח
+      col = task?.badge === '🛠️ חמ"ל שטח ותקלות' ? 'field' : 'camp';
     } else if (col === 'alert') {
       const task = alertTasks.find(x => x.id === id);
       taskTitle = task ? task.title : 'התראה חכמה';
@@ -275,10 +280,16 @@ export default function LogisticsTasks() {
       isDbFault: true
     }));
 
-    return [...mappedDbFaults, ...fieldTasks];
+    // 🟢 שליפת משימות שהוזרקו מעמוד חוגים ישירות לחמ"ל שטח ותקלות
+    const classesInjectedFieldTasks = campTasks.filter(t => t.badge === '🛠️ חמ"ל שטח ותקלות');
+
+    return [...mappedDbFaults, ...fieldTasks, ...classesInjectedFieldTasks];
   };
 
   const combinedFieldTasks = getCombinedFieldTasks();
+  
+  // 🟢 יצירת מאגר קייטנות נקי שמסנן החוצה את משימות החוגים שהוזרקו לשם
+  const actualCampTasks = campTasks.filter(t => t.badge !== '🛠️ חמ"ל שטח ותקלות');
 
   return (
     <div className="hq-global-wrapper">
@@ -514,14 +525,15 @@ export default function LogisticsTasks() {
               </div>
               <div className="col-hdr-right-box">
                 <button className="col-create-btn" onClick={() => openCreateModal('camp')}>+ צור משימה</button>
-                <span className="col-hdr-count" style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.22)' }}>{campTasks.length}</span>
+                {/* 🟢 שינוי מונים לעבודה מול המערך המנוקה */}
+                <span className="col-hdr-count" style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.22)' }}>{actualCampTasks.length}</span>
               </div>
             </div>
             <div className="col-body">
-              {campTasks.length === 0 ? (
+              {actualCampTasks.length === 0 ? (
                 <div style={{ fontSize: '12px', color: 'rgba(160,185,215,0.4)', textAlign: 'center', marginTop: '20px' }}>אין משימות הכנת קייטנות בפיקוח</div>
               ) : (
-                campTasks.map(task => (
+                actualCampTasks.map(task => (
                   <div key={task.id} className="tcard" style={{ background: task.bgC, borderColor: task.borderC }}>
                     <div className="tcard-top">
                       <div className="tcard-badge-wrap">
