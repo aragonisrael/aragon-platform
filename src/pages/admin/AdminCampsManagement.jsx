@@ -119,6 +119,12 @@ export default function AdminCampsManagement() {
   const [isAddCampModalOpen, setIsAddCampModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
+  // 🟢 סטייט ניהול תקציב רכש ארצי מסונכרן לענן
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [totalBudget, setTotalBudget] = useState(10000);
+  const [remainingBudget, setRemainingBudget] = useState(0);
+  const [editBudgetInput, setEditBudgetInput] = useState('');
+
   // סטייט עבור מודאל קוקפיט הלו"ז של קייטנה נבחרת
   const [selectedViewCamp, setSelectedViewCamp] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -609,10 +615,75 @@ export default function AdminCampsManagement() {
     setIsPlaying(!globalAudio.paused);
   };
 
+  // ── 🟢 פונקציה לשליפת המדדים הפיננסיים וחישוב התקציב הפנוי מול טבלאות הרכש בענן ──
+  const fetchCloudBudgetMatrix = async () => {
+    try {
+      if (!supabase) return;
+      
+      // א. שליפת התקציב המרכזי שנקבע ע"י האדמין
+      const { data: budgetData } = await supabase
+        .from('procurement_budget')
+        .select('total_budget')
+        .eq('id', 1)
+        .single();
+        
+      const masterBudget = budgetData ? budgetData.total_budget : 10000;
+      setTotalBudget(masterBudget);
+
+      // ב. שליפת פריטי הרכש המאושרים לחישוב יתרה נטו (ללא מע"מ) כמו בלוגיסטיקה
+      const { data: procurementData } = await supabase
+        .from('network_procurement')
+        .select('cost, status')
+        .eq('status', 'approved');
+
+      let totalSpentNet = 0;
+      if (procurementData) {
+        procurementData.forEach(item => {
+          totalSpentNet += Math.round(item.cost / 1.18);
+        });
+      }
+
+      setRemainingBudget(masterBudget - totalSpentNet);
+    } catch (err) {
+      console.error("Error syncing budget numbers from cloud:", err);
+    }
+  };
+
+  const openBudgetModal = async () => {
+    await fetchCloudBudgetMatrix();
+    setEditBudgetInput('');
+    setIsBudgetModalOpen(true);
+  };
+
+  const handleUpdateBudgetSubmit = async (e) => {
+    e.preventDefault();
+    const newMasterBudget = parseInt(editBudgetInput, 10);
+    if (isNaN(newMasterBudget) || newMasterBudget < 0) {
+      showToast('⚠️ נא להזין סכום תקציב תקין');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('procurement_budget')
+        .upsert({ id: 1, total_budget: newMasterBudget });
+
+      if (error) throw error;
+      
+      setIsBudgetModalOpen(false);
+      await fetchCloudBudgetMatrix();
+      showToast('✅ הגדרת התקציב הכללי עודכנה וסונכרנה בהצלחה לענן!');
+    } catch (err) {
+      console.error(err);
+      showToast('⚠️ שגיאה בעדכון התקציב בשרת');
+    }
+  };
+
   // ── אפקטים ורענונים (Lifecycle) ──
   useEffect(() => {
     fetchLiveWorkforcePool();
     fetchLiveCampsDataFromCloud();
+    fetchCloudBudgetMatrix(); // טעינה ראשונית של מדדי התקציב
   }, []);
 
   return (
@@ -838,9 +909,15 @@ export default function AdminCampsManagement() {
               )}
             </div>
             {boardConfig && (
-              <button className="ct-btn btn-reset-board" onClick={handleResetEntireBoard}>
-                <i className="ti ti-trash"></i>אפס לוח נוכחי
-              </button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                {/* 🟢 כפתור פתיחת קוקפיט ניהול תקציב רכש מרכזי */}
+                <button className="ct-btn" style={{ background: 'rgba(167, 139, 250, 0.08)', borderColor: 'rgba(167, 139, 250, 0.35)', color: '#c084fc' }} type="button" onClick={openBudgetModal}>
+                  <i className="ti ti-wallet"></i>ניהול תקציב רכש
+                </button>
+                <button className="ct-btn btn-reset-board" onClick={handleResetEntireBoard}>
+                  <i className="ti ti-trash"></i>אפס לוח נוכחי
+                </button>
+              </div>
             )}
           </div>
 
@@ -1363,6 +1440,56 @@ export default function AdminCampsManagement() {
             <div className="mrow" style={{ marginTop: '22px' }}>
               <button className="msave" style={{ background: 'linear-gradient(135deg, #1b1604, #3a2e0a)', borderColor: '#f5c842', color: '#f5c842' }} type="button" onClick={() => setIsInfoModalOpen(false)}>הבנתי, סגור פופאפ</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 🟢 מודאל קוקפיט ניהול תקציב רכש ארצי ─── */}
+      {isBudgetModalOpen && (
+        <div className="modal-ov open" onClick={(e) => e.target.className === 'modal-ov open' && setIsBudgetModalOpen(false)}>
+          <div className="modal-box" style={{ borderColor: '#c084fc', width: '460px' }}>
+            <button type="button" className="modal-close" onClick={() => setIsBudgetModalOpen(false)}>×</button>
+            
+            <div className="modal-head" style={{ borderBottomColor: 'rgba(167, 139, 250, 0.2)' }}>
+              <div className="av av-temp" style={{ background: 'rgba(167, 139, 250, 0.12)', color: '#c084fc' }}><i className="ti ti-wallet" style={{ fontSize: '20px' }}></i></div>
+              <div>
+                <div className="modal-title-text" style={{ color: '#c084fc' }}>ניהול תקציב רכש חברה מרכזי</div>
+                <div className="modal-subtitle-text">קביעה וסנכרון של מסגרת התקציב הכללית מול מפקדת הלוגיסטיקה</div>
+              </div>
+            </div>
+
+            <div style={{ background: '#060b18', border: '1px solid #1a2a4a', borderRadius: '8px', padding: '14px', marginBottom: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', textAlign: 'center' }}>
+              <div style={{ borderLeft: '1px solid #1a2a4a', paddingLeft: '8px' }}>
+                <div style={{ fontSize: '11px', color: 'rgba(160,185,215,0.5)', fontWeight: '600' }}>תקציב כולל שהוקצה</div>
+                <div style={{ fontSize: '22px', fontFamily: 'Orbitron', fontWeight: '900', color: '#ffffff', marginTop: '4px' }}>₪ {totalBudget.toLocaleString('he-IL')}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'rgba(160,185,215,0.5)', fontWeight: '600' }}>יתרה פנויה (נטו)</div>
+                <div style={{ fontSize: '22px', fontFamily: 'Orbitron', fontWeight: '900', color: '#00e5a0', marginTop: '4px' }}>₪ {remainingBudget.toLocaleString('he-IL')}</div>
+              </div>
+            </div>
+
+            <form onSubmit={handleUpdateBudgetSubmit}>
+              <div className="mfr">
+                <label className="mfl" style={{ color: '#c084fc', fontWeight: '700' }}>עדכן סכום תקציב כולל חדש (₪)</label>
+                <input 
+                  className="mfi" 
+                  style={{ background: '#060b18', border: '1px solid #1a2a4a', borderRadius: '7px', color: '#ffffff', padding: '10px', width: '100%', outline: 'none', textAlign: 'center', fontFamily: 'Orbitron', fontSize: '16px', fontWeight: '700' }}
+                  type="number" 
+                  min="0" 
+                  placeholder={totalBudget}
+                  value={editBudgetInput} 
+                  onChange={(e) => setEditBudgetInput(e.target.value)} 
+                />
+              </div>
+
+              <div className="mf2">
+                <button type="button" className="mbtn-cancel" onClick={() => setIsBudgetModalOpen(false)}>ביטול</button>
+                <button className="update-btn" type="submit" style={{ background: 'rgba(167, 139, 250, 0.12)', borderColor: '#8b5cf6', color: '#c084fc' }}>
+                  <i className="ti ti-device-floppy"></i> עדכן סכום תקציב
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
