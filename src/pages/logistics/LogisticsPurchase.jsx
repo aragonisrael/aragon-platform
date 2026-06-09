@@ -15,10 +15,10 @@ export default function LogisticsPurchase() {
   const [clk, setClk] = useState('00:00:00');
   const [toast, setToast] = useState({ show: false, message: '' });
 
-  // סטייט תקציב וחשבונאות מתוך קוד המקור
-  const [budget, setBudget] = useState(5480);
-  const TOTAL = 10000;
-  const [invMissing, setInvMissing] = useState(3);
+  // סטייט תקציב וחשבונאות מתוך קוד המקור - מחובר בלייב לענן
+  const [budget, setBudget] = useState(0);
+  const [totalBudget, setTotalBudget] = useState(10000); // 🟢 הפך לסטייט דינמי
+  const [invMissing, setInvMissing] = useState(0);
   const [archiveOpen, setArchiveOpen] = useState(false);
 
   // סטייט מודאלים פנימיים
@@ -56,8 +56,18 @@ export default function LogisticsPurchase() {
   const fetchProcurementCloudMatrix = async () => {
     try {
       if (!supabase) return;
-      
-      // 1. שליפת פריטי הרכש מהדאטהבייס
+
+      // 🟢 א. משיכת התקציב המרכזי שנקבע ומנוהל ע"י האדמין בענן
+      const { data: cloudBudgetMaster } = await supabase
+        .from('procurement_budget')
+        .select('total_budget')
+        .eq('id', 1)
+        .single();
+        
+      const currentMasterTotal = cloudBudgetMaster ? cloudBudgetMaster.total_budget : 10000;
+      setTotalBudget(currentMasterTotal);
+
+      // ב. משיכת פריטי הרכש האקטיביים
       const { data, error } = await supabase
         .from('network_procurement')
         .select('*')
@@ -72,6 +82,7 @@ export default function LogisticsPurchase() {
         setWishItems(wishes);
         setExecItems(executed);
 
+        // 📊 מנוע חישוב מדדים פיננסיים בזמן אמת מהענן - מבוסס מחיר נטו (ללא מע"מ)
         let currentSpentNet = 0;
         let missingInvoicesCount = 0;
 
@@ -82,7 +93,7 @@ export default function LogisticsPurchase() {
           if (!item.has_invoice) missingInvoicesCount++;
         });
 
-        setBudget(TOTAL - currentSpentNet); 
+        setBudget(currentMasterTotal - currentSpentNet); // 🟢 גריעה אוטומטית מסכום האדמין העדכני
         setInvMissing(missingInvoicesCount);
       }
 
@@ -248,7 +259,7 @@ export default function LogisticsPurchase() {
     }
   };
 
-  const pct = (budget / TOTAL) * 100;
+  const pct = (budget / (totalBudget || 10000)) * 100;
   const budgetColor = pct > 30 ? '#00e5a0' : pct > 15 ? '#f5c842' : '#ff4560';
 
   const activeWishItems = wishItems.filter(x => x.status !== 'rejected');
@@ -437,7 +448,7 @@ export default function LogisticsPurchase() {
           <div className="budget-main">
             <div className="bh-lbl" style={{ fontFamily: "'Heebo', sans-serif", fontSize: '14px', fontWeight: '900', color: '#ffffff', textTransform: 'none', letterSpacing: '0px' }}>יתרת תקציב פנויה לרשת אראגון</div>
             <div className="budget-num" style={{ color: budgetColor, textShadow: `0 0 24px ${budgetColor}66`, fontWeight: '900' }}>₪ {budget.toLocaleString('he-IL')}</div>
-            <div className="budget-of" style={{ fontFamily: "'Heebo', sans-serif", fontWeight: '500' }}>מתוך תקציב מקורי של ₪ {TOTAL.toLocaleString('he-IL')}</div>
+            <div className="budget-of" style={{ fontFamily: "'Heebo', sans-serif", fontWeight: '500' }}>מתוך תקציב מקורי של ₪ {totalBudget.toLocaleString('he-IL')}</div>
             <div className="budget-bar-wrap">
               <div className="budget-bar" style={{ width: `${pct}%`, background: budgetColor }}></div>
             </div>
