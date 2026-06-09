@@ -28,24 +28,10 @@ export default function LogisticsPurchase() {
   const [editingCostId, setEditingCostId] = useState(null);
   const [editCostInput, setEditCostInput] = useState('');
 
-  // מאגר רכש כללי — דרישות ציוד קרובות
-  const [wishItems, setWishItems] = useState([
-    { id: 'w1', name: '20 עכברי גיימינג לחדר מחשבים — קייטנת ראשל"צ', cost: 4500, status: 'pending' },
-    { id: 'w2', name: '5 כבלים HDMI ארוכים לחדר גיימינג', cost: 350, status: 'pending' },
-    { id: 'w3', name: '3 מאריכי חשמל 8 שקעים לקייטנת ר"ג', cost: 280, status: 'pending' },
-    { id: 'w4', name: 'סוללות AA כפול 40 לשלטי טלוויזיה', cost: 180, status: 'pending' },
-    { id: 'w5', name: '10 מפצלי USB לחדרי מחשבים', cost: 620, status: 'pending' },
-  ]);
-
-  // מאגר רכש מאושר — רכישות שבוצעו בפועל
-  const [execItems, setExecItems] = useState([
-    { id: 'e1', name: 'רכישת 5 כבלים מאריכים ומפצלים — ראשל"צ', cost: 1240, hasInv: true, purchased: true },
-    { id: 'e2', name: 'עדכון מנוי PlayStation Plus — 3 מכשירים', cost: 890, hasInv: false, purchased: false },
-    { id: 'e3', name: 'ארגזי אחסון ציוד × 4', cost: 680, hasInv: false, purchased: true },
-    { id: 'e4', name: 'כרטיסי ביקור ומדבקות לוגו אראגון', cost: 420, hasInv: true, purchased: false },
-    { id: 'e5', name: 'חוט LAN + ראוטר נייד לקייטנת פרדסייה', cost: 560, hasInv: false, purchased: false },
-    { id: 'e6', name: 'ציוד כללי — מטה', cost: 730, hasInv: true, purchased: true },
-  ]);
+  // 🟢 מאגרי רכש אקטיביים המחוברים ישירות לענן Supabase
+  const [wishItems, setWishItems] = useState([]);
+  const [execItems, setExecItems] = useState([]);
+  const [loadingCloud, setLoadingCloud] = useState(true);
 
   const showToast = (msg) => {
     setToast({ show: true, message: msg });
@@ -60,8 +46,48 @@ export default function LogisticsPurchase() {
     return () => clearInterval(interval);
   }, []);
 
-  // סנכרן את מצב כפתור הנגן מול האודיו הגלובלי
+  // 🟢 פונקציה אקטיבית לשליפת נתוני הרכש וסנכרון התקציבים אונליין
+  const fetchProcurementCloudMatrix = async () => {
+    try {
+      if (!supabase) return;
+      const { data, error } = await supabase
+        .from('network_procurement')
+        .select('*')
+        .order('id', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        // סינון דרישות רכש (כל מה שאינו מאושר סופית)
+        const wishes = data.filter(x => x.status !== 'approved');
+        // סינון רכש מבוצע בפועל (אושר או נרכש ישירות)
+        const executed = data.filter(x => x.status === 'approved');
+
+        setWishItems(wishes);
+        setExecItems(executed);
+
+        // 📊 מנוע חישוב מדדים פיננסיים בזמן אמת מהענן
+        let currentSpent = 0;
+        let missingInvoicesCount = 0;
+
+        executed.forEach(item => {
+          currentSpent += item.cost;
+          if (!item.has_invoice) missingInvoicesCount++;
+        });
+
+        setBudget(TOTAL - currentSpent); // גריעה אוטומטית מהתקציב הכללי
+        setInvMissing(missingInvoicesCount);
+      }
+    } catch (err) {
+      console.error("Error loading procurement database context:", err);
+    } finally {
+      setLoadingCloud(false);
+    }
+  };
+
   useEffect(() => {
+    fetchProcurementCloudMatrix();
+    
     const globalAudio = document.getElementById('hq-cyber-radio');
     if (globalAudio) setIsPlaying(!globalAudio.paused);
   }, []);
@@ -73,39 +99,41 @@ export default function LogisticsPurchase() {
     setIsPlaying(!globalAudio.paused);
   };
 
-  const handleDeleteExecItem = (id) => {
+  const handleDeleteExecItem = async (id) => {
     const item = execItems.find(x => x.id === id);
     if (!item) return;
-
     if (!window.confirm(`⚠️ האם למחוק את דרישת הרכש של "${item.name}" ולזכות את התקציב הכללי?`)) return;
 
-    setExecItems(prev => prev.filter(x => x.id !== id));
-    setBudget(prev => prev + item.cost);
-
-    if (!item.hasInv) {
-      setInvMissing(m => Math.max(0, m - 1));
+    try {
+      await supabase.from('network_procurement').delete().eq('id', id);
+      await fetchProcurementCloudMatrix();
+      showToast('הרכש בוטל בהצלחה, הכסף הוחזר ליתרת התקציב! 🗑️');
+    } catch (err) {
+      console.error(err);
     }
-
-    showToast('הרכש בוטל בהצלחה, הכסף הוחזר ליתרת התקציב! 🗑️');
   };
 
-  // 🔥 פתיחת חלונית העברה עם הזרקה וטעינה מראש של המשפט המקורי (ניתן לעריכה מלאה)
-  const handleChangeStatus = (id, newStatus) => {
-    const item = wishItems.find(x => x.id === id);
-    if (!item) return;
-
+  const handleChangeStatus = async (id, newStatus) => {
+    // אם פריט הרכש הכללי מאושר, פותחים את מודאל ההעברה והעריכה לפני ההזרקה
     if (newStatus === 'approved') {
+      const item = wishItems.find(x => x.id === id);
+      if (!item) return;
       setEditMoveItem(item);
-      setFormName(item.name); // 🎯 הזרקת הטקסט המקורי לשדה הקלט של הטופס
-      setFormCost(item.cost); // 🎯 הזרקת העלות המשוערת כבסיס לעריכה
+      setFormName(item.name);
+      setFormCost(item.cost);
       setFormInv(false);
       setModalType('move');
       setIsModalOpen(true);
       return;
     }
 
-    setWishItems(prev => prev.map(x => x.id === id ? { ...x, status: newStatus } : x));
-    if (newStatus === 'rejected') showToast('הפריט נפסל והועבר לארכיון הרכש');
+    try {
+      await supabase.from('network_procurement').update({ status: newStatus }).eq('id', id);
+      await fetchProcurementCloudMatrix();
+      if (newStatus === 'rejected') showToast('הפריט נפסל והועבר לארכיון הרכש');
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const startCostEdit = (id, currentCost) => {
@@ -113,35 +141,38 @@ export default function LogisticsPurchase() {
     setEditCostInput(currentCost);
   };
 
-  const confirmCostEdit = (id) => {
+  const confirmCostEdit = async (id) => {
     const newCost = parseInt(editCostInput, 10) || 0;
+    try {
+      await supabase.from('network_procurement').update({ cost: newCost }).eq('id', id);
+      setEditingCostId(null);
+      await fetchProcurementCloudMatrix();
+      showToast('העלות עודכנה והתקציב חושב מחדש ✓');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleToggleInv = async (id) => {
     const item = execItems.find(x => x.id === id);
     if (!item) return;
-
-    const diff = item.cost - newCost;
-    setExecItems(prev => prev.map(x => { if (x.id === id) return { ...x, cost: newCost }; return x; }));
-    setBudget(prev => prev + diff);
-    setEditingCostId(null);
-    showToast('העלות עודכנה והתקציב חושב מחדש ✓');
+    try {
+      await supabase.from('network_procurement').update({ has_invoice: !item.has_invoice }).eq('id', id);
+      await fetchProcurementCloudMatrix();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleToggleInv = (id) => {
-    setExecItems(prev => prev.map(x => {
-      if (x.id !== id) return x;
-      const nextInv = !x.hasInv;
-      setInvMissing(m => Math.max(0, m + (nextInv ? -1 : 1)));
-      showToast(nextInv ? 'חשבונית סומנה כהוגשה ✓' : 'חשבונית סומנה כחסרה');
-      return { ...x, hasInv: nextInv };
-    }));
-  };
-
-  const handleTogglePurchased = (id) => {
-    setExecItems(prev => prev.map(x => {
-      if (x.id !== id) return x;
-      const nextPurchased = !x.purchased;
-      showToast(nextPurchased ? 'סומן כנרכש בהצלחה ✓' : 'סומן כטרם נרכש');
-      return { ...x, purchased: nextPurchased };
-    }));
+  const handleTogglePurchased = async (id) => {
+    const item = execItems.find(x => x.id === id);
+    if (!item) return;
+    try {
+      await supabase.from('network_procurement').update({ purchased: !item.purchased }).eq('id', id);
+      await fetchProcurementCloudMatrix();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const openCreateModal = (type) => {
@@ -152,29 +183,36 @@ export default function LogisticsPurchase() {
     setIsModalOpen(true);
   };
 
-  // מנוע סנכרון והעברת פריטים בין הדרישות הכלליות לרכש המאושר הסופי
-  const handleFormSubmit = () => {
+  // ── 🟢 מנוע סנכרון והעברת פריטים אונליין לשרת הענן ──
+  const handleFormSubmit = async () => {
     if (!formName.trim()) { showToast('נא למלא תיאור לפריט'); return; }
     const costNum = parseInt(formCost, 10) || 0;
 
-    if (modalType === 'wish') {
-      setWishItems([{ id: 'w' + Date.now(), name: formName.trim(), cost: costNum, status: 'pending' }, ...wishItems]);
-      showToast('דרישת רכש חדשה נוספה למערכת ✓');
-    } else if (modalType === 'exec') {
-      if (!formInv) setInvMissing(prev => prev + 1);
-      setExecItems([{ id: 'e' + Date.now(), name: formName.trim(), cost: costNum, hasInv: formInv, purchased: true }, ...execItems]);
-      setBudget(prev => prev - costNum);
-      showToast('רכש נרשם — התקציב הפנוי עודכן ✓');
-    } else if (modalType === 'move' && editMoveItem) {
-      // 🔥 משיכת הטקסט הערוך (formName) והזרקה ישירה לרכש המאושר (הציוד נרכש)
-      if (!formInv) setInvMissing(prev => prev + 1);
-      setExecItems([{ id: 'e' + Date.now(), name: formName.trim(), cost: costNum, hasInv: formInv, purchased: true }, ...execItems]);
-      setWishItems(prev => prev.filter(x => x.id !== editMoveItem.id));
-      setBudget(prev => prev - costNum);
-      showToast('הפריט אושר, עודכן והועבר בהצלחה לרכש מאושר! 💳');
-    }
+    try {
+      if (modalType === 'wish') {
+        // הוספת דרישה חדשה
+        await supabase.from('network_procurement').insert([{
+          name: formName.trim(), cost: costNum, status: 'pending', has_invoice: false, purchased: false
+        }]);
+      } else if (modalType === 'exec') {
+        // רכישה ישירה במשרד
+        await supabase.from('network_procurement').insert([{
+          name: formName.trim(), cost: costNum, status: 'approved', has_invoice: formInv, purchased: true
+        }]);
+      } else if (modalType === 'move' && editMoveItem) {
+        // אישור דרישה קיימת והעברתה לרכש מאושר
+        await supabase.from('network_procurement').update({
+          name: formName.trim(), cost: costNum, status: 'approved', has_invoice: formInv, purchased: true
+        }).eq('id', editMoveItem.id);
+      }
 
-    setIsModalOpen(false);
+      setIsModalOpen(false);
+      await fetchProcurementCloudMatrix(); // רענון מדדים מיידי מהענן
+      showToast('הנתונים נשמרו בהצלחה והתקציב עודכן בריאל-טיים! 💳✓');
+    } catch (err) {
+      console.error(err);
+      showToast('⚠️ שגיאה בשמירת נתוני הרכש בשרת');
+    }
   };
 
   const pct = (budget / TOTAL) * 100;
@@ -359,22 +397,22 @@ export default function LogisticsPurchase() {
         {/* FINANCIAL CONTROL HEADER PANEL */}
         <div className="budget-hdr">
           <div className="bh-cell">
-            <div className="bh-lbl">⏳ דדליין רכש קייטנות</div>
+            <div className="bh-lbl" style={{ fontFamily: "'Heebo', sans-serif", fontSize: '13px', fontWeight: '900', color: '#cbd5e1' }}>⏳ דדליין רכש קייטנות</div>
             <div className="cd-num">12</div>
-            <div className="cd-sub">ימים נותרו ליעד</div>
+            <div className="cd-sub" style={{ fontFamily: "'Heebo', sans-serif", fontWeight: '700', fontSize: '11px', color: 'rgba(160,185,215,0.4)' }}>ימים נותרו ליעד הפצה</div>
           </div>
           <div className="budget-main">
-            <div className="bh-lbl">יתרת תקציב פנויה לרשת</div>
-            <div className="budget-num" style={{ color: budgetColor, textShadow: `0 0 24px ${budgetColor}55` }}>₪ {budget.toLocaleString('he-IL')}</div>
-            <div className="budget-of">מתוך ₪ {TOTAL.toLocaleString('he-IL')} שהוטענו ע"י אדמין</div>
+            <div className="bh-lbl" style={{ fontFamily: "'Heebo', sans-serif", fontSize: '14px', fontWeight: '900', color: '#ffffff', textTransform: 'none', letterSpacing: '0px' }}>יתרת תקציב פנויה לרשת אראגון</div>
+            <div className="budget-num" style={{ color: budgetColor, textShadow: `0 0 24px ${budgetColor}66`, fontWeight: '900' }}>₪ {budget.toLocaleString('he-IL')}</div>
+            <div className="budget-of" style={{ fontFamily: "'Heebo', sans-serif", fontWeight: '500' }}>מתוך תקציב מקורי של ₪ {TOTAL.toLocaleString('he-IL')}</div>
             <div className="budget-bar-wrap">
               <div className="budget-bar" style={{ width: `${pct}%`, background: budgetColor }}></div>
             </div>
           </div>
           <div className="bh-cell">
-            <div className="bh-lbl">❌ חשבוניות חסרות</div>
+            <div className="bh-lbl" style={{ fontFamily: "'Heebo', sans-serif", fontSize: '13px', fontWeight: '900', color: '#cbd5e1' }}>❌ חשבוניות חסרות במערכת</div>
             <div className="inv-num">{invMissing}</div>
-            <div className="inv-sub">ממתינות להגשה במשרד</div>
+            <div className="inv-sub" style={{ fontFamily: "'Heebo', sans-serif", fontWeight: '700', fontSize: '11px', color: 'rgba(160,185,215,0.4)' }}>ממתינות לדיווח וקליטה במשרד</div>
           </div>
         </div>
 
@@ -468,9 +506,9 @@ export default function LogisticsPurchase() {
                       
                       {/* אגף מרכז: הלחצנים התפעוליים סנדוויץ' באמצע החלל */}
                       <div className="exec-middle-buttons-vault">
-                        <div className={`inv-badge ${item.hasInv ? 'inv-ok' : 'inv-missing'}`} onClick={() => handleToggleInv(item.id)}>
-                          <i className={item.hasInv ? "ti ti-check" : "ti ti-x"}></i>
-                          {item.hasInv ? 'חשבונית הוגשה' : 'חשבונית חסרה'}
+                        <div className={`inv-badge ${item.has_invoice ? 'inv-ok' : 'inv-missing'}`} onClick={() => handleToggleInv(item.id)}>
+                          <i className={item.has_invoice ? "ti ti-check" : "ti ti-x"}></i>
+                          {item.has_invoice ? 'חשבונית הוגשה' : 'חשבונית חסרה'}
                         </div>
                         
                         <div className={`exec-status-badge ${item.purchased ? 'exec-status-purchased' : 'exec-status-pending'}`} onClick={() => handleTogglePurchased(item.id)}>
