@@ -525,14 +525,16 @@ export default function LogisticsClasses() {
                 <button className="act-btn-classes btn-audit" onClick={() => showToast('מפעיל סבב ביקורת מלאי ומזוודות שטח מקיף 🔍')}>
                   <i className="ti ti-clipboard-check" style={{ fontSize: '14px' }}></i>בצע ביקורת
                 </button>
-                {/* 🟢 כפתור הזרקת משימה מהירה לחמ"ל שטח ותקלות */}
-                <button type="button" className="col-create-btn" onClick={() => { setFastTaskText(''); setIsFastTaskModalOpen(true); }}>
-                  <i className="ti ti-plus" style={{ marginLeft: '4px' }}></i> צור משימה מהירה
-                </button>
               </div>
+              
               <div style={{ marginRight: 'auto', fontSize: '11px', color: 'rgba(160,185,215,0.4)', fontWeight: '700', textTransform: 'uppercase', fontFamily: 'Orbitron, monospace' }}>
                 TOTAL: {instructors.length} ACTIVE LINES
               </div>
+
+              {/* 🟢 כפתור הזרקת משימה מהירה - ממוקם כעת בקצה השמאלי הקיצוני של השורה */}
+              <button type="button" className="col-create-btn" style={{ marginRight: '10px' }} onClick={() => { setFastTaskText(''); setIsFastTaskModalOpen(true); }}>
+                <i className="ti ti-plus" style={{ marginLeft: '4px' }}></i> צור משימה מהירה
+              </button>
             </div>
 
             <div className="matrix-scroll">
@@ -712,9 +714,9 @@ export default function LogisticsClasses() {
 
       {/* ─── 🟢 מודאל משימה מהירה המשובץ ישירות לעמוד המשימות (עמודת חמ"ל שטח ותקלות) ─── */}
       {isFastTaskModalOpen && (
-        <div className="modal-overlay" style={{ zIndex: 99999 }}>
-          <div className="modal-sheet" style={{ borderColor: '#ff4560', padding: '24px', width: '460px', background: '#0c1729' }}>
-            <button type="button" className="modal-close-btn" onClick={() => setIsFastTaskModalOpen(false)}>×</button>
+        <div className="modal-ov open" style={{ zIndex: 99999 }} onClick={(e) => e.target.className.includes('modal-ov') && setIsFastTaskModalOpen(false)}>
+          <div className="modal-box" style={{ borderColor: '#ff4560', padding: '24px', width: '460px' }}>
+            <button type="button" className="modal-close" onClick={() => setIsFastTaskModalOpen(false)}>×</button>
             
             <div className="modal-head" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(255,45,96,0.12)', paddingBottom: '12px' }}>
               <div style={{ fontSize: '22px', marginLeft: '10px' }}>🛠️</div>
