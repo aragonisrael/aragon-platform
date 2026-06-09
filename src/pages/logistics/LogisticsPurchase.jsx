@@ -35,6 +35,9 @@ export default function LogisticsPurchase() {
   const [wishItems, setWishItems] = useState([]);
   const [execItems, setExecItems] = useState([]);
   const [loadingCloud, setLoadingCloud] = useState(true);
+  
+  // 🏕️ סטייט לחישוב דינמי של הימים שנותרו לתחילת הקייטנה הקרובה ביותר
+  const [daysToNextCamp, setDaysToNextCamp] = useState('—');
 
   const showToast = (msg) => {
     setToast({ show: true, message: msg });
@@ -53,6 +56,8 @@ export default function LogisticsPurchase() {
   const fetchProcurementCloudMatrix = async () => {
     try {
       if (!supabase) return;
+      
+      // 1. שליפת פריטי הרכש מהדאטהבייס
       const { data, error } = await supabase
         .from('network_procurement')
         .select('*')
@@ -61,29 +66,51 @@ export default function LogisticsPurchase() {
       if (error) throw error;
 
       if (data) {
-        // סינון דרישות רכש (כל מה שאינו מאושר סופית)
         const wishes = data.filter(x => x.status !== 'approved');
-        // סינון רכש מבוצע בפועל (אושר או נרכש ישירות)
         const executed = data.filter(x => x.status === 'approved');
 
         setWishItems(wishes);
         setExecItems(executed);
 
-        // 📊 מנוע חישוב מדדים פיננסיים בזמן אמת מהענן - מבוסס מחיר נטו (ללא מע"מ)
         let currentSpentNet = 0;
         let missingInvoicesCount = 0;
 
         executed.forEach(item => {
-          // חישוב הסכום ללא מע"מ (חלקי 1.18) עבור כל פריט
           const netCost = Math.round(item.cost / 1.18);
           currentSpentNet += netCost;
           
           if (!item.has_invoice) missingInvoicesCount++;
         });
 
-        setBudget(TOTAL - currentSpentNet); // גריעה מהתקציב לפי מחיר נטו
+        setBudget(TOTAL - currentSpentNet); 
         setInvMissing(missingInvoicesCount);
       }
+
+      // 🏕️ 2. אוטומציה: שליפת תאריך תחילת הקייטנה / המחזור הקרוב ביותר שמתחיל מהיום והלאה
+      const todayStr = new Date().toISOString().split('T')[0];
+      const { data: campsData } = await supabase
+        .from('camps')
+        .select('start_date')
+        .gte('start_date', todayStr)
+        .order('start_date', { ascending: true })
+        .limit(1);
+
+      if (campsData && campsData.length > 0) {
+        const today = new Date();
+        const nextCampDate = new Date(campsData[0].start_date);
+        
+        // איפוס שעות לחישוב ימים נקי ומדויק
+        today.setHours(0,0,0,0);
+        nextCampDate.setHours(0,0,0,0);
+        
+        const diffTime = nextCampDate - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        setDaysToNextCamp(diffDays >= 0 ? diffDays : 0);
+      } else {
+        setDaysToNextCamp(0); // אם אין קייטנות עתידיות בלו"ז
+      }
+
     } catch (err) {
       console.error("Error loading procurement database context:", err);
     } finally {
@@ -403,9 +430,9 @@ export default function LogisticsPurchase() {
         {/* FINANCIAL CONTROL HEADER PANEL */}
         <div className="budget-hdr">
           <div className="bh-cell">
-            <div className="bh-lbl" style={{ fontFamily: "'Heebo', sans-serif", fontSize: '13px', fontWeight: '900', color: '#cbd5e1' }}>⏳ דדליין רכש קייטנות</div>
-            <div className="cd-num">12</div>
-            <div className="cd-sub" style={{ fontFamily: "'Heebo', sans-serif", fontWeight: '700', fontSize: '11px', color: 'rgba(160,185,215,0.4)' }}>ימים נותרו ליעד הפצה</div>
+            <div className="bh-lbl" style={{ fontFamily: "'Heebo', sans-serif", fontSize: '13px', fontWeight: '900', color: '#cbd5e1' }}>⏳ קייטנה קרובה באופק</div>
+            <div className="cd-num">{daysToNextCamp}</div>
+            <div className="cd-sub" style={{ fontFamily: "'Heebo', sans-serif", fontWeight: '700', fontSize: '11px', color: 'rgba(160,185,215,0.4)' }}>ימים שנותרו לתחילת הקייטנה הקרובה</div>
           </div>
           <div className="budget-main">
             <div className="bh-lbl" style={{ fontFamily: "'Heebo', sans-serif", fontSize: '14px', fontWeight: '900', color: '#ffffff', textTransform: 'none', letterSpacing: '0px' }}>יתרת תקציב פנויה לרשת אראגון</div>
