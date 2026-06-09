@@ -69,16 +69,19 @@ export default function LogisticsPurchase() {
         setWishItems(wishes);
         setExecItems(executed);
 
-        // 📊 מנוע חישוב מדדים פיננסיים בזמן אמת מהענן
-        let currentSpent = 0;
+        // 📊 מנוע חישוב מדדים פיננסיים בזמן אמת מהענן - מבוסס מחיר נטו (ללא מע"מ)
+        let currentSpentNet = 0;
         let missingInvoicesCount = 0;
 
         executed.forEach(item => {
-          currentSpent += item.cost;
+          // חישוב הסכום ללא מע"מ (חלקי 1.18) עבור כל פריט
+          const netCost = Math.round(item.cost / 1.18);
+          currentSpentNet += netCost;
+          
           if (!item.has_invoice) missingInvoicesCount++;
         });
 
-        setBudget(TOTAL - currentSpent); // גריעה אוטומטית מהתקציב הכללי
+        setBudget(TOTAL - currentSpentNet); // גריעה מהתקציב לפי מחיר נטו
         setInvMissing(missingInvoicesCount);
       }
     } catch (err) {
