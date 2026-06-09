@@ -22,6 +22,16 @@ export default function InstructorProfile() {
   // 🟢 סטייט חדש לניהול היסטוריית הפעולות האמיתיות מהענן
   const [recentActions, setRecentActions] = useState([]);
 
+  // 🛠️ סטייט ייעודי לניהול מודאל והיסטוריית תקלות חומרה בשטח של המדריך
+  const [isFaultModalOpen, setIsFaultModalOpen] = useState(false);
+  const [faultDescription, setFaultDescription] = useState('');
+  const [myFaults, setMyFaults] = useState([]);
+  const [loadingFaults, setLoadingFaults] = useState(true);
+  const [faultGear, setFaultGear] = useState({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, suitcases: 0 });
+
+  // 💻 סטייט ייעודי לארנק הציוד האישי של המדריך (לקריאה בלבד בריאל-טיים)
+  const [myGear, setMyGear] = useState({ laptops: 10, tablets: 0, chargers: 10, mice: 10, routers: 1, robots: 0 });
+
   // Password Validation Field States
   const [storedPassword, setStoredPassword] = useState('12345678');
   const [curPass, setCurPass] = useState('');
@@ -36,6 +46,48 @@ export default function InstructorProfile() {
 
   // זיהוי המדריך המחובר כרגע במערכת
   const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'guide1';
+
+  const GEAR_ITEMS = [
+    { key: 'laptops', label: 'מחשבים', icon: '💻' },
+    { key: 'tablets', label: 'טאבלטים', icon: '📱' },
+    { key: 'chargers', label: 'מטענים', icon: '🔌' },
+    { key: 'mice', label: 'עכברים', icon: '🖱' },
+    { key: 'routers', label: 'ראוטר', icon: '📶' },
+    { key: 'suitcases', label: 'מזוודה', icon: '🧳' },
+  ];
+
+  // פונקציה לשליפת היסטוריית התקלות של המדריך הנוכחי מתוך Supabase
+  const fetchMyFaultsData = async (fullName) => {
+    try {
+      if (!supabase) return;
+      const { data, error } = await supabase
+        .from('faults')
+        .select('*')
+        .order('id', { ascending: false });
+
+      if (error) throw error;
+      if (data) {
+        // מסנן ומציג רק תקלות שהמדריך הנוכחי פתח
+        const filtered = data.filter(f => f.reporter === fullName || f.reporter === loggedUser);
+        setMyFaults(filtered);
+      }
+    } catch (err) {
+      console.error("Error loading instructor faults history:", err);
+    } finally {
+      setLoadingFaults(false);
+    }
+  };
+
+  // פונקציה לטעינה וסנכרון של ארנק הציוד האישי מתוך קובץ החוגים המרכזי
+  const syncMyGearWallet = () => {
+    const savedPack = localStorage.getItem('aragon_classes_persistent_package');
+    if (savedPack) {
+      const localPackage = JSON.parse(savedPack);
+      if (localPackage.overrides && localPackage.overrides[loggedUser]) {
+        setMyGear(localPackage.overrides[loggedUser]);
+      }
+    }
+  };
 
   // פונקציה מורחבת לטעינת נתוני הפרופיל, הסטטיסטיקות ולוג הפעולות החי מהענן
   const fetchProfileData = async () => {
@@ -52,6 +104,10 @@ export default function InstructorProfile() {
         setInstructorName(fullName);
         setIlsBalance(userData.ils_balance || 0);
         setStoredPassword(userData.password || '12345678');
+
+        // טעינת היסטוריית תקלות הציוד והארנק הדיגיטלי האישי
+        fetchMyFaultsData(fullName);
+        syncMyGearWallet();
 
         // 2. חישוב דינמי ממוקד: שליפת הקבוצות שמשויכות למדריך זה בלבד
         const { data: dbGroups } = await supabase
@@ -145,6 +201,53 @@ export default function InstructorProfile() {
     fetchProfileData();
   }, [loggedUser]);
 
+  // האזנה אקטיבית לשינויים מקומיים במלאי (במידה ומנהל הלוגיסטיקה מאשר החזרה ומזכה)
+  useEffect(() => {
+    window.addEventListener('storage', syncMyGearWallet);
+    return () => window.removeEventListener('storage', syncMyGearWallet);
+  }, []);
+
+  // פונקציית שליחת תקלה חדשה לחמ"ל הלוגיסטי מתוך הפרופיל
+  const handleFaultSubmit = async (e) => {
+    e.preventDefault();
+
+    const formattedGear = Object.entries(faultGear)
+      .filter(([_, val]) => val > 0)
+      .map(([key, val]) => `${GEAR_ITEMS.find(g => g.key === key)?.icon} ${GEAR_ITEMS.find(g => g.key === key)?.label} × ${val}`)
+      .join(' | ');
+
+    if (!formattedGear) {
+      alert('⚠️ נא להזין לפחות פריט חומרה תקול אחד בספירה הידנית');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('faults')
+        .insert([{
+          reporter: instructorName, // חתימה אוטומטית של המדריך המחובר
+          summary: formattedGear,
+          description: faultDescription.trim() ? faultDescription.trim() : 'לא פורט',
+          archived: false,
+          is_task: false
+        }])
+        .select();
+
+      if (error) throw error;
+
+      if (data) {
+        setMyFaults(prev => [data[0], ...prev]);
+        setFaultDescription('');
+        setFaultGear({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, suitcases: 0 });
+        setIsFaultModalOpen(false);
+        triggerToast('✅ התקלה שוגרה בהצלחה לחמ"ל לוגיסטיקה!');
+      }
+    } catch (err) {
+      console.error(err);
+      triggerToast('❌ שגיאה בשמירת התקלה בשרת');
+    }
+  };
+
   // מסנכרן את מצב כפתור הנגן מול האודיו הגלובלי ב-App.jsx בעת מעבר דפים
   useEffect(() => {
     const globalAudio = document.getElementById('hq-cyber-radio');
@@ -192,7 +295,6 @@ export default function InstructorProfile() {
     }
 
     try {
-      // ביצוע העדכון בשרת
       const { error } = await supabase
         .from('users')
         .update({ password: newPass })
@@ -210,7 +312,6 @@ export default function InstructorProfile() {
       setConfPass('');
       triggerToast('✅ הסיסמה עודכנה בהצלחה בבסיס הנתונים!');
       
-      // 🟢 רענון והזרקה מיידית של שורת אבטחה ללוג הפעולות במסך ללא שיהוי
       await fetchProfileData();
     } catch (err) {
       console.error(err);
@@ -250,21 +351,13 @@ export default function InstructorProfile() {
 
   return (
     <div className="profile-main-container">
-      {/* 100% Native CSS Scoped System Integration */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Exo+2:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         
-        .profile-main-container {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          min-height: 100vh;
-          background: #050a14;
-          width: 100%;
-        }
+        .profile-main-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #050a14; width: 100%; }
 
-        .app { width: 390px; min-height: 860px; background: #08080f; font-family: 'Exo 2',sans-serif; position: relative; overflow: hidden; border-radius: 36px; border: 1.5px solid #1c1c30; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
+        .app { width: 390px; min-height: 860px; background: #08080f; font-family: 'Heebo',sans-serif; position: relative; overflow: hidden; border-radius: 36px; border: 1.5px solid #1c1c30; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.8); height: 860px; }
 
         .hero { width: 100%; height: 190px; position: relative; overflow: hidden; border-radius: 36px 36px 0 0; background: #060610; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
         .hg { position: absolute; inset: 0; background-image: linear-gradient(rgba(80,60,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(80,60,255,.05) 1px,transparent 1px); background-size: 28px 28px; }
@@ -290,7 +383,7 @@ export default function InstructorProfile() {
         
         .rm { position: absolute; inset: 8px; border-radius: 50%; border: 1.5px solid transparent; border-top-color: #6040ff; border-right-color: #4080ff; animation: spin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,.4); }
         .rm2 { position: absolute; inset: 14px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #4060ff; animation: spin 7s linear infinite reverse; box-shadow: inset 0 0 10px rgba(64,128,255,.3); }
-        .ric { position: absolute; inset: 22px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(80,100,255,.18); }
+        .ric position: absolute; inset: 22px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(80,100,255,.18); }
         .rp { position: absolute; inset: 22px; border-radius: 50%; background: radial-gradient(circle,rgba(60,80,255,.13) 0%,transparent 70%); animation: pulse 2.5s ease-in-out infinite; }
         @keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
         @keyframes pulse { 0%,100%{opacity:.4;transform:scale(.9)} 50%{opacity:1;transform:scale(1.05)} }
@@ -308,26 +401,25 @@ export default function InstructorProfile() {
 
         .page-label { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; font-family: 'Orbitron',monospace; font-size: 11px; letter-spacing: 3px; color: #5060aa; }
 
+        /* 📻 שדרוג רדיו אראגון - מסגרת גרדיאנט ניאון וכפתור מודגש במובייל */
         .hero-radio-capsule {
           position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 10;
-          display: flex; align-items: center; justify-content: space-between; width: 115px;
-          background: rgba(8, 8, 20, 0.6); border: 1px solid rgba(80, 100, 255, 0.2);
-          border-radius: 20px; padding: 4px 10px; cursor: pointer; user-select: none; transition: all 0.2s ease;
+          display: flex; align-items: center; justify-content: space-between; width: 125px;
+          background: linear-gradient(#080814, #080814) padding-box, linear-gradient(135deg, #00d4ff 0%, #8b5cf6 100%) border-box; 
+          border: 1px solid transparent; border-radius: 20px; padding: 5px 12px; cursor: pointer; user-select: none;
+          box-shadow: 0 0 10px rgba(0, 212, 255, 0.2); transition: all 0.2s ease;
         }
-        .hero-radio-capsule:hover { border-color: rgba(80, 120, 255, 0.5); background: rgba(8, 8, 20, 0.85); }
-        .hero-radio-capsule.playing { border-color: #18b090; background: rgba(5, 20, 16, 0.6); }
+        .hero-radio-capsule:hover { transform: translateX(-50%) scale(1.03); box-shadow: 0 0 15px rgba(0, 212, 255, 0.4); }
         .capsule-left { display: flex; align-items: center; gap: 6px; }
-        .capsule-play-btn { color: #5070ff; font-size: 11px; display: flex; align-items: center; }
-        .hero-radio-capsule.playing .capsule-play-btn { color: #18b090; }
-        .capsule-text { font-size: 8.5px; font-family: 'Orbitron', monospace; font-weight: 700; color: #48487a; letter-spacing: 0.5px; }
-        .hero-radio-capsule.playing .capsule-text { color: #18b090; }
+        .capsule-play-btn { background: #ffffff; color: #080814; width: 14px; height: 14px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 900; }
+        .hero-radio-capsule.playing .capsule-play-btn { background: #00e5a0; color: #080814; box-shadow: 0 0 6px #00e5a0; }
+        .capsule-text { font-family: 'Heebo', sans-serif; font-size: 10.5px; font-weight: 800; color: #ffffff; }
+        .hero-radio-capsule.playing .capsule-text { background: linear-gradient(90deg, #00d4ff, #00e5a0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .capsule-wave { display: flex; align-items: flex-end; gap: 1.5px; height: 8px; }
-        .capsule-wave-bar { width: 1.5px; height: 2px; background: #2e2e4e; border-radius: 1px; }
-        .hero-radio-capsule.playing .capsule-wave-bar { background: #18b090; animation: liveWave 0.6s ease-in-out infinite alternate; }
-        .hero-radio-capsule.playing .capsule-wave-bar:nth-child(2) { animation-delay: 0.15s; }
-        .hero-radio-capsule.playing .capsule-wave-bar:nth-child(3) { animation-delay: 0.35s; }
+        .capsule-wave-bar { width: 1.5px; height: 2px; background: rgba(0,212,255,0.3); border-radius: 1px; }
+        .hero-radio-capsule.playing .capsule-wave-bar { background: #00e5a0; animation: liveWave 0.6s ease-in-out infinite alternate; }
 
-        .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 95px; /* מרווח הגנה תחתון מפני הבר הצף */ scrollbar-width: none; }
+        .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 95px; scrollbar-width: none; }
         .scroll::-webkit-scrollbar { display: none; }
 
         .avatar-section { display: flex; flex-direction: column; align-items: center; padding: 20px 16px 0; }
@@ -351,6 +443,53 @@ export default function InstructorProfile() {
         .stat-lbl { font-size: 9px; color: #4a4a7a; letter-spacing: .5px; }
 
         .divider { height: 1px; background: linear-gradient(90deg,transparent,#1e1e38,transparent); margin: 16px; }
+
+        /* ─── 🟢 סגנונות סקשן ארנק הציוד האישי (עותק מנצח מעמוד חוגים) ─── */
+        .gear-wallet-section { padding: 0 16px; margin-bottom: 4px; }
+        .gear-wallet-card { background: #070e1c; border: 1px solid rgba(0, 212, 255, 0.22); border-radius: 14px; padding: 16px 14px; position: relative; overflow: hidden; }
+        .gear-wallet-card::before { content:''; position: absolute; top:0; left:0; right:0; height:1.5px; background: linear-gradient(90deg, transparent, #00d4ff, transparent); }
+        .gear-wallet-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-direction: row-reverse; }
+        .gear-wallet-badge { font-family: 'Orbitron', monospace; font-size: 10.5px; background: rgba(0, 212, 255, 0.08); border: 1px solid rgba(0, 212, 255, 0.25); color: #00d4ff; padding: 3px 10px; border-radius: 6px; font-weight: 700; }
+        .gear-wallet-title-txt { font-size: 13px; color: rgba(160, 185, 215, 0.6); font-weight: 700; text-align: right; font-family: 'Heebo'; }
+        
+        .ins-gear-compact { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 100%; }
+        .ins-gc-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 8px; gap: 3px; }
+        .ins-gc-lbl-wrap { display: flex; align-items: center; gap: 3px; font-size: 11px; color: rgba(160, 185, 215, 0.5); font-weight: 600; }
+        .ins-gc-val { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; color: #00d4ff; }
+
+        /* סגנונות סקשן תקלות ציוד מורחב למדריכים */
+        .fault-section { padding: 0 16px; margin-bottom: 4px; }
+        .fault-card { background: #11090f; border: 1px solid rgba(255,69,96,0.25); border-radius: 14px; padding: 16px 14px; text-align: center; position: relative; }
+        .fault-card::before { content:''; position: absolute; top:0; left:0; right:0; height:1.5px; background: linear-gradient(90deg,transparent,#ff4560,transparent); }
+        .fault-msg { font-size: 12.5px; color: #ff8e9e; font-weight: 600; margin-bottom: 11px; text-align: right; direction: rtl; display: flex; align-items: center; gap: 6px; justify-content: center; font-family: 'Heebo'; }
+        .fast-fault-btn { width: 100%; padding: 10px; background: rgba(255,69,96,0.1); border: 1px solid #ff4560; border-radius: 9px; color: #ff4560; font-family: 'Heebo', sans-serif; font-size: 13px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; box-shadow: 0 0 10px rgba(255,69,96,0.1); }
+        .fast-fault-btn:hover { background: rgba(255,69,96,0.2); box-shadow: 0 0 14px rgba(255,69,96,0.3); }
+        .fault-history-title { font-size: 11.5px; color: rgba(160,185,215,0.4); text-align: right; margin-top: 14px; margin-bottom: 6px; font-weight: 700; border-top: 1px dashed rgba(255,255,255,0.05); padding-top: 10px; font-family: 'Heebo'; }
+        .fault-history-list { display: flex; flex-direction: column; gap: 6px; max-height: 120px; overflow-y: auto; padding-left: 2px; }
+        .fault-history-item { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); padding: 8px 10px; border-radius: 8px; direction: rtl; }
+        .fault-history-main { text-align: right; min-width: 0; flex: 1; margin-right: 6px; }
+        .fault-history-summary { font-size: 12px; color: #ffffff; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fault-history-desc { font-size: 10.5px; color: rgba(160,185,215,0.4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+        .status-badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 5px; white-space: nowrap; }
+        .status-badge.wait { background: rgba(255,140,66,0.08); color: #ff8c42; border: 1px solid rgba(255,140,66,0.25); }
+        .status-badge.done { background: rgba(0,229,160,0.08); color: #00e5a0; border: 1px solid rgba(0,229,160,0.25); }
+
+        /* מודאל פתיחת תקלה למובייל */
+        .ins-modal-ov { position: fixed; inset: 0; background: rgba(4,11,24,0.92); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(6px); padding: 16px; }
+        .ins-mbox { background: #0c1729; border: 1px solid rgba(255,69,96,0.3); border-radius: 16px; padding: 20px; width: 100%; max-width: 350px; box-shadow: 0 0 30px rgba(255,69,96,0.2); direction: rtl; text-align: right; position: relative; }
+        .ins-mbox::after { content:''; position: absolute; top:0; left:0; right:0; height:1.5px; background: linear-gradient(90deg,transparent,#ff4560,transparent); }
+        .ins-modal-close { position: absolute; left: 14px; top: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; width: 24px; height: 24px; cursor: pointer; color: rgba(160,185,215,0.5); font-size: 14px; display: flex; align-items: center; justify-content: center; }
+        .ins-modal-close:hover { background: rgba(255,69,96,0.12); color: #ff4560; }
+        .ins-mfr { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+        .ins-mfl { font-size: 11px; color: rgba(0,212,255,0.55); font-weight: 700; text-transform: uppercase; }
+        .ins-mfi, .ins-mfs { width: 100%; background: #111f35; border: 1px solid rgba(0,212,255,0.25); border-radius: 7px; color: #ffffff; padding: 8px 11px; font-family: 'Heebo', sans-serif; font-size: 13px; outline: none; }
+        .ins-mfi:focus { border-color: #ff4560; box-shadow: 0 0 8px rgba(255,69,96,0.15); }
+        .ins-mini-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px; }
+        .ins-mg-box { background: #111f35; border: 1px solid rgba(255,255,255,0.05); border-radius: 7px; padding: 6px; display: flex; flex-direction: column; gap: 2px; align-items: center; }
+        .ins-mg-lbl { font-size: 10px; color: rgba(160,185,215,0.5); font-weight: 600; }
+        .ins-mg-input { width: 100%; background: transparent; border: none; color: #00d4ff; font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; text-align: center; outline: none; }
+        .ins-update-btn { width: 100%; padding: 10px; background: rgba(255,69,96,0.12); border: 1px solid #ff4560; border-radius: 8px; color: #ff4560; font-family: 'Heebo', sans-serif; font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; outline: none; }
+        .ins-update-btn:hover { background: rgba(255,69,96,0.22); box-shadow: 0 0 12px rgba(255,69,96,0.2); }
 
         .settings-list { padding: 0 16px; direction: rtl; }
         .setting-row { display: flex; align-items: center; gap: 12px; background: #10101e; border: 1px solid #1e1e38; border-radius: 12px; padding: 13px 14px; margin-bottom: 8px; cursor: pointer; transition: all .18s; text-align: right; }
@@ -386,76 +525,32 @@ export default function InstructorProfile() {
         .act-text { font-size: 12px; color: #9090b8; line-height: 1.4; margin-bottom: 2px; }
         .act-time { font-size: 10px; color: #3a3a5a; }
 
-        .modal-ov { 
-          position: fixed; 
-          inset: 0; 
-          background: rgba(0,0,10,.85); 
-          z-index: 200; 
-          display: flex; 
-          align-items: center; 
-          justify-content: center; 
-          padding: 20px; 
-          border-radius: 0; 
-          opacity: 0; 
-          pointer-events: none; 
-          transition: opacity .25s; 
-        }
+        .modal-ov { position: fixed; inset: 0; background: rgba(0,0,10,.85); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; border-radius: 0; opacity: 0; pointer-events: none; transition: opacity .25s; }
         .modal-ov.open { opacity: 1; pointer-events: all; }
         
-        .modal-sheet { 
-          background: linear-gradient(180deg,#13132a,#0e0e1e); 
-          border: 1px solid #2a2a48; 
-          border-radius: 20px; 
-          width: 350px; 
-          max-width: 100%; 
-          padding: 24px 20px; 
-          transform: scale(0.85); 
-          transition: transform .25s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-          direction: rtl; 
-          text-align: right; 
-          box-shadow: 0 20px 60px rgba(0,0,0,0.7);
-        }
+        .modal-sheet { background: linear-gradient(180deg,#13132a,#0e0e1e); border: 1px solid #2a2a48; border-radius: 20px; width: 350px; max-width: 100%; padding: 24px 20px; transform: scale(0.85); transition: transform .25s cubic-bezier(0.175, 0.885, 0.32, 1.275); direction: rtl; text-align: right; box-shadow: 0 20px 60px rgba(0,0,0,0.7); }
         .modal-ov.open .modal-sheet { transform: scale(1); }
-        .mhandle { display: none; } 
         
         .mtitle { font-family: 'Orbitron',monospace; font-size: 12px; color: #c0a0ff; letter-spacing: 1px; margin-bottom: 16px; display: flex; align-items: center; gap: 7px; }
         .mtitle i { font-size: 15px; color: #8050ff; }
         .mlabel { font-size: 11px; color: #5a5a8a; letter-spacing: .4px; margin-bottom: 5px; margin-top: 12px; }
-        .minput { width: 100%; background: #0a0a18; border: 1px solid #2a2a42; border-radius: 9px; padding: 9px 12px; color: #c0d8f0; font-family: 'Exo 2', sans-serif; font-size: 13px; outline: none; transition: border-color .2s; text-align: left; direction: ltr; }
+        .minput { width: 100%; background: #0a0a18; border: 1px solid #2a2a42; border-radius: 9px; padding: 9px 12px; color: #c0d8f0; font-family: 'Heebo', sans-serif; font-size: 13px; outline: none; transition: border-color .2s; text-align: left; direction: ltr; }
         .minput:focus { border-color: #5030aa; }
         .mactions { display: flex; gap: 8px; margin-top: 16px; }
-        .mbtn-cancel { flex: 1; padding: 10px; border-radius: 9px; border: 1px solid #2a2a42; background: transparent; color: #5a5a8a; font-family: 'Exo 2', sans-serif; font-size: 13px; cursor: pointer; }
-        .mbtn-save { flex: 1; padding: 10px; border-radius: 9px; border: 1px solid #5030aa; background: linear-gradient(135deg,rgba(80,48,170,.3),rgba(60,40,140,.2)); color: #c0a0ff; font-family: 'Exo 2', sans-serif; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all .2s; }
+        .mbtn-cancel { flex: 1; padding: 10px; border-radius: 9px; border: 1px solid #2a2a42; background: transparent; color: #5a5a8a; font-family: 'Heebo', sans-serif; font-size: 13px; cursor: pointer; }
+        .mbtn-save { flex: 1; padding: 10px; border-radius: 9px; border: 1px solid #5030aa; background: linear-gradient(135deg,rgba(80,48,170,.3),rgba(60,40,140,.2)); color: #c0a0ff; font-family: 'Heebo', sans-serif; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all .2s; }
         .mbtn-save:hover { border-color: #9060ff; }
 
         .logout-modal .mtitle { color: #e05050; }
         .logout-modal .mtitle i { color: #c04040; }
         .logout-warning { font-size: 13px; color: #8080a0; line-height: 1.6; text-align: center; margin-bottom: 4px; }
-        .mbtn-logout { flex: 1; padding: 10px; border-radius: 9px; border: 1px solid rgba(180,50,40,.4); background: rgba(160,40,30,.12); color: #d04040; font-family: 'Exo 2', sans-serif; font-size: 13px; cursor: pointer; transition: all .2s; }
+        .mbtn-logout { flex: 1; padding: 10px; border-radius: 9px; border: 1px solid rgba(180,50,40,.4); background: rgba(160,40,30,.12); color: #d04040; font-family: 'Heebo', sans-serif; font-size: 13px; cursor: pointer; transition: all .2s; }
         .mbtn-logout:hover { background: rgba(160,40,30,.2); border-color: #c04040; }
 
-        .toast { position: absolute; top: 200px; left: 50%; transform: translateX(-50%) translateY(-14px); background: linear-gradient(135deg,#1a2a18,#102010); border: 1px solid #20a060; border-radius: 12px; padding: 9px 16px; color: #30d090; font-size: 12px; font-family: 'Exo 2', sans-serif; white-space: nowrap; z-index: 50; opacity: 0; pointer-events: none; transition: all .3s; display: flex; align-items: center; gap: 6px; direction: rtl; }
+        .toast { position: absolute; top: 200px; left: 50%; transform: translateX(-50%) translateY(-14px); background: linear-gradient(135deg,#1a2a18,#102010); border: 1px solid #20a060; border-radius: 12px; padding: 9px 16px; color: #30d090; font-size: 12px; font-family: 'Heebo', sans-serif; white-space: nowrap; z-index: 50; opacity: 0; pointer-events: none; transition: all .3s; display: flex; align-items: center; gap: 6px; direction: rtl; }
         .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-        .navbar { 
-          position: fixed; 
-          bottom: 0; 
-          left: 50%; 
-          transform: translateX(-50%); 
-          width: 390px;
-          max-width: 100%;
-          background: #060610; 
-          border-top: 1px solid #14142a; 
-          padding: 9px 0 22px; 
-          display: flex; 
-          justify-content: space-around; 
-          align-items: center; 
-          z-index: 100; 
-          border-radius: 0 0 36px 36px; 
-          direction: rtl; 
-          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
-        }
-        
+        .navbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 390px; max-width: 100%; background: #060610; border-top: 1px solid #14142a; padding: 9px 0 22px; display: flex; justify-content: space-around; align-items: center; z-index: 100; border-radius: 0 0 36px 36px; direction: rtl; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7); }
         .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 5px; border-radius: 9px; transition: all .15s; min-width: 40px; }
         .nav-item.active { background: rgba(80,48,170,.12); }
         .nav-item i { font-size: 19px; color: #2e2e4e; transition: color .15s; }
@@ -502,13 +597,13 @@ export default function InstructorProfile() {
             <circle cx="215" cy="110" r="2.5" fill="#8040ff" opacity=".8"/>
           </svg>
           
-          {/* קפסולת נגן הלהיטים של HQ RADIO */}
+          {/* קפסולת נגן הלהיטים של רדיו אראגון משודרגת ניאון */}
           <div className={`hero-radio-capsule ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
             <div className="capsule-left">
               <div className="capsule-play-btn">
-                <i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i>
+                <i className={isPlaying ? "ti ti-player-pause-filled" : "ti ti-player-play-filled"}></i>
               </div>
-              <div className="capsule-text">HQ RADIO</div>
+              <div className="capsule-text">רדיו אראגון</div>
             </div>
             <div className="capsule-wave">
               <div className="capsule-wave-bar"></div>
@@ -521,7 +616,6 @@ export default function InstructorProfile() {
             <div className="ro"></div><div className="rm"></div><div className="rm2"></div>
             <div className="ric"></div><div className="rp"></div>
             
-            {/* נקודות הניאון המסתובבות כהלכה */}
             <div className="cyber-dots-purple"></div>
             <div className="cyber-dots-blue"></div>
             
@@ -575,6 +669,62 @@ export default function InstructorProfile() {
 
           <div className="divider"></div>
 
+          {/* 💻 סקשן ארנק הציוד האישי (שיקוף קבוע אקטיבי מעמוד חוגים - לקריאה בלבד) */}
+          <div className="gear-wallet-section">
+            <div className="gear-wallet-card">
+              <div className="gear-wallet-top">
+                <div className="gear-wallet-badge">⚙️ מטריצת חומרה</div>
+                <div className="gear-wallet-title-txt">ארנק ציוד שטח אקטיבי</div>
+              </div>
+              <div className="ins-gear-compact">
+                <div className="ins-gc-cell"><div className="ins-gc-lbl-wrap"><span>💻</span><span>מחשבים</span></div><span className="ins-gc-val">{myGear.laptops}</span></div>
+                <div className="ins-gc-cell"><div className="ins-gc-lbl-wrap"><span>📱</span><span>טאבלטים</span></div><span className="ins-gc-val">{myGear.tablets}</span></div>
+                <div className="ins-gc-cell"><div className="ins-gc-lbl-wrap"><span>🔌</span><span>מטענים</span></div><span className="ins-gc-val">{myGear.chargers}</span></div>
+                <div className="ins-gc-cell"><div className="ins-gc-lbl-wrap"><span>🖱️</span><span>עכברים</span></div><span className="ins-gc-val">{myGear.mice}</span></div>
+                <div className="ins-gc-cell"><div className="ins-gc-lbl-wrap"><span>📶</span><span>ראוטר</span></div><span className="ins-gc-val">{myGear.routers}</span></div>
+                <div className="ins-gc-cell"><div className="ins-gc-lbl-wrap"><span>🤖</span><span>רובוטים</span></div><span className="ins-gc-val" style={{ color: '#8b5cf6' }}>{myGear.robots || 0}</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="divider"></div>
+
+          {/* 🛠️ סקשן דיווח והיסטוריית תקלות חומרה משובץ בפרופיל */}
+          <div className="fault-section">
+            <div className="fault-card">
+              <div className="fault-msg">
+                <span>יש לך תקלה בציוד ? אנחנו כאן כדי לפתור! :)</span>
+                <span>🛠️</span>
+              </div>
+              <button type="button" className="fast-fault-btn" onClick={() => setIsFaultModalOpen(true)}>
+                <i className="ti ti-tool"></i> פתיחת תקלה במערכת
+              </button>
+
+              <div className="fault-history-title">🕒 היסטוריית תקלות וסטטוס חמ"ל</div>
+              <div className="fault-history-list">
+                {loadingFaults ? (
+                  <div style={{ fontSize: '11px', color: 'rgba(160,185,215,0.4)', padding: '6px 0' }}>טוען היסטוריית דיווחים...</div>
+                ) : myFaults.length === 0 ? (
+                  <div style={{ fontSize: '11px', color: 'rgba(160,185,215,0.3)', padding: '6px 0' }}>טרם דיווחת על חומרה תקולה</div>
+                ) : (
+                  myFaults.map(f => (
+                    <div key={f.id} className="fault-history-item">
+                      <div className="fault-history-main">
+                        <div className="fault-history-summary">{f.summary}</div>
+                        <div className="fault-history-desc">{f.description}</div>
+                      </div>
+                      <span className={`status-badge ${f.archived ? 'done' : 'wait'}`}>
+                        {f.archived ? '✓ בוצע' : '⏳ ממתין'}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="divider"></div>
+
           {/* INTERACTIVE CONFIGURATION SETTINGS ROWS */}
           <div className="settings-list">
             <div className="setting-row" onClick={() => setIsPassModalOpen(true)}>
@@ -619,27 +769,22 @@ export default function InstructorProfile() {
           {/* ACTIVE ACTION LOG TIMELINE HISTORY FLOW */}
           <div className="act-header">היסטוריית פעולות אחרונות</div>
           <div className="act-list">
-            <div className="act-row">
-              <div className="act-dot-wrap"><div className="act-dot coin"></div><div className="act-line"></div></div>
-              <div className="act-body">
-                <div className="act-text">הענקת 3 אראגונים לנועם כהן 🏆 (תלמיד מצטיין)</div>
-                <div className="act-time">היום, 17:32</div>
-              </div>
-            </div>
-            <div className="act-row">
-              <div className="act-dot-wrap"><div className="act-dot gift"></div><div className="act-line"></div></div>
-              <div className="act-body">
-                <div className="act-text">שינוי סטטוס מתנה ל'נמסר לילד' – רועי ששון (ג'ויסטיק)</div>
-                <div className="act-time">היום, 16:48</div>
-              </div>
-            </div>
-            <div className="act-row">
-              <div className="act-dot-wrap"><div className="act-dot delivery"></div><div className="act-line"></div></div>
-              <div className="act-body">
-                <div className="act-text">אישור קבלת שקית משלוח מתנות מהלוגיסטיקה 📦</div>
-                <div className="act-time">היום, 15:10</div>
-              </div>
-            </div>
+            {recentActions.length === 0 ? (
+              <div style={{ fontSize: '11.5px', color: '#3a3a5a', textAlign: 'center', padding: '10px 0' }}>אין פעולות אחרונות להצגה</div>
+            ) : (
+              recentActions.map(act => (
+                <div key={act.id} className="act-row">
+                  <div className="act-dot-wrap">
+                    <div className={`act-dot ${act.dotClass}`}></div>
+                    <div className="act-line"></div>
+                  </div>
+                  <div className="act-body">
+                    <div className="act-text">{act.text}</div>
+                    <div className="act-time">{act.time}</div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           <div style={{ height: '12px' }}></div>
@@ -673,6 +818,59 @@ export default function InstructorProfile() {
             </div>
           </div>
         </div>
+
+        {/* ─── 🟢 מודאל פתיחת תקלה מהיר למובייל ─── */}
+        {isFaultModalOpen && (
+          <div className="ins-modal-ov" onClick={(e) => e.target.className === 'ins-modal-ov' && setIsFaultModalOpen(false)}>
+            <div className="ins-mbox">
+              <button type="button" className="ins-modal-close" onClick={() => setIsFaultModalOpen(false)}>×</button>
+              
+              <div className="modal-head" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '10px', marginBottom: '14px' }}>
+                <div className="modal-title-text" style={{ fontSize: '14.5px', color: '#ff4560', fontWeight: '800' }}>🛠️ דיווח חומרה תקולה לחמ"ל</div>
+                <div className="modal-subtitle-text" style={{ fontSize: '11px', color: 'rgba(160,185,215,0.4)', marginTop: '2px' }}>הגורם המדווח: {instructorName}</div>
+              </div>
+
+              <form onSubmit={handleFaultSubmit}>
+                <div className="ins-mfr">
+                  <label className="ins-mfl" style={{ color: 'rgba(255,255,255,0.6)' }}>פרט מה התקלה (מלל חופשי)</label>
+                  <textarea 
+                    className="ins-mfi" 
+                    rows="3"
+                    required
+                    style={{ height: '70px', resize: 'none', padding: '8px', background: '#111f35', border: '1px solid rgba(255,255,255,0.25)', borderRadius: '6px', color: '#ffffff', fontSize: '12.5px' }}
+                    placeholder="למשל: ספק כוח שבור, מסך לא נדלק..."
+                    value={faultDescription}
+                    onChange={(e) => setFaultDescription(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ fontSize: '11px', color: '#ff4560', fontWeight: '700', marginBottom: '6px', textTransform: 'uppercase' }}>כמויות חומרה תקולה בספירה ידנית</div>
+                
+                <div className="ins-mini-grid">
+                  {GEAR_ITEMS.map(g => (
+                    <div key={g.key} className="ins-mg-box">
+                      <span className="ins-mg-lbl">{g.icon} {g.label}</span>
+                      <input 
+                        className="ins-mg-input" 
+                        type="number" 
+                        min="0" 
+                        value={faultGear[g.key]} 
+                        onChange={(e) => setFaultGear({ ...faultGear, [g.key]: parseInt(e.target.value, 10) || 0 })} 
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mf2" style={{ marginTop: '14px', gap: '8px' }}>
+                  <button type="button" className="mbtn-cancel" style={{ padding: '8px 16px', fontSize: '12.5px', borderRadius: '6px' }} onClick={() => setIsFaultModalOpen(false)}>ביטול</button>
+                  <button className="ins-update-btn" type="submit" style={{ flex: 1, padding: '8px 16px' }}>
+                    <i className="ti ti-tool"></i> שגר תקלה לחמ"ל
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* FEEDBACK APP ACTION TOAST WINDOW */}
         <div className={`toast ${toast.show ? 'show' : ''}`} id="toast">
