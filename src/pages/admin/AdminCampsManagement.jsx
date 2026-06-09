@@ -325,11 +325,42 @@ export default function AdminCampsManagement() {
 
   // ── מפעילים ואירועים (Handlers) ──
   const handleAddNewTrackLane = () => {
+    // 🟢 חלונית אישור לפני הוספת מסלול חדש ללוח
+    if (!window.confirm('האם להוסיף מסלול נוסף?')) return;
+    
     const nextIndex = tracks.length + 1;
     const nextTracks = [...tracks, { id: 'track_' + nextIndex, label: `מסלול ${nextIndex}` }];
     setTracks(nextTracks);
     localStorage.setItem('aragon_camp_tracks', JSON.stringify(nextTracks));
     showToast(`➕ מסלול ${nextIndex} נוסף כמערך תור אקטיבי בלוח`);
+  };
+
+  // 🟢 פונקציית מחיקת מסלול חכמה עם מערכת הגנה מפני קייטנות אקטיביות
+  const handleDeleteTrackLane = () => {
+    const trackNum = window.prompt('הזן את מספר המסלול שברצונך למחוק מתוך המסלולים הפתוחים (למשל: 3):');
+    if (!trackNum) return;
+
+    const targetTrackId = `track_${trackNum}`;
+    const trackExists = tracks.some(t => t.id === targetTrackId);
+
+    if (!trackExists) {
+      alert(`⚠️ שגיאה: מסלול מספר ${trackNum} לא נמצא במערכת הלוח הנוכחית.`);
+      return;
+    }
+
+    // 🛑 אבטחה קריטית: סריקה האם קיימות קייטנות שמשובצות פיזית על קו המסלול הזה
+    const hasCamps = camps.some(c => c.trackId === targetTrackId);
+    if (hasCamps) {
+      alert(`⚠️ פעולה חסומה: לא ניתן למחוק את מסלול ${trackNum} כיוון שקיימות עליו קייטנות פעילות! בשביל למחוק את המסלול, עליך למחוק תחילה את הקייטנות המשובצות עליו.`);
+      return;
+    }
+
+    if (!window.confirm(`האם אתה בטוח לחלוטין שברצונך להסיר לצמיתות את מסלול מספר ${trackNum} מהלוח?`)) return;
+
+    const nextTracks = tracks.filter(t => t.id !== targetTrackId);
+    setTracks(nextTracks);
+    localStorage.setItem('aragon_camp_tracks', JSON.stringify(nextTracks));
+    showToast(`🗑️ מסלול ${trackNum} הוסר בהצלחה מהלוח`);
   };
 
   const handleBuildBoardRoute = (e) => {
@@ -890,7 +921,7 @@ export default function AdminCampsManagement() {
         {/* WORKSPACE CONTENT ZONE */}
         <div className="content">
           <div className="camps-toolbar">
-            <div className="camps-toolbar-btn-group">
+          <div className="camps-toolbar-btn-group">
               <button className="ct-btn btn-build-board" onClick={() => setIsSetupModalOpen(true)}>
                 <i className="ti ti-calendar-plus"></i>הקם מסלול קייטנות
               </button>
@@ -901,6 +932,10 @@ export default function AdminCampsManagement() {
                   </button>
                   <button className="ct-btn btn-build-board" style={{ background: 'rgba(0, 200, 255, 0.05)', borderColor: 'rgba(0, 200, 255, 0.3)', color: '#00c8ff' }} onClick={handleAddNewTrackLane}>
                     <i className="ti ti-git-fork"></i>הוסף מסלול נוסף
+                  </button>
+                  {/* 🟢 כפתור מחק מסלול מותאם עם תג אדום ניאון להתרעה אסתטית */}
+                  <button className="ct-btn btn-reset-board" style={{ padding: '7px 16px' }} onClick={handleDeleteTrackLane}>
+                    <i className="ti ti-circle-minus"></i>מחק מסלול
                   </button>
                   <button className="ct-btn" style={{ background: 'rgba(245, 200, 66, 0.06)', borderColor: 'rgba(245, 200, 66, 0.35)', color: '#f5c842' }} onClick={() => setIsInfoModalOpen(true)}>
                     <i className="ti ti-info-circle"></i>תקן כח אדם
