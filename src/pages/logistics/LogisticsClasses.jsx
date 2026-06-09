@@ -27,15 +27,8 @@ export default function LogisticsClasses() {
   const [newLineManager, setNewLineManager] = useState('מנהל לוגיסטיקה');
   const [newLineGear, setNewLineGear] = useState({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 });
 
-  // 👨‍🏫 מאגר מדריכים וארנקי ציוד - טוען קווים זמניים מהזיכרון באופן מיידי
-  const [instructors, setInstructors] = useState(() => {
-    const savedPack = localStorage.getItem('aragon_classes_persistent_package');
-    if (savedPack) {
-      const parsed = JSON.parse(savedPack);
-      return parsed.tempLines || [];
-    }
-    return [];
-  });
+  // 👨‍🏫 מאגר מדריכים וארנקי ציוד מנוהל בריאל-טיים
+  const [instructors, setInstructors] = useState([]);
 
   // רשימת פריטי חומרה מאוחדת ומורחבת ל-6 פריטים
   const GEAR = [
@@ -66,35 +59,46 @@ export default function LogisticsClasses() {
     if (globalAudio) setIsPlaying(!globalAudio.paused);
   }, []);
 
-// 📥 שליפת מדריכים בכירים אמיתיים מ-Supabase ומיזוגם עם ארנקי הציוד השמורים
-useEffect(() => {
-  async function loadLiveInstructorsMatrix() {
+  // 📥 שליפת מדריכים וציוד אונליין משרתי הענן של Supabase
+  const loadLiveInstructorsMatrix = async () => {
     try {
       if (!supabase) return;
-      const { data, error } = await supabase
+      
+      // 1. שליפת המדריכים הקבועים מטבלת המשתמשים
+      const { data: dbUsers, error: usersErr } = await supabase
         .from('users')
         .select('username, full_name, city')
-        .eq('role', 'instructor'); // מושך מדריכים קבועים בלבד
+        .eq('role', 'instructor');
 
-      if (error) throw error;
+      if (usersErr) throw usersErr;
 
+      // 2. שליפת ארנקי הציוד החיים מתוך טבלת instructor_gear החדשה בענן
+      const { data: cloudGear, error: gearErr } = await supabase
+        .from('instructor_gear')
+        .select('*');
+
+      if (gearErr) throw gearErr;
+
+      const gearMap = {};
+      if (cloudGear) {
+        cloudGear.forEach(g => {
+          gearMap[g.username] = g;
+        });
+      }
+
+      // 3. משיכת הקווים הזמניים מתוך הזיכרון המקומי של המשרד
       const savedPack = localStorage.getItem('aragon_classes_persistent_package');
-      const localPackage = savedPack ? JSON.parse(savedPack) : { overrides: {}, tempLines: [] };
+      const localTempLines = savedPack ? (JSON.parse(savedPack).tempLines || []) : [];
 
-      const mappedDbInstructors = (data || []).map(u => {
+      // 4. מיזוג והצלבת נתוני החומרה לכל מדריך
+      const mappedDbInstructors = (dbUsers || []).map(u => {
         const uId = u.username;
-        const uName = u.full_name || u.username;
-        const uCity = u.city || 'סניף ארצי';
-
-        // משיכת כמויות ציוד שמורות מהזיכרון, או ערכי ברירת מחדל
-        const kit = localPackage.overrides[uId] || {
-          laptops: 10, tablets: 0, chargers: 10, mice: 10, routers: 1, robots: 0
-        };
+        const kit = gearMap[uId] || { laptops: 10, tablets: 0, chargers: 10, mice: 10, routers: 1, robots: 0 };
 
         return {
           id: uId,
-          name: uName,
-          city: uCity,
+          name: u.full_name || u.username,
+          city: u.city || 'סניף ארצי',
           laptops: kit.laptops,
           tablets: kit.tablets,
           chargers: kit.chargers,
@@ -105,32 +109,15 @@ useEffect(() => {
         };
       });
 
-      // מיזוג: שומרים על הקווים הזמניים הקיימים ומוסיפים את המדריכים מהדאטהבייס
-      setInstructors(prev => {
-        const currentTempLines = prev.filter(i => i.isTempLine);
-        return [...currentTempLines, ...mappedDbInstructors];
-      });
+      setInstructors([...localTempLines, ...mappedDbInstructors]);
     } catch (err) {
-      console.error("Error loading logistics instructors matrix:", err);
+      console.error("Error loading logistics instructors matrix from cloud:", err);
     }
-  }
-  loadLiveInstructorsMatrix();
-}, []);
+  };
 
-// 🟢 פונקציית עזר פנימית לנעילת המצב הנוכחי בזיכרון המכשיר בזמן אמת ללא סיכוני דריסה
-const saveCurrentMatrixToStorage = (updatedInstructors) => {
-  const tempLines = updatedInstructors.filter(i => i.isTempLine);
-  const overrides = {};
-  
-  updatedInstructors.filter(i => !i.isTempLine).forEach(i => {
-    overrides[i.id] = {
-      laptops: i.laptops, tablets: i.tablets, chargers: i.chargers,
-      mice: i.mice, routers: i.routers, robots: i.robots
-    };
-  });
-
-  localStorage.setItem('aragon_classes_persistent_package', JSON.stringify({ overrides, tempLines }));
-};
+  useEffect(() => {
+    loadLiveInstructorsMatrix();
+  }, []);
 
   const toggleRadioPlay = () => {
     const globalAudio = document.getElementById('hq-cyber-radio');
@@ -144,7 +131,6 @@ const saveCurrentMatrixToStorage = (updatedInstructors) => {
     return (p[0][0] + (p[1] ? p[1][0] : '')).toUpperCase();
   };
 
-  // מנוע חישוב אזהרות ופערי ציוד במזוודה מול כמות הלפטופים
   const getWarnings = (inst) => {
     const w = [];
     if (inst.chargers < inst.laptops) w.push(`חסרים ${inst.laptops - inst.chargers} מטענים`);
@@ -154,7 +140,6 @@ const saveCurrentMatrixToStorage = (updatedInstructors) => {
     return w;
   };
 
-  // פתיחת מודאל עדכון ארנק מדריך/קו
   const openModal = (id) => {
     setEditId(id);
     setDeltas({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 });
@@ -171,46 +156,63 @@ const saveCurrentMatrixToStorage = (updatedInstructors) => {
     setDeltas(prev => ({ ...prev, [key]: prev[key] + dir }));
   };
 
-  // שמירה ונעילת שינויים בארנק קיים
-  const applyUpdate = () => {
+  // ── 🟢 שמירה דינמית: עדכון וסנכרון כמויות אונליין ישירות לענן ──
+  const applyUpdate = async () => {
     if (!editId) return;
     const inst = instructors.find(i => i.id === editId);
-    let changed = [];
+    if (!inst) return;
 
-    GEAR.forEach(g => {
-      if (deltas[g.key] !== 0) {
-        const sign = deltas[g.key] > 0 ? '+' : '';
-        changed.push(`${g.label} ${sign}${deltas[g.key]}`);
+    const nextLaptops = inst.laptops + deltas.laptops;
+    const nextTablets = inst.tablets + deltas.tablets;
+    const nextChargers = inst.chargers + deltas.chargers;
+    const nextMice = inst.mice + deltas.mice;
+    const nextRouters = inst.routers + deltas.routers;
+    const nextRobots = inst.robots + deltas.robots;
+
+    if (inst.isTempLine) {
+      // עדכון מקומי לקווים זמניים
+      const nextState = instructors.map(i => i.id === editId ? {
+        ...i, laptops: nextLaptops, tablets: nextTablets, chargers: nextChargers, mice: nextMice, routers: nextRouters, robots: nextRobots
+      } : i);
+      setInstructors(nextState);
+      
+      const tempLines = nextState.filter(x => x.isTempLine);
+      const savedPack = localStorage.getItem('aragon_classes_persistent_package');
+      const localPackage = savedPack ? JSON.parse(savedPack) : { overrides: {}, tempLines: [] };
+      localStorage.setItem('aragon_classes_persistent_package', JSON.stringify({ ...localPackage, tempLines }));
+    } else {
+      // 🚀 סנכרון ישיר לענן עבור מדריכים קבועים ברשת!
+      try {
+        const { error } = await supabase
+          .from('instructor_gear')
+          .upsert({
+            username: editId,
+            laptops: nextLaptops,
+            tablets: nextTablets,
+            chargers: nextChargers,
+            mice: nextMice,
+            routers: nextRouters,
+            robots: nextRobots,
+            updated_at: new Date()
+          });
+
+        if (error) throw error;
+
+        // עדכון הסטייט המקומי במסך רק לאחר הצלחת הקריאה בענן
+        setInstructors(prev => prev.map(i => i.id === editId ? {
+          ...i, laptops: nextLaptops, tablets: nextTablets, chargers: nextChargers, mice: nextMice, routers: nextRouters, robots: nextRobots
+        } : i));
+      } catch (err) {
+        console.error(err);
+        showToast('⚠️ שגיאה חמורה בסנכרון כמויות הציוד לענן');
+        return;
       }
-    });
-
-    if (changed.length === 0) {
-      showToast('לא בוצעו שינויים בארנק');
-      return;
     }
 
-    setInstructors(prev => {
-      const nextState = prev.map(i => {
-        if (i.id !== editId) return i;
-        return {
-          ...i,
-          laptops: i.laptops + deltas.laptops,
-          tablets: i.tablets + deltas.tablets,
-          chargers: i.chargers + deltas.chargers,
-          mice: i.mice + deltas.mice,
-          routers: i.routers + deltas.routers,
-          robots: i.robots + deltas.robots
-        };
-      });
-      saveCurrentMatrixToStorage(nextState); // נעילת שינויי הכמויות בזיכרון המקומי מיד
-      return nextState;
-    });
-
     closeModal();
-    showToast(`ארנק הציוד של ${inst.name} עודכן בהצלחה ✓`);
+    showToast(`ארנק הציוד של ${inst.name} עודכן וסונכרן לענן בהצלחה ✓`);
   };
 
-  // לוגיקת יצירת קו זמני חדש והזרקתו ישירות למערך
   const handleCreateTempLine = (e) => {
     e.preventDefault();
     if (!newLineName.trim()) { showToast('נא להזין שם או מזהה עבור הקו הזמני'); return; }
@@ -230,16 +232,18 @@ const saveCurrentMatrixToStorage = (updatedInstructors) => {
 
     setInstructors(prev => {
       const nextState = [newCustomLine, ...prev];
-      saveCurrentMatrixToStorage(nextState); // נעילת הקו הזמני החדש בזיכרון מיד
+      const tempLines = nextState.filter(i => i.isTempLine);
+      const savedPack = localStorage.getItem('aragon_classes_persistent_package');
+      const localPackage = savedPack ? JSON.parse(savedPack) : { overrides: {}, tempLines: [] };
+      localStorage.setItem('aragon_classes_persistent_package', JSON.stringify({ ...localPackage, tempLines }));
       return nextState;
     });
+
     setIsAddLineModalOpen(false);
-    
     setNewLineName('');
     setNewLineManager('מנהל לוגיסטיקה');
     setNewLineGear({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, robots: 0 });
-    
-    showToast(`🚀 קו זמני חדש "${newCustomLine.name}" נוצר והתווסף למטריצה!`);
+    showToast(`🚀 קו זמני חדש "${newCustomLine.name}" נוצר והתווסף ללוח!`);
   };
 
   // חישוב מונים כלליים לפאנל הסיכום הצידי
@@ -254,7 +258,6 @@ const saveCurrentMatrixToStorage = (updatedInstructors) => {
   });
 
   const unbalancedInstructors = instructors.filter(i => getWarnings(i).length > 0);
-
   const editingInstructor = instructors.find(i => i.id === editId);
   const modalWarnings = editingInstructor ? getWarnings(editingInstructor) : [];
   const isModalUnbalanced = modalWarnings.length > 0;
@@ -268,7 +271,6 @@ const saveCurrentMatrixToStorage = (updatedInstructors) => {
         *{ box-sizing: border-box; margin: 0; padding: 0; }
         .hq-global-wrapper { width: 100%; height: 100vh; background: #040b18; display: flex; font-family: 'Heebo', sans-serif; color: rgba(220,235,255,0.92); direction: rtl; overflow: hidden; }
         
-        /* SIDEBAR */
         .sidebar { width: 78px; background: #070f1e; border-left: 1px solid rgba(0,212,255,0.1); display: flex; flex-direction: column; align-items: center; padding: 18px 0 14px; gap: 4px; flex-shrink: 0; z-index: 10; }
         .sb-logo { width: 38px; height: 38px; margin-bottom: 18px; cursor: pointer; }
         .sb-logo img { width: 100%; height: 100%; object-fit: contain; }
@@ -288,7 +290,6 @@ const saveCurrentMatrixToStorage = (updatedInstructors) => {
         @keyframes lp { 0%,100% { box-shadow: 0 0 0 0 rgba(0,229,160,0.5); } 60% { box-shadow: 0 0 0 5px rgba(0,229,160,0); } }
         .clk { font-family: 'Orbitron', monospace; font-size: 13px; color: #00d4ff; letter-spacing: 2px; font-weight: 600; }
 
-        /* BODY LAYOUT SPLIT (75% / 25%) */
         .classes-body { flex: 1; display: flex; flex-direction: row-reverse; overflow: hidden; }
         
         .filter-bar { padding: 11px 18px; border-bottom: 1px solid rgba(0,212,255,0.1); background: #070f1e; display: flex; align-items: center; gap: 10px; flex-shrink: 0; width: 100%; }
@@ -302,12 +303,10 @@ const saveCurrentMatrixToStorage = (updatedInstructors) => {
         .matrix-area { flex: 0 0 75%; display: flex; flex-direction: column; overflow: hidden; }
         .matrix-scroll { flex: 1; overflow-y: auto; padding: 16px 18px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 13px; align-content: start; }
 
-        /* CARDS EQUIPMENT MATRIX */
         .icard { border-radius: 12px; border: 1px solid rgba(0,212,255,0.1); background: #0c1729; padding: 15px 16px; position: relative; overflow: hidden; transition: all 0.25s; cursor: pointer; flex-shrink: 0; }
         .icard::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.2), transparent); }
         .icard:hover { border-color: rgba(0,212,255,0.25); transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
         
-        /* משתנה אם יש חריגת פער במזוודה או חריגת עודף */
         .icard.warn { border-color: rgba(255,140,66,0.55); animation: wp 2.5s ease-in-out infinite; }
         .icard.excess-warn { border-color: rgba(255,69,96,0.55); animation: ep 2.5s ease-in-out infinite; }
         .icard.temp-line-card { border-color: rgba(139, 92, 246, 0.4); background: linear-gradient(135deg, #0c1729 0%, rgba(139, 92, 246, 0.03) 100%); }
@@ -337,7 +336,6 @@ const saveCurrentMatrixToStorage = (updatedInstructors) => {
         .warn-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: rgba(255,140,66,0.06); border: 1px solid rgba(255,140,66,0.2); border-radius: 6px; font-size: 10px; color: #ff8c42; font-weight: 600; line-height: 1.4; margin-top: 4px; }
         .excess-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: rgba(255,69,96,0.06); border: 1px solid rgba(255,69,96,0.2); border-radius: 6px; font-size: 10px; color: #ff4560; font-weight: 600; line-height: 1.4; margin-top: 4px; }
 
-        /* SIDE PANEL LEFT (25%) */
         .panel { flex: 0 0 25%; display: flex; flex-direction: column; border-right: 1px solid rgba(0,212,255,0.1); overflow-y: auto; padding: 14px 13px; gap: 12px; background: #040b18; }
         .ps { background: #0c1729; border: 1px solid rgba(0,212,255,0.1); border-radius: 10px; padding: 13px 14px; position: relative; overflow: hidden; flex-shrink: 0; }
         .ps::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,212,255,0.18), transparent); }
@@ -354,7 +352,6 @@ const saveCurrentMatrixToStorage = (updatedInstructors) => {
         .ub-row:last-child { border-bottom: none; }
         .ub-av { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,140,66,0.1); border: 1px solid rgba(255,140,66,0.25); display: flex; align-items: center; justify-content: center; font-family: 'Orbitron', monospace; font-size: 9px; font-weight: 700; color: #ff8c42; flex-shrink: 0; }
 
-        /* MODALS */
         .modal-ov { display: none; position: fixed; inset: 0; background: rgba(4,11,24,0.9); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
         .modal-ov.open { display: flex; }
         .modal-box { background: #0c1729; border: 1px solid rgba(0,212,255,0.25); border-radius: 14px; padding: 26px; width: 480px; max-width: 96vw; box-shadow: 0 0 50px rgba(0,212,255,0.12); direction: rtl; position: relative; overflow: hidden; text-align: right; }
@@ -500,7 +497,7 @@ const saveCurrentMatrixToStorage = (updatedInstructors) => {
                 const w = getWarnings(inst);
                 const hw = w.length > 0;
                 
-                // 🟢 תנאי אזהרת עודף ציוד (מעל 15 מתוך 4 הרכיבים הראשיים)
+                // תנאי אזהרת עודף ציוד (מעל 15 מתוך 4 הרכיבים הראשיים)
                 const hasExcessGear = inst.laptops > 15 || inst.tablets > 15 || inst.chargers > 15 || inst.mice > 15;
 
                 return (
@@ -517,18 +514,20 @@ const saveCurrentMatrixToStorage = (updatedInstructors) => {
                         </div>
                       </div>
                       
-                      {/* 🟢 מיכל אייקונים מאוחד בצד שמאל הקיצוני של הכרטיסייה */}
                       <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '5px' }}>
                         {inst.isTempLine && (
                           <button
                             type="button"
                             style={{ background: 'rgba(255, 69, 96, 0.08)', border: '1px solid rgba(255, 69, 96, 0.3)', color: '#ff4560', fontSize: '9.5px', fontWeight: '800', padding: '3px 8px', borderRadius: '5px', cursor: 'pointer', fontFamily: 'Heebo' }}
                             onClick={(e) => {
-                              e.stopPropagation(); // מונע פתיחה של מודאל עריכת כמויות
+                              e.stopPropagation(); 
                               if (window.confirm(`האם אתה בטוח שברצונך למחוק ולהסיר את הקו הזמני "${inst.name}"?`)) {
                                 setInstructors(prev => {
                                   const nextState = prev.filter(x => x.id !== inst.id);
-                                  saveCurrentMatrixToStorage(nextState); // עדכון הזיכרון המקומי לאחר המחיקה
+                                  const tempLines = nextState.filter(x => x.isTempLine);
+                                  const savedPack = localStorage.getItem('aragon_classes_persistent_package');
+                                  const localPackage = savedPack ? JSON.parse(savedPack) : { overrides: {}, tempLines: [] };
+                                  localStorage.setItem('aragon_classes_persistent_package', JSON.stringify({ ...localPackage, tempLines }));
                                   return nextState;
                                 });
                                 showToast('הקו הזמני נמחק והוסר בהצלחה מהלוח 🗑️');
@@ -539,8 +538,7 @@ const saveCurrentMatrixToStorage = (updatedInstructors) => {
                           </button>
                         )}
                         {!inst.isTempLine && hw && <i className="ti ti-alert-triangle" style={{ color: '#ff8c42', fontSize: '16px' }} title="פער במזוודה"></i>}
-                        {/* 🟢 הוספת סימן קריאה אדום נוסף במידה ויש עודף ציוד מעל 15 יחידות */}
-                        {!inst.isTempLine && hasExcessGear && <i className="ti ti-alert-circle animate-pulse" style={{ color: '#ff4560', fontSize: '16px' }} title="אזהרת עודף ציוד"></i>}
+                        {!inst.isTempLine && hasExcessGear && <i className="ti ti-alert-circle" style={{ color: '#ff4560', fontSize: '16px' }} title="אזהרת עודף ציוד"></i>}
                       </div>
                     </div>
                     
@@ -553,7 +551,6 @@ const saveCurrentMatrixToStorage = (updatedInstructors) => {
                       <div className="gc-cell"><div className="gc-lbl-wrap"><span>🤖</span><span>רובוט</span></div><span className="gc-val" style={{ color: '#8b5cf6' }}>{inst.robots}</span></div>
                     </div>
                     {!inst.isTempLine && hw && <div className="warn-bar"><span>⚠</span><span>{w.join(' · ')}</span></div>}
-                    {/* 🟢 שורת התראת עודף טקסטואלית בתחתית הכרטיס */}
                     {!inst.isTempLine && hasExcessGear && <div className="excess-bar"><span>🚨</span><span>אזהרה: המדריך מחזיק מעל 15 פריטים מסוג מסוים במזוודה</span></div>}
                   </div>
                 );
