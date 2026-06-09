@@ -107,7 +107,6 @@ export default function InstructorProfile() {
 
         // טעינת היסטוריית תקלות הציוד והארנק הדיגיטלי האישי
         fetchMyFaultsData(fullName);
-        syncMyGearWallet();
 
         // 2. חישוב דינמי ממוקד: שליפת הקבוצות שמשויכות למדריך זה בלבד
         const { data: dbGroups } = await supabase
@@ -197,8 +196,14 @@ export default function InstructorProfile() {
     }
   };
 
+  // 🟢 טעינה ועדכון של נתוני הפרופיל והתקציבים מענן Supabase
   useEffect(() => {
     fetchProfileData();
+  }, [loggedUser]);
+
+  // 💻 טעינה מיידית ועצמאית של ארנק הציוד מה-localStorage ברגע עליית המסך ללא שיהוי של שרת
+  useEffect(() => {
+    syncMyGearWallet();
   }, [loggedUser]);
 
   // האזנה אקטיבית לשינויים מקומיים במלאי (במידה ומנהל הלוגיסטיקה מאשר החזרה ומזכה)
