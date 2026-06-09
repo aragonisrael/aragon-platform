@@ -29,7 +29,7 @@ export default function InstructorProfile() {
   const [loadingFaults, setLoadingFaults] = useState(true);
   const [faultGear, setFaultGear] = useState({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, suitcases: 0 });
 
-  // 💻 סטייט ייעודי לארנק הציוד האישי של המדריך (לקריאה בלבד בריאל-טיים)
+  // 💻 סטייט ייעודי לארנק הציוד האישי של המדריך - מסונכרן אונליין מול Supabase!
   const [myGear, setMyGear] = useState({ laptops: 10, tablets: 0, chargers: 10, mice: 10, routers: 1, robots: 0 });
 
   // Password Validation Field States
@@ -67,7 +67,6 @@ export default function InstructorProfile() {
 
       if (error) throw error;
       if (data) {
-        // מסנן ומציג רק תקלות שהמדריך הנוכחי פתח
         const filtered = data.filter(f => f.reporter === fullName || f.reporter === loggedUser);
         setMyFaults(filtered);
       }
@@ -78,52 +77,36 @@ export default function InstructorProfile() {
     }
   };
 
- // פונקציה לטעינה וסנכרון של ארנק הציוד האישי מתוך קובץ החוגים המרכזי
- const syncMyGearWallet = () => {
-  const savedPack = localStorage.getItem('aragon_classes_persistent_package');
-  if (savedPack) {
-    const localPackage = JSON.parse(savedPack);
-    
-    let gearData = null;
-    if (localPackage.overrides) {
-      // א. ניסיון התאמה ישיר לפי היוזר המחובר
-      if (localPackage.overrides[loggedUser]) {
-        gearData = localPackage.overrides[loggedUser];
-      } 
-      // ב. ניסיון התאמה לפי השם המלא בעברית
-      else if (localPackage.overrides[instructorName]) {
-        gearData = localPackage.overrides[instructorName];
-      } 
-      // ג. מנגנון סריקה חכם (Fuzzy Match) - פותר פערים כמו guide מול guide_aragon
-      else {
-        const matchedKey = Object.keys(localPackage.overrides).find(key => 
-          key.toLowerCase().includes(loggedUser.toLowerCase()) || 
-          loggedUser.toLowerCase().includes(key.toLowerCase())
-        );
-        if (matchedKey) {
-          gearData = localPackage.overrides[matchedKey];
-        }
-      }
-    }
+  // 🟢 פונקציה משודרגת: משיכת ארנק הציוד החי של המדריך משרתי הענן של Supabase
+  const fetchMyGearFromCloud = async () => {
+    try {
+      if (!supabase) return;
+      const { data, error } = await supabase
+        .from('instructor_gear')
+        .select('*')
+        .eq('username', loggedUser)
+        .single();
 
-    // אם נמצאו כמויות מעודכנות בזיכרון - נזריק אותן ישירות למסך
-    if (gearData) {
-      setMyGear({
-        laptops: gearData.laptops ?? 10,
-        tablets: gearData.tablets ?? 0,
-        chargers: gearData.chargers ?? 10,
-        mice: gearData.mice ?? 10,
-        routers: gearData.routers ?? 1,
-        robots: gearData.robots ?? 0
-      });
+      if (error && error.code !== 'PGRST116') throw error; // מתעלם משגיאת רשומה לא קיימת
+
+      if (data) {
+        setMyGear({
+          laptops: data.laptops ?? 10,
+          tablets: data.tablets ?? 0,
+          chargers: data.chargers ?? 10,
+          mice: data.mice ?? 10,
+          routers: data.routers ?? 1,
+          robots: data.robots ?? 0
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching live gear from cloud table:", err);
     }
-  }
-};
+  };
 
   // פונקציה מורחבת לטעינת נתוני הפרופיל, הסטטיסטיקות ולוג הפעולות החי מהענן
   const fetchProfileData = async () => {
     try {
-      // 1. שליפת פרטי המדריך, ארנק השקלים והסיסמה הנוכחית לאימות
       const { data: userData } = await supabase
         .from('users')
         .select('full_name, ils_balance, password')
@@ -136,13 +119,7 @@ export default function InstructorProfile() {
         setIlsBalance(userData.ils_balance || 0);
         setStoredPassword(userData.password || '12345678');
 
-        // טעינת היסטוריית תקלות הציוד והארנק הדיגיטלי האישי
         fetchMyFaultsData(fullName);
-        
-        // 🟢 ריענון אקטיבי של ארנק הציוד בשנייה שהשם נשלף בהצלחה
-        setTimeout(() => {
-          syncMyGearWallet();
-        }, 50);
 
         // 2. חישוב דינמי ממוקד: שליפת הקבוצות שמשויכות למדריך זה בלבד
         const { data: dbGroups } = await supabase
@@ -155,7 +132,6 @@ export default function InstructorProfile() {
           const groupIds = dbGroups.map(g => g.id);
 
           if (groupIds.length > 0) {
-            // שליפת כמות התלמידים שרשומים לקבוצות של המדריך הנוכחי
             const { data: dbStudents } = await supabase
               .from('users')
               .select('id')
@@ -171,11 +147,10 @@ export default function InstructorProfile() {
           }
         }
 
-        // 🟢 3. מנוע הלוג הדינמי: שאיבה ומיזוג של פעולות אמיתיות מהענן
+        // 3. מנוע הלוג הדינמי
         const actionsPool = [];
         const timeOptions = { hour: '2-digit', minute: '2-digit' };
 
-        // א': משיכת עדכוני חלוקת פרסים ומתנות של המדריך
         const { data: recentOrders } = await supabase
           .from('orders')
           .select('*')
@@ -200,7 +175,6 @@ export default function InstructorProfile() {
           });
         }
 
-        // ב': משיכת משימות ועדכוני רשת שהמדריך הפיץ לחניכים שלו
         const { data: recentTasks } = await supabase
           .from('admin_tasks')
           .select('*')
@@ -208,7 +182,6 @@ export default function InstructorProfile() {
           .order('id', { ascending: false });
 
         if (recentTasks) {
-          // מסנן רק משימות שהמדריך הנוכחי חתום עליהן בתוך שדה התיאור בשרת
           const myDispatchedTasks = recentTasks.filter(t => t.description?.includes(fullName)).slice(0, 4);
           
           myDispatchedTasks.forEach(t => {
@@ -223,7 +196,6 @@ export default function InstructorProfile() {
           });
         }
 
-        // סידור כרונולוגי של בריכת הפעולות מהחדש ביותר לישן ביותר
         actionsPool.sort((a, b) => b.dateObj - a.dateObj);
         setRecentActions(actionsPool.slice(0, 4));
       }
@@ -235,18 +207,8 @@ export default function InstructorProfile() {
   // 🟢 טעינה ועדכון של נתוני הפרופיל והתקציבים מענן Supabase
   useEffect(() => {
     fetchProfileData();
+    fetchMyGearFromCloud(); // 🟢 שליפת הציוד מהענן מיד עם טעינת הדף
   }, [loggedUser]);
-
-  // 💻 טעינה וסנכרון אקטיבי של ארנק הציוד - עוקב גם אחרי שם המשתמש וגם אחרי השם בעברית מהענן
-  useEffect(() => {
-    syncMyGearWallet();
-  }, [loggedUser, instructorName]);
-
-  // האזנה אקטיבית לשינויים מקומיים במלאי (במידה ומנהל הלוגיסטיקה מאשר החזרה ומזכה)
-  useEffect(() => {
-    window.addEventListener('storage', syncMyGearWallet);
-    return () => window.removeEventListener('storage', syncMyGearWallet);
-  }, []);
 
   // פונקציית שליחת תקלה חדשה לחמ"ל הלוגיסטי מתוך הפרופיל
   const handleFaultSubmit = async (e) => {
@@ -266,7 +228,7 @@ export default function InstructorProfile() {
       const { data, error } = await supabase
         .from('faults')
         .insert([{
-          reporter: instructorName, // חתימה אוטומטית של המדריך המחובר
+          reporter: instructorName,
           summary: formattedGear,
           description: faultDescription.trim() ? faultDescription.trim() : 'לא פורט',
           archived: false,
@@ -361,7 +323,7 @@ export default function InstructorProfile() {
   };
 
   const handleExecuteLogout = () => {
-    sessionStorage.removeItem('aragon_logged_user'); // ניקוי ה-Session בבטחה
+    sessionStorage.removeItem('aragon_logged_user');
     setIsLogoutModalOpen(false);
     setIsLoggedOut(true);
   };
@@ -442,7 +404,6 @@ export default function InstructorProfile() {
 
         .page-label { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; font-family: 'Orbitron',monospace; font-size: 11px; letter-spacing: 3px; color: #5060aa; }
 
-        /* 📻 שדרוג רדיו אראגון - מסגרת גרדיאנט ניאון וכפתור מודגש במובייל */
         .hero-radio-capsule {
           position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 10;
           display: flex; align-items: center; justify-content: space-between; width: 125px;
