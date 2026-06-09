@@ -78,34 +78,47 @@ export default function InstructorProfile() {
     }
   };
 
-  // פונקציה לטעינה וסנכרון של ארנק הציוד האישי מתוך קובץ החוגים המרכזי
-  const syncMyGearWallet = () => {
-    const savedPack = localStorage.getItem('aragon_classes_persistent_package');
-    if (savedPack) {
-      const localPackage = JSON.parse(savedPack);
-      
-      // 🟢 הצלבה דו-כיוונית חכמה: בודק קודם לפי שם משתמש באנגלית, ואז לפי שם מלא בעברית
-      let gearData = null;
-      if (localPackage.overrides) {
-        if (localPackage.overrides[loggedUser]) {
-          gearData = localPackage.overrides[loggedUser];
-        } else if (localPackage.overrides[instructorName]) {
-          gearData = localPackage.overrides[instructorName];
+ // פונקציה לטעינה וסנכרון של ארנק הציוד האישי מתוך קובץ החוגים המרכזי
+ const syncMyGearWallet = () => {
+  const savedPack = localStorage.getItem('aragon_classes_persistent_package');
+  if (savedPack) {
+    const localPackage = JSON.parse(savedPack);
+    
+    let gearData = null;
+    if (localPackage.overrides) {
+      // א. ניסיון התאמה ישיר לפי היוזר המחובר
+      if (localPackage.overrides[loggedUser]) {
+        gearData = localPackage.overrides[loggedUser];
+      } 
+      // ב. ניסיון התאמה לפי השם המלא בעברית
+      else if (localPackage.overrides[instructorName]) {
+        gearData = localPackage.overrides[instructorName];
+      } 
+      // ג. מנגנון סריקה חכם (Fuzzy Match) - פותר פערים כמו guide מול guide_aragon
+      else {
+        const matchedKey = Object.keys(localPackage.overrides).find(key => 
+          key.toLowerCase().includes(loggedUser.toLowerCase()) || 
+          loggedUser.toLowerCase().includes(key.toLowerCase())
+        );
+        if (matchedKey) {
+          gearData = localPackage.overrides[matchedKey];
         }
       }
-
-      if (gearData) {
-        setMyGear({
-          laptops: gearData.laptops ?? 10,
-          tablets: gearData.tablets ?? 0,
-          chargers: gearData.chargers ?? 10,
-          mice: gearData.mice ?? 10,
-          routers: gearData.routers ?? 1,
-          robots: gearData.robots ?? 0
-        });
-      }
     }
-  };
+
+    // אם נמצאו כמויות מעודכנות בזיכרון - נזריק אותן ישירות למסך
+    if (gearData) {
+      setMyGear({
+        laptops: gearData.laptops ?? 10,
+        tablets: gearData.tablets ?? 0,
+        chargers: gearData.chargers ?? 10,
+        mice: gearData.mice ?? 10,
+        routers: gearData.routers ?? 1,
+        robots: gearData.robots ?? 0
+      });
+    }
+  }
+};
 
   // פונקציה מורחבת לטעינת נתוני הפרופיל, הסטטיסטיקות ולוג הפעולות החי מהענן
   const fetchProfileData = async () => {
@@ -125,6 +138,11 @@ export default function InstructorProfile() {
 
         // טעינת היסטוריית תקלות הציוד והארנק הדיגיטלי האישי
         fetchMyFaultsData(fullName);
+        
+        // 🟢 ריענון אקטיבי של ארנק הציוד בשנייה שהשם נשלף בהצלחה
+        setTimeout(() => {
+          syncMyGearWallet();
+        }, 50);
 
         // 2. חישוב דינמי ממוקד: שליפת הקבוצות שמשויכות למדריך זה בלבד
         const { data: dbGroups } = await supabase
