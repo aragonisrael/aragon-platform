@@ -307,6 +307,12 @@ export default function StudentHome() {
         .arena-score span { color: #00e676; font-weight: 900; text-shadow: 0 0 6px rgba(0, 230, 118, 0.3); }
         .arena-btn-launch { font-family: 'Orbitron', sans-serif; font-size: 9.5px; font-weight: 700; background: linear-gradient(135deg, #00c8ff, #4f46e5); border: 1px solid rgba(0,200,255,0.3); border-radius: 7px; color: white; padding: 5px 12px; cursor: pointer; box-shadow: 0 0 10px rgba(0,200,255,0.2); }
 
+        /* 🟢 עיצוב ייעודי למשחק של סייבוט (ירוק ניאון חשמלי) */
+        .arena-card-green { background: linear-gradient(135deg, rgba(0, 229, 160, 0.05), rgba(4, 120, 87, 0.15)); border-color: rgba(0, 229, 160, 0.25); box-shadow: 0 0 15px rgba(0, 229, 160, 0.08); }
+        .arena-card-green:hover { border-color: #00e5a0; box-shadow: 0 0 20px rgba(0, 229, 160, 0.25); background: linear-gradient(135deg, rgba(0, 229, 160, 0.1), rgba(4, 120, 87, 0.2)); }
+        .arena-card-green .arena-title { color: #00e5a0; text-shadow: 0 0 8px rgba(0, 229, 160, 0.4); }
+        .arena-card-green .arena-btn-launch { background: linear-gradient(135deg, #00e5a0, #047857); border-color: rgba(0, 229, 160, 0.4); box-shadow: 0 0 12px rgba(0, 229, 160, 0.3); }
+
         .mini-stats { position: relative; z-index: 10; display: flex; gap: 8px; margin: 0 16px 8px; direction: rtl; }
         .stat-pill { flex: 1; background: rgba(124,58,237,0.12); border: 1px solid rgba(124,58,237,0.25); border-radius: 10px; padding: 6px 8px; text-align: center; }
         .stat-pill var { font-style: normal; }
@@ -506,6 +512,18 @@ export default function StudentHome() {
           <div className="arena-meta">
             <div className="arena-score">שיא חודשי: <span>{playerXp} XP</span></div>
             <button className="arena-btn-launch" type="button">כנס לקרב ⚔️</button>
+          </div>
+        </div>
+
+        {/* ⚡ כרטיסיית משחק החשמל של סייבוט (ירוק ניאון) */}
+        <div className="arena-card arena-card-green fu" style={{ animationDelay: '0.1s' }} onClick={() => navigate('/student/games/lights')}>
+          <div className="arena-header">
+            <span style={{ fontSize: '14px' }}>⚡</span>
+            <div className="arena-title">סייבוט · מתח גבוה</div>
+          </div>
+          <div className="arena-meta">
+            <div className="arena-score" style={{ color: 'rgba(0, 229, 160, 0.7)' }}>סטטוס: <span>מעגל פתוח</span></div>
+            <button className="arena-btn-launch" type="button">טען סוללה 🔋</button>
           </div>
         </div>
 

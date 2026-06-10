@@ -11,6 +11,7 @@ import StudentMissions from './pages/student/StudentMissions';
 import StudentProfile from './pages/student/StudentProfile';
 import StudentUpdates from './pages/student/StudentUpdates';
 import StudentHomeGame from './pages/student/StudentGame'; 
+import LightsGame from './pages/student/LightsGame'; // ודא שהנתיב לתיקייה מדויק
 
 // עמודי עולם המדריך 👨‍🏫
 import InstructorHome from './pages/instructor/InstructorHome';
