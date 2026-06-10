@@ -18,7 +18,7 @@ export default function LightsGame() {
 
       {/* הצינור שמציג את המשחק ישירות מתיקיית ה-public */}
       <iframe
-        src="/games/lights-game/index.html"
+        src="/lights-game/index.html"
         title="Lights Game"
         style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
         allow="autoplay; gamepad"
