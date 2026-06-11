@@ -75,7 +75,7 @@ export default function AdminInbox() {
         }));
       }
 
-      // 2. משיכת כל הקייטנות מטבלת camps הייעודית (תמיכה מלאה בשדות בית ספר יעד)
+      // 2. משיכת כל הקייטנות מטבלת camps הייעודית ממופה לפי שדות האמת המדויקים
       try {
         const { data: dbCamps } = await supabase.from('camps').select('*');
         if (dbCamps) {
@@ -84,12 +84,15 @@ export default function AdminInbox() {
             type: 'קייטנה',
             city: c.city || '',
             name: c.name || '',
-            dates: 'רישום בעיצומו',
-            hours: c.hours || '08:00 - 13:00',
+            // 🟢 שימוש בשדות start_date + end_date עבור תאריכי הקייטנה
+            dates: c.start_date && c.end_date ? `${c.start_date} - ${c.end_date}` : 'רישום בעיצומו',
+            // 🟢 שימוש בשדה net_hours עבור שעות הקייטנה
+            hours: c.net_hours || '08:00 - 13:00',
             price: 'סנכרון פורטל עירוני',
-            link: 'קישור חיצוני מוגדר',
-            // 🟢 שאיבת המיקום מכל קומבינציה אפשרית של שם בית ספר יעד בקייטנות לקציר מושלם
-            venue: c.school_target || c.target_school || c.school || c.venue || c.location || 'לא צוין'
+            // 🟢 הגדרת לינק ברירת המחדל המבוקש לרישום
+            link: c.registration_link || 'https://www.aragon.market/shop-1',
+            // 🟢 שימוש בשדה title עבור שם המוקד/המבנה
+            venue: c.title || 'לא צוין'
           }));
           mappedGroups = [...mappedGroups, ...mappedCamps];
         }
@@ -402,8 +405,8 @@ export default function AdminInbox() {
                       <div className="result-row"><span className="result-lbl">שעות משוערות:</span><span className="result-val">{g.hours}</span></div>
                       
                       <div className="action-button-group">
-                        <button className="quick-action-btn btn-blue" type="button" onClick={() => setTypedMessage(`הנה פרטי ה${g.type} של אראגון ב${g.city} (${g.venue}): הפעילות מוגדרת כעת בסטטוס [${g.dates}] בין השעות המתוכננות ${g.hours}. קישור ישיר לפורטל הרישום וההרשמה העירוני זמין עבורכם כעת!`)}>
-                          <i className="ti ti-send"></i> טען פרטים
+                        <button className="quick-action-btn btn-blue" type="button" onClick={() => setTypedMessage(`הנה פרטי ה${g.type} של אראגון ב${g.city} (${g.venue}):\n📅 תאריכים: ${g.dates}\n⏰ שעות פעילות: ${g.hours}\n🔗 לינק ישיר לרישום: ${g.link}`)}>
+                          <i className="ti ti-send"></i> טען פרטים + לינק
                         </button>
                         <button className="quick-action-btn btn-green" type="button" onClick={() => setRegisteringGroupId(registeringGroupId === g.id ? null : g.id)}>
                           <i className="ti ti-user-plus"></i> רשום ילד
