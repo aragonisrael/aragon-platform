@@ -68,6 +68,7 @@ export default function App() {
         <Route path="/instructor/profile" element={<ProtectedRoute allowedRoles={['instructor', 'temp_instructor']}><InstructorProfile /></ProtectedRoute>} />
         
         {/* 💻 עולם האדמין הראשי - כעת כולל את מסך ניהול כח האדם של הקייטנות */}
+        <Route path="/admin/brain" element={<ProtectedRoute allowedRoles={['admin']}><AdminBotBrain /></ProtectedRoute>} />
         <Route path="/admin/inbox" element={<ProtectedRoute allowedRoles={['admin']}><AdminInbox /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/shop" element={<ProtectedRoute allowedRoles={['admin']}><AdminShopLogistics /></ProtectedRoute>} />
