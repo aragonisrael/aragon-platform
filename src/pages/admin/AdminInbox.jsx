@@ -5,6 +5,14 @@ import aragonLogo from '../../assets/aragonlogo.png';
 export default function AdminInbox() {
   const navigate = useNavigate();
 
+  // 🟢 מערכת התראות צפות (Toast System) מתוקנת
+  const [toast, setToast] = useState({ show: false, message: '' });
+
+  const triggerToast = (msg) => {
+    setToast({ show: true, message: msg });
+    setTimeout(() => setToast({ show: false, message: '' }), 3000);
+  };
+
   // דאטה דמו עשיר כדי לראות את העיצוב חי באפליקציה
   const [chats, setChats] = useState([
     { id: 1, name: 'מיכל כהן (אמא של עמית)', source: 'whatsapp', service: 'קייטנות', lastMsg: 'מתי החוג היום בדיוק? הוא צריך לדעת מה להביא', time: '11:24', unread: true, city: 'ראשון לציון', child: 'עמית כהן (כיתה ד)', instructor: 'דניאל' },
@@ -107,6 +115,10 @@ export default function AdminInbox() {
         .btn-action-purple:hover { background: #f3e8ff; box-shadow: 0 2px 6px rgba(124,58,237,0.06); }
         .btn-action-cyan { color: #0891b2; border-color: #ecfeff; }
         .btn-action-cyan:hover { background: #ecfeff; box-shadow: 0 2px 6px rgba(8,145,178,0.06); }
+
+        /* מערכת התראות צפות */
+        .toast-container { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; pointer-events: none; }
+        .toast { background: #1e293b; border: 1px solid #3b82f6; border-radius: 10px; padding: 12px 20px; color: #ffffff; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
       `}</style>
 
       {/* סיידבר אדמין כללי */}
@@ -210,7 +222,8 @@ export default function AdminInbox() {
           {/* עמודה 3: פרופיל לקוח לוגיסטי חכם */}
           <div className="profile-sidebar">
             <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-              <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#f1f5f9', display: 'inline-flex', alignItems: 'center', justify-content: center, fontSize: '24px', border: '1px solid #e2e8f0', color: '#64748b' }}>👤</div>
+              {/* 🟢 התיקון פה: הוחלף ל-camelCase וסטרינגים תקניים לריאקט */}
+              <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#f1f5f9', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', border: '1px solid #e2e8f0', color: '#64748b' }}>👤</div>
               <div style={{ fontWeight: '800', fontSize: '15px', marginTop: '8px' }}>{activeChat.name.split(' ')[0]}</div>
             </div>
 
@@ -233,6 +246,17 @@ export default function AdminInbox() {
 
         </div>
       </div>
+
+      {/* 🟢 הזרקת רכיב ה-Toast לרינדור ההתראות החלון */}
+      {toast.show && (
+        <div className="toast-container">
+          <div className="toast">
+            <i className="ti ti-circle-check" style={{ color: '#10b981' }}></i>
+            <span>{toast.message}</span>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
