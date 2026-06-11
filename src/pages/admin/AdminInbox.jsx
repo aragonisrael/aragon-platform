@@ -53,28 +53,53 @@ export default function AdminInbox() {
   const activeChat = chats.find(c => c.id === selectedChatId) || chats[0];
   const currentMessages = customHistories[activeChat.id] || [];
 
-  // 🟢 פונקציית סנכרון נתונים מלאה בלייב מול השרת בענן
+  // 🟢 פונקציית סנכרון נתונים מלאה ומורחבת בלייב מול השרת בענן - חוגים וקייטנות יחד
   const fetchLiveDatabaseMatrix = async () => {
     try {
-      // 1. משיכת כל החוגים והקייטנות הקיימים שלכם
+      let mappedGroups = [];
+
+      // 1. משיכת כל החוגים מטבלת groups
       const { data: dbGroups } = await supabase.from('groups').select('*');
       if (dbGroups) {
-        const mapped = dbGroups.map(g => ({
+        mappedGroups = dbGroups.map(g => ({
           id: g.id,
-          // זיהוי אוטומטי אם זו קייטנה או חוג לפי השם
           type: g.name.includes('קייטנ') || g.name.includes('מחנה') ? 'קייטנה' : 'חוג',
-          city: g.city,
-          name: g.name,
+          city: g.city || '',
+          name: g.name || '',
           dates: g.status === 'green' ? 'פעיל כעת' : 'רישום בעיצומו',
           hours: `${Math.floor((g.start_min || 960)/60)}:00 - ${Math.floor(((g.start_min || 960) + (g.dur || 60))/60)}:00`,
           price: 'סנכרון פורטל עירוני',
           link: 'קישור חיצוני מוגדר',
-          venue: g.venue
+          // שאיבת המיקום מכל שדה אפשרי בחוגים
+          venue: g.venue || g.school || g.school_target || g.target_school || g.location || 'לא צוין'
         }));
-        setLiveGroups(mapped);
       }
 
-      // 2. משיכת כל החניכים מהטבלה המרכזית
+      // 2. משיכת כל הקייטנות מטבלת camps הייעודית (תמיכה מלאה בשדות בית ספר יעד)
+      try {
+        const { data: dbCamps } = await supabase.from('camps').select('*');
+        if (dbCamps) {
+          const mappedCamps = dbCamps.map(c => ({
+            id: c.id,
+            type: 'קייטנה',
+            city: c.city || '',
+            name: c.name || '',
+            dates: 'רישום בעיצומו',
+            hours: c.hours || '08:00 - 13:00',
+            price: 'סנכרון פורטל עירוני',
+            link: 'קישור חיצוני מוגדר',
+            // 🟢 שאיבת המיקום מכל קומבינציה אפשרית של שם בית ספר יעד בקייטנות לקציר מושלם
+            venue: c.school_target || c.target_school || c.school || c.venue || c.location || 'לא צוין'
+          }));
+          mappedGroups = [...mappedGroups, ...mappedCamps];
+        }
+      } catch (campsErr) {
+        console.log("Camps table schema check skipped or loaded inside groups");
+      }
+
+      setLiveGroups(mappedGroups);
+
+      // 3. משיכת כל החניכים מהטבלה המרכזית
       const { data: dbUsers } = await supabase.from('users').select('*').eq('role', 'student');
       if (dbUsers) {
         setLiveStudents(dbUsers);
@@ -112,14 +137,20 @@ export default function AdminInbox() {
     return finalUsername;
   };
 
-  // סינון דינמי מבוסס קלט מזכירה על בסיס נתוני האמת מהשרת (כולל מוקד ובית ספר יעד)
-  const filteredLiveGroups = liveGroups.filter(g => 
-    (g.city && g.city.includes(groupQuery)) || 
-    (g.name && g.name.includes(groupQuery)) || 
-    (g.type && g.type.includes(groupQuery)) ||
-    (g.venue && g.venue.includes(groupQuery))
+  // 🟢 מנוע חיפוש משוכלל וחסין אותיות קטנות/גדולות - סורק עיר, חוג, קייטנה, מוקד ובית ספר יעד במקביל
+  const filteredLiveGroups = liveGroups.filter(g => {
+    const query = groupQuery.trim().toLowerCase();
+    return (
+      (g.city && g.city.toLowerCase().includes(query)) || 
+      (g.name && g.name.toLowerCase().includes(query)) || 
+      (g.type && g.type.toLowerCase().includes(query)) ||
+      (g.venue && g.venue.toLowerCase().includes(query))
+    );
+  });
+  
+  const filteredLiveStudents = liveStudents.filter(s => 
+    s.full_name && s.full_name.toLowerCase().includes(studentQuery.trim().toLowerCase())
   );
-  const filteredLiveStudents = liveStudents.filter(s => s.full_name && s.full_name.includes(studentQuery));
 
   const aiSuggestion = activeChat.id === 1 
     ? `Customer: "היי, אפשר לקבל פרטים על קייטנת הקיץ שלכם?"\n\n🤖 סייבוט AI מציע טיוטה ייצוגית:\n"ברוכים הבאים לאראגון! ☀️ שמי בתאל משירות הלקוחות. בשביל שאני אתן לכם את המידע המדויק ביותר לגבי קייטנת הקיץ המטורפת שלנו, אשמח לדעת באיזו עיר אתם מעוניינים ברישום ובאיזו כיתה הילד/ה?"`
@@ -404,7 +435,7 @@ export default function AdminInbox() {
                   <div className="section-title">🗺️ מנוע איתור מוקד לפי כתובת לקוח</div>
                   <div className="fantasy-location-box">
                     <label style={{ fontWeight: '700', fontSize: '11px', display: 'block', marginBottom: '4px' }}>הזן כתובת מגורים של ההורה:</label>
-                    <input type="text" className="left-search-input" style={{ background: '#fff' }} placeholder="لדוגמה: הרצל 45, ראשון לציון" value={parentAddress} onChange={(e) => setParentAddress(e.target.value)} />
+                    <input type="text" className="left-search-input" style={{ background: '#fff' }} placeholder="לדוגמה: הרצל 45, ראשון לציון" value={parentAddress} onChange={(e) => setParentAddress(e.target.value)} />
                     {parentAddress && (
                       <div style={{ fontSize: '11.5px', color: '#0f766e', background: '#f0fdfa', padding: '8px', borderRadius: '6px', border: '1px solid #ccfbf1', marginTop: '8px' }}>
                         <i className="ti ti-navigation"></i> **מוקד אותר!** המיקום הקרוב ביותר הוא **בית ספר אלון**. מרחק נסיעה משוער: **4 דקות** | הליכה: **11 דקות**.
