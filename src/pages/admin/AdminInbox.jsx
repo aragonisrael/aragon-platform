@@ -112,8 +112,13 @@ export default function AdminInbox() {
     return finalUsername;
   };
 
-  // סינון דינמי מבוסס קלט מזכירה על בסיס נתוני האמת מהשרת
-  const filteredLiveGroups = liveGroups.filter(g => g.city.includes(groupQuery) || g.name.includes(groupQuery) || g.type.includes(groupQuery));
+  // סינון דינמי מבוסס קלט מזכירה על בסיס נתוני האמת מהשרת (כולל מוקד ובית ספר יעד)
+  const filteredLiveGroups = liveGroups.filter(g => 
+    (g.city && g.city.includes(groupQuery)) || 
+    (g.name && g.name.includes(groupQuery)) || 
+    (g.type && g.type.includes(groupQuery)) ||
+    (g.venue && g.venue.includes(groupQuery))
+  );
   const filteredLiveStudents = liveStudents.filter(s => s.full_name && s.full_name.includes(studentQuery));
 
   const aiSuggestion = activeChat.id === 1 
