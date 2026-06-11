@@ -47,6 +47,9 @@ export default function AdminGroupsList() {
 
   // שדה להוספת תלמיד בודד
   const [newStudentName, setNewStudentName] = useState('');
+  
+  // 🟢 סטייט להצגת פרטי גישה של חניך בחלונית פנימית
+  const [selectedStudentCreds, setSelectedStudentCreds] = useState(null);
 
   // מאגר הנתונים הדינמיים מהענן
   const [instructors, setInstructors] = useState([]);
@@ -89,7 +92,12 @@ export default function AdminGroupsList() {
         allStudents.forEach(s => {
           if (s.group_id) {
             if (!studentsMap[s.group_id]) studentsMap[s.group_id] = [];
-            studentsMap[s.group_id].push(s.full_name);
+            // 🟢 דחיפת אובייקט מלא הכולל פרטי גישה במקום רק שם מילולי
+            studentsMap[s.group_id].push({
+              full_name: s.full_name,
+              username: s.username,
+              password: s.password
+            });
           }
         });
         setGroupStudents(studentsMap);
@@ -706,9 +714,21 @@ export default function AdminGroupsList() {
               {/* טאב 1: ניהול והוספת תלמידים */}
               {modalTab === 1 && (
                 <div>
-                  <label className="flabel" style={{ display: 'block', fontSize: '11px', color: '#4a6080', marginBottom: '6px' }}>רשימת חניכים רשומים לקבוצה ({(groupStudents[selectedGroupId] || []).length})</label>
+                  <label className="flabel" style={{ display: 'block', fontSize: '11px', color: '#4a6080', marginBottom: '6px' }}>רשימת חניכים רשומים ({(groupStudents[selectedGroupId] || []).length}) — לחץ על חניך להצגת פרטי התחברות</label>
                   <div className="student-modal-list">
-                    {(groupStudents[selectedGroupId] || []).length > 0 ? (groupStudents[selectedGroupId] || []).map((student, idx) => <div className="student-modal-row" key={idx}><span>{idx + 1}. {student}</span><i className="ti ti-user-check" style={{ color: '#00e676', fontSize: '12px' }}></i></div>) : <div className="no-students-placeholder">⚠️ אין עדיין תלמידים רשומים בקבוצה זו</div>}
+                    {(groupStudents[selectedGroupId] || []).length > 0 ? (groupStudents[selectedGroupId] || []).map((student, idx) => (
+                      <div 
+                        className="student-modal-row" 
+                        key={idx} 
+                        onClick={() => setSelectedStudentCreds(student)} 
+                        style={{ cursor: 'pointer', transition: 'background 0.2s' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#0a1428'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <span>{idx + 1}. {student.full_name}</span>
+                        <i className="ti ti-key" style={{ color: '#00c8ff', fontSize: '13px' }}></i>
+                      </div>
+                    )) : <div className="no-students-placeholder">⚠️ אין עדיין תלמידים רשומים בקבוצה זו</div>}
                   </div>
                   <div className="mfield">
                     <label>רישום חניך בודד לקבוצה זו</label>
@@ -762,6 +782,38 @@ export default function AdminGroupsList() {
           <div className="toast" style={toast.isWarn ? { background: '#1a0404', borderColor: '#ff555566', color: '#ff5555' } : {}}>
             <i className={toast.isWarn ? "ti ti-alert-triangle" : "ti ti-circle-check"}></i>
             <span>{toast.message}</span>
+          </div>
+        </div>
+      )}
+
+      {/* 🟢 מודאל פנימי 3: חלונית פרטי גישה מאובטחים לחניך */}
+      {selectedStudentCreds && (
+        <div className="modal-bg" style={{ zIndex: 300 }} onClick={(e) => e.target.className === 'modal-bg' && setSelectedStudentCreds(null)}>
+          <div className="modal" style={{ width: '340px', border: '1.5px solid #00c8ff', boxShadow: '0 0 25px rgba(0, 200, 255, 0.25)' }}>
+            <div className="mhead">
+              <div className="mtitle" style={{ color: '#00e676' }}><i className="ti ti-shield-lock"></i> אימות נתוני חניך</div>
+              <button className="mclose" type="button" onClick={() => setSelectedStudentCreds(null)}><i className="ti ti-x"></i></button>
+            </div>
+            <div className="mbody" style={{ padding: '20px 8px', fontSize: '15px' }}>
+              <div style={{ marginBottom: '14px', borderBottom: '1px solid #1a2a4a', paddingBottom: '8px' }}>
+                <span style={{ color: '#88a0c0' }}>חניך: </span>
+                <span style={{ fontWeight: '900', color: '#e0f0ff' }}>{selectedStudentCreds.full_name}</span>
+              </div>
+              
+              <div style={{ marginBottom: '10px', display: 'flex', gap: '6px' }}>
+                <span style={{ color: '#4a6080', fontWeight: 'bold' }}>משתמש:</span>
+                <span style={{ color: '#00c8ff', fontFamily: 'monospace', fontWeight: '700', letterSpacing: '0.5px' }}>{selectedStudentCreds.username}</span>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <span style={{ color: '#4a6080', fontWeight: 'bold' }}>סיסמא:</span>
+                <span style={{ color: '#fbbf24', fontFamily: 'monospace', fontWeight: '700', letterSpacing: '0.5px' }}>{selectedStudentCreds.password}</span>
+              </div>
+              
+              <div className="mrow" style={{ marginTop: '24px' }}>
+                <button className="msave" style={{ background: 'linear-gradient(135deg, #061828, #0a2040)' }} type="button" onClick={() => setSelectedStudentCreds(null)}>סגור חלונית</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
