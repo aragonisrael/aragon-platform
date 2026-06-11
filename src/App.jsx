@@ -23,6 +23,7 @@ import InstructorSchedule from './pages/instructor/InstructorSchedule';
 import InstructorProfile from './pages/instructor/InstructorProfile';
 
 // עמודי עולם האדמין (ARAGON CENTER) 💻
+import AdminInbox from './pages/admin/AdminInbox';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminShopLogistics from './pages/admin/AdminShopLogistics';
 import AdminMissionsIncentives from './pages/admin/AdminMissionsIncentives';
@@ -67,6 +68,7 @@ export default function App() {
         <Route path="/instructor/profile" element={<ProtectedRoute allowedRoles={['instructor', 'temp_instructor']}><InstructorProfile /></ProtectedRoute>} />
         
         {/* 💻 עולם האדמין הראשי - כעת כולל את מסך ניהול כח האדם של הקייטנות */}
+        <Route path="/admin/inbox" element={<ProtectedRoute allowedRoles={['admin']}><AdminInbox /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/shop" element={<ProtectedRoute allowedRoles={['admin']}><AdminShopLogistics /></ProtectedRoute>} />
         <Route path="/admin/missions" element={<ProtectedRoute allowedRoles={['admin']}><AdminMissionsIncentives /></ProtectedRoute>} />
