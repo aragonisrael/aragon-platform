@@ -24,6 +24,7 @@ import InstructorProfile from './pages/instructor/InstructorProfile';
 
 // עמודי עולם האדמין (ARAGON CENTER) 💻
 import AdminInbox from './pages/admin/AdminInbox';
+import AdminBotBrain from './pages/admin/AdminBotBrain';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminShopLogistics from './pages/admin/AdminShopLogistics';
 import AdminMissionsIncentives from './pages/admin/AdminMissionsIncentives';
