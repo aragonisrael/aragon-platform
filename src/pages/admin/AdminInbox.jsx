@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+// 🟢 חיבור רשמי לצינור של Supabase
+import { supabase } from '../../supabaseClient';
 import aragonLogo from '../../assets/aragonlogo.png';
 
 export default function AdminInbox() {
@@ -12,19 +14,23 @@ export default function AdminInbox() {
     setTimeout(() => setToast({ show: false, message: '' }), 3000);
   };
 
-  // שליטה בטאבים של העמודה השמאלית (groups / students)
+  // בקרת הטאבים של העמודה השמאלית - groups או students
   const [leftTab, setLeftTab] = useState('groups');
 
-  // סטייט לניהול תיבות החיפוש בעמודה השמאלית
+  // סטייט לניהול תיבות החיפוש והמיקומים
   const [groupQuery, setGroupQuery] = useState('');
   const [studentQuery, setStudentQuery] = useState('');
   const [parentAddress, setParentAddress] = useState('');
 
-  // סטייט לרישום ילד מהיר בתוך כרטיס קבוצה (מחזיק את ה-ID או המפתח של הקבוצה הפתוחה לרישום)
+  // סטייט לרישום חניך מהיר בקבוצה
   const [registeringGroupId, setRegisteringGroupId] = useState(null);
   const [newStudentName, setNewStudentName] = useState('');
 
-  // דאטה דמו לצ'אטים (עמודה ימנית)
+  // מאגרי נתונים חיים מהדאטהבייס שלכם (Supabase)
+  const [liveGroups, setLiveGroups] = useState([]);
+  const [liveStudents, setLiveStudents] = useState([]);
+
+  // דאטה דמו לצ'אטים ומיילים (עד שנקשר את הצינור האוטומטי של Make)
   const [chats, setChats] = useState([
     { id: 1, name: 'מיכל כהן (פנייה חדשה)', source: 'whatsapp', service: 'קייטנות', lastMsg: 'היי, אפשר לקבל פרטים על קייטנת הקיץ שלכם?', time: '11:24', city: 'ראשון לציון' },
     { id: 2, name: 'יובל לוי (ליד מהאתר)', source: 'website_form', service: 'חוגים', lastMsg: 'בוואטסאפ יהיה לי מעולה, תודה!', time: '10:15', city: 'נס ציונה' },
@@ -34,86 +40,121 @@ export default function AdminInbox() {
   const [selectedChatId, setSelectedChatId] = useState(1);
   const [typedMessage, setTypedMessage] = useState('');
 
-  // 🟢 ניהול היסטוריית הודעות אמיתית לכל צ'אט (פותר את באג ה-AI והצגת הודעות פתיחה אוטומטיות)
-  const [chatHistories, setChatHistories] = useState({
-    1: [
-      { sender: 'customer', text: 'היי, אפשר לקבל פרטים על קייטנת הקיץ שלכם?', time: '11:24' }
-    ],
+  const [customHistories, setCustomHistories] = useState({
+    1: [{ sender: 'customer', text: 'היי, אפשר לקבל פרטים על קייטנת הקיץ שלכם?', time: '11:24' }],
     2: [
       { sender: 'system', text: '🤖 מערכת: ליד חדש נקלט מהאתר בהצלחה.', time: '10:12' },
       { sender: 'agent', text: 'שלום יובל! ברוכים הבאים לאראגון. כדי לחסוך לך זמן יקר פתחנו עבורך פנייה ישירה כאן. האם תעדיף לקבל את כל המידע המלא על החוגים כאן בוואטסאפ או שתרצה שנתאם שיחת טלפון קצרה? בכל מקרה, מיד שנציג אנושי יתפנה נמשיך לכתוב לך כאן.', time: '10:13' },
       { sender: 'customer', text: 'בוואטסאפ יהיה לי מעולה, תודה!', time: '10:15' }
     ],
-    3: [
-      { sender: 'customer', text: 'הילד שלי שכח את הסיסמה שלו למערכת של סייבוט', time: 'אתמול' }
-    ]
+    3: [{ sender: 'customer', text: 'הילד שלי שכח את הסיסמה שלו למערכת של סייבוט', time: 'אתמול' }]
   });
 
   const activeChat = chats.find(c => c.id === selectedChatId) || chats[0];
-  const currentMessages = chatHistories[activeChat.id] || [];
+  const currentMessages = customHistories[activeChat.id] || [];
 
-  // דאטה מאוחד של כל החוגים והקייטנות ברשת (חיפוש אחוד)
-  const mockGroups = [
-    { id: 'g1', type: 'קייטנה', city: 'ראשון לציון', name: 'קייטנת סייבר קיץ 2026', dates: '01.07 - 21.07', hours: '08:00 - 13:00', price: '1,250 ₪', link: 'https://rishon.muni.co.il/aragon', venue: 'בית ספר אלון' },
-    { id: 'g2', type: 'חוג', city: 'נס ציונה', name: 'חוג רובוטיקה שנתי ג׳-ד׳', dates: 'ספטמבר - יוני', hours: '16:30 - 18:00', price: '220 ₪ לחודש', link: 'https://nz.muni.co.il/aragon', venue: 'מתנ״ס לב המושבה' },
-    { id: 'g3', type: 'קייטנה', city: 'חולון', name: 'ממלכת הסייבר וההייטק (קייטנה)', dates: '01.07 - 21.07', hours: '08:00 - 13:00', price: '1,300 ₪', link: 'https://holon.muni.co.il/aragon', venue: 'מרכז קהילתי וולפסון' }
-  ];
+  // 🟢 פונקציית סנכרון נתונים מלאה בלייב מול השרת בענן
+  const fetchLiveDatabaseMatrix = async () => {
+    try {
+      // 1. משיכת כל החוגים והקייטנות הקיימים שלכם
+      const { data: dbGroups } = await supabase.from('groups').select('*');
+      if (dbGroups) {
+        const mapped = dbGroups.map(g => ({
+          id: g.id,
+          // זיהוי אוטומטי אם זו קייטנה או חוג לפי השם
+          type: g.name.includes('קייטנ') || g.name.includes('מחנה') ? 'קייטנה' : 'חוג',
+          city: g.city,
+          name: g.name,
+          dates: g.status === 'green' ? 'פעיל כעת' : 'רישום בעיצומו',
+          hours: `${Math.floor((g.start_min || 960)/60)}:00 - ${Math.floor(((g.start_min || 960) + (g.dur || 60))/60)}:00`,
+          price: 'סנכרון פורטל עירוני',
+          link: 'קישור חיצוני מוגדר',
+          venue: g.venue
+        }));
+        setLiveGroups(mapped);
+      }
 
-  // דאטה חניכים קיים ברשת
-  const [mockStudents, setMockStudents] = useState([
-    { full_name: 'עמית כהן', username: 'עמית.כהן', password: 'cyber776', group: 'קייטנת סייבר קיץ', city: 'ראשון לציון', instructor: 'דניאל' },
-    { full_name: 'שירה לוי', username: 'שירה.לוי', password: 'robot889', group: 'רובוטיקה ג׳-ד׳', city: 'נס ציונה', instructor: 'הדס' },
-    { full_name: 'רוני ואקנין', username: 'רוני.ואקנין', password: 'aragon123', group: 'ממלכת הסייבר', city: 'חולון', instructor: 'נועם' }
-  ]);
+      // 2. משיכת כל החניכים מהטבלה המרכזית
+      const { data: dbUsers } = await supabase.from('users').select('*').eq('role', 'student');
+      if (dbUsers) {
+        setLiveStudents(dbUsers);
+      }
+    } catch (err) {
+      console.error("Error loading server matrix:", err);
+    }
+  };
 
-  const filteredMockGroups = mockGroups.filter(g => g.city.includes(groupQuery) || g.name.includes(groupQuery) || g.type.includes(groupQuery));
-  const filteredMockStudents = mockStudents.filter(s => s.full_name.includes(studentQuery));
+  useEffect(() => {
+    fetchLiveDatabaseMatrix();
+  }, []);
 
-  // הודעות מונחות פרסונה של סייבוט AI בהתאם לצ'אט הפתוח
+  // 🟢 מחולל השמות הייחודיים בעברית חסין כפילויות ישירות מול Supabase
+  const generateUniqueHebrewUsername = async (fullName) => {
+    let baseUsername = fullName.trim().replace(/\s+/g, '.');
+    let finalUsername = baseUsername;
+    let counter = 1;
+    let isUnique = false;
+
+    while (!isUnique) {
+      const { data } = await supabase
+        .from('users')
+        .select('username')
+        .eq('username', finalUsername)
+        .maybeSingle();
+
+      if (!data) {
+        isUnique = true;
+      } else {
+        finalUsername = `${baseUsername}${counter}`;
+        counter++;
+      }
+    }
+    return finalUsername;
+  };
+
+  // סינון דינמי מבוסס קלט מזכירה על בסיס נתוני האמת מהשרת
+  const filteredLiveGroups = liveGroups.filter(g => g.city.includes(groupQuery) || g.name.includes(groupQuery) || g.type.includes(groupQuery));
+  const filteredLiveStudents = liveStudents.filter(s => s.full_name && s.full_name.includes(studentQuery));
+
   const aiSuggestion = activeChat.id === 1 
-    ? `ברוכים הבאים לאראגון! ☀️ שמי בתאל משירות הלקוחות. בשביל שאני אתן לכם את המידע המדויק ביותר לגבי קייטנת הקיץ המטורפת שלנו, אשמח לדעת באיזו עיר אתם מעוניינים ברישום ובאיזו כיתה הילד/ה?`
-    : `היי יובל! כאן בתאל, שמחה שנוח לך להתכתב בוואטסאפ. לגבי חוג הרובוטיקה שלנו בנס ציונה - הפעילות מתקיימת במתנ"ס לב המושבה. אשמח לדעת באיזו כיתה הילד כדי שאשלח לך את הסילבוס המדויק וקישור ישיר להרשמה לעירייה.`;
+    ? `Customer: "היי, אפשר לקבל פרטים על קייטנת הקיץ שלכם?"\n\n🤖 סייבוט AI מציע טיוטה ייצוגית:\n"ברוכים הבאים לאראגון! ☀️ שמי בתאל משירות הלקוחות. בשביל שאני אתן לכם את המידע המדויק ביותר לגבי קייטנת הקיץ המטורפת שלנו, אשמח לדעת באיזו עיר אתם מעוניינים ברישום ובאיזו כיתה הילד/ה?"`
+    : `Customer: "בוואטסאפ יהיה לי מעולה, תודה!"\n\n🤖 סייבוט AI מציע טיוטה ייצוגית:\n"מעולה יובל, כאן בתאל. שמחה שנוח לך להתכתב בוואטסאפ! לגבי חוגי המדע והסייבר שלנו - אשמח לדעת בן כמה הילד/ה שמתעניינים כדי שאציע לך את הקבוצה המדויקת ביותר עבורו?"`;
 
-  // פונקציית שליחת הודעה ידנית מהתיבה של בתאל לקבוצה
   const handleSendMessage = () => {
     if (!typedMessage.trim()) return;
-
     const newMsg = { sender: 'agent', text: typedMessage, time: 'עכשיו' };
-    
-    // עדכון היסטוריית ההודעות של הצ'אט הספציפי
-    setChatHistories(prev => ({
-      ...prev,
-      [activeChat.id]: [...(prev[activeChat.id] || []), newMsg]
-    }));
-
-    // עדכון ההודעה האחרונה ברשימת השיחות בצד
-    setChats(prev => prev.map(c => c.id === activeChat.id ? { ...c, lastMsg: typedMessage } : c));
-    
+    setCustomHistories(prev => ({ ...prev, [activeChat.id]: [...(prev[activeChat.id] || []), newMsg] }));
     setTypedMessage('');
     triggerToast('ההודעה שוגרה בהצלחה לוואטסאפ של הלקוח!');
   };
 
-  // פונקציית הקמת חניך מהירה בעברית מתוך כרטיס קבוצה
-  const handleInlineRegisterStudent = (groupObj) => {
+  // 🟢 הקמת משתמש חניך אמיתי בתוך Supabase ישירות מכרטיס קבוצה!
+  const handleInlineRegisterStudent = async (groupObj) => {
     if (!newStudentName.trim()) {
       triggerToast('נא להזין שם מלא לחניך');
       return;
     }
 
-    const generatedUsername = newStudentName.trim().replace(/\s+/g, '.');
-    const newStudentObj = {
-      full_name: newStudentName.trim(),
-      username: generatedUsername,
-      password: '12345678', // סיסמת ברירת מחדל
-      group: groupObj.name,
-      city: groupObj.city,
-      instructor: 'טרם נקבע'
-    };
+    try {
+      const generatedUsername = await generateUniqueHebrewUsername(newStudentName);
+      
+      await supabase.from('users').insert([{
+        username: generatedUsername,
+        password: '12345678', // סיסמה התחלתית שניתן למשוך בכל רגע
+        role: 'student',
+        full_name: newStudentName.trim(),
+        group_id: groupObj.id,
+        coins: 0
+      }]);
 
-    setMockStudents(prev => [...prev, newStudentObj]);
-    setRegisteringGroupId(null);
-    setNewStudentName('');
-    triggerToast(`החשבון עבור ${newStudentObj.full_name} הוקם בהצלחה בענן! משתמש: ${generatedUsername}`);
+      await fetchLiveDatabaseMatrix(); // ריענון המאגרים
+      setRegisteringGroupId(null);
+      setNewStudentName('');
+      triggerToast(`החשבון עבור ${newStudentName.trim()} הוקם בהצלחה בשרת! משתמש: ${generatedUsername}`);
+    } catch (err) {
+      console.error(err);
+      triggerToast('❌ תקלה ברישום החניך בענן');
+    }
   };
 
   return (
@@ -138,7 +179,6 @@ export default function AdminInbox() {
 
         .inbox-grid { flex: 1; display: flex; overflow: hidden; background: #f8fafc; }
 
-        /* עמודה 1: רשימת שיחות */
         .chats-sidebar { width: 300px; background: #ffffff; border-left: 1px solid #e2e8f0; display: flex; flex-direction: column; }
         .sidebar-search-box { padding: 14px; border-bottom: 1px solid #f1f5f9; }
         .search-input { width: 100%; padding: 8px 12px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; }
@@ -156,7 +196,6 @@ export default function AdminInbox() {
         .tag-form { background: #e0f2fe; color: #0369a1; }
         .tag-email { background: #f3e8ff; color: #6b21a8; }
 
-        /* עמודה 2: חלון הצ'אט */
         .chat-window { flex: 1; display: flex; flex-direction: column; background: #f8fafc; border-left: 1px solid #e2e8f0; }
         .chat-window-header { padding: 16px 20px; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
         .chat-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
@@ -164,27 +203,25 @@ export default function AdminInbox() {
         .msg-bubble { max-width: 70%; padding: 10px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.5; }
         .msg-customer { background: #ffffff; align-self: flex-start; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.01); }
         .msg-agent { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #ffffff; align-self: flex-end; box-shadow: 0 2px 4px rgba(37,99,235,0.05); }
-        .msg-system { background: #fffbeb; border: 1px solid #fef3c7; color: #b45309; align-self: center; font-size: 12px; font-weight: 500; border-radius: 6px; padding: 4px 12px; }
+        .msg-system { background: #fffbeb; border: 1px solid #fef3c7; color: #b45309; align-self: center; font-size: 12px; font-weight: 500; border-radius: 6px; padding: 4px 12px; text-align: center; max-width: 90%; }
 
-        /* תיבת סייבוט AI */
         .ai-assistant-box { margin: 0 20px 12px; background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border: 1px dashed #10b981; border-radius: 12px; padding: 14px; }
         .ai-box-header { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; color: #059669; margin-bottom: 6px; }
-        .ai-box-text { font-size: 13px; color: #065f46; line-height: 1.5; margin-bottom: 10px; }
+        .ai-box-text { font-size: 13px; color: #065f46; line-height: 1.5; margin-bottom: 10px; white-space: pre-line; }
         .btn-ai-approve { background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
 
         .chat-input-area { padding: 16px 20px; background: #ffffff; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; align-items: center; }
         .message-input { flex: 1; padding: 10px 14px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13.5px; outline: none; }
         .btn-send { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; }
 
-        /* עמודה 3: האולר השווייצרי המבצעי (שמאל) */
-        .profile-sidebar { width: 340px; background: #ffffff; display: flex; flex-direction: column; overflow: hidden; }
+        .profile-sidebar { width: 340px; background: #ffffff; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid #e2e8f0; }
         .left-tab-bar { display: flex; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
         .left-tab-btn { flex: 1; padding: 12px; text-align: center; border: none; background: transparent; font-size: 13px; font-weight: 700; color: #64748b; cursor: pointer; transition: all 0.2s; }
         .left-tab-btn.active { background: #ffffff; color: #3b82f6; border-bottom: 2px solid #3b82f6; }
         .left-pane-content { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
         
-        /* 🟢 התיקון האבסולוטי של שדות החיפוש בצד שמאל - מניעת קפיצות ויזואליות ודחיפת קוד */
-        .left-search-input { width: 100%; height: 38px; padding: 0 12px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; transition: border-color 0.2s; }
+        /* 🟢 מניעת באג קפיצת השדות - רוחב קבוע ויציב */
+        .left-search-input { width: 100%; height: 38px; padding: 0 12px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; }
         .left-search-input:focus { border-color: #3b82f6; background: #ffffff; }
 
         .section-title { font-size: 11.5px; font-weight: 800; color: #94a3b8; letter-spacing: 0.5px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-top: 2px; }
@@ -205,8 +242,7 @@ export default function AdminInbox() {
         .btn-purple { color: #7c3aed; border-color: #e9d5ff; } .btn-purple:hover { background: #f3e8ff; }
         .btn-green { color: #16a34a; border-color: #bbf7d0; } .btn-green:hover { background: #f0fdf4; }
 
-        /* אזור רישום חניך מובנה */
-        .inline-registration-box { background: #ffffff; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+        .inline-registration-box { background: #ffffff; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; margin-top: 6px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
 
         .fantasy-location-box { background: linear-gradient(135deg, #eff6ff, #f0fdfa); border: 1px solid #bae6fd; border-radius: 8px; padding: 12px; font-size: 12.5px; }
 
@@ -227,13 +263,12 @@ export default function AdminInbox() {
       </div>
 
       <div className="main-col">
-        {/* טופ בר */}
         <div className="top-bar">
           <div>
             <div className="brand-title">ARAGON INTERACTIVE INBOX</div>
             <div className="brand-sub">חמ''ל מבצעי אחוד לשירות לוגיסטי מהיר</div>
           </div>
-          <div style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }}>📟 קו חברה מאובטח</div>
+          <div style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }} onClick={fetchLiveDatabaseMatrix} style={{cursor:'pointer'}}>🔄 רענן מאגרים מהענן</div>
         </div>
 
         <div className="inbox-grid">
@@ -268,7 +303,6 @@ export default function AdminInbox() {
               <div style={{ fontSize: '12px', color: '#64748b' }}>סטטוס: <span style={{ color: '#ec9a06', fontWeight: '700' }}>שיחה פתוחה</span></div>
             </div>
 
-            {/* ציר זמן הודעות חסין באגים */}
             <div className="chat-area">
               {currentMessages.map((m, idx) => (
                 <div key={idx} className={`msg-bubble msg-${m.sender}`}>
@@ -277,13 +311,13 @@ export default function AdminInbox() {
               ))}
             </div>
 
-            {/* קופסת הצעת סייבוט AI - 🟢 תוקן: טוען רק כטיוטה ולא משגר אוטומטית לציר הזמן */}
+            {/* קופסת הצעת סייבוט AI - טוענת לתיבה בלבד ללא שיגור אוטומטי */}
             <div className="ai-assistant-box">
               <div className="ai-box-header"><i className="ti ti-robot"></i> הצעת עוזר השירות סייבוט AI (בתאל משירות הלקוחות)</div>
               <div className="ai-box-text">{aiSuggestion}</div>
               <div className="ai-box-actions">
-                <button className="btn-ai-approve" type="button" onClick={() => setTypedMessage(aiSuggestion)}>
-                  ✨ טען כטיוטה לעריכה ושליחה ידנית
+                <button className="btn-ai-approve" type="button" onClick={() => setTypedMessage(aiSuggestion.split('\n\n')[2]?.replace(/"/g, '') || aiSuggestion)}>
+                  ✨ טען כטיוטה לתיבת הקלדה של בתאל
                 </button>
               </div>
             </div>
@@ -300,19 +334,18 @@ export default function AdminInbox() {
             </div>
           </div>
 
-          {/* עמודה 3: האולר השווייצרי המבצעי של המזכירה (שמאל) */}
+          {/* עמודה 3: האולר השווייצרי המבצעי (שמאל) */}
           <div className="profile-sidebar">
             <div className="left-tab-bar">
-              <button className={`left-tab-btn ${leftTab === 'groups' ? 'active' : ''}`} type="button" onClick={() => setLeftTab('groups')}><i className="ti ti-search"></i> חוגים וקייטנות</button>
-              <button className={`left-tab-btn ${leftTab === 'students' ? 'active' : ''}`} type="button" onClick={() => setLeftTab('students')}><i className="ti ti-user-search"></i> איתור חניך ברשת</button>
+              <button className={`left-tab-btn ${leftTab === 'groups' ? 'active' : ''}`} type="button" onClick={() => setLeftTab('groups')}><i className="ti ti-search"></i> חוגים וקייטנות ({filteredLiveGroups.length})</button>
+              <button className={`left-tab-btn ${leftTab === 'students' ? 'active' : ''}`} type="button" onClick={() => setLeftTab('students')}><i className="ti ti-user-search"></i> איתור חניך ({filteredLiveStudents.length})</button>
             </div>
 
             <div className="left-pane-content">
               
-              {/* טאב 1: חיפוש אחוד של כל החוגים והקייטנות ברשת */}
+              {/* טאב 1: חיפוש אחוד של כל החוגים והקייטנות החיים ב-Supabase */}
               {leftTab === 'groups' && (
                 <>
-                  {/* 🟢 התיקון הוויזואלי פה: שימוש ב-left-search-input היציב שמונע קפיצות */}
                   <input 
                     type="text" 
                     className="left-search-input" 
@@ -321,36 +354,35 @@ export default function AdminInbox() {
                     onChange={(e) => setGroupQuery(e.target.value)}
                   />
                   
-                  <div className="section-title">תוצאות חוגים וקייטנות (מערכת מאוחדת)</div>
-                  {filteredMockGroups.map((g, idx) => (
+                  <div className="section-title">תוצאות מהשרת בענן</div>
+                  {filteredLiveGroups.map((g, idx) => (
                     <div className="result-card" key={idx}>
                       <div className="result-card-title">
                         <span>📍 {g.name}</span>
                         <span className={`result-type-badge ${g.type === 'קייטנה' ? 'badge-camp' : 'badge-class'}`}>{g.type}</span>
                       </div>
-                      <div className="result-row"><span className="result-lbl">עיר ומוקד:</span><span className="result-val">{g.city} — {g.venue}</span></div>
-                      <div className="result-row"><span className="result-lbl">תאריכים:</span><span className="result-val">{g.dates}</span></div>
-                      <div className="result-row"><span className="result-lbl">שעות פעילות:</span><span className="result-val">{g.hours}</span></div>
-                      <div className="result-row"><span className="result-lbl">עלות שירות:</span><span className="result-val" style={{ color: '#16a34a' }}>{g.price}</span></div>
+                      <div className="result-row"><span className="result-lbl">מוקד / מבנה:</span><span className="result-val">{g.venue || 'לא צוין'}</span></div>
+                      <div className="result-row"><span className="result-lbl">סטטוס מוקד:</span><span className="result-val">{g.dates}</span></div>
+                      <div className="result-row"><span className="result-lbl">שעות משוערות:</span><span className="result-val">{g.hours}</span></div>
                       
                       <div className="action-button-group">
-                        <button className="quick-action-btn btn-blue" type="button" onClick={() => setTypedMessage(`הנה פרטי ה${g.type} של אראגון ב${g.city} (${g.venue}): הפעילות מתקיימת בתאריכים ${g.dates} בין השעות ${g.hours}. קישור הרשמה ותשלום מאובטח בפורטל העירייה: ${g.link}`)}>
-                          <i className="ti ti-send"></i> שלח פרטים לקוח
+                        <button className="quick-action-btn btn-blue" type="button" onClick={() => setTypedMessage(`הנה פרטי ה${g.type} של אראגון ב${g.city} (${g.venue}): הפעילות מוגדרת כעת בסטטוס [${g.dates}] בין השעות המתוכננות ${g.hours}. קישור ישיר לפורטל הרישום וההרשמה העירוני זמין עבורכם כעת!`)}>
+                          <i className="ti ti-send"></i> טען פרטים
                         </button>
                         <button className="quick-action-btn btn-green" type="button" onClick={() => setRegisteringGroupId(registeringGroupId === g.id ? null : g.id)}>
                           <i className="ti ti-user-plus"></i> רשום ילד
                         </button>
                       </div>
 
-                      {/* 🟢 מנוע הקמת חשבון מהיר לחניך ישירות לתוך הקבוצה הנבחרת */}
+                      {/* מנוע הקמת חשבון חניך חדש בלייב לענן */}
                       {registeringGroupId === g.id && (
                         <div className="inline-registration-box">
-                          <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#16a34a' }}>הקמת חשבון חניך חדש בקבוצה זו:</label>
+                          <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#16a34a' }}>הקמת חשבון חניך חדש בענן:</label>
                           <input 
                             type="text" 
                             className="left-search-input" 
                             style={{ height: '32px', fontSize: '12px' }}
-                            placeholder="הקלד שם פרטי ומשפחה של הילד..." 
+                            placeholder="שם פרטי ומשפחה של הילד..." 
                             value={newStudentName}
                             onChange={(e) => setNewStudentName(e.target.value)}
                           />
@@ -367,23 +399,19 @@ export default function AdminInbox() {
                   <div className="section-title">🗺️ מנוע איתור מוקד לפי כתובת לקוח</div>
                   <div className="fantasy-location-box">
                     <label style={{ fontWeight: '700', fontSize: '11px', display: 'block', marginBottom: '4px' }}>הזן כתובת מגורים של ההורה:</label>
-                    <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
-                      {/* 🟢 תוקן: שימוש ב-left-search-input היציב */}
-                      <input type="text" className="left-search-input" style={{ background: '#fff' }} placeholder="לדוגמה: הרצל 45, ראשון לציון" value={parentAddress} onChange={(e) => setParentAddress(e.target.value)} />
-                    </div>
+                    <input type="text" className="left-search-input" style={{ background: '#fff' }} placeholder="لדוגמה: הרצל 45, ראשון לציון" value={parentAddress} onChange={(e) => setParentAddress(e.target.value)} />
                     {parentAddress && (
-                      <div style={{ fontSize: '11.5px', color: '#0f766e', background: '#f0fdfa', padding: '8px', borderRadius: '6px', border: '1px solid #ccfbf1' }}>
-                        <i className="ti ti-navigation"></i> **מוקד אותר!** המיקום הקרוב ביותר הוא **בית ספר אלון** (תרמ"ב 12). מרחק נסיעה משוער: **4 דקות** | הליכה: **11 דקות**.
+                      <div style={{ fontSize: '11.5px', color: '#0f766e', background: '#f0fdfa', padding: '8px', borderRadius: '6px', border: '1px solid #ccfbf1', marginTop: '8px' }}>
+                        <i className="ti ti-navigation"></i> **מוקד אותר!** המיקום הקרוב ביותר הוא **בית ספר אלון**. מרחק נסיעה משוער: **4 דקות** | הליכה: **11 דקות**.
                       </div>
                     )}
                   </div>
                 </>
               )}
 
-              {/* טאב 2: איתור חניך מכלל הרשת ושליפת נתונים */}
+              {/* טאב 2: איתור חניך אמיתי מכלל הרשת ושליפת נתונים */}
               {leftTab === 'students' && (
                 <>
-                  {/* 🟢 תוקן: שימוש ב-left-search-input היציב */}
                   <input 
                     type="text" 
                     className="left-search-input" 
@@ -392,17 +420,16 @@ export default function AdminInbox() {
                     onChange={(e) => setStudentQuery(e.target.value)}
                   />
                   
-                  <div className="section-title">רשומות משתמשים ואישורים (Supabase)</div>
-                  {filteredMockStudents.map((s, idx) => (
+                  <div className="section-title">רשומות משתמשים חיים (Supabase)</div>
+                  {filteredLiveStudents.map((s, idx) => (
                     <div className="result-card" key={idx} style={{ borderLeft: '3px solid #7c3aed' }}>
                       <div className="result-card-title"><span>👤 {s.full_name}</span><span style={{ fontSize: '11px', background: '#f3e8ff', color: '#7c3aed', padding: '1px 5px', borderRadius: '4px' }}>חניך רשת</span></div>
-                      <div className="result-row"><span className="result-lbl">עיר וקבוצה:</span><span className="result-val">{s.city} — {s.group}</span></div>
-                      <div className="result-row"><span className="result-lbl">מדריך אחראי:</span><span className="result-val">👤 {s.instructor}</span></div>
+                      <div className="result-row"><span className="result-lbl">עיר / מזהה קבוצה:</span><span className="result-val">{s.group_id ? 'קבוצה מקושרת' : 'טרם שויך'}</span></div>
                       <div className="result-row"><span className="result-lbl">משתמש מערכת:</span><span className="result-val" style={{ fontFamily: 'monospace', color: '#2563eb' }}>{s.username}</span></div>
                       <div className="result-row"><span className="result-lbl">סיסמת גישה:</span><span className="result-val" style={{ fontFamily: 'monospace', color: '#b45309' }}>{s.password}</span></div>
                       
                       <div className="action-button-group">
-                        <button className="quick-action-btn btn-purple" type="button" onClick={() => setTypedMessage(`היי! לבקשתכם, הנה פרטי הגישה המעודכנים של ${s.full_name} למערכת הלמידה של אראגון וסייבוט: \nמשתמש: ${s.username}\nסיסמא: ${s.password}\nשיוך קבוצה: ${s.group} ב${s.city} עם המדריך ${s.instructor}. כניסה למערכת התלמיד זמינה ישירות דרך פורטל הבית שלנו!`)}>
+                        <button className="quick-action-btn btn-purple" type="button" onClick={() => setTypedMessage(`היי! לבקשתכם, הנה פרטי הגישה המעודכנים של ${s.full_name} למערכת הלמידה והמשחקים של אראגון וסייבוט: \n\nמשתמש: ${s.username}\nסיסמא: ${s.password}\n\nהתחברות ישירה זמינה עבורכם כעת דרך פורטל האתר הראשי שלנו!`)}>
                           <i className="ti ti-key"></i> טען פרטי התחברות לתיבה
                         </button>
                       </div>
