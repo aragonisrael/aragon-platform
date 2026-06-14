@@ -4,6 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import aragonLogo from '../../assets/aragonlogo.png';
 
+// 🚨 הגדרות גרין API לשליחת הודעות ישירה מהדשבורד
+const GREEN_API_ID = '7107651707'; // מזהה המופע החדש שלך
+const GREEN_API_TOKEN = 'YOUR_GREEN_API_TOKEN_HERE'; // ותרשום כאן את ה-ApiTokenInstance שקיבלת מגרין
+
 export default function AdminInbox() {
   const navigate = useNavigate();
 
@@ -26,34 +30,94 @@ export default function AdminInbox() {
   const [registeringGroupId, setRegisteringGroupId] = useState(null);
   const [newStudentName, setNewStudentName] = useState('');
 
-  // מאגרי נתונים חיים מהדאטהבייס שלכם (Supabase)
+  // מאגרי נתונים חיים מהדאטהבייס (Supabase)
   const [liveGroups, setLiveGroups] = useState([]);
   const [liveStudents, setLiveStudents] = useState([]);
-
-  // דאטה דמו לצ'אטים ומיילים (עד שנקשר את הצינור האוטומטי של Make)
-  const [chats, setChats] = useState([
-    { id: 1, name: 'מיכל כהן (פנייה חדשה)', source: 'whatsapp', service: 'קייטנות', lastMsg: 'היי, אפשר לקבל פרטים על קייטנת הקיץ שלכם?', time: '11:24', city: 'ראשון לציון' },
-    { id: 2, name: 'יובל לוי (ליד מהאתר)', source: 'website_form', service: 'חוגים', lastMsg: 'בוואטסאפ יהיה לי מעולה, תודה!', time: '10:15', city: 'נס ציונה' },
-    { id: 3, name: 'רועי ואקנין', source: 'email', service: 'כללי', lastMsg: 'הילד שלי שכח את הסיסמה שלו למערכת של סייבוט', time: 'אתמול', city: 'חולון' },
-  ]);
-
-  const [selectedChatId, setSelectedChatId] = useState(1);
+  
+  // 🟢 סטייט צ'אטים והודעות אמיתיים מהשרת
+  const [chats, setChats] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [selectedChatId, setSelectedChatId] = useState(null);
   const [typedMessage, setTypedMessage] = useState('');
 
-  const [customHistories, setCustomHistories] = useState({
-    1: [{ sender: 'customer', text: 'היי, אפשר לקבל פרטים על קייטנת הקיץ שלכם?', time: '11:24' }],
-    2: [
-      { sender: 'system', text: '🤖 מערכת: ליד חדש נקלט מהאתר בהצלחה.', time: '10:12' },
-      { sender: 'agent', text: 'שלום יובל! ברוכים הבאים לאראגון. כדי לחסוך לך זמן יקר פתחנו עבורך פנייה ישירה כאן. האם תעדיף לקבל את כל המידע המלא על החוגים כאן בוואטסאפ או שתרצה שנתאם שיחת טלפון קצרה? בכל מקרה, מיד שנציג אנושי יתפנה נמשיך לכתוב לך כאן.', time: '10:13' },
-      { sender: 'customer', text: 'בוואטסאפ יהיה לי מעולה, תודה!', time: '10:15' }
-    ],
-    3: [{ sender: 'customer', text: 'הילד שלי שכח את הסיסמה שלו למערכת של סייבוט', time: 'אתמול' }]
-  });
-
   const activeChat = chats.find(c => c.id === selectedChatId) || chats[0];
-  const currentMessages = customHistories[activeChat.id] || [];
 
-  // 🟢 פונקציית סנכרון נתונים מלאה ומורחבת בלייב מול השרת בענן - חוגים וקייטנות יחד
+  // 🟢 1. האזנה וטעינה חיה של רשימת הצ'אטים (service_chats) מהדאטהבייס + מנגנון Realtime
+  useEffect(() => {
+    const fetchInitialChats = async () => {
+      const { data, error } = await supabase
+        .from('service_chats')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (data && data.length > 0) {
+        setChats(data);
+        setSelectedChatId(data[0].id); // בחירת הצ'אט הראשון כברירת מחדל
+      }
+    };
+    
+    fetchInitialChats();
+
+    // מאזין Realtime לשינויים ברשימת הצ'אטים (כניסת לידים חדשים או עדכוני הודעה אחרונה)
+    const chatsChannel = supabase
+      .channel('realtime_service_chats')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'service_chats' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setChats(prev => [payload.new, ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          setChats(prev => prev.map(c => c.id === payload.new.id ? payload.new : c));
+        } else if (payload.eventType === 'DELETE') {
+          setChats(prev => prev.filter(c => c.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(chatsChannel);
+    };
+  }, []);
+
+  // 🟢 2. טעינת היסטוריית ההודעות המלאה של הצ'אט הנבחר + מאזין Realtime להודעות חדשות
+  useEffect(() => {
+    if (!selectedChatId) return;
+
+    const fetchChatHistory = async () => {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('chat_id', selectedChatId)
+        .order('created_at', { ascending: true });
+      
+      if (data) setMessages(data);
+    };
+
+    fetchChatHistory();
+
+    // מאזין Realtime להזרקת הודעות חדשות ישירות למסך של בתאל בלי רענון
+    const messagesChannel = supabase
+      .channel(`realtime_messages_${selectedChatId}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'chat_messages',
+        filter: `chat_id=eq.${selectedChatId}`
+      }, (payload) => {
+        setMessages(prev => [...prev, payload.new]);
+        
+        // גלילה אוטומטית לתחתית הצ'אט כשיש הודעה חדשה
+        setTimeout(() => {
+          const chatArea = document.getElementById('chat-area-scroll');
+          if (chatArea) chatArea.scrollTop = chatArea.scrollHeight;
+        }, 50);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(messagesChannel);
+    };
+  }, [selectedChatId]);
+
+  // פונקציית סנכרון נתונים מלאה ומורחבת בלייב מול השרת בענן - חוגים וקייטנות יחד
   const fetchLiveDatabaseMatrix = async () => {
     try {
       let mappedGroups = [];
@@ -70,12 +134,11 @@ export default function AdminInbox() {
           hours: `${Math.floor((g.start_min || 960)/60)}:00 - ${Math.floor(((g.start_min || 960) + (g.dur || 60))/60)}:00`,
           price: 'סנכרון פורטל עירוני',
           link: 'קישור חיצוני מוגדר',
-          // שאיבת המיקום מכל שדה אפשרי בחוגים
           venue: g.venue || g.school || g.school_target || g.target_school || g.location || 'לא צוין'
         }));
       }
 
-      // 2. משיכת כל הקייטנות מטבלת camps הייעודית ממופה לפי שדות האמת המדויקים
+      // 2. משיכת כל הקייטנות מטבלת camps
       try {
         const { data: dbCamps } = await supabase.from('camps').select('*');
         if (dbCamps) {
@@ -84,14 +147,10 @@ export default function AdminInbox() {
             type: 'קייטנה',
             city: c.city || '',
             name: c.name || '',
-            // 🟢 שימוש בשדות start_date + end_date עבור תאריכי הקייטנה
             dates: c.start_date && c.end_date ? `${c.start_date} - ${c.end_date}` : 'רישום בעיצומו',
-            // 🟢 שימוש בשדה net_hours עבור שעות הקייטנה
             hours: c.net_hours || '08:00 - 13:00',
             price: 'סנכרון פורטל עירוני',
-            // 🟢 הגדרת לינק ברירת המחדל המבוקש לרישום
             link: c.registration_link || 'https://www.aragon.market/shop-1',
-            // 🟢 שימוש בשדה title עבור שם המוקד/המבנה
             venue: c.title || 'לא צוין'
           }));
           mappedGroups = [...mappedGroups, ...mappedCamps];
@@ -102,7 +161,7 @@ export default function AdminInbox() {
 
       setLiveGroups(mappedGroups);
 
-      // 3. משיכת כל החניכים מהטבלה המרכזית
+      // 3. משיכת כל החניכים
       const { data: dbUsers } = await supabase.from('users').select('*').eq('role', 'student');
       if (dbUsers) {
         setLiveStudents(dbUsers);
@@ -116,7 +175,7 @@ export default function AdminInbox() {
     fetchLiveDatabaseMatrix();
   }, []);
 
-  // 🟢 מחולל השמות הייחודיים בעברית חסין כפילויות ישירות מול Supabase
+  // מחולל השמות הייחודיים בעברית חסין כפילויות ישירות מול Supabase
   const generateUniqueHebrewUsername = async (fullName) => {
     let baseUsername = fullName.trim().replace(/\s+/g, '.');
     let finalUsername = baseUsername;
@@ -140,7 +199,7 @@ export default function AdminInbox() {
     return finalUsername;
   };
 
-  // 🟢 מנוע חיפוש משוכלל וחסין אותיות קטנות/גדולות - סורק עיר, חוג, קייטנה, מוקד ובית ספר יעד במקביל
+  // מנוע חיפוש משוכלל וחסין אותיות קטנות/גדולות
   const filteredLiveGroups = liveGroups.filter(g => {
     const query = groupQuery.trim().toLowerCase();
     return (
@@ -155,19 +214,59 @@ export default function AdminInbox() {
     s.full_name && s.full_name.toLowerCase().includes(studentQuery.trim().toLowerCase())
   );
 
-  const aiSuggestion = activeChat.id === 1 
-    ? `Customer: "היי, אפשר לקבל פרטים על קייטנת הקיץ שלכם?"\n\n🤖 סייבוט AI מציע טיוטה ייצוגית:\n"ברוכים הבאים לאראגון! ☀️ שמי בתאל משירות הלקוחות. בשביל שאני אתן לכם את המידע המדויק ביותר לגבי קייטנת הקיץ המטורפת שלנו, אשמח לדעת באיזו עיר אתם מעוניינים ברישום ובאיזו כיתה הילד/ה?"`
-    : `Customer: "בוואטסאפ יהיה לי מעולה, תודה!"\n\n🤖 סייבוט AI מציע טיוטה ייצוגית:\n"מעולה יובל, כאן בתאל. שמחה שנוח לך להתכתב בוואטסאפ! לגבי חוגי המדע והסייבר שלנו - אשמח לדעת בן כמה הילד/ה שמתעניינים כדי שאציע לך את הקבוצה המדויקת ביותר עבורו?"`;
+  // הגדרת המלצות ה-AI בצורה דינמית לפי השיחה הפעילה
+  const aiSuggestion = activeChat
+    ? `Customer: "${activeChat.last_message || 'פנייה חדשה'}"\n\n🤖 סייבוט AI מציע טיוטה ייצוגית:\n"ברוכים הבאים לאראגון! ☀️ שמי בתאל משירות הלקוחות. בשביל שאני אתן לכם את המידע המדויק ביותר, אשמח לדעת באיזו עיר אתם מעוניינים ברישום ובאיזו כיתה הילד/ה?"`
+    : 'ממתין לשיחה פעילה...';
 
-  const handleSendMessage = () => {
-    if (!typedMessage.trim()) return;
-    const newMsg = { sender: 'agent', text: typedMessage, time: 'עכשיו' };
-    setCustomHistories(prev => ({ ...prev, [activeChat.id]: [...(prev[activeChat.id] || []), newMsg] }));
-    setTypedMessage('');
-    triggerToast('ההודעה שוגרה בהצלחה לוואטסאפ של הלקוח!');
+  // 🟢 3. שיגור הודעה אמיתית: קריאה ישירה לגרין API + תיעוד מיידי בסופאבייס
+  const handleSendMessage = async () => {
+    if (!typedMessage.trim() || !activeChat) return;
+
+    const messageToSend = typedMessage;
+    setTypedMessage(''); // ניקוי מהיר של השדה לחוויית משתמש חלקה
+
+    try {
+      // א. מכינים את מספר הטלפון המיועד בפורמט וואטסאפ רשמי
+      const formattedPhone = activeChat.customer_phone.includes('@') 
+        ? activeChat.customer_phone 
+        : `${activeChat.customer_phone}@c.us`;
+
+      // ב. יורים את ההודעה ישירות לגרין API שישלח אותה למכשיר הלקוח
+      const greenApiResponse = await fetch(`https://api.green-api.com/waInstance${GREEN_API_ID}/sendMessage/${GREEN_API_TOKEN}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chatId: formattedPhone,
+          message: messageToSend
+        })
+      });
+
+      if (!greenApiResponse.ok) {
+        throw new Error('השליחה דרך גרין API נכשלה');
+      }
+
+      // ג. מתעדים את ההודעה של בתאל בטבלת chat_messages (כדי שיופיע כ-agent)
+      await supabase.from('chat_messages').insert([{
+        chat_id: activeChat.id,
+        sender: 'agent',
+        message_text: messageToSend
+      }]);
+
+      // ד. מעדכנים את הודעה האחרונה בצורה רשמית בכרטיס הצ'אט המרכזי
+      await supabase.from('service_chats')
+        .update({ last_message: messageToSend })
+        .eq('id', activeChat.id);
+
+      triggerToast('ההודעה שוגרה בהצלחה לוואטסאפ של הלקוח!');
+    } catch (err) {
+      console.error(err);
+      triggerToast('❌ תקלה בשליחת ההודעה, אנא וודא שהטוקן תקין');
+      setTypedMessage(messageToSend); // מחזיר את הטקסט לתיבה במקרה של שגיאה
+    }
   };
 
-  // 🟢 הקמת משתמש חניך אמיתי בתוך Supabase ישירות מכרטיס קבוצה!
+  // הקמת משתמש חניך אמיתי בתוך Supabase ישירות מכרטיס קבוצה
   const handleInlineRegisterStudent = async (groupObj) => {
     if (!newStudentName.trim()) {
       triggerToast('נא להזין שם מלא לחניך');
@@ -179,14 +278,14 @@ export default function AdminInbox() {
       
       await supabase.from('users').insert([{
         username: generatedUsername,
-        password: '12345678', // סיסמה התחלתית שניתן למשוך בכל רגע
+        password: '12345678',
         role: 'student',
         full_name: newStudentName.trim(),
         group_id: groupObj.id,
         coins: 0
       }]);
 
-      await fetchLiveDatabaseMatrix(); // ריענון המאגרים
+      await fetchLiveDatabaseMatrix();
       setRegisteringGroupId(null);
       setNewStudentName('');
       triggerToast(`החשבון עבור ${newStudentName.trim()} הוקם בהצלחה בשרת! משתמש: ${generatedUsername}`);
@@ -194,6 +293,12 @@ export default function AdminInbox() {
       console.error(err);
       triggerToast('❌ תקלה ברישום החניך בענן');
     }
+  };
+
+  // פונקציית עזר לחילוץ זמן קריא מחותמת הזמן של השרת
+  const formatMsgTime = (timestamp) => {
+    if (!timestamp) return 'עכשיו';
+    return new Date(timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -239,10 +344,11 @@ export default function AdminInbox() {
         .chat-window-header { padding: 16px 20px; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
         .chat-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
         
-        .msg-bubble { max-width: 70%; padding: 10px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.5; }
+        .msg-bubble { max-width: 70%; padding: 10px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.5; position: relative; }
         .msg-customer { background: #ffffff; align-self: flex-start; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.01); }
         .msg-agent { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #ffffff; align-self: flex-end; box-shadow: 0 2px 4px rgba(37,99,235,0.05); }
         .msg-system { background: #fffbeb; border: 1px solid #fef3c7; color: #b45309; align-self: center; font-size: 12px; font-weight: 500; border-radius: 6px; padding: 4px 12px; text-align: center; max-width: 90%; }
+        .msg-time-badge { font-size: 9px; opacity: 0.6; display: block; text-align: left; margin-top: 4px; }
 
         .ai-assistant-box { margin: 0 20px 12px; background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border: 1px dashed #10b981; border-radius: 12px; padding: 14px; }
         .ai-box-header { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; color: #059669; margin-bottom: 6px; }
@@ -259,7 +365,6 @@ export default function AdminInbox() {
         .left-tab-btn.active { background: #ffffff; color: #3b82f6; border-bottom: 2px solid #3b82f6; }
         .left-pane-content { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
         
-        /* 🟢 מניעת באג קפיצת השדות - רוחב קבוע ויציב */
         .left-search-input { width: 100%; height: 38px; padding: 0 12px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; }
         .left-search-input:focus { border-color: #3b82f6; background: #ffffff; }
 
@@ -307,12 +412,12 @@ export default function AdminInbox() {
             <div className="brand-title">ARAGON INTERACTIVE INBOX</div>
             <div className="brand-sub">חמ''ל מבצעי אחוד לשירות לוגיסטי מהיר</div>
           </div>
-          <div style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }} onClick={fetchLiveDatabaseMatrix} style={{cursor:'pointer'}}>🔄 רענן מאגרים מהענן</div>
+          <div style={{ fontSize: '12px', fontWeight: '700', color: '#3b82f6', cursor: 'pointer' }} onClick={fetchLiveDatabaseMatrix}>🔄 רענן מאגרים מהענן</div>
         </div>
 
         <div className="inbox-grid">
           
-          {/* עמודה 1: רשימת שיחות */}
+          {/* עמודה 1: רשימת שיחות מבוססת סופאבייס בלייב */}
           <div className="chats-sidebar">
             <div className="sidebar-search-box">
               <input type="text" className="search-input" placeholder="חיפוש שיחה מהיר..." />
@@ -321,45 +426,54 @@ export default function AdminInbox() {
               {chats.map(c => (
                 <div key={c.id} className={`chat-card ${c.id === selectedChatId ? 'active' : ''}`} onClick={() => { setSelectedChatId(c.id); setTypedMessage(''); }}>
                   <div className="chat-card-top">
-                    <span className="chat-card-name">{c.name}</span>
-                    <span className="chat-card-time">{c.time}</span>
+                    <span className="chat-card-name">{c.customer_name || 'לקוח ללא שם'}</span>
+                    <span className="chat-card-time">{formatMsgTime(c.created_at)}</span>
                   </div>
-                  <div className="chat-card-body">{c.lastMsg}</div>
+                  <div className="chat-card-body">{c.last_message || 'אין הודעות בצ\'אט זה'}</div>
                   <div>
-                    <span className={`source-tag tag-${c.source === 'whatsapp' ? 'whatsapp' : c.source === 'email' ? 'email' : 'form'}`}>
-                      {c.source === 'whatsapp' ? '🟢 WhatsApp' : c.source === 'email' ? '🔮 Email' : '🔷 טופס אתר'} · {c.city}
+                    <span className="source-tag tag-whatsapp">
+                      🟢 WhatsApp · {c.city || 'עיר לא צוינה'}
                     </span>
                   </div>
                 </div>
               ))}
+              {chats.length === 0 && (
+                <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: '#64748b' }}>טוען צ'אטים מהדאטהבייס...</div>
+              )}
             </div>
           </div>
 
-          {/* עמודה 2: חלון הצ'אט המרכזי */}
+          {/* עמודה 2: חלון הצ'אט המרכזי - פינג פונג הודעות בזמן אמת */}
           <div className="chat-window">
             <div className="chat-window-header">
-              <div style={{ fontWeight: '800', fontSize: '15px' }}>{activeChat.name} ({activeChat.city})</div>
-              <div style={{ fontSize: '12px', color: '#64748b' }}>סטטוס: <span style={{ color: '#ec9a06', fontWeight: '700' }}>שיחה פתוחה</span></div>
+              <div style={{ fontWeight: '800', fontSize: '15px' }}>{activeChat?.customer_name || 'בחר צ\'אט'} ({activeChat?.city || 'כללי'})</div>
+              <div style={{ fontSize: '12px', color: '#64748b' }}>סטטוס: <span style={{ color: '#16a34a', fontWeight: '700' }}>מחובר בלייב ⚡</span></div>
             </div>
 
-            <div className="chat-area">
-              {currentMessages.map((m, idx) => (
-                <div key={idx} className={`msg-bubble msg-${m.sender}`}>
-                  {m.text}
+            <div className="chat-area" id="chat-area-scroll">
+              {messages.map((m, idx) => (
+                <div key={m.id || idx} className={`msg-bubble msg-${m.sender}`}>
+                  {m.message_text}
+                  <span className="msg-time-badge">{formatMsgTime(m.created_at)}</span>
                 </div>
               ))}
+              {messages.length === 0 && selectedChatId && (
+                <div className="msg-system">🤖 אין היסטוריית הודעות מוקדמת, שלח הודעה ראשונה להתחלת הצ'אט.</div>
+              )}
             </div>
 
-            {/* קופסת הצעת סייבוט AI - טוענת לתיבה בלבד ללא שיגור אוטומטי */}
-            <div className="ai-assistant-box">
-              <div className="ai-box-header"><i className="ti ti-robot"></i> הצעת עוזר השירות סייבוט AI (בתאל משירות הלקוחות)</div>
-              <div className="ai-box-text">{aiSuggestion}</div>
-              <div className="ai-box-actions">
-                <button className="btn-ai-approve" type="button" onClick={() => setTypedMessage(aiSuggestion.split('\n\n')[2]?.replace(/"/g, '') || aiSuggestion)}>
-                  ✨ טען כטיוטה לתיבת הקלדה של בתאל
-                </button>
+            {/* קופסת הצעת סייבוט AI - דינמית לחלוטין */}
+            {activeChat && (
+              <div className="ai-assistant-box">
+                <div className="ai-box-header"><i className="ti ti-robot"></i> הצעת עוזר השירות סייבוט AI (בתאל משירות הלקוחות)</div>
+                <div className="ai-box-text">{aiSuggestion}</div>
+                <div className="ai-box-actions">
+                  <button className="btn-ai-approve" type="button" onClick={() => setTypedMessage(`ברוכים הבאים לאראגון! ☀️ שמי בתאל משירות הלקוחות. נשמח לתת לכם את המידע המדויק ביותר. בשביל זה, אשמח לדעת באיזו עיר אתם מעוניינים ברישום ובאיזו כיתה הילד/ה?`)}>
+                    ✨ טען כטיוטה לתיבת הקלדה של בתאל
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="chat-input-area">
               <input 
@@ -368,6 +482,7 @@ export default function AdminInbox() {
                 placeholder="הקלד תגובה חופשית או ערוך את הצעת ה-AI..." 
                 value={typedMessage}
                 onChange={(e) => setTypedMessage(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
               />
               <button className="btn-send" type="button" onClick={handleSendMessage}>שגר הודעה 🚀</button>
             </div>
@@ -382,7 +497,7 @@ export default function AdminInbox() {
 
             <div className="left-pane-content">
               
-              {/* טאב 1: חיפוש אחוד של כל החוגים והקייטנות החיים ב-Supabase */}
+              {/* טאב 1: חיפוש אחוד של כל החוגים והקייטנות */}
               {leftTab === 'groups' && (
                 <>
                   <input 
