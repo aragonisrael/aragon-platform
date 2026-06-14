@@ -50,10 +50,14 @@ export default function AdminInbox() {
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (data && data.length > 0) {
-        setChats(data);
-        setSelectedChatId(data[0].id); // בחירת הצ'אט הראשון כברירת מחדל
-      }
+        if (data && data.length > 0) {
+            setChats(data);
+            setSelectedChatId(data[0].id); // בחירת הצ'אט הראשון כברירת מחדל
+            // 🟢 פיצ'ר חכם: אם הצ'אט הראשון שנפתח אוטומטית הוא חדש, נסמן אותו כנקרא
+            if (data[0].status === 'new') {
+              supabase.from('service_chats').update({ status: 'read' }).eq('id', data[0].id);
+            }
+          }
     };
     
     fetchInitialChats();
@@ -434,11 +438,29 @@ export default function AdminInbox() {
             </div>
             <div className="chats-list">
               {chats.map(c => (
-                <div key={c.id} className={`chat-card ${c.id === selectedChatId ? 'active' : ''}`} onClick={() => { setSelectedChatId(c.id); setTypedMessage(''); }}>
+                <div 
+                  key={c.id} 
+                  className={`chat-card ${c.id === selectedChatId ? 'active' : ''}`}
+                  // 🟢 משנים מעט את הרקע של צ'אט שלא נקרא ואינו פתוח כעת
+                  style={{ background: c.status === 'new' && c.id !== selectedChatId ? '#f1f5f9' : 'transparent' }}
+                  onClick={async () => { 
+                    setSelectedChatId(c.id); 
+                    setTypedMessage(''); 
+                    // 🟢 ברגע שבתאל פותחת את הצ'אט, הסטטוס שלו מתעדכן אוטומטית ל-read בסופאבייס
+                    if (c.status === 'new') {
+                      await supabase.from('service_chats').update({ status: 'read' }).eq('id', c.id);
+                    }
+                  }}
+                >
                   <div className="chat-card-top">
-                    <span className="chat-card-name">{c.customer_name || 'לקוח ללא שם'}</span>
+                    {/* 🟢 הדגשת השם והוספת נקודה כחולה אם ההודעה לא נקראה */}
+                    <span className="chat-card-name" style={{ fontWeight: c.status === 'new' && c.id !== selectedChatId ? '900' : '700' }}>
+                      {c.customer_name || 'לקוח ללא שם'} {c.status === 'new' && c.id !== selectedChatId && '🔵'}
+                    </span>
                     {/* משתמש בזמן העדכון הדינמי החי, ואם הוא לא קיים משתמש בזמן היצירה המקורי */}
-                    <span className="chat-card-time">{formatMsgTime(c.last_message_time || c.created_at)}</span>
+                    <span className="chat-card-time" style={{ color: c.status === 'new' && c.id !== selectedChatId ? '#3b82f6' : '#94a3b8', fontWeight: c.status === 'new' && c.id !== selectedChatId ? 'bold' : 'normal' }}>
+                      {formatMsgTime(c.last_message_time || c.created_at)}
+                    </span>
                   </div>
                   <div className="chat-card-body">{c.last_message || 'אין הודעות בצ\'אט זה'}</div>
                   <div>
