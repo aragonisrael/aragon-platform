@@ -65,7 +65,17 @@ export default function AdminInbox() {
         if (payload.eventType === 'INSERT') {
           setChats(prev => [payload.new, ...prev]);
         } else if (payload.eventType === 'UPDATE') {
-          setChats(prev => prev.map(c => c.id === payload.new.id ? payload.new : c));
+          setChats(prev => {
+            // מוציאים את הצ'אט הישן מהרשימה
+            const filtered = prev.filter(c => c.id !== payload.new.id);
+            // מזריקים חותמת זמן מקומית של עכשיו בשביל לעדכן את השעה במסך בפיד החי
+            const updatedChat = { 
+              ...payload.new, 
+              last_message_time: new Date().toISOString() 
+            };
+            // דוחפים אותו ראשון בתור!
+            return [updatedChat, ...filtered];
+          });
         } else if (payload.eventType === 'DELETE') {
           setChats(prev => prev.filter(c => c.id !== payload.old.id));
         }
@@ -427,7 +437,8 @@ export default function AdminInbox() {
                 <div key={c.id} className={`chat-card ${c.id === selectedChatId ? 'active' : ''}`} onClick={() => { setSelectedChatId(c.id); setTypedMessage(''); }}>
                   <div className="chat-card-top">
                     <span className="chat-card-name">{c.customer_name || 'לקוח ללא שם'}</span>
-                    <span className="chat-card-time">{formatMsgTime(c.created_at)}</span>
+                    {/* משתמש בזמן העדכון הדינמי החי, ואם הוא לא קיים משתמש בזמן היצירה המקורי */}
+                    <span className="chat-card-time">{formatMsgTime(c.last_message_time || c.created_at)}</span>
                   </div>
                   <div className="chat-card-body">{c.last_message || 'אין הודעות בצ\'אט זה'}</div>
                   <div>
