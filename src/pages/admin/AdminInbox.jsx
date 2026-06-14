@@ -6,7 +6,7 @@ import aragonLogo from '../../assets/aragonlogo.png';
 
 // 🚨 הגדרות גרין API לשליחת הודעות ישירה מהדשבורד
 const GREEN_API_ID = '7107651707'; // מזהה המופע החדש שלך
-const GREEN_API_TOKEN = 'YOUR_GREEN_API_TOKEN_HERE'; // ותרשום כאן את ה-ApiTokenInstance שקיבלת מגרין
+const GREEN_API_TOKEN = 'b9a0fc5b547e44368859f1c80c96253933826b893ac44b7c8a'; // 👈 תדביק כאן את ה-apiTokenInstance האמיתי שלך מגרין
 
 export default function AdminInbox() {
   const navigate = useNavigate();
@@ -241,12 +241,14 @@ export default function AdminInbox() {
     setTypedMessage(''); // ניקוי מהיר של השדה לחוויית משתמש חלקה
 
     try {
-      // א. מכינים את מספר הטלפון המיועד בפורמט וואטסאפ רשמי
-      const formattedPhone = activeChat.customer_phone.includes('@') 
-        ? activeChat.customer_phone 
-        : `${activeChat.customer_phone}@c.us`;
-
-      // ב. יורים את ההודעה ישירות לגרין API שישלח אותה למכשיר הלקוח
+        // א. מכינים את מספר הטלפון בפורמט בינלאומי חסין תקלות (הופך 05 ל-972)
+        let cleanPhone = activeChat.customer_phone.replace(/\D/g, ''); // מנקה רווחים או מקפים אם יש
+        if (cleanPhone.startsWith('05')) {
+          cleanPhone = '972' + cleanPhone.substring(1);
+        }
+        const formattedPhone = `${cleanPhone}@c.us`;
+  
+        // ב. יורים את ההודעה ישירות לגרין API שישלח אותה למכשיר הלקוח
       const greenApiResponse = await fetch(`https://api.green-api.com/waInstance${GREEN_API_ID}/sendMessage/${GREEN_API_TOKEN}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
