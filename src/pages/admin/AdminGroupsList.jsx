@@ -41,6 +41,8 @@ export default function AdminGroupsList() {
   const [formDay, setFormDay] = useState(0);
   const [formGrades, setFormGrades] = useState([]);
   const [formInstructor, setFormInstructor] = useState('');
+  const [formStartStr, setFormStartStr] = useState('16:00');
+  const [formEndStr, setFormEndStr] = useState('17:00');
 
   // אובייקט עריכה מורחב עבור הקונסולה המשולבת לקבוצה קיימת
   const [formGroup, setFormGroup] = useState({});
@@ -224,31 +226,63 @@ export default function AdminGroupsList() {
     reader.readAsText(file, 'UTF-8');
   };
 
+  const parseTimeToMin = (s) => {
+    const parts = s.trim().replace('.', ':').split(':').map(Number);
+    if (parts.length < 1 || Number.isNaN(parts[0])) return null;
+    return parts[0] * 60 + (parts[1] || 0);
+  };
+
+  const resetAddGroupForm = () => {
+    setFormCity('');
+    setFormType('הייטק ג׳וניור');
+    setFormVenue('');
+    setFormDay(0);
+    setFormGrades([]);
+    setFormInstructor('');
+    setFormStartStr('16:00');
+    setFormEndStr('17:00');
+  };
+
+  const handleOpenAddGroupModal = () => {
+    resetAddGroupForm();
+    setIsAddModalOpen(true);
+  };
+
   const handleSaveNewGroup = async () => {
     if (!formCity.trim() || !formVenue.trim()) {
       triggerToast('⚠️ נא למלא עיר ושם מוקד', true);
       return;
     }
 
+    const sMin = parseTimeToMin(formStartStr);
+    const eMin = parseTimeToMin(formEndStr);
+    if (sMin === null || eMin === null || eMin <= sMin) {
+      triggerToast('❌ שעות פעילות לא תקינות', true);
+      return;
+    }
+
     try {
-      await supabase.from('groups').insert([{
+      const { error } = await supabase.from('groups').insert([{
         name: formType,
         city: formCity.trim(),
         venue: formVenue.trim(),
         instructor: formInstructor,
         day: parseInt(formDay, 10),
-        start_min: 960, 
-        dur: 60,
+        start_min: sMin,
+        dur: eMin - sMin,
         status: formInstructor ? 'yellow' : 'red',
         grades: formGrades.length > 0 ? formGrades.join(',') : 'ד'
       }]);
 
+      if (error) throw error;
+
       await fetchLiveGroupsAndRosters();
       setIsAddModalOpen(false);
+      resetAddGroupForm();
       triggerToast(`קבוצת ${formType} ב${formCity} הוקמה בשרת בענן ✓`);
-      setFormCity(''); setFormVenue(''); setFormDay(0); setFormGrades([]); setFormInstructor('');
     } catch (err) {
       console.error(err);
+      triggerToast('❌ תקלה בהקמת הקבוצה בשרת', true);
     }
   };
 
@@ -280,10 +314,6 @@ export default function AdminGroupsList() {
   };
 
   const handleSaveGroupSettingsEdit = async () => {
-    const parseTimeToMin = (s) => {
-      const parts = s.trim().replace('.', ':').split(':').map(Number);
-      return parts[0] * 60 + (parts[1] || 0);
-    };
     const sMin = parseTimeToMin(formGroup.startStr);
     const eMin = parseTimeToMin(formGroup.endStr);
 
@@ -456,6 +486,9 @@ export default function AdminGroupsList() {
         .table-head { padding: 16px 20px; border-bottom: 1px solid #1a2a4a; background: #060b18; display: flex; align-items: center; justify-content: space-between; }
         .table-head-title { display: flex; align-items: center; gap: 8px; font-family: 'Orbitron', monospace; font-size: 11px; letter-spacing: 1.5px; color: #c0d0e0; }
         .table-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 500; background: #040a18; color: #00c8ff; border: 1px solid #00c8ff33; }
+        .table-head-actions { display: flex; align-items: center; gap: 10px; }
+        .add-group-btn { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: 1px solid #00c8ff55; background: linear-gradient(135deg, #061828, #0a2040); color: #00c8ff; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; flex-direction: row-reverse; }
+        .add-group-btn:hover { border-color: #00c8ff; box-shadow: 0 0 12px rgba(0, 200, 255, 0.25); }
         
         .matrix-table { width: 100%; border-collapse: collapse; }
         .matrix-table th { padding: 12px 18px; font-size: 11px; color: #2a4060; letter-spacing: 1px; text-align: right; border-bottom: 1px solid #0d1a2e; font-weight: 600; background: #060b18; }
@@ -609,7 +642,12 @@ export default function AdminGroupsList() {
                 <i className="ti ti-table" style={{ color: '#00c8ff' }}></i>
                 ניהול קבוצות ותלמידים ברשת — לחץ על שורה לניהול ועריכת הקבוצה
               </div>
-              <div className="table-badge">{filteredGroups.length} קבוצות נמצאו</div>
+              <div className="table-head-actions">
+                <button className="add-group-btn" type="button" onClick={handleOpenAddGroupModal}>
+                  <i className="ti ti-plus"></i> הוסף קבוצה
+                </button>
+                <div className="table-badge">{filteredGroups.length} קבוצות נמצאו</div>
+              </div>
             </div>
 
             <table className="matrix-table">
@@ -657,8 +695,8 @@ export default function AdminGroupsList() {
 
         {/* BOTTOM ACTION BAR */}
         <div className="bottom-bar">
-          <button className="bot-btn bot-btn-cyan" type="button" onClick={() => setIsAddModalOpen(true)}>
-            <i className="ti ti-plus"></i> צור קבוצה חדשה
+          <button className="bot-btn bot-btn-cyan" type="button" onClick={handleOpenAddGroupModal}>
+            <i className="ti ti-plus"></i> הוסף קבוצה
           </button>
           <button className="bot-btn bot-btn-teal" type="button" style={{ background: 'linear-gradient(135deg, #09201a, #04100d)', borderColor: '#00e67655', color: '#00e676' }}>
             <i className="ti ti-file-upload"></i> ייבא קבוצות מ-CSV / אקסל
@@ -672,7 +710,7 @@ export default function AdminGroupsList() {
         <div className="modal-bg" onClick={(e) => e.target.className === 'modal-bg' && setIsAddModalOpen(false)}>
           <div className="modal">
             <div className="mhead">
-              <div className="mtitle"><i className="ti ti-plus"></i> הקמת קבוצה חדשה ברשת</div>
+              <div className="mtitle"><i className="ti ti-plus"></i> הוסף קבוצה חדשה</div>
               <button className="mclose" type="button" onClick={() => setIsAddModalOpen(false)}><i className="ti ti-x"></i></button>
             </div>
             <div className="mbody">
@@ -687,9 +725,13 @@ export default function AdminGroupsList() {
               </div>
               <div className="mfield"><label>שם המוקד / בית ספר</label><input className="minput" type="text" placeholder="בית ספר אלון" value={formVenue} onChange={(e) => setFormVenue(e.target.value)} /></div>
               <div className="mfield"><label>יום פעילות</label><select className="mselect" value={formDay} onChange={(e) => setFormDay(parseInt(e.target.value, 10))}>{DAYS.map((d, i) => <option key={i} value={i}>יום {d}</option>)}</select></div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <div className="mfield" style={{ flex: 1 }}><label>שעת התחלה</label><input className="minput" type="text" placeholder="16:00" value={formStartStr} onChange={(e) => setFormStartStr(e.target.value)} /></div>
+                <div className="mfield" style={{ flex: 1 }}><label>שעת סיום</label><input className="minput" type="text" placeholder="17:00" value={formEndStr} onChange={(e) => setFormEndStr(e.target.value)} /></div>
+              </div>
               <div className="mfield"><label>מיועד לכיתות (בחירה מרובה)</label><div className="grade-grid">{gradesList.map(g => <div className="grade-cb" key={g}><input type="checkbox" id={`form_g_${g}`} checked={formGrades.includes(g)} onChange={() => toggleGradeSelection(g)} /><label htmlFor={`form_g_${g}`}>{g}</label></div>)}</div></div>
               <div className="mfield"><label>מדריך משוייך לקבוצה</label><select className="mselect" value={formInstructor} onChange={(e) => setFormInstructor(e.target.value)}><option value="">— ללא מדריך (קבוצה אדומה) —</option>{instructors.map((inst, idx) => <option key={idx} value={inst}>{inst}</option>)}</select></div>
-              <div className="mrow"><button className="msave" type="button" onClick={handleSaveNewGroup}>צור קבוצה חדשה</button><button className="mcancel" type="button" onClick={() => setIsAddModalOpen(false)}>ביטול</button></div>
+              <div className="mrow"><button className="msave" type="button" onClick={handleSaveNewGroup}>הוסף קבוצה</button><button className="mcancel" type="button" onClick={() => { setIsAddModalOpen(false); resetAddGroupForm(); }}>ביטול</button></div>
             </div>
           </div>
         </div>
