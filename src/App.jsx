@@ -23,9 +23,8 @@ import InstructorSchedule from './pages/instructor/InstructorSchedule';
 import InstructorProfile from './pages/instructor/InstructorProfile';
 
 // עמודי עולם האדמין (ARAGON CENTER) 💻
-import AdminInbox from './pages/admin/AdminInbox';
-import AdminBotBrain from './pages/admin/AdminBotBrain';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminOperations from './pages/admin/AdminOperations';
 import AdminShopLogistics from './pages/admin/AdminShopLogistics';
 import AdminMissionsIncentives from './pages/admin/AdminMissionsIncentives';
 import AdminControlSchedule from './pages/admin/AdminControlSchedule';
@@ -41,6 +40,12 @@ import LogisticsTasks from './pages/logistics/LogisticsTasks';
 import LogisticsClasses from './pages/logistics/LogisticsClasses';
 import LogisticsCamps from './pages/logistics/LogisticsCamps';
 import LogisticsPurchase from './pages/logistics/LogisticsPurchase';
+
+// עמודי הנהלה (מותאם לנייד) 📋
+import ManagementHome from './pages/management/ManagementHome';
+import ManagementMeetings from './pages/management/ManagementMeetings';
+import ManagementMeeting from './pages/management/ManagementMeeting';
+import ManagementProfile from './pages/management/ManagementProfile';
 
 export default function App() {
   return (
@@ -68,10 +73,9 @@ export default function App() {
         <Route path="/instructor/schedule" element={<ProtectedRoute allowedRoles={['instructor', 'temp_instructor']}><InstructorSchedule /></ProtectedRoute>} />
         <Route path="/instructor/profile" element={<ProtectedRoute allowedRoles={['instructor', 'temp_instructor']}><InstructorProfile /></ProtectedRoute>} />
         
-        {/* 💻 עולם האדמין הראשי - כעת כולל את מסך ניהול כח האדם של הקייטנות */}
-        <Route path="/admin/brain" element={<ProtectedRoute allowedRoles={['admin']}><AdminBotBrain /></ProtectedRoute>} />
-        <Route path="/admin/inbox" element={<ProtectedRoute allowedRoles={['admin']}><AdminInbox /></ProtectedRoute>} />
+        {/* 💻 עולם האדמין הראשי */}
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/operations" element={<ProtectedRoute allowedRoles={['admin']}><AdminOperations /></ProtectedRoute>} />
         <Route path="/admin/shop" element={<ProtectedRoute allowedRoles={['admin']}><AdminShopLogistics /></ProtectedRoute>} />
         <Route path="/admin/missions" element={<ProtectedRoute allowedRoles={['admin']}><AdminMissionsIncentives /></ProtectedRoute>} />
         <Route path="/admin/control" element={<ProtectedRoute allowedRoles={['admin']}><AdminControlSchedule /></ProtectedRoute>} />
@@ -87,6 +91,12 @@ export default function App() {
         <Route path="/admin/logistics/classes" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsClasses /></ProtectedRoute>} />
         <Route path="/admin/logistics/camps" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsCamps /></ProtectedRoute>} />
         <Route path="/admin/logistics/purchase" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsPurchase /></ProtectedRoute>} />
+
+        {/* 📋 עולם ההנהלה */}
+        <Route path="/management" element={<ProtectedRoute allowedRoles={['management', 'admin']}><ManagementHome /></ProtectedRoute>} />
+        <Route path="/management/meetings" element={<ProtectedRoute allowedRoles={['management', 'admin']}><ManagementMeetings /></ProtectedRoute>} />
+        <Route path="/management/meetings/:id" element={<ProtectedRoute allowedRoles={['management', 'admin']}><ManagementMeeting /></ProtectedRoute>} />
+        <Route path="/management/profile" element={<ProtectedRoute allowedRoles={['management', 'admin']}><ManagementProfile /></ProtectedRoute>} />
       </Routes>
     </AuthProvider>
   );

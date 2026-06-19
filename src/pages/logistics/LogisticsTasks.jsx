@@ -47,6 +47,8 @@ export default function LogisticsTasks() {
 
   // 🟢 סטייט ייעודי לתקלות חיות שהועברו לטיפול מתוך Supabase
   const [dbFaultTasks, setDbFaultTasks] = useState([]);
+  // 🟢 דיווחי וואטסאפ / תוסף שירות → חמ"ל שטח ותקלות
+  const [dbWaFieldTasks, setDbWaFieldTasks] = useState([]);
 
   // ── 🗑️ מאגר משימות קייטנות - מחובר לזיכרון דפדפן ──
   const [campTasks, setCampTasks] = useState(() => {
@@ -69,6 +71,19 @@ export default function LogisticsTasks() {
   const showToast = (msg) => {
     setToast({ show: true, message: msg });
     setTimeout(() => setToast({ show: false, message: '' }), 3500);
+  };
+
+  const extractWaReportText = (summary = '', description = '') => {
+    const desc = String(description || '').trim();
+    const sum = String(summary || '').trim();
+
+    if (desc.includes('פירוט המשימה:')) {
+      return desc.split('פירוט המשימה:').pop().trim();
+    }
+    if (sum.startsWith('דיווח לוגיסטיקה')) {
+      return desc || sum;
+    }
+    return sum || desc;
   };
 
   // שעון חמ"ל
@@ -96,8 +111,66 @@ export default function LogisticsTasks() {
     }
   };
 
-  useEffect(() => {
+  const fetchWaFieldTasks = async () => {
+    try {
+      if (!supabase) return;
+      const { data, error } = await supabase
+        .from('logistics_field_tasks')
+        .select('*')
+        .eq('archived', false)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      if (data) setDbWaFieldTasks(data);
+    } catch (err) {
+      console.log("Error loading WhatsApp field tasks:", err);
+    }
+  };
+
+  const archiveWaFieldTask = async (dbId) => {
+    try {
+      if (!supabase) return;
+      const { error } = await supabase
+        .from('logistics_field_tasks')
+        .update({ archived: true, status: 'done' })
+        .eq('id', dbId);
+      if (error) throw error;
+      setDbWaFieldTasks(prev => prev.filter(x => x.id !== dbId));
+    } catch (err) {
+      console.error("Error archiving WhatsApp field task:", err);
+      showToast('⚠️ שגיאה בארכוב דיווח וואטסאפ');
+    }
+  };
+
+  const archiveFaultTask = async (dbId) => {
+    try {
+      if (!supabase) return;
+      const { error } = await supabase
+        .from('faults')
+        .update({ archived: true })
+        .eq('id', dbId);
+      if (error) throw error;
+      setDbFaultTasks(prev => prev.filter(x => x.id !== dbId));
+    } catch (err) {
+      console.error("Error archiving fault task:", err);
+      showToast('⚠️ שגיאה בארכוב התקלה');
+    }
+  };
+
+  const refreshRemoteFieldTasks = () => {
     fetchFaultTasks();
+    fetchWaFieldTasks();
+  };
+
+  useEffect(() => {
+    refreshRemoteFieldTasks();
+    const interval = setInterval(refreshRemoteFieldTasks, 15000);
+    const onFocus = () => refreshRemoteFieldTasks();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
   }, []);
 
   // סנכרן את מצב כפתור הנגן
@@ -187,25 +260,30 @@ export default function LogisticsTasks() {
     try {
       if (!supabase) return;
       const nowTime = new Date().toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }) + ' | ' + new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+      const tripSummary = task.rawSummary || task.body || task.summary || 'דיווח שטח';
       
       const { error: tripErr } = await supabase
         .from('trips')
         .insert([{
           date_str: nowTime,
           instructor_name: task.instructor,
-          gear_take: `${task.rawSummary} (תקול)`,
-          gear_give: task.rawSummary,
+          gear_take: `${tripSummary} (תקול)`,
+          gear_give: tripSummary,
           status: 'ready'
         }]);
       if (tripErr) throw tripErr;
 
-      const { error: faultErr } = await supabase
-        .from('faults')
-        .update({ archived: true })
-        .eq('id', task.dbId);
-      if (faultErr) throw faultErr;
+      if (task.isDbWaField && task.dbWaId) {
+        await archiveWaFieldTask(task.dbWaId);
+      } else {
+        const { error: faultErr } = await supabase
+          .from('faults')
+          .update({ archived: true })
+          .eq('id', task.dbId);
+        if (faultErr) throw faultErr;
+        setDbFaultTasks(prev => prev.filter(x => x.id !== task.dbId));
+      }
 
-      setDbFaultTasks(prev => prev.filter(x => x.id !== task.dbId));
       showToast('🚚 התקלה נסגרה ושוגרה בהצלחה לדשבורד הראשי לביצוע שילוח!');
     } catch (err) {
       console.error(err);
@@ -217,6 +295,12 @@ export default function LogisticsTasks() {
   const handleCloseFaultDirectly = async (task) => {
     try {
       if (!supabase) return;
+      if (task.isDbWaField && task.dbWaId) {
+        await archiveWaFieldTask(task.dbWaId);
+        showToast('🛠️ התקלה נסגרה, נחשבת כפתורה ונעלמה מכל המסכים!');
+        return;
+      }
+
       const { error } = await supabase
         .from('faults')
         .update({ archived: true })
@@ -247,6 +331,18 @@ export default function LogisticsTasks() {
       setCampTasks(prev => prev.filter(x => x.id !== id));
       // אם המשימה הגיעה מעמוד חוגים לחמ"ל שטח, ננתב את הארכוב שלה לעמודת שטח
       col = task?.badge === '🛠️ חמ"ל שטח ותקלות' ? 'field' : 'camp';
+    } else if (String(id).startsWith('db_fault_')) {
+      const dbId = Number(String(id).replace('db_fault_', ''));
+      const task = dbFaultTasks.find(x => x.id === dbId);
+      taskTitle = task ? (task.description || task.summary || 'דיווח שטח').slice(0, 80) : 'דיווח שטח';
+      col = 'field';
+      archiveFaultTask(dbId);
+    } else if (String(id).startsWith('db_wa_field_')) {
+      const dbId = Number(String(id).replace('db_wa_field_', ''));
+      const task = dbWaFieldTasks.find(x => x.id === dbId);
+      taskTitle = task ? (task.body || 'דיווח וואטסאפ').slice(0, 80) : 'דיווח וואטסאפ';
+      col = 'field';
+      archiveWaFieldTask(dbId);
     } else if (col === 'alert') {
       const task = alertTasks.find(x => x.id === id);
       taskTitle = task ? task.title : 'התראה חכמה';
@@ -263,27 +359,53 @@ export default function LogisticsTasks() {
 
   // מיזוג התקלות החיות מסופאבייס עם הניסוח המדויק
   const getCombinedFieldTasks = () => {
-    const mappedDbFaults = dbFaultTasks.map(f => ({
-      id: `db_fault_${f.id}`,
-      dbId: f.id,
-      type: 'db_fault',
+    const mappedDbFaults = dbFaultTasks.map(f => {
+      const isWaReport = (f.reporter || '').includes('וואטסאפ');
+      const waText = isWaReport ? extractWaReportText(f.summary, f.description) : '';
+      return {
+        id: `db_fault_${f.id}`,
+        dbId: f.id,
+        type: isWaReport ? 'db_wa_fault' : 'db_fault',
+        badge: '🛠️ תקלה בשטח',
+        badgeColor: '#ff4560',
+        instructor: f.reporter,
+        time: new Date(f.created_at || Date.now()).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }) + ' | ' + new Date(f.created_at || Date.now()).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
+        title: isWaReport ? '' : `חמ"ל תקלות: ${f.summary}`,
+        body: isWaReport
+          ? waText
+          : `אנא הכן לנסיעה את פריטי הציוד הבאים: ${f.summary} עבור המדריך שפתח את התקלה : ${f.reporter} .`,
+        rawSummary: isWaReport ? waText : f.summary,
+        borderC: 'rgba(255, 69, 96, 0.35)',
+        bgC: 'rgba(255, 69, 96, 0.03)',
+        gearList: [],
+        isDbFault: true,
+        isCustom: false,
+        hideTitle: isWaReport
+      };
+    });
+
+    const mappedWaFieldTasks = dbWaFieldTasks.map(t => ({
+      id: `db_wa_field_${t.id}`,
+      dbWaId: t.id,
+      type: 'db_wa_field',
       badge: '🛠️ תקלה בשטח',
       badgeColor: '#ff4560',
-      instructor: f.reporter,
-      time: new Date(f.created_at || Date.now()).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }),
-      title: `חמ"ל תקלות: ${f.summary}`,
-      body: `אנא הכן לנסיעה את פריטי הציוד הבאים: ${f.summary} עבור המדריך שפתח את התקלה : ${f.reporter} .`,
-      rawSummary: f.summary,
+      instructor: t.reporter || 'בתאל מאראגון (וואטסאפ)',
+      time: new Date(t.created_at || Date.now()).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }) + ' | ' + new Date(t.created_at || Date.now()).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
+      body: extractWaReportText('', t.body),
+      rawSummary: extractWaReportText('', t.body),
       borderC: 'rgba(255, 69, 96, 0.35)',
       bgC: 'rgba(255, 69, 96, 0.03)',
-      gearList: [],
-      isDbFault: true
+      isDbFault: true,
+      isCustom: false,
+      hideTitle: true,
+      isDbWaField: true
     }));
 
     // 🟢 שליפת משימות שהוזרקו מעמוד חוגים ישירות לחמ"ל שטח ותקלות
     const classesInjectedFieldTasks = campTasks.filter(t => t.badge === '🛠️ חמ"ל שטח ותקלות');
 
-    return [...mappedDbFaults, ...fieldTasks, ...classesInjectedFieldTasks];
+    return [...mappedDbFaults, ...mappedWaFieldTasks, ...fieldTasks, ...classesInjectedFieldTasks];
   };
 
   const combinedFieldTasks = getCombinedFieldTasks();
@@ -474,6 +596,8 @@ export default function LogisticsTasks() {
 
                     {/* הצגת תוכן המשימה בצורה נקייה וישירה */}
                     {task.isCustom ? (
+                      <div className="tcard-body" style={{ color: '#ffffff', fontWeight: '600', fontSize: '14px', marginTop: '4px' }}>{task.body}</div>
+                    ) : task.hideTitle ? (
                       <div className="tcard-body" style={{ color: '#ffffff', fontWeight: '600', fontSize: '14px', marginTop: '4px' }}>{task.body}</div>
                     ) : (
                       <>

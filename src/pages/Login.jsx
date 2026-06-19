@@ -108,7 +108,8 @@ export default function Login() {
 
       // 🟢 חיווט הניתובים הראשיים של אראגון לפי רולים קשיחים - כולל תמיכה מלאה במדריך זמני
       if (dbUser.role === 'admin') navigate('/admin');
-      else if (dbUser.role === 'logistics') navigate('/admin/logistics'); 
+      else if (dbUser.role === 'logistics') navigate('/admin/logistics');
+      else if (dbUser.role === 'management') navigate('/management');
       else if (dbUser.role === 'instructor' || dbUser.role === 'temp_instructor') navigate('/instructor');
       else navigate('/student'); 
 

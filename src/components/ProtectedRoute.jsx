@@ -32,7 +32,9 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   if (allowedRoles && !allowedRoles.includes(role)) {
     // ננתב אותו לדף הבית החוקי שלו לפי התפקיד שלו
     if (role === 'admin') return <Navigate to="/admin" replace />;
-    if (role === 'instructor') return <Navigate to="/instructor" replace />;
+    if (role === 'logistics') return <Navigate to="/admin/logistics" replace />;
+    if (role === 'management') return <Navigate to="/management" replace />;
+    if (role === 'instructor' || role === 'temp_instructor') return <Navigate to="/instructor" replace />;
     return <Navigate to="/student" replace />;
   }
 
