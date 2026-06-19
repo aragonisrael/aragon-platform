@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import aragonLogo from '../../assets/aragonlogo.png';
-import AdminOpsSidebar, { adminOpsStyles } from '../../components/admin/AdminOpsSidebar';
+import AdminSidebar, { adminOpsStyles } from '../../components/admin/AdminSidebar';
 import {
   TASK_STATUSES, TASK_PRIORITIES, DEPARTMENTS, MEETING_TYPES,
   deptLabel, statusLabel, meetingTypeLabel, meetingStatusLabel,
 } from '../../constants/management';
 
-export default function AdminOperations() {
+export default function AdminOperations({ view = 'tasks' }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const loggedUser = user || sessionStorage.getItem('aragon_logged_user');
@@ -18,7 +18,6 @@ export default function AdminOperations() {
   const [meetings, setMeetings] = useState([]);
   const [users, setUsers] = useState([]);
   const [completionReports, setCompletionReports] = useState({});
-  const [tab, setTab] = useState('tasks');
   const [toast, setToast] = useState({ show: false, message: '', warn: false });
 
   const [taskStatusFilter, setTaskStatusFilter] = useState('all');
@@ -128,14 +127,18 @@ export default function AdminOperations() {
   return (
     <div className="hq-global-wrapper">
       <style>{adminOpsStyles}</style>
-      <AdminOpsSidebar active="operations" />
+      <AdminSidebar active={view === 'meetings' ? 'mgmt-meetings' : 'mgmt-tasks'} />
 
       <div className="main-col">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
           <img src={aragonLogo} alt="" style={{ width: 40, height: 40, borderRadius: '50%' }} />
           <div>
-            <div className="page-title">פיקוח הנהלה</div>
-            <div className="page-sub">ניהול משימות צוות · ישיבות הנהלה · דיווחי ביצוע</div>
+            <div className="page-title">{view === 'meetings' ? 'ישיבות הנהלה' : 'משימות הנהלה'}</div>
+            <div className="page-sub">
+              {view === 'meetings'
+                ? 'יצירה וניהול ישיבות צוות · סדר יום · מעקב ביצוע'
+                : 'פיקוח על כל משימות צוות ההנהלה · דיווחי סגירה'}
+            </div>
           </div>
         </div>
 
@@ -148,18 +151,14 @@ export default function AdminOperations() {
         </div>
 
         <div className="ops-toolbar">
-          <div className="ops-tabs">
-            <button type="button" className={`ops-tab ${tab === 'tasks' ? 'active' : ''}`} onClick={() => setTab('tasks')}>משימות ({tasks.length})</button>
-            <button type="button" className={`ops-tab ${tab === 'meetings' ? 'active' : ''}`} onClick={() => setTab('meetings')}>ישיבות ({meetings.length})</button>
-          </div>
-          {tab === 'meetings' && (
-            <button type="button" className="ops-btn-primary" style={{ marginRight: 'auto' }} onClick={() => setIsCreateMeetingOpen(true)}>
+          {view === 'meetings' && (
+            <button type="button" className="ops-btn-primary" onClick={() => setIsCreateMeetingOpen(true)}>
               <i className="ti ti-calendar-plus" /> צור ישיבת צוות
             </button>
           )}
         </div>
 
-        {tab === 'tasks' && (
+        {view === 'tasks' && (
           <>
             <div className="ops-toolbar">
               <input className="ops-input" placeholder="חיפוש משימה..." value={taskSearch} onChange={(e) => setTaskSearch(e.target.value)} style={{ minWidth: '180px' }} />
@@ -208,7 +207,7 @@ export default function AdminOperations() {
           </>
         )}
 
-        {tab === 'meetings' && (
+        {view === 'meetings' && (
           <>
             <div className="ops-toolbar">
               <select className="ops-select" value={meetingFilter} onChange={(e) => setMeetingFilter(e.target.value)}>

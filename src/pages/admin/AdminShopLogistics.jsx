@@ -5,6 +5,7 @@ import { supabase } from '../../supabaseClient';
 
 // ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
 import aragonLogo from '../../assets/aragonlogo.png';
+import AdminSidebar from '../../components/admin/AdminSidebar';
 
 const STATUSLABEL = {
   green: 'אושר השבוע',
@@ -325,17 +326,7 @@ export default function AdminShopLogistics() {
         <div className="toast-container"><div className="toast"><i className="ti ti-check"></i><span>{toast.message}</span></div></div>
       )}
 
-      {/* סיידבר */}
-      <div className="sidebar">
-        <div className="sidebar-logo"><div className="sidebar-logo-inner">A</div></div>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin')}><i className="ti ti-layout-dashboard"></i><span className="nav-label">בית</span></button>
-        <button className="nav-btn active" type="button"><i className="ti ti-shopping-bag"></i><span className="nav-label">חנות</span></button>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin/missions')}><i className="ti ti-sword"></i><span className="nav-label">משימות</span></button>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin/control')}><i className="ti ti-calendar"></i><span className="nav-label">לו"ז</span></button>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin/groups')}><i className="ti ti-table"></i><span className="nav-label">קבוצות</span></button>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin/team')}><i className="ti ti-users"></i><span className="nav-label">צוות</span></button>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin/camps')}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 17 22 12"/></svg><span className="nav-label">קייטנות</span></button>
-      </div>
+      <AdminSidebar active="shop" />
 
       <div className="main-area">
         {/* טופ-באר */}

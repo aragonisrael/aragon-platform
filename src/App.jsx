@@ -1,6 +1,6 @@
 import { AuthProvider } from './context/AuthContext';
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute'; 
 
@@ -76,7 +76,9 @@ export default function App() {
         
         {/* 💻 עולם האדמין הראשי */}
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/admin/operations" element={<ProtectedRoute allowedRoles={['admin']}><AdminOperations /></ProtectedRoute>} />
+        <Route path="/admin/operations" element={<ProtectedRoute allowedRoles={['admin']}><Navigate to="/admin/operations/tasks" replace /></ProtectedRoute>} />
+        <Route path="/admin/operations/tasks" element={<ProtectedRoute allowedRoles={['admin']}><AdminOperations view="tasks" /></ProtectedRoute>} />
+        <Route path="/admin/operations/meetings" element={<ProtectedRoute allowedRoles={['admin']}><AdminOperations view="meetings" /></ProtectedRoute>} />
         <Route path="/admin/operations/meetings/:id" element={<ProtectedRoute allowedRoles={['admin']}><AdminMeetingDetail /></ProtectedRoute>} />
         <Route path="/admin/shop" element={<ProtectedRoute allowedRoles={['admin']}><AdminShopLogistics /></ProtectedRoute>} />
         <Route path="/admin/missions" element={<ProtectedRoute allowedRoles={['admin']}><AdminMissionsIncentives /></ProtectedRoute>} />

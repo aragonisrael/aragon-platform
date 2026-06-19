@@ -1,18 +1,19 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const NAV = [
+export const ADMIN_NAV = [
   { key: 'home', path: '/admin', icon: 'ti-layout-dashboard', label: 'בית' },
   { key: 'shop', path: '/admin/shop', icon: 'ti-shopping-bag', label: 'חנות' },
-  { key: 'missions', path: '/admin/missions', icon: 'ti-sword', label: 'משימות' },
+  { key: 'challenges', path: '/admin/missions', icon: 'ti-sword', label: 'אתגרים' },
   { key: 'control', path: '/admin/control', icon: 'ti-calendar', label: 'לו"ז' },
   { key: 'groups', path: '/admin/groups', icon: 'ti-table', label: 'קבוצות' },
   { key: 'team', path: '/admin/team', icon: 'ti-users', label: 'צוות' },
-  { key: 'operations', path: '/admin/operations', icon: 'ti-briefcase', label: 'הנהלה' },
+  { key: 'mgmt-tasks', path: '/admin/operations/tasks', icon: 'ti-checkbox', label: 'משימות' },
+  { key: 'mgmt-meetings', path: '/admin/operations/meetings', icon: 'ti-calendar-event', label: 'ישיבות' },
   { key: 'camps', path: '/admin/camps', icon: 'ti-tent', label: 'קייטנות' },
 ];
 
-export const adminOpsStyles = `
+export const adminSidebarStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Rajdhani:wght@400;500;600;700&display=swap');
   @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
   .hq-global-wrapper { width: 100%; min-height: 100vh; background: #050812; display: flex; font-family: 'Rajdhani', sans-serif; color: #e0f0ff; direction: rtl; }
@@ -20,7 +21,7 @@ export const adminOpsStyles = `
   .sidebar-logo { width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #0a1f3d, #0d2a50); border: 1px solid #1a4a80; display: flex; align-items: center; justify-content: center; font-family: 'Orbitron', monospace; font-size: 14px; color: #00c8ff; margin-bottom: 8px; }
   .nav-btn { width: 48px; height: 48px; border-radius: 10px; border: none; background: transparent; color: #4a6080; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 10px; }
   .nav-btn.active { background: linear-gradient(135deg, #0a1f3d, #0d2a50); color: #00c8ff; border: 1px solid #1a4a80; }
-  .nav-label { font-size: 9px; }
+  .nav-label { font-size: 9px; line-height: 1.1; text-align: center; }
   .main-col { flex: 1; padding: 24px; min-width: 0; }
   .page-title { font-family: 'Orbitron', monospace; font-size: 14px; color: #00c8ff; letter-spacing: 2px; margin-bottom: 6px; }
   .page-sub { font-size: 12px; color: #4a6080; margin-bottom: 20px; }
@@ -29,9 +30,6 @@ export const adminOpsStyles = `
   .kpi-val { font-family: 'Orbitron', monospace; font-size: 22px; color: #00c8ff; }
   .kpi-lbl { font-size: 11px; color: #6080a0; margin-top: 4px; }
   .ops-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
-  .ops-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
-  .ops-tab { padding: 8px 16px; border-radius: 8px; border: 1px solid #1a2a4a; background: #070e1c; color: #6080a0; cursor: pointer; font-weight: 700; font-size: 13px; }
-  .ops-tab.active { border-color: #00c8ff55; color: #00c8ff; background: rgba(0,200,255,0.06); }
   .ops-select, .ops-input { background: #060b18; border: 1px solid #1a2a4a; border-radius: 8px; padding: 8px 12px; color: #c0d8f0; font-family: 'Rajdhani', sans-serif; font-size: 13px; }
   .ops-btn-primary { padding: 9px 16px; border-radius: 8px; border: 1px solid #1a6aaa; background: linear-gradient(135deg, #0a2a50, #0d3a6a); color: #00c8ff; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
   .ops-btn-ghost { padding: 9px 16px; border-radius: 8px; border: 1px solid #1a2a4a; background: #070e1c; color: #8098b0; font-weight: 700; font-size: 13px; cursor: pointer; }
@@ -52,7 +50,6 @@ export const adminOpsStyles = `
   .ops-modal-title { font-family: 'Orbitron', monospace; font-size: 13px; color: #00c8ff; letter-spacing: 1px; margin-bottom: 16px; }
   .ops-field { margin-bottom: 14px; }
   .ops-field label { display: block; font-size: 11px; color: #6080a0; margin-bottom: 6px; font-weight: 700; }
-  .ops-textarea { width: 100%; min-height: 88px; resize: vertical; background: #060b18; border: 1px solid #1a2a4a; border-radius: 8px; padding: 10px 12px; color: #e0f0ff; font-family: 'Rajdhani', sans-serif; font-size: 14px; }
   .ops-detail-block { background: #060b18; border: 1px solid #1a2a4a; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; font-size: 13px; line-height: 1.6; color: #a8c0d8; white-space: pre-wrap; }
   .ops-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 2000; background: rgba(4,26,8,0.95); border: 1px solid rgba(0,230,118,0.4); color: #00e676; padding: 12px 20px; border-radius: 10px; font-weight: 700; font-size: 13px; }
   .ops-toast.warn { background: rgba(26,4,4,0.95); border-color: rgba(255,85,85,0.4); color: #ff5555; }
@@ -60,12 +57,14 @@ export const adminOpsStyles = `
   .ops-meta-chip { font-size: 11px; padding: 4px 10px; border-radius: 6px; border: 1px solid #1a2a4a; color: #8098b0; background: #060b18; }
 `;
 
-export default function AdminOpsSidebar({ active = 'operations' }) {
+export const adminOpsStyles = adminSidebarStyles;
+
+export default function AdminSidebar({ active = 'home' }) {
   const navigate = useNavigate();
   return (
     <div className="sidebar">
       <div className="sidebar-logo">A</div>
-      {NAV.map(item => (
+      {ADMIN_NAV.map(item => (
         <button
           key={item.key}
           type="button"

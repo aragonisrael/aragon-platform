@@ -5,6 +5,7 @@ import { supabase } from '../../supabaseClient';
 
 // ייבוא הלוגו הרשמי של אראגון
 import aragonLogo from '../../assets/aragonlogo.png';
+import AdminSidebar from '../../components/admin/AdminSidebar';
 
 // פונקציית עזר לראש הקובץ (Top-Level) למניעת קריסות scope ברענונים
 const fmtDateLabelStr = (dateStr) => {
@@ -876,20 +877,7 @@ export default function AdminCampsManagement() {
         @keyframes wavePulse { 0% { height: 3px; } 100% { height: 11px; } }
       `}</style>
 
-      {/* סיידבר אדמין רשמי */}
-      <div className="sidebar">
-        <div className="sidebar-logo"><div className="sidebar-logo-inner">A</div></div>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin')}><i className="ti ti-layout-dashboard"></i><span className="nav-label">בית</span></button>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin/shop')}><i className="ti ti-shopping-bag"></i><span className="nav-label">חנות</span></button>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin/missions')}><i className="ti ti-sword"></i><span className="nav-label">משימות</span></button>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin/control')}><i className="ti ti-calendar"></i><span className="nav-label">לו"ז</span></button>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin/groups')}><i className="ti ti-table"></i><span className="nav-label">קבוצות</span></button>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin/team')}><i className="ti ti-users"></i><span className="nav-label">צוות</span></button>
-        <button className="nav-btn active" type="button">
-          <i className="ti ti-tent" style={{ fontSize: '20px' }}></i>
-          <span className="nav-label">קייטנות</span>
-        </button>
-      </div>
+      <AdminSidebar active="camps" />
 
       {/* ── קומפוננטת עמוד הניהול המרכזית ── */}
       <div className="main-col">

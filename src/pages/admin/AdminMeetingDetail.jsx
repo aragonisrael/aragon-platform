@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import aragonLogo from '../../assets/aragonlogo.png';
-import AdminOpsSidebar, { adminOpsStyles } from '../../components/admin/AdminOpsSidebar';
+import AdminSidebar, { adminOpsStyles } from '../../components/admin/AdminSidebar';
 import {
   AGENDA_ITEM_TYPES, TASK_PRIORITIES,
   deptLabel, meetingTypeLabel, meetingStatusLabel, agendaItemStatusLabel,
@@ -103,7 +103,7 @@ export default function AdminMeetingDetail() {
     return (
       <div className="hq-global-wrapper">
         <style>{adminOpsStyles}</style>
-        <AdminOpsSidebar active="operations" />
+        <AdminSidebar active="mgmt-meetings" />
         <div className="main-col"><div className="ops-empty">טוען ישיבה...</div></div>
       </div>
     );
@@ -116,11 +116,11 @@ export default function AdminMeetingDetail() {
   return (
     <div className="hq-global-wrapper">
       <style>{adminOpsStyles}</style>
-      <AdminOpsSidebar active="operations" />
+      <AdminSidebar active="mgmt-meetings" />
 
       <div className="main-col">
-        <button type="button" className="ops-btn-ghost" style={{ marginBottom: '16px' }} onClick={() => navigate('/admin/operations')}>
-          <i className="ti ti-arrow-right" /> חזרה לפיקוח הנהלה
+        <button type="button" className="ops-btn-ghost" style={{ marginBottom: '16px' }} onClick={() => navigate('/admin/operations/meetings')}>
+          <i className="ti ti-arrow-right" /> חזרה לישיבות
         </button>
 
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>

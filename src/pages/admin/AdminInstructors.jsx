@@ -4,6 +4,7 @@ import { supabase } from '../../supabaseClient';
 
 // ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
 import aragonLogo from '../../assets/aragonlogo.png';
+import AdminSidebar from '../../components/admin/AdminSidebar';
 
 //  green 🟢 פונקציית זיקוק אבסולוטית חסינת תקלות - מונעת כפילויות של (זמני) בכל רחבי מערך הצוות והשמירות
 const cleanInstructorName = (name, isTemp = true) => {
@@ -473,17 +474,7 @@ export default function AdminInstructors() {
         @keyframes liveWave { 0% { height: 2px; } 100% { height: 8px; } }
       `}</style>
 
-      {/* סיידבר הניהול */}
-      <div className="sidebar">
-        <div className="sidebar-logo"><div className="sidebar-logo-inner">A</div></div>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin')}><i className="ti ti-layout-dashboard"></i><span className="nav-label">בית</span></button>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin/shop')}><i className="ti ti-shopping-bag"></i><span className="nav-label">חנות</span></button>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin/missions')}><i className="ti ti-sword"></i><span className="nav-label">משימות</span></button>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin/control')}><i className="ti ti-calendar"></i><span className="nav-label">לו"ז</span></button>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin/groups')}><i className="ti ti-table"></i><span className="nav-label">קבוצות</span></button>
-        <button className="nav-btn active" type="button"><i className="ti ti-users-group"></i><span className="nav-label">צוות</span></button>
-        <button className="nav-btn" type="button" onClick={() => navigate('/admin/camps')}><i className="ti ti-tent"></i><span className="nav-label">קייטנות</span></button>
-      </div>
+      <AdminSidebar active="team" />
 
       <div className="main-col">
         {/* TOP SYSTEM BAR */}
