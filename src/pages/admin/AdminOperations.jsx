@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
-import aragonLogo from '../../assets/aragonlogo.png';
 import AdminSidebar, { adminOpsStyles } from '../../components/admin/AdminSidebar';
+import AdminTopBar from '../../components/admin/AdminTopBar';
 import {
   TASK_STATUSES, TASK_PRIORITIES, DEPARTMENTS, MEETING_TYPES,
   deptLabel, statusLabel, meetingTypeLabel, meetingStatusLabel,
@@ -184,16 +184,13 @@ export default function AdminOperations({ view = 'tasks' }) {
       <AdminSidebar active={view === 'meetings' ? 'mgmt-meetings' : 'mgmt-tasks'} />
 
       <div className="main-col">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-          <img src={aragonLogo} alt="" style={{ width: 40, height: 40, borderRadius: '50%' }} />
-          <div>
-            <div className="page-title">{view === 'meetings' ? 'ישיבות הנהלה' : 'משימות הנהלה'}</div>
-            <div className="page-sub">
-              {view === 'meetings'
-                ? 'יצירה וניהול ישיבות צוות · סדר יום · מעקב ביצוע'
-                : 'פיקוח על כל משימות צוות ההנהלה · דיווחי סגירה'}
-            </div>
-          </div>
+        <AdminTopBar subtitle={view === 'meetings' ? 'MANAGEMENT MEETINGS HUB' : 'MANAGEMENT TASK CONTROL'} />
+        <div className="ops-content">
+        <div className="page-title">{view === 'meetings' ? 'ישיבות הנהלה' : 'משימות הנהלה'}</div>
+        <div className="page-sub">
+          {view === 'meetings'
+            ? 'יצירה וניהול ישיבות צוות · סדר יום · מעקב ביצוע'
+            : 'פיקוח על כל משימות צוות ההנהלה · דיווחי סגירה'}
         </div>
 
         <div className="kpi-row">
@@ -318,6 +315,7 @@ export default function AdminOperations({ view = 'tasks' }) {
             </div>
           </>
         )}
+        </div>
       </div>
 
       {toast.show && <div className={`ops-toast ${toast.warn ? 'warn' : ''}`}>{toast.message}</div>}

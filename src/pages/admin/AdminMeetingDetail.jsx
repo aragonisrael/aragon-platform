@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
-import aragonLogo from '../../assets/aragonlogo.png';
 import AdminSidebar, { adminOpsStyles } from '../../components/admin/AdminSidebar';
+import AdminTopBar from '../../components/admin/AdminTopBar';
 import {
   AGENDA_ITEM_TYPES, TASK_PRIORITIES,
   deptLabel, meetingTypeLabel, meetingStatusLabel, agendaItemStatusLabel,
@@ -104,7 +104,10 @@ export default function AdminMeetingDetail() {
       <div className="hq-global-wrapper">
         <style>{adminOpsStyles}</style>
         <AdminSidebar active="mgmt-meetings" />
-        <div className="main-col"><div className="ops-empty">טוען ישיבה...</div></div>
+        <div className="main-col">
+          <AdminTopBar subtitle="MANAGEMENT MEETINGS HUB" />
+          <div className="ops-content"><div className="ops-empty">טוען ישיבה...</div></div>
+        </div>
       </div>
     );
   }
@@ -119,12 +122,13 @@ export default function AdminMeetingDetail() {
       <AdminSidebar active="mgmt-meetings" />
 
       <div className="main-col">
+        <AdminTopBar subtitle="MANAGEMENT MEETINGS HUB" />
+        <div className="ops-content">
         <button type="button" className="ops-btn-ghost" style={{ marginBottom: '16px' }} onClick={() => navigate('/admin/operations/meetings')}>
           <i className="ti ti-arrow-right" /> חזרה לישיבות
         </button>
 
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
-          <img src={aragonLogo} alt="" style={{ width: 40, height: 40, borderRadius: '50%' }} />
           <div style={{ flex: 1, minWidth: '200px' }}>
             <div className="page-title">{meeting.title}</div>
             <div className="page-sub">{formatDate(meeting.meeting_date)}</div>
@@ -189,6 +193,7 @@ export default function AdminMeetingDetail() {
             ))}
           </div>
         )}
+        </div>
       </div>
 
       {toast.show && <div className={`ops-toast ${toast.warn ? 'warn' : ''}`}>{toast.message}</div>}
