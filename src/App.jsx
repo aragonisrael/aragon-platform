@@ -25,6 +25,7 @@ import InstructorProfile from './pages/instructor/InstructorProfile';
 // עמודי עולם האדמין (ARAGON CENTER) 💻
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminOperations from './pages/admin/AdminOperations';
+import AdminMeetingDetail from './pages/admin/AdminMeetingDetail';
 import AdminShopLogistics from './pages/admin/AdminShopLogistics';
 import AdminMissionsIncentives from './pages/admin/AdminMissionsIncentives';
 import AdminControlSchedule from './pages/admin/AdminControlSchedule';
@@ -76,6 +77,7 @@ export default function App() {
         {/* 💻 עולם האדמין הראשי */}
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/operations" element={<ProtectedRoute allowedRoles={['admin']}><AdminOperations /></ProtectedRoute>} />
+        <Route path="/admin/operations/meetings/:id" element={<ProtectedRoute allowedRoles={['admin']}><AdminMeetingDetail /></ProtectedRoute>} />
         <Route path="/admin/shop" element={<ProtectedRoute allowedRoles={['admin']}><AdminShopLogistics /></ProtectedRoute>} />
         <Route path="/admin/missions" element={<ProtectedRoute allowedRoles={['admin']}><AdminMissionsIncentives /></ProtectedRoute>} />
         <Route path="/admin/control" element={<ProtectedRoute allowedRoles={['admin']}><AdminControlSchedule /></ProtectedRoute>} />

@@ -46,6 +46,8 @@ export const AGENDA_ITEM_STATUSES = [
 export const deptLabel = (id) => DEPARTMENTS.find(d => d.id === id)?.label || id || 'כללי';
 export const statusLabel = (id) => TASK_STATUSES.find(s => s.id === id)?.label || id;
 export const meetingTypeLabel = (id) => MEETING_TYPES.find(m => m.id === id)?.label || id;
+export const meetingStatusLabel = (id) => MEETING_STATUSES.find(s => s.id === id)?.label || id;
+export const agendaItemStatusLabel = (id) => AGENDA_ITEM_STATUSES.find(s => s.id === id)?.label || id;
 
 const ROLE_LABELS = {
   management: 'הנהלה',
