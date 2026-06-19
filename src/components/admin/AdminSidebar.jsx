@@ -18,10 +18,13 @@ export const adminSidebarStyles = `
   @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
   .hq-global-wrapper { width: 100%; min-height: 100vh; background: #050812; display: flex; font-family: 'Rajdhani', sans-serif; color: #e0f0ff; direction: rtl; }
   .sidebar { width: 72px; background: #080f1e; border-left: 1px solid #1a2a4a; display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 8px; position: sticky; top: 0; height: 100vh; flex-shrink: 0; z-index: 10; }
-  .sidebar-logo { width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #0a1f3d, #0d2a50); border: 1px solid #1a4a80; display: flex; align-items: center; justify-content: center; font-family: 'Orbitron', monospace; font-size: 14px; color: #00c8ff; margin-bottom: 8px; }
-  .nav-btn { width: 48px; height: 48px; border-radius: 10px; border: none; background: transparent; color: #4a6080; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 10px; }
+  .sidebar-logo { width: 42px; height: 42px; border-radius: 50%; border: 2px solid #00c8ff; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; position: relative; font-family: 'Orbitron', monospace; font-size: 10px; font-weight: 700; color: #00c8ff; background: linear-gradient(135deg, #1a6fff, #00c8ff); }
+  .nav-btn { width: 48px; height: 48px; border-radius: 10px; border: none; background: transparent; color: #4a6080; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; transition: all 0.2s; font-size: 10px; position: relative; }
+  .nav-btn i { font-size: 20px; }
+  .nav-btn:hover { background: #0d1a30; color: #00c8ff; }
   .nav-btn.active { background: linear-gradient(135deg, #0a1f3d, #0d2a50); color: #00c8ff; border: 1px solid #1a4a80; }
-  .nav-label { font-size: 9px; line-height: 1.1; text-align: center; }
+  .nav-btn.active::before { content: ''; position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 20px; background: #00c8ff; border-radius: 2px 0 0 2px; }
+  .nav-label { font-size: 9px; font-family: 'Rajdhani', sans-serif; line-height: 1.1; text-align: center; }
   .main-col { flex: 1; padding: 24px; min-width: 0; }
   .page-title { font-family: 'Orbitron', monospace; font-size: 14px; color: #00c8ff; letter-spacing: 2px; margin-bottom: 6px; }
   .page-sub { font-size: 12px; color: #4a6080; margin-bottom: 20px; }
@@ -33,6 +36,18 @@ export const adminSidebarStyles = `
   .ops-select, .ops-input { background: #060b18; border: 1px solid #1a2a4a; border-radius: 8px; padding: 8px 12px; color: #c0d8f0; font-family: 'Rajdhani', sans-serif; font-size: 13px; }
   .ops-btn-primary { padding: 9px 16px; border-radius: 8px; border: 1px solid #1a6aaa; background: linear-gradient(135deg, #0a2a50, #0d3a6a); color: #00c8ff; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
   .ops-btn-ghost { padding: 9px 16px; border-radius: 8px; border: 1px solid #1a2a4a; background: #070e1c; color: #8098b0; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .ops-fab {
+    width: 100%; max-width: 360px; padding: 13px 18px; border-radius: 999px; cursor: pointer;
+    border: 1px solid rgba(99, 102, 241, 0.45); font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 800;
+    color: #fff; background: linear-gradient(135deg, rgba(99, 102, 241, 0.7), rgba(139, 92, 246, 0.75));
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3); display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .ops-view-chip {
+    padding: 8px 14px; border-radius: 999px; border: 1px solid #1a2a4a; background: #070e1c;
+    color: #6080a0; font-weight: 700; font-size: 12px; cursor: pointer; font-family: 'Rajdhani', sans-serif;
+  }
+  .ops-view-chip.active { border-color: #00c8ff55; color: #00c8ff; background: rgba(0,200,255,0.08); }
+  .ops-textarea { width: 100%; min-height: 88px; resize: vertical; background: #060b18; border: 1px solid #1a2a4a; border-radius: 8px; padding: 10px 12px; color: #e0f0ff; font-family: 'Rajdhani', sans-serif; font-size: 14px; }
   .ops-table-wrap { background: #070e1c; border: 1px solid #1a2a4a; border-radius: 12px; overflow: auto; }
   .ops-table { width: 100%; border-collapse: collapse; min-width: 720px; }
   .ops-table th, .ops-table td { padding: 12px 16px; text-align: right; border-bottom: 1px solid #0a1428; font-size: 13px; }

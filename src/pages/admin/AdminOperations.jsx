@@ -23,14 +23,23 @@ export default function AdminOperations({ view = 'tasks' }) {
   const [taskStatusFilter, setTaskStatusFilter] = useState('all');
   const [taskDeptFilter, setTaskDeptFilter] = useState('all');
   const [taskSearch, setTaskSearch] = useState('');
+  const [taskViewScope, setTaskViewScope] = useState('mine');
   const [meetingFilter, setMeetingFilter] = useState('active');
   const [selectedTask, setSelectedTask] = useState(null);
 
   const [isCreateMeetingOpen, setIsCreateMeetingOpen] = useState(false);
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [formTitle, setFormTitle] = useState('');
   const [formType, setFormType] = useState('weekly');
   const [formDept, setFormDept] = useState('content');
   const [formDate, setFormDate] = useState('');
+
+  const [taskFormTitle, setTaskFormTitle] = useState('');
+  const [taskFormDesc, setTaskFormDesc] = useState('');
+  const [taskFormAssignee, setTaskFormAssignee] = useState('');
+  const [taskFormPriority, setTaskFormPriority] = useState('normal');
+  const [taskFormDue, setTaskFormDue] = useState('');
+  const [taskFormDepartment, setTaskFormDepartment] = useState('general');
 
   const showToast = (message, warn = false) => {
     setToast({ show: true, message, warn });
@@ -47,6 +56,13 @@ export default function AdminOperations({ view = 'tasks' }) {
       setTasks(t || []);
       setMeetings(m || []);
       setUsers(u || []);
+      const me = (u || []).find(x => x.username === loggedUser);
+      if (me) {
+        setTaskFormAssignee(me.username);
+        setTaskFormDepartment(me.department || 'general');
+      } else if (loggedUser) {
+        setTaskFormAssignee(loggedUser);
+      }
 
       const doneIds = (t || []).filter(x => x.status === 'done').map(x => x.id);
       if (doneIds.length) {
@@ -66,9 +82,46 @@ export default function AdminOperations({ view = 'tasks' }) {
       console.error(err);
       showToast('שגיאה בטעינת נתונים', true);
     }
-  }, []);
+  }, [loggedUser]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  const resetTaskForm = () => {
+    const me = users.find(u => u.username === loggedUser);
+    setTaskFormTitle('');
+    setTaskFormDesc('');
+    setTaskFormAssignee(loggedUser || '');
+    setTaskFormPriority('normal');
+    setTaskFormDue('');
+    setTaskFormDepartment(me?.department || 'general');
+  };
+
+  const handleCreateTask = async () => {
+    if (!taskFormTitle.trim()) {
+      showToast('נא להזין כותרת', true);
+      return;
+    }
+    try {
+      const { error } = await supabase.from('management_tasks').insert([{
+        title: taskFormTitle.trim(),
+        description: taskFormDesc.trim(),
+        assignee_username: taskFormAssignee,
+        created_by_username: loggedUser,
+        department: taskFormDepartment,
+        status: 'open',
+        priority: taskFormPriority,
+        due_date: taskFormDue || null,
+      }]);
+      if (error) throw error;
+      await loadData();
+      setIsCreateTaskOpen(false);
+      resetTaskForm();
+      showToast('✓ המשימה נוצרה');
+    } catch (err) {
+      console.error(err);
+      showToast('שגיאה ביצירת משימה', true);
+    }
+  };
 
   const userName = (username) => users.find(u => u.username === username)?.full_name || username;
 
@@ -78,6 +131,7 @@ export default function AdminOperations({ view = 'tasks' }) {
   const activeMeetings = meetings.filter(m => m.status !== 'closed').length;
 
   const filteredTasks = tasks.filter(t => {
+    if (taskViewScope === 'mine' && t.assignee_username !== loggedUser) return false;
     if (taskStatusFilter !== 'all' && t.status !== taskStatusFilter) return false;
     if (taskDeptFilter !== 'all' && t.department !== taskDeptFilter) return false;
     if (taskSearch.trim()) {
@@ -160,6 +214,17 @@ export default function AdminOperations({ view = 'tasks' }) {
 
         {view === 'tasks' && (
           <>
+            <div className="ops-toolbar" style={{ marginBottom: '12px' }}>
+              <button type="button" className="ops-fab" onClick={() => { resetTaskForm(); setIsCreateTaskOpen(true); }}>
+                <i className="ti ti-plus" /> משימה חדשה
+              </button>
+            </div>
+
+            <div className="ops-toolbar">
+              <button type="button" className={`ops-view-chip ${taskViewScope === 'mine' ? 'active' : ''}`} onClick={() => setTaskViewScope('mine')}>המשימות שלי</button>
+              <button type="button" className={`ops-view-chip ${taskViewScope === 'all' ? 'active' : ''}`} onClick={() => setTaskViewScope('all')}>כל המשימות</button>
+            </div>
+
             <div className="ops-toolbar">
               <input className="ops-input" placeholder="חיפוש משימה..." value={taskSearch} onChange={(e) => setTaskSearch(e.target.value)} style={{ minWidth: '180px' }} />
               <select className="ops-select" value={taskStatusFilter} onChange={(e) => setTaskStatusFilter(e.target.value)}>
@@ -287,6 +352,48 @@ export default function AdminOperations({ view = 'tasks' }) {
               <div style={{ fontSize: '11px', color: '#4a6080', marginBottom: '12px' }}>נסגרה: {formatDate(selectedTask.completed_at)}</div>
             )}
             <button type="button" className="ops-btn-ghost" style={{ width: '100%' }} onClick={() => setSelectedTask(null)}>סגור</button>
+          </div>
+        </div>
+      )}
+
+      {isCreateTaskOpen && (
+        <div className="ops-modal-bg" onClick={(e) => e.target === e.currentTarget && setIsCreateTaskOpen(false)}>
+          <div className="ops-modal">
+            <div className="ops-modal-title">משימה חדשה</div>
+            <div className="ops-field">
+              <label>כותרת *</label>
+              <input className="ops-input" style={{ width: '100%' }} value={taskFormTitle} onChange={(e) => setTaskFormTitle(e.target.value)} placeholder="מה צריך לבצע?" />
+            </div>
+            <div className="ops-field">
+              <label>תיאור</label>
+              <textarea className="ops-textarea" value={taskFormDesc} onChange={(e) => setTaskFormDesc(e.target.value)} />
+            </div>
+            <div className="ops-field">
+              <label>אחראי</label>
+              <select className="ops-select" style={{ width: '100%' }} value={taskFormAssignee} onChange={(e) => setTaskFormAssignee(e.target.value)}>
+                {users.map(u => <option key={u.username} value={u.username}>{u.full_name}</option>)}
+              </select>
+            </div>
+            <div className="ops-field">
+              <label>מחלקה</label>
+              <select className="ops-select" style={{ width: '100%' }} value={taskFormDepartment} onChange={(e) => setTaskFormDepartment(e.target.value)}>
+                {DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+              </select>
+            </div>
+            <div className="ops-field">
+              <label>עדיפות</label>
+              <select className="ops-select" style={{ width: '100%' }} value={taskFormPriority} onChange={(e) => setTaskFormPriority(e.target.value)}>
+                {TASK_PRIORITIES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+              </select>
+            </div>
+            <div className="ops-field">
+              <label>תאריך יעד</label>
+              <input className="ops-input" style={{ width: '100%' }} type="date" value={taskFormDue} onChange={(e) => setTaskFormDue(e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" className="ops-btn-primary" style={{ flex: 1 }} onClick={handleCreateTask}>צור משימה</button>
+              <button type="button" className="ops-btn-ghost" style={{ flex: 1 }} onClick={() => setIsCreateTaskOpen(false)}>ביטול</button>
+            </div>
           </div>
         </div>
       )}
