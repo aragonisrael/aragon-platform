@@ -3,47 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import aragonLogo from '../../assets/aragonlogo.png';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { getLoggedUser } from '../../utils/authStorage';
 import ManagementBottomNav from '../../components/navigation/ManagementBottomNav';
 
 export const managementMobileStyles = `
-  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap');
   @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
-
-  .mgmt-mobile-root {
-    min-height: 100vh;
-    min-height: 100dvh;
-    width: 100%;
-    background: #050a14;
-    display: flex;
-    justify-content: center;
-    align-items: stretch;
-  }
-
-  .mgmt-mobile-app {
-    width: 100%;
-    max-width: 430px;
-    min-height: 100vh;
-    min-height: 100dvh;
-    background: #05010f;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    font-family: 'Heebo', sans-serif;
-    color: #e8eeff;
-    direction: rtl;
-    box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.15);
-  }
-
-  @media (min-width: 520px) {
-    .mgmt-mobile-root { padding: 16px 0; align-items: center; }
-    .mgmt-mobile-app {
-      min-height: 780px;
-      height: min(92vh, 860px);
-      border-radius: 28px;
-      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(124, 58, 237, 0.25);
-    }
-  }
 
   .mgmt-stars { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
   .mgmt-star {
@@ -134,24 +98,6 @@ export const managementMobileStyles = `
     border-radius: 50%;
     object-fit: cover;
     display: block;
-  }
-
-  .mgmt-scroll-body {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    position: relative;
-    z-index: 5;
-    padding: 12px 16px 8px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .mgmt-bottom-dock {
-    flex-shrink: 0;
-    z-index: 60;
-    padding: 0 14px calc(10px + env(safe-area-inset-bottom, 0));
-    background: linear-gradient(to top, #05010f 75%, rgba(5, 1, 15, 0));
   }
 
   .mgmt-modal-root {
@@ -750,9 +696,25 @@ function buildStars() {
 export default function ManagementShell({ pageLabel, activeNav, children, hideNav, fab }) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const loggedUser = user || sessionStorage.getItem('aragon_logged_user');
+  const loggedUser = user || getLoggedUser();
   const [stars] = useState(buildStars);
   const [displayName, setDisplayName] = useState('');
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const root = document.getElementById('root');
+    html.classList.add('mgmt-shell-active');
+    body.classList.add('mgmt-shell-active');
+    return () => {
+      html.classList.remove('mgmt-shell-active');
+      body.classList.remove('mgmt-shell-active');
+      if (root) {
+        root.style.removeProperty('height');
+        root.style.removeProperty('overflow');
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!loggedUser) return undefined;
@@ -787,21 +749,23 @@ export default function ManagementShell({ pageLabel, activeNav, children, hideNa
         <div className="mgmt-ambient mgmt-ambient-2" />
         <div className="mgmt-ambient mgmt-ambient-3" />
 
-        <div className="mgmt-status-gap" aria-hidden="true" />
+        <div className="mgmt-top-chrome">
+          <div className="mgmt-status-gap" aria-hidden="true" />
 
-        <header className="mgmt-top-banner">
-          <div className="mgmt-header-row">
-            <div className="mgmt-header-text">
-              <div className="mgmt-welcome">
-                ברוך הבא, <span>{displayName || '...'}</span>
+          <header className="mgmt-top-banner">
+            <div className="mgmt-header-row">
+              <div className="mgmt-header-text">
+                <div className="mgmt-welcome">
+                  ברוך הבא, <span>{displayName || '...'}</span>
+                </div>
+                {pageLabel && <div className="mgmt-page-label">{pageLabel}</div>}
               </div>
-              {pageLabel && <div className="mgmt-page-label">{pageLabel}</div>}
+              <div className="mgmt-logo-wrap">
+                <img className="mgmt-logo-img" src={aragonLogo} alt="Aragon" />
+              </div>
             </div>
-            <div className="mgmt-logo-wrap">
-              <img className="mgmt-logo-img" src={aragonLogo} alt="Aragon" />
-            </div>
-          </div>
-        </header>
+          </header>
+        </div>
 
         <main className="mgmt-scroll-body">{children}</main>
 

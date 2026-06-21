@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { getPushPermissionStatus, registerForPushNotifications } from '../../hooks/usePushNotifications';
 import ManagementShell from './ManagementShell';
 import ManagementModal from '../../components/ManagementModal';
 import { roleLabel } from '../../constants/management';
@@ -55,6 +57,38 @@ export default function ManagementProfile() {
   const [curPass, setCurPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confPass, setConfPass] = useState('');
+  const [pushStatus, setPushStatus] = useState('loading');
+  const [pushBusy, setPushBusy] = useState(false);
+
+  const refreshPushStatus = useCallback(async () => {
+    if (!Capacitor.isNativePlatform()) {
+      setPushStatus('unsupported');
+      return;
+    }
+    setPushStatus(await getPushPermissionStatus());
+  }, []);
+
+  useEffect(() => { refreshPushStatus(); }, [refreshPushStatus]);
+
+  const handleEnablePush = async () => {
+    setPushBusy(true);
+    try {
+      const result = await registerForPushNotifications(loggedUser);
+      await refreshPushStatus();
+      showToast(result.ok ? `✓ ${result.message}` : result.message, !result.ok);
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const pushStatusLabel = {
+    granted: 'פעיל ✓',
+    denied: 'חסום — הפעל בהגדרות',
+    prompt: 'לא הופעל — לחץ להפעלה',
+    unavailable: 'לא מחובר — הרץ מחדש מ-Xcode',
+    loading: 'בודק...',
+    unsupported: 'זמין רק באפליקציה',
+  }[pushStatus] || pushStatus;
 
   const showToast = (message, warn = false) => {
     setToast({ show: true, message, warn });
@@ -262,6 +296,22 @@ export default function ManagementProfile() {
           <input className="mgmt-input mgmt-input-readonly" value={roleLabel(profile?.role)} readOnly tabIndex={-1} />
         </div>
       </div>
+
+      <button
+        type="button"
+        className="mgmt-profile-action-btn"
+        onClick={handleEnablePush}
+        disabled={pushBusy || pushStatus === 'unsupported' || pushStatus === 'granted'}
+      >
+        <i className="ti ti-bell" />
+        <span>
+          התראות Push
+          <small style={{ display: 'block', fontSize: '11px', color: '#8098b0', marginTop: '2px' }}>
+            {pushBusy ? 'מפעיל...' : pushStatusLabel}
+          </small>
+        </span>
+        <i className="ti ti-chevron-left mgmt-profile-action-arrow" />
+      </button>
 
       <button
         type="button"

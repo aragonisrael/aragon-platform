@@ -1,4 +1,5 @@
 import { AuthProvider } from './context/AuthContext';
+import PushNotificationsSetup from './components/PushNotificationsSetup';
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
@@ -51,6 +52,7 @@ import ManagementProfile from './pages/management/ManagementProfile';
 export default function App() {
   return (
     <AuthProvider>
+      <PushNotificationsSetup />
       <audio id="hq-cyber-radio" src="https://listen.181fm.com/181-power_128k.mp3" preload="none" />
 
       <Routes>

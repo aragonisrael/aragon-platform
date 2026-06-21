@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import aragonLogo from '../assets/aragonlogo.png';
 import { useAuth } from '../context/AuthContext';
+import { routeForRole } from '../utils/authStorage';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { loginContext } = useAuth();
+  const { loginContext, user, role, loading: authLoading } = useAuth();
 
   // ארסנל הסטייטס הדינמי של שער הכניסה
   const [username, setUsername] = useState('');
@@ -37,6 +38,11 @@ export default function Login() {
       setRememberMe(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (authLoading || !user || !role) return;
+    navigate(routeForRole(role), { replace: true });
+  }, [authLoading, user, role, navigate]);
 
   // 🆙 מנוע כוכבים איטיים, בולטים וזוהרים שעולים כלפי מעלה
   useEffect(() => {

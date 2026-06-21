@@ -5,9 +5,12 @@ import { supabase } from '../../supabaseClient';
 
 // מייבאים את הלוגו של אראגון לעיצוב העליון המשותף
 import aragonLogo from '../../assets/aragonlogo.png';
+import StudentNavUpdatesIcon from '../../components/student/StudentNavUpdatesIcon';
+import { useStudentUnreadUpdates } from '../../hooks/useStudentUnreadUpdates';
 
 export default function StudentProfile() {
   const navigate = useNavigate();
+  const unreadUpdates = useStudentUnreadUpdates();
 
   // Functional application states - מחוברים לשרת
   const [balance, setBalance] = useState(0);
@@ -244,7 +247,7 @@ export default function StudentProfile() {
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         
         .profile-main-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #050a14; width: 100%; }
-        .app { width: 380px; background: #05010f; font-family: 'Orbitron', sans-serif; position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 24px; min-height: 700px; box-shadow: 0 0 60px rgba(124,58,237,.3); padding-bottom: 95px; }
+        .app { width: 380px; background: #05010f; font-family: 'Orbitron', sans-serif; position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: 24px; min-height: 700px; height: 100vh; height: 100dvh; max-height: 100dvh; box-shadow: 0 0 60px rgba(124,58,237,.3); }
         .gl { position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: .05; background-image: linear-gradient(rgba(120,80,255,.6) 1px,transparent 1px), linear-gradient(90deg,rgba(120,80,255,.6) 1px,transparent 1px); background-size: 40px 40px; animation: gm 8s linear infinite; }
         @keyframes gm { from{background-position:0 0} to{background-position:40px 40px} }
         .stars { position:absolute; inset:0; pointer-events:none; z-index:0; }
@@ -253,35 +256,110 @@ export default function StudentProfile() {
         .nb { position:absolute; inset:0; border-radius:24px; pointer-events:none; z-index:20; box-shadow:inset 0 0 30px rgba(124,58,237,.1),0 0 0 1px rgba(124,58,237,.3); }
         .sl { position:absolute; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,rgba(124,58,237,.6),rgba(167,139,250,.9),rgba(124,58,237,.6),transparent); animation:sc 4s linear infinite; z-index:2; pointer-events:none; }
         @keyframes sc { from{top:0;opacity:0} 5%{opacity:1} 95%{opacity:1} to{top:100%;opacity:0}}
-        .top-banner { position:relative; z-index:10; background:linear-gradient(135deg,#0a0520,#0d0730,#0a051a,#060218); border-bottom:1px solid rgba(124,58,237,0.4); padding:12px 0 14px; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; }
-        .banner-scan { position:absolute; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,rgba(124,58,237,0.8) 40%,rgba(56,189,248,1) 50%,rgba(124,58,237,0.8) 60%,transparent); animation:bannerScan 3s ease-in-out infinite; pointer-events:none; z-index:2; }
-        @keyframes bannerScan { 0%{top:0;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:100%;opacity:0} }
-        .circuit-left-wrap, .circuit-right-wrap { flex:1; display:flex; align-items:center; }
-        .circuit-left-svg, .circuit-right-svg { flex:1; height:70px; }
-        .radio-chip-banner { flex-shrink:0; margin-left:10px; width: 34px; height: 34px; border-radius: 50%; background:rgba(124, 58, 237, 0.12); border: 1px solid rgba(124, 58, 237, 0.4); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#a78bfa; transition: all 0.2s ease; font-size:12px; z-index:15; }
-        .radio-chip-banner:hover { border-color: rgba(167,139,250,0.7); background: rgba(124,58,237,0.2); }
-        .radio-chip-banner.playing { border-color: #38bdf8; color:#38bdf8; box-shadow: 0 0 10px rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.1); }
-        .balance-chip-banner { flex-shrink:0; margin-right:10px; background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.4); border-radius:20px; padding:6px 12px; display:flex; flex-direction:column; align-items:center; gap:2px; }
-        .bal-num { font-size:18px; font-weight:900; line-height:1; background:linear-gradient(135deg,#fbbf24,#fde68a); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation:ng 2s ease-in-out infinite }
-        @keyframes ng { 0%,100%{filter:drop-shadow(0 0 4px rgba(251,191,36,.3))} 50%{filter:drop-shadow(0 0 12px rgba(251,191,36,.8))} }
-        .bal-label { font-size:7px; color:rgba(251,191,36,.55); letter-spacing:1px}
-        .banner-logo { width:80px; height:80px; position:relative; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
-        .neon-ring { position:absolute; inset:-10px; border-radius:50%; border:2px solid rgba(99,102,241,.7); animation:rp 2.5s ease-in-out infinite }
-        @keyframes rp { 0%,100%{box-shadow:0 0 8px 2px rgba(99,102,241,.6),0 0 20px 5px rgba(124,58,237,.4),0 0 40px 8px rgba(56,189,248,.2)} 50%{box-shadow:0 0 18px 5px rgba(99,102,241,1),0 0 40px 12px rgba(124,58,237,.7),0 0 70px 18px rgba(56,189,248,.4)} }
-        .neon-ring2 { position:absolute; inset:-18px; border-radius:50%; border:1px dashed rgba(56,189,248,.4); animation:rr 10s linear infinite }
-        @keyframes rr { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        .ring2-dot { position:absolute; width:6px; height:6px; background:#38bdf8; border-radius:50%; top:-3px; left:50%; transform:translateX(-50%); box-shadow:0 0 8px #38bdf8 }
-        .logo-halo { position:absolute; inset:-25px; border-radius:50%; background:radial-gradient(ellipse,rgba(99,102,241,.35) 0%,rgba(124,58,237,.2) 40%,transparent 70%); animation:hp 2.5s ease-in-out infinite; z-index:1 }
-        @keyframes hp { 0%,100%{transform:scale(1);opacity:.7} 50%{transform:scale(1.2);opacity:1} }
-        .logo-img { width:80px; height:80px; border-radius:50%; position:relative; z-index:2; object-fit:cover; background: rgba(255,255,255,0.9); padding:4px; }
-        .cyber-dots-purple, .cyber-dots-blue { position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; }
-        .cyber-dots-purple { animation: cyberSpinPurple 3s linear infinite; z-index: 6; }
-        .cyber-dots-blue { animation: cyberSpinBlue 5s linear infinite reverse; z-index: 6; }
-        .cyber-dots-purple::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #8050ff; border-radius: 50%; box-shadow: 0 0 15px #8050ff, 0 0 30px #8050ff; }
-        .cyber-dots-blue::before { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #4080ff; border-radius: 50%; box-shadow: 0 0 15px #4080ff, 0 0 30px #4080ff; }
-        @keyframes cyberSpinPurple { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes cyberSpinBlue { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .ps { position:relative; z-index:10; overflow-y:auto; flex:1; padding:16px 14px 10px; scrollbar-width:none }
+        .top-banner {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          width: 100%;
+          z-index: 100;
+          background: rgba(10, 3, 28, 0.97);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border-bottom: 1px solid rgba(124,58,237,0.45);
+          padding: max(env(safe-area-inset-top, 0px), 10px) 16px 12px;
+          overflow: hidden;
+          box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+        }
+        .top-banner-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+          direction: ltr;
+          min-height: 58px;
+        }
+        .banner-scan {
+          position: absolute;
+          left: 0; right: 0; height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(124,58,237,0.8) 40%, rgba(56,189,248,1) 50%, rgba(124,58,237,0.8) 60%, transparent);
+          animation: bannerScan 3s ease-in-out infinite;
+          pointer-events: none;
+          z-index: 2;
+        }
+        @keyframes bannerScan { 0% { top: 0; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+        .balance-chip-banner {
+          flex-shrink: 0;
+          background: rgba(251,191,36,0.12);
+          border: 1px solid rgba(251,191,36,0.4);
+          border-radius: 20px;
+          padding: 7px 14px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 2px;
+          direction: rtl;
+        }
+        .bal-num {
+          font-size: 17px; font-weight: 900; line-height: 1; background: linear-gradient(135deg, #fbbf24, #fde68a);
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: numGlow 2s ease-in-out infinite;
+        }
+        @keyframes numGlow { 0%,100%{filter:drop-shadow(0 0 4px rgba(251,191,36,0.3));} 50%{filter:drop-shadow(0 0 12px rgba(251,191,36,0.8));} }
+        .bal-label { font-size: 9px; color: rgba(251,191,36,0.7); letter-spacing: 0; font-weight: 700; }
+        .banner-logo {
+          width: 56px;
+          height: 56px;
+          position: relative;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          border: none;
+          background: transparent;
+          padding: 0;
+          transition: transform 0.15s ease;
+        }
+        .banner-logo:active { transform: scale(0.94); }
+        .banner-logo.playing .neon-ring {
+          border-color: rgba(56, 189, 248, 0.9);
+          box-shadow: 0 0 10px 3px rgba(56, 189, 248, 0.5), 0 0 24px 8px rgba(56, 189, 248, 0.25), inset 0 0 16px rgba(56, 189, 248, 0.2);
+        }
+        .banner-logo.playing .neon-ring2 { border-color: rgba(56, 189, 248, 0.55); }
+        .banner-logo.playing .ring2-dot { background: #38bdf8; box-shadow: 0 0 10px #38bdf8; }
+        .banner-logo.playing .logo-halo {
+          background: radial-gradient(ellipse, rgba(56, 189, 248, 0.35) 0%, rgba(99, 102, 241, 0.2) 45%, transparent 70%);
+        }
+        .neon-ring {
+          position: absolute; inset: -7px; border-radius: 50%; border: 2px solid rgba(99,102,241,0.7);
+          box-shadow: 0 0 6px 2px rgba(99,102,241,0.6), 0 0 16px 4px rgba(124,58,237,0.4), 0 0 30px 6px rgba(56,189,248,0.2), inset 0 0 12px rgba(124,58,237,0.3);
+          animation: ringPulse 2.5s ease-in-out infinite;
+        }
+        @keyframes ringPulse {
+          0%,100% { box-shadow: 0 0 6px 2px rgba(99,102,241,0.6), 0 0 16px 4px rgba(124,58,237,0.4), 0 0 30px 6px rgba(56,189,248,0.2), inset 0 0 12px rgba(124,58,237,0.3); }
+          50% { box-shadow: 0 0 14px 4px rgba(99,102,241,1), 0 0 32px 10px rgba(124,58,237,0.7), 0 0 52px 14px rgba(56,189,248,0.4), inset 0 0 24px rgba(124,58,237,0.6); }
+        }
+        .neon-ring2 { position: absolute; inset: -13px; border-radius: 50%; border: 1px dashed rgba(56,189,248,0.4); animation: ringRotate 10s linear infinite; }
+        @keyframes ringRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .ring2-dot { position: absolute; width: 5px; height: 5px; background: #38bdf8; border-radius: 50%; top: -2.5px; left: 50%; transform: translateX(-50%); box-shadow: 0 0 6px #38bdf8; }
+        .logo-halo {
+          position: absolute; inset: -18px; border-radius: 50%;
+          background: radial-gradient(ellipse, rgba(99,102,241,0.35) 0%, rgba(124,58,237,0.2) 40%, transparent 70%);
+          animation: haloPulse 2.5s ease-in-out infinite; z-index: 1;
+        }
+        @keyframes haloPulse { 0%,100% { transform: scale(1); opacity: 0.7; } 50% { transform: scale(1.15); opacity: 1; } }
+        .logo-img { width: 56px; height: 56px; border-radius: 50%; position: relative; z-index: 2; object-fit: cover; background: rgba(255,255,255,0.9); padding: 3px; pointer-events: none; }
+        .ps {
+          position: relative;
+          z-index: 10;
+          overflow-y: auto;
+          overflow-x: hidden;
+          flex: 1;
+          min-height: 0;
+          -webkit-overflow-scrolling: touch;
+          padding: calc(72px + max(env(safe-area-inset-top, 0px), 10px)) 14px 100px;
+          scrollbar-width: none;
+        }
         .ps::-webkit-scrollbar { display:none }
         @keyframes fu { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
         .fu { animation:fu .45s ease forwards; opacity:0 }
@@ -436,7 +514,7 @@ export default function StudentProfile() {
         .lb-cancel:hover { background: rgba(255,255,255,.1); color: #9ca3af }
         .lb-confirm { flex: 1; padding: 11px; border-radius: 12px; background: linear-gradient(135deg,rgba(185,28,28,.7),rgba(153,27,27,.7)); border: 1px solid rgba(239,68,68,.4); color: #fca5a5; font-family: 'Orbitron',sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; transition: all .2s }
         .lb-confirm:hover { box-shadow: 0 0 18px rgba(239,68,68,.35); color: white }
-        .nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 380px; max-width: 100%; z-index: 100; background: rgba(10,3,28,.98); border-top: 1px solid rgba(124,58,237,.5); padding: 10px 0 18px; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7); flex-shrink: 0; }
+        .nav { position: absolute; bottom: 0; left: 0; right: 0; width: 100%; z-index: 100; background: rgba(10,3,28,.98); border-top: 1px solid rgba(124,58,237,.5); padding: 10px 0 18px; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7); flex-shrink: 0; }
         .ni { display: flex; justify-content: space-around; align-items: center }
         .n { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; padding: 6px 8px; border-radius: 14px; transition: all .25s; border: 1px solid transparent; background: transparent }
         .n.act { background: linear-gradient(160deg,rgba(124,58,237,.25),rgba(79,70,229,.15)); border: 1px solid rgba(167,139,250,.55); box-shadow: 0 0 14px rgba(124,58,237,.3) }
@@ -468,54 +546,25 @@ export default function StudentProfile() {
           ))}
         </div>
 
-        {/* TOP BRANDING BANNER - SYMMETRIC CYBER MATRIX */}
+        {/* TOP BAR — לוגו = רדיו, מונה אראגונים */}
         <div className="top-banner">
-          <div className="banner-scan"></div>
-          
-          {/* צד שמאל: קפסולת הרדיו האינטראקטיבית */}
-          <div className="circuit-left-wrap">
-            <div className={`radio-chip-banner ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
-              <div className="radio-chip-icon">
-                <i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i>
-              </div>
-            </div>
-            <div className="circuit-left-svg">
-              <svg viewBox="0 0 110 70" width="100%" height="100%">
-                <line x1="110" y1="35" x2="75" y2="35" stroke="#7c3aed" strokeWidth="1.5" opacity=".7"/>
-                <line x1="75" y1="35" x2="55" y2="18" stroke="#7c3aed" strokeWidth="1" opacity=".5"/>
-                <line x1="75" y1="35" x2="50" y2="35" stroke="#38bdf8" strokeWidth="1" opacity=".6"/>
-                <circle cx="75" cy="35" r="3" fill="#7c3aed" opacity=".9"/>
-                <circle cx="50" cy="35" r="2.5" fill="#38bdf8" opacity=".8"/>
-              </svg>
-            </div>
-          </div>
+          <div className="banner-scan" />
+          <div className="top-banner-row">
+            <button
+              type="button"
+              className={`banner-logo ${isPlaying ? 'playing' : ''}`}
+              onClick={toggleRadioPlay}
+              aria-label={isPlaying ? 'השהה רדיו HQ' : 'הפעל רדיו HQ'}
+            >
+              <div className="logo-halo" />
+              <div className="neon-ring" />
+              <div className="neon-ring2"><div className="ring2-dot" /></div>
+              <img className="logo-img" src={aragonLogo} alt="Aragon" />
+            </button>
 
-          {/* מרכז קבוע: לוגו אראגון הרשמי */}
-          <div className="banner-logo">
-            <div className="lhalo"></div>
-            <div className="nr"></div>
-            <div className="nr2"><div className="r2d"></div></div>
-            
-            <div className="cyber-dots-purple"></div>
-            <div className="cyber-dots-blue"></div>
-            
-            <img className="limg" src={aragonLogo} alt="Aragon Logo"/>
-          </div>
-
-          {/* צד ימין: יתרת המטבעות המחוברת דינמית */}
-          <div className="circuit-right-wrap">
-            <div className="circuit-right-svg">
-              <svg viewBox="0 0 110 70" width="100%" height="100%">
-                <line x1="0" y1="35" x2="35" y2="35" stroke="#7c3aed" strokeWidth="1.5" opacity=".7"/>
-                <line x1="35" y1="35" x2="55" y2="18" stroke="#7c3aed" strokeWidth="1" opacity=".5"/>
-                <line x1="35" y1="35" x2="60" y2="35" stroke="#38bdf8" strokeWidth="1" opacity=".6"/>
-                <circle cx="35" cy="35" r="3" fill="#7c3aed" opacity=".9"/>
-                <circle cx="60" cy="35" r="2.5" fill="#38bdf8" opacity=".8"/>
-              </svg>
-            </div>
             <div className="balance-chip-banner">
               <span className="bal-num">{balance}</span>
-              <span className="bal-label">🪙 COINS</span>
+              <span className="bal-label">אראגונים</span>
             </div>
           </div>
         </div>
@@ -650,7 +699,7 @@ export default function StudentProfile() {
               <span className="nl">פרופיל</span>
             </button>
             <button className="n" type="button" onClick={() => navigate('/student/updates')}>
-              <div className="nd"><svg width="30" height="30" viewBox="0 0 30 30"><path d="M15 4 Q9 4 8 13 L7 20 L23 20 L22 13 Q21 4 15 4Z" fill="#a78bfa"/><path d="M19 4.5 Q22 6 22 13 L21.5 20 L23 20 L22 13 Q21.5 5.5 19 4.5Z" fill="#5b21b6" opacity=".85"/><rect x="5" y="19" width="20" height="3" rx="1.5" fill="#7c3aed"/><ellipse cx="15" cy="25" rx="3.5" ry="2" fill="#7c3aed"/><circle cx="22" cy="7" r="4" fill="#ef4444"/><text x="22" y="9.5" textAnchor="middle" fontSize="5.5" fill="white" fontWeight="bold">3</text></svg></div>
+              <div className="nd"><StudentNavUpdatesIcon unreadCount={unreadUpdates} /></div>
               <span className="nl">עדכונים</span>
             </button>
           </div>

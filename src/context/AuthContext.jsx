@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import { deactivatePushTokens } from '../hooks/usePushNotifications';
+import { clearAuth, getLoggedRole, getLoggedUser, saveAuth } from '../utils/authStorage';
 
-// יצירת הקונטקסט המרכזי
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -8,10 +9,9 @@ export function AuthProvider({ children }) {
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // בדיקה ראשונית בעת טעינת האתר האם יש משתמש שכבר מחובר בסשן
   useEffect(() => {
-    const savedUser = sessionStorage.getItem('aragon_logged_user');
-    const savedRole = sessionStorage.getItem('aragon_logged_role'); // נשמור גם את התפקיד בסשן
+    const savedUser = getLoggedUser();
+    const savedRole = getLoggedRole();
 
     if (savedUser && savedRole) {
       setUser(savedUser);
@@ -20,20 +20,18 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  // פונקציית כניסה למערכת - מעדכנת את הסטייט ואת הזיכרון של הדפדפן
   const loginContext = (username, userRole) => {
     setUser(username);
     setRole(userRole);
-    sessionStorage.setItem('aragon_logged_user', username);
-    sessionStorage.setItem('aragon_logged_role', userRole);
+    saveAuth(username, userRole);
   };
 
-  // פונקציית יציאה מהמערכת - מנקה את הכל
   const logoutContext = () => {
+    const username = getLoggedUser();
+    deactivatePushTokens(username);
     setUser(null);
     setRole(null);
-    sessionStorage.removeItem('aragon_logged_user');
-    sessionStorage.removeItem('aragon_logged_role');
+    clearAuth();
   };
 
   return (
@@ -43,7 +41,6 @@ export function AuthProvider({ children }) {
   );
 }
 
-// Hook מותאם אישית כדי לשלוף את נתוני האבטחה בקלות מכל קובץ בפרויקט
 export function useAuth() {
   return useContext(AuthContext);
 }

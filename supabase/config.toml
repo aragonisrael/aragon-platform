@@ -1,0 +1,5 @@
+[functions.notify-new-task]
+verify_jwt = false
+
+[functions.meeting-reminders]
+verify_jwt = false

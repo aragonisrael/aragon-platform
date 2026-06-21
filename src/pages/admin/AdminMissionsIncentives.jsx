@@ -41,7 +41,7 @@ export default function AdminMissionsIncentives() {
       // 1. משיכת קבוצות אמיתיות ליצירת רשימת הבחירה במשימות תלמיד
       const { data: dbGroups } = await supabase.from('groups').select('id, name, city, venue');
       if (dbGroups) {
-        const mappedGroups = dbGroups.map(g => `${g.name} | ${g.venue} ${g.city}`);
+        const mappedGroups = dbGroups.map(g => `${g.venue} — ${g.name}`);
         setGroupsOptions(mappedGroups);
         if (mappedGroups.length > 0 && !mGroup) setMGroup(mappedGroups[0]);
       }
@@ -57,7 +57,9 @@ export default function AdminMissionsIncentives() {
       // 3. משיכת היסטוריית המשימות והאתגרים שהופצו מהאדמין
       const { data: dbTasks } = await supabase.from('admin_tasks').select('*').order('created_at', { ascending: false });
       if (dbTasks) {
-        const studentQuests = dbTasks.filter(t => t.category === 'student_mission');
+        const studentQuests = dbTasks.filter(t => t.category === 'student_challenge' || (
+          t.category === 'student_mission' && !(t.description || '').startsWith('משימה מאת המדריך') && !(t.description || '').startsWith('נשלח ע"י המדריך')
+        ));
         const instructorQuests = dbTasks.filter(t => t.category === 'instructor_incentive');
 
         setDispatchedMissionsCount(studentQuests.length);
@@ -133,7 +135,7 @@ export default function AdminMissionsIncentives() {
         reward: mCoins,
         target_type: mScope,
         target_name: mScope === 'global' ? 'כל הארץ' : mGroup,
-        category: 'student_mission'
+        category: 'student_challenge'
       }]);
 
       setMissionBanner({ show: true, title: `✅ המשימה הופצה בהצלחה לתלמידים במערכת!`, sub: `"${mTitle}" רשומה כעת בענן` });
@@ -386,7 +388,7 @@ export default function AdminMissionsIncentives() {
             
             {/* PART A: STUDENT MISSIONS */}
             <div>
-              <div className="sech"><div className="secdot-cyan"></div><div className="sectitle" style={{ color: '#00c8ff' }}>משימות לתלמידים</div><div className="secline"></div></div>
+              <div className="sech"><div className="secdot-cyan"></div><div className="sectitle" style={{ color: '#00c8ff' }}>אתגרים לתלמידים</div><div className="secline"></div></div>
               <div className="panel panel-cyan">
                 <div className="panel-head panel-head-cyan">
                   <div>
@@ -401,7 +403,7 @@ export default function AdminMissionsIncentives() {
                   <div className="fgroup" style={{ marginBottom: '14px' }}><label className="flabel">פרס באראגונים 🪙</label><div className="coin-input-wrap"><span className="coin-icon">🪙</span><input className="finput" type="number" min="1" value={mCoins} onChange={(e) => setMCoins(parseInt(e.target.value, 10) || 0)} style={{ paddingLeft: '36px' }} /></div><div className="coin-presets">{[5, 10, 15, 25, 50].map(v => <button key={v} className={`preset-btn ${mCoins === v ? 'active' : ''}`} type="button" onClick={() => setMCoins(v)}>+{v}</button>)}</div></div>
                   <div className="fgroup" style={{ marginBottom: '14px' }}><label className="flabel">שיוך משימה</label><div className="scope-row"><button className={`scope-btn ${mScope === 'global' ? 'active-cyan' : ''}`} type="button" onClick={() => setMScope('global')}><i className="ti ti-world"></i> כל הארץ</button><button className={`scope-btn ${mScope === 'group' ? 'active-cyan' : ''}`} type="button" onClick={() => setMScope('group')}><i className="ti ti-users"></i> קבוצה</button></div>{mScope === 'group' && <select className="finput" style={{ marginTop: '8px' }} value={mGroup} onChange={(e) => setMGroup(e.target.value)}><option value="">— בחר קבוצה —</option>{groupsOptions.map((g, idx) => <option key={idx} value={g}>{g}</option>)}</select>}</div>
                   {missionBanner.show && <div className="success-banner sb-cyan"><span className="sb-icon">🎯</span><div><div className="sb-title sb-title-cyan">{missionBanner.title}</div><div className="sb-sub">{missionBanner.sub}</div></div></div>}
-                  <button className="dispatch-btn dispatch-cyan" type="button" onClick={handleDispatchMission}><i className="ti ti-send"></i> הפץ משימה</button>
+                  <button className="dispatch-btn dispatch-cyan" type="button" onClick={handleDispatchMission}><i className="ti ti-send"></i> הפץ אתגר</button>
                   <div className="log-section"><div className="log-title">היסטוריית הפצות</div><div id="missionLog">{missionLogs.map(log => <div className="log-item li-cyan" key={log.id}><div className="li-dot-cyan"></div><div className="li-text"><strong>{log.main}</strong> — {log.sub}</div><div className="li-time">{log.time}</div></div>)}</div></div>
                 </div>
               </div>

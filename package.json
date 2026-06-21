@@ -13,6 +13,7 @@
     "@capacitor/android": "^8.4.0",
     "@capacitor/core": "^8.4.0",
     "@capacitor/ios": "^8.4.0",
+    "@capacitor/push-notifications": "^8.1.1",
     "@supabase/supabase-js": "^2.106.1",
     "lucide-react": "^1.16.0",
     "react": "^19.2.6",

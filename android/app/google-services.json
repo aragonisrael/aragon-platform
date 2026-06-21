@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "215157630471",
+    "project_id": "aragon-platform",
+    "storage_bucket": "aragon-platform.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:215157630471:android:69c8e40499629b2ada2ca2",
+        "android_client_info": {
+          "package_name": "co.il.aragon.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBynZ46fWaNzZAljYPuKgH6zqLPZuhTws"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

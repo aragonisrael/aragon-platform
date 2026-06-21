@@ -3,9 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import aragonLogo from '../../assets/aragonlogo.png';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
+import StudentNavUpdatesIcon from '../../components/student/StudentNavUpdatesIcon';
+import { useStudentUnreadUpdates } from '../../hooks/useStudentUnreadUpdates';
+import {
+  buildGroupIdentifier,
+  STUDENT_TASK_CATEGORIES,
+  taskAppliesToStudent,
+} from '../../utils/studentTasks';
 
 export default function StudentHome() {
   const navigate = useNavigate();
+  const unreadUpdates = useStudentUnreadUpdates();
   
   // States דינמיים עבור נתוני התלמיד האמיתיים מהענן
   const [balance, setBalance] = useState(0);
@@ -49,31 +57,27 @@ export default function StudentHome() {
           setPlayerXp(userData.xp || 0); // 🟢 השמת ערך ה-XP מהענן
 
           let groupStr = '';
-          // 2. אם הוא משויך לקבוצה, נשלוף את שם המוקד שלה כדי לספור את משימות הקבוצה שלו
           if (userData.group_id) {
             const { data: groupData } = await supabase
               .from('groups')
               .select('name, venue')
               .eq('id', userData.group_id)
               .single();
-            
+
             if (groupData) {
-              groupStr = `${groupData.venue} — ${groupData.name}`;
+              groupStr = buildGroupIdentifier(groupData);
             }
           }
 
-          // 3. ספירה דינמית של משימות התלמיד הפעילות המשויכות אליו
           const { data: tasksData } = await supabase
             .from('admin_tasks')
-            .select('target_type, target_name')
-            .eq('category', 'student_mission');
+            .select('*')
+            .in('category', STUDENT_TASK_CATEGORIES);
 
           let activeMissionsCount = 0;
           if (tasksData) {
-            activeMissionsCount = tasksData.filter(t => 
-              t.target_type === 'global' || 
-              (groupStr && t.target_name === groupStr) || 
-              t.target_name === currentName
+            activeMissionsCount = tasksData.filter(t =>
+              taskAppliesToStudent(t, currentName, groupStr)
             ).length;
           }
 
@@ -152,6 +156,9 @@ export default function StudentHome() {
         .app {
           width: 380px;
           min-height: 720px;
+          height: 100vh;
+          height: 100dvh;
+          max-height: 100dvh;
           background: #05010f;
           font-family: 'Orbitron', sans-serif;
           position: relative;
@@ -160,7 +167,18 @@ export default function StudentHome() {
           flex-direction: column;
           border-radius: 24px;
           box-shadow: 0 20px 50px rgba(0,0,0,0.8);
-          padding-bottom: 95px; 
+        }
+
+        .home-scroll {
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
+          -webkit-overflow-scrolling: touch;
+          padding-top: calc(72px + max(env(safe-area-inset-top, 0px), 10px));
+          padding-bottom: 100px;
+          position: relative;
+          z-index: 5;
         }
 
         .stars { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
@@ -184,17 +202,28 @@ export default function StudentHome() {
         @keyframes floatAround { 0%,100% { transform: translateY(0px) rotate(0deg) opacity: 0.15; } 50% { transform: translateY(-16px) rotate(8deg) opacity: 0.25; } }
 
         .top-banner {
-          position: relative;
-          z-index: 10;
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
           width: 100%;
-          background: linear-gradient(135deg, #0a0520, #0d0730, #0a051a, #060218);
-          border-bottom: 1px solid rgba(124,58,237,0.4);
-          padding: 12px 0 14px;
+          z-index: 100;
+          background: rgba(10, 3, 28, 0.97);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border-bottom: 1px solid rgba(124,58,237,0.45);
+          padding: max(env(safe-area-inset-top, 0px), 10px) 16px 12px;
+          overflow: hidden;
+          box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+        }
+
+        .top-banner-row {
           display: flex;
           align-items: center;
-          justify-content: center;
-          overflow: hidden;
-          flex-shrink: 0;
+          justify-content: space-between;
+          width: 100%;
+          direction: ltr;
+          min-height: 58px;
         }
 
         .banner-scan {
@@ -207,56 +236,75 @@ export default function StudentHome() {
         }
         @keyframes bannerScan { 0% { top: 0; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
 
-        .circuit-left-wrap, .circuit-right-wrap { flex: 1; display: flex; align-items: center; }
-        .circuit-left-svg, .circuit-right-svg { flex: 1; height: 70px; }
-
-        .radio-chip-banner {
-          flex-shrink: 0; margin-left: 10px; width: 34px; height: 34px; border-radius: 50%;
-          background: rgba(124, 58, 237, 0.12); border: 1px solid rgba(124, 58, 237, 0.4);
-          display: flex; align-items: center; justify-content: center; cursor: pointer; color: #a78bfa;
-          transition: all 0.2s ease; font-size: 12px; z-index: 15;
-        }
-        .radio-chip-banner:hover { border-color: rgba(167,139,250,0.7); background: rgba(124,58,237,0.2); }
-        .radio-chip-banner.playing { border-color: #38bdf8; color: #38bdf8; box-shadow: 0 0 10px rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.1); }
-
         .balance-chip-banner {
-          flex-shrink: 0; margin-right: 10px; background: rgba(251,191,36,0.12);
-          border: 1px solid rgba(251,191,36,0.4); border-radius: 20px; padding: 6px 12px;
-          display: flex; flex-direction: column; align-items: center; gap: 2px;
+          flex-shrink: 0;
+          background: rgba(251,191,36,0.12);
+          border: 1px solid rgba(251,191,36,0.4);
+          border-radius: 20px;
+          padding: 7px 14px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 2px;
+          direction: rtl;
         }
         .bal-num {
-          font-size: 18px; font-weight: 900; line-height: 1; background: linear-gradient(135deg, #fbbf24, #fde68a);
+          font-size: 17px; font-weight: 900; line-height: 1; background: linear-gradient(135deg, #fbbf24, #fde68a);
           -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: numGlow 2s ease-in-out infinite;
         }
         @keyframes numGlow { 0%,100%{filter:drop-shadow(0 0 4px rgba(251,191,36,0.3));} 50%{filter:drop-shadow(0 0 12px rgba(251,191,36,0.8));} }
-        .bal-label { font-size: 7px; color: rgba(251,191,36,0.55); letter-spacing: 1px; }
+        .bal-label { font-size: 9px; color: rgba(251,191,36,0.7); letter-spacing: 0; font-weight: 700; }
 
-        .banner-logo { width: 80px; height: 80px; position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .banner-logo {
+          width: 56px;
+          height: 56px;
+          position: relative;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          border: none;
+          background: transparent;
+          padding: 0;
+          transition: transform 0.15s ease;
+        }
+        .banner-logo:active { transform: scale(0.94); }
+        .banner-logo.playing .neon-ring {
+          border-color: rgba(56, 189, 248, 0.9);
+          box-shadow: 0 0 10px 3px rgba(56, 189, 248, 0.5), 0 0 24px 8px rgba(56, 189, 248, 0.25), inset 0 0 16px rgba(56, 189, 248, 0.2);
+        }
+        .banner-logo.playing .neon-ring2 { border-color: rgba(56, 189, 248, 0.55); }
+        .banner-logo.playing .ring2-dot { background: #38bdf8; box-shadow: 0 0 10px #38bdf8; }
+        .banner-logo.playing .logo-halo {
+          background: radial-gradient(ellipse, rgba(56, 189, 248, 0.35) 0%, rgba(99, 102, 241, 0.2) 45%, transparent 70%);
+        }
         
         .neon-ring {
-          position: absolute; inset: -10px; border-radius: 50%; border: 2px solid rgba(99,102,241,0.7);
-          box-shadow: 0 0 8px 2px rgba(99,102,241,0.6), 0 0 20px 5px rgba(124,58,237,0.4), 0 0 40px 8px rgba(56,189,248,0.2), inset 0 0 15px rgba(124,58,237,0.3);
+          position: absolute; inset: -7px; border-radius: 50%; border: 2px solid rgba(99,102,241,0.7);
+          box-shadow: 0 0 6px 2px rgba(99,102,241,0.6), 0 0 16px 4px rgba(124,58,237,0.4), 0 0 30px 6px rgba(56,189,248,0.2), inset 0 0 12px rgba(124,58,237,0.3);
           animation: ringPulse 2.5s ease-in-out infinite;
         }
         @keyframes ringPulse {
-          0%,100% { box-shadow: 0 0 8px 2px rgba(99,102,241,0.6), 0 0 20px 5px rgba(124,58,237,0.4), 0 0 40px 8px rgba(56,189,248,0.2), inset 0 0 15px rgba(124,58,237,0.3); }
-          50% { box-shadow: 0 0 18px 5px rgba(99,102,241,1), 0 0 40px 12px rgba(124,58,237,0.7), 0 0 70px 18px rgba(56,189,248,0.4), inset 0 0 30px rgba(124,58,237,0.6); }
+          0%,100% { box-shadow: 0 0 6px 2px rgba(99,102,241,0.6), 0 0 16px 4px rgba(124,58,237,0.4), 0 0 30px 6px rgba(56,189,248,0.2), inset 0 0 12px rgba(124,58,237,0.3); }
+          50% { box-shadow: 0 0 14px 4px rgba(99,102,241,1), 0 0 32px 10px rgba(124,58,237,0.7), 0 0 52px 14px rgba(56,189,248,0.4), inset 0 0 24px rgba(124,58,237,0.6); }
         }
 
-        .neon-ring2 { position: absolute; inset: -18px; border-radius: 50%; border: 1px dashed rgba(56,189,248,0.4); animation: ringRotate 10s linear infinite; }
+        .neon-ring2 { position: absolute; inset: -13px; border-radius: 50%; border: 1px dashed rgba(56,189,248,0.4); animation: ringRotate 10s linear infinite; }
         @keyframes ringRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .ring2-dot { position: absolute; width: 6px; height: 6px; background: #38bdf8; border-radius: 50%; top: -3px; left: 50%; transform: translateX(-50%); box-shadow: 0 0 8px #38bdf8; }
+        .ring2-dot { position: absolute; width: 5px; height: 5px; background: #38bdf8; border-radius: 50%; top: -2.5px; left: 50%; transform: translateX(-50%); box-shadow: 0 0 6px #38bdf8; }
 
         .logo-halo {
-          position: absolute; inset: -25px; border-radius: 50%;
+          position: absolute; inset: -18px; border-radius: 50%;
           background: radial-gradient(ellipse, rgba(99,102,241,0.35) 0%, rgba(124,58,237,0.2) 40%, transparent 70%);
           animation: haloPulse 2.5s ease-in-out infinite; z-index: 1;
         }
-        @keyframes haloPulse { 0%,100% { transform: scale(1); opacity: 0.7; } 50% { transform: scale(1.2); opacity: 1; } }
+        @keyframes haloPulse { 0%,100% { transform: scale(1); opacity: 0.7; } 50% { transform: scale(1.15); opacity: 1; } }
 
-        .logo-img { width: 80px; height: 80px; border-radius: 50%; position: relative; z-index: 2; object-fit: cover; background: rgba(255,255,255,0.9); padding: 4px; }
+        .logo-img { width: 56px; height: 56px; border-radius: 50%; position: relative; z-index: 2; object-fit: cover; background: rgba(255,255,255,0.9); padding: 3px; pointer-events: none; }
         
-        .header { position: relative; z-index: 10; text-align: center; padding: 20px 20px 8px; direction: rtl; }
+        .header { position: relative; z-index: 10; text-align: center; padding: 14px 20px 6px; direction: rtl; }
+
         .welcome-text { font-size: 18px; color: #a78bfa; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 6px; font-weight: 700; animation: pulse-text 3s ease-in-out infinite; }
         @keyframes pulse-text { 0%,100% { opacity: 0.85; } 50% { opacity: 1; text-shadow: 0 0 18px #a78bfa, 0 0 35px #7c3aed; } }
         
@@ -281,37 +329,258 @@ export default function StudentHome() {
         @keyframes coinSpin { 0% { transform: rotateY(0deg) rotateX(5deg); } 100% { transform: rotateY(360deg) rotateX(5deg); } }
         .coin svg { width: 155px; height: 155px; filter: drop-shadow(0 0 18px rgba(251,191,36,0.6)); }
 
-        /* 🟢 עיצוב כרטיסיית הארקייד החדשה בדף הבית */
-        .arena-card {
+        /* 🎮 פורטלי משחק — עיצוב גיימינג חדשני */
+        .game-portals {
           position: relative;
           z-index: 10;
-          background: linear-gradient(135deg, rgba(0, 200, 255, 0.05), rgba(124, 58, 237, 0.08));
-          border: 1px solid rgba(0, 200, 255, 0.25);
-          border-radius: 14px;
-          margin: 0 16px 14px;
-          padding: 12px 14px;
-          cursor: pointer;
-          transition: all 0.2s;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          margin: 4px 14px 10px;
           direction: rtl;
-          box-shadow: 0 0 15px rgba(0, 200, 255, 0.05);
         }
-        .arena-card:hover {
-          border-color: #00c8ff;
-          box-shadow: 0 0 20px rgba(0, 200, 255, 0.2);
-          background: linear-gradient(135deg, rgba(0, 200, 255, 0.08), rgba(124, 58, 237, 0.12));
-        }
-        .arena-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-        .arena-title { font-size: 11px; font-weight: 900; color: #00c8ff; letter-spacing: 1px; text-shadow: 0 0 8px rgba(0, 200, 255, 0.3); }
-        .arena-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
-        .arena-score { font-size: 12px; color: rgba(167, 139, 250, 0.8); font-weight: 700; }
-        .arena-score span { color: #00e676; font-weight: 900; text-shadow: 0 0 6px rgba(0, 230, 118, 0.3); }
-        .arena-btn-launch { font-family: 'Orbitron', sans-serif; font-size: 9.5px; font-weight: 700; background: linear-gradient(135deg, #00c8ff, #4f46e5); border: 1px solid rgba(0,200,255,0.3); border-radius: 7px; color: white; padding: 5px 12px; cursor: pointer; box-shadow: 0 0 10px rgba(0,200,255,0.2); }
 
-        /* 🟢 עיצוב ייעודי למשחק של סייבוט (ירוק ניאון חשמלי) */
-        .arena-card-green { background: linear-gradient(135deg, rgba(0, 229, 160, 0.05), rgba(4, 120, 87, 0.15)); border-color: rgba(0, 229, 160, 0.25); box-shadow: 0 0 15px rgba(0, 229, 160, 0.08); }
-        .arena-card-green:hover { border-color: #00e5a0; box-shadow: 0 0 20px rgba(0, 229, 160, 0.25); background: linear-gradient(135deg, rgba(0, 229, 160, 0.1), rgba(4, 120, 87, 0.2)); }
-        .arena-card-green .arena-title { color: #00e5a0; text-shadow: 0 0 8px rgba(0, 229, 160, 0.4); }
-        .arena-card-green .arena-btn-launch { background: linear-gradient(135deg, #00e5a0, #047857); border-color: rgba(0, 229, 160, 0.4); box-shadow: 0 0 12px rgba(0, 229, 160, 0.3); }
+        .game-portal {
+          position: relative;
+          border-radius: 18px;
+          padding: 14px 14px 12px;
+          cursor: pointer;
+          overflow: hidden;
+          isolation: isolate;
+          transition: transform 0.22s ease, box-shadow 0.22s ease;
+        }
+        .game-portal:active { transform: scale(0.985); }
+
+        .game-portal-bg {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          opacity: 0.9;
+        }
+        .game-portal-grid {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+          pointer-events: none;
+          opacity: 0.12;
+          background-image:
+            linear-gradient(rgba(255,255,255,0.35) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.35) 1px, transparent 1px);
+          background-size: 18px 18px;
+          mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+        }
+        .game-portal-scan {
+          position: absolute;
+          left: 0; right: 0;
+          height: 40%;
+          z-index: 2;
+          pointer-events: none;
+          background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.06), transparent);
+          animation: portalScan 3.5s ease-in-out infinite;
+        }
+        @keyframes portalScan {
+          0%, 100% { top: -40%; opacity: 0; }
+          15% { opacity: 1; }
+          50% { top: 100%; opacity: 1; }
+          85% { opacity: 0; }
+        }
+
+        .game-portal-corner {
+          position: absolute;
+          width: 14px;
+          height: 14px;
+          z-index: 3;
+          pointer-events: none;
+        }
+        .game-portal-corner.tl { top: 8px; left: 8px; border-top: 2px solid; border-left: 2px solid; border-radius: 4px 0 0 0; }
+        .game-portal-corner.tr { top: 8px; right: 8px; border-top: 2px solid; border-right: 2px solid; border-radius: 0 4px 0 0; }
+        .game-portal-corner.bl { bottom: 8px; left: 8px; border-bottom: 2px solid; border-left: 2px solid; border-radius: 0 0 0 4px; }
+        .game-portal-corner.br { bottom: 8px; right: 8px; border-bottom: 2px solid; border-right: 2px solid; border-radius: 0 0 4px 0; }
+
+        .game-portal-content {
+          position: relative;
+          z-index: 4;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 12px;
+        }
+
+        .game-portal-badge {
+          width: 52px;
+          height: 52px;
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 26px;
+          flex-shrink: 0;
+          position: relative;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.25);
+        }
+        .game-portal-badge::after {
+          content: '';
+          position: absolute;
+          inset: -3px;
+          border-radius: 16px;
+          border: 1px solid rgba(255,255,255,0.15);
+          animation: badgePulse 2s ease-in-out infinite;
+        }
+        @keyframes badgePulse {
+          0%, 100% { opacity: 0.4; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.04); }
+        }
+
+        .game-portal-info { flex: 1; min-width: 0; text-align: right; }
+        .game-portal-tag {
+          display: inline-block;
+          font-size: 7px;
+          font-weight: 900;
+          letter-spacing: 2px;
+          padding: 3px 8px;
+          border-radius: 999px;
+          margin-bottom: 5px;
+        }
+        .game-portal-title {
+          font-size: 15px;
+          font-weight: 900;
+          letter-spacing: 0.5px;
+          line-height: 1.2;
+          margin-bottom: 2px;
+        }
+        .game-portal-sub {
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: 2px;
+          opacity: 0.75;
+        }
+
+        .game-portal-footer {
+          position: relative;
+          z-index: 4;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+        .game-portal-stat {
+          font-size: 10px;
+          font-weight: 700;
+          color: rgba(200, 210, 255, 0.65);
+          white-space: nowrap;
+        }
+        .game-portal-stat span {
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .game-portal-cta {
+          flex-shrink: 0;
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          padding: 10px 16px;
+          border-radius: 999px;
+          border: none;
+          cursor: pointer;
+          font-family: 'Orbitron', sans-serif;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 0.5px;
+          color: #fff;
+          position: relative;
+          overflow: hidden;
+          transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .game-portal-cta::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.35) 50%, transparent 65%);
+          transform: translateX(-120%);
+          animation: ctaShine 2.8s ease-in-out infinite;
+        }
+        @keyframes ctaShine {
+          0%, 70% { transform: translateX(-120%); }
+          100% { transform: translateX(120%); }
+        }
+        .game-portal-cta i { font-size: 13px; position: relative; z-index: 1; }
+        .game-portal-cta span { position: relative; z-index: 1; }
+        .game-portal-cta:active { transform: scale(0.96); }
+
+        /* זירת סייבר — כחול / סגול ניאון */
+        .game-portal-cyber {
+          border: 1px solid rgba(0, 200, 255, 0.45);
+          box-shadow: 0 0 24px rgba(0, 200, 255, 0.12), inset 0 0 30px rgba(79, 70, 229, 0.08);
+        }
+        .game-portal-cyber:hover {
+          box-shadow: 0 0 32px rgba(0, 200, 255, 0.22), inset 0 0 40px rgba(79, 70, 229, 0.12);
+        }
+        .game-portal-cyber .game-portal-bg {
+          background: linear-gradient(145deg, rgba(0, 40, 80, 0.85) 0%, rgba(30, 10, 60, 0.9) 55%, rgba(5, 5, 20, 0.95) 100%);
+        }
+        .game-portal-cyber .game-portal-corner { border-color: rgba(0, 200, 255, 0.7); }
+        .game-portal-cyber .game-portal-badge {
+          background: linear-gradient(135deg, rgba(0, 200, 255, 0.25), rgba(79, 70, 229, 0.35));
+          border: 1px solid rgba(0, 200, 255, 0.4);
+          box-shadow: 0 0 18px rgba(0, 200, 255, 0.25);
+        }
+        .game-portal-cyber .game-portal-tag {
+          color: #00c8ff;
+          background: rgba(0, 200, 255, 0.12);
+          border: 1px solid rgba(0, 200, 255, 0.35);
+          box-shadow: 0 0 10px rgba(0, 200, 255, 0.15);
+        }
+        .game-portal-cyber .game-portal-title {
+          color: #e8f8ff;
+          text-shadow: 0 0 14px rgba(0, 200, 255, 0.45);
+        }
+        .game-portal-cyber .game-portal-sub { color: #67e8f9; }
+        .game-portal-cyber .game-portal-stat span {
+          color: #00e676;
+          text-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
+        }
+        .game-portal-cyber .game-portal-cta {
+          background: linear-gradient(135deg, #00c8ff 0%, #6366f1 50%, #7c3aed 100%);
+          box-shadow: 0 0 18px rgba(0, 200, 255, 0.45), 0 4px 14px rgba(0, 0, 0, 0.35);
+        }
+
+        /* סייבוט מתח גבוה — ירוק חשמלי */
+        .game-portal-voltage {
+          border: 1px solid rgba(0, 229, 160, 0.45);
+          box-shadow: 0 0 24px rgba(0, 229, 160, 0.1), inset 0 0 30px rgba(4, 120, 87, 0.1);
+        }
+        .game-portal-voltage:hover {
+          box-shadow: 0 0 32px rgba(0, 229, 160, 0.22), inset 0 0 40px rgba(4, 120, 87, 0.15);
+        }
+        .game-portal-voltage .game-portal-bg {
+          background: linear-gradient(145deg, rgba(0, 50, 35, 0.88) 0%, rgba(4, 30, 25, 0.92) 55%, rgba(3, 8, 12, 0.95) 100%);
+        }
+        .game-portal-voltage .game-portal-corner { border-color: rgba(0, 229, 160, 0.7); }
+        .game-portal-voltage .game-portal-badge {
+          background: linear-gradient(135deg, rgba(0, 229, 160, 0.22), rgba(16, 185, 129, 0.3));
+          border: 1px solid rgba(0, 229, 160, 0.45);
+          box-shadow: 0 0 18px rgba(0, 229, 160, 0.25);
+        }
+        .game-portal-voltage .game-portal-tag {
+          color: #00e5a0;
+          background: rgba(0, 229, 160, 0.1);
+          border: 1px solid rgba(0, 229, 160, 0.35);
+          box-shadow: 0 0 10px rgba(0, 229, 160, 0.15);
+        }
+        .game-portal-voltage .game-portal-title {
+          color: #eafff5;
+          text-shadow: 0 0 14px rgba(0, 229, 160, 0.4);
+        }
+        .game-portal-voltage .game-portal-sub { color: #6ee7b7; }
+        .game-portal-voltage .game-portal-stat span {
+          color: #00e5a0;
+          text-shadow: 0 0 8px rgba(0, 229, 160, 0.45);
+        }
+        .game-portal-voltage .game-portal-cta {
+          background: linear-gradient(135deg, #00e5a0 0%, #10b981 50%, #047857 100%);
+          box-shadow: 0 0 18px rgba(0, 229, 160, 0.4), 0 4px 14px rgba(0, 0, 0, 0.35);
+        }
 
         .mini-stats { position: relative; z-index: 10; display: flex; gap: 8px; margin: 0 16px 8px; direction: rtl; }
         .stat-pill { flex: 1; background: rgba(124,58,237,0.12); border: 1px solid rgba(124,58,237,0.25); border-radius: 10px; padding: 6px 8px; text-align: center; }
@@ -320,12 +589,11 @@ export default function StudentHome() {
         .stat-lbl { font-family: 'Orbitron', sans-serif; font-size: 8px; color: #6b7280; letter-spacing: 1px; margin-top: 2px; }
 
         .nav-bar { 
-          position: fixed; 
+          position: absolute; 
           bottom: 0; 
-          left: 50%;
-          transform: translateX(-50%);
-          width: 380px;
-          max-width: 100%;
+          left: 0;
+          right: 0;
+          width: 100%;
           z-index: 100; 
           background: rgba(10,3,28,0.98); 
           border-top: 1px solid rgba(124,58,237,0.5); 
@@ -390,54 +658,30 @@ export default function StudentHome() {
           ))}
         </div>
 
-        {/* TOP BRANDING BANNER - SYMMETRIC CYBER MATRIX */}
+        {/* TOP BAR — קבוע למעלה: לוגו = רדיו, מונה אראגונים */}
         <div className="top-banner">
-          <div className="banner-scan"></div>
-          
-          {/* קפסולת הרדיו */}
-          <div className="circuit-left-wrap">
-            <div className={`radio-chip-banner ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
-              <div className="radio-chip-icon">
-                <i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i>
-              </div>
-            </div>
-            <div className="circuit-left-svg">
-              <svg viewBox="0 0 110 70" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-                <line x1="110" y1="35" x2="75" y2="35" stroke="#7c3aed" strokeWidth="1.5" opacity="0.7"/>
-                <line x1="75" y1="35" x2="55" y2="18" stroke="#7c3aed" strokeWidth="1" opacity="0.5"/>
-                <line x1="75" y1="35" x2="50" y2="35" stroke="#38bdf8" strokeWidth="1" opacity="0.6"/>
-                <circle cx="75" cy="35" r="3" fill="#7c3aed" opacity="0.9"/>
-                <circle cx="50" cy="35" r="2.5" fill="#38bdf8" opacity="0.8"/>
-              </svg>
-            </div>
-          </div>
+          <div className="banner-scan" />
+          <div className="top-banner-row">
+            <button
+              type="button"
+              className={`banner-logo ${isPlaying ? 'playing' : ''}`}
+              onClick={toggleRadioPlay}
+              aria-label={isPlaying ? 'השהה רדיו HQ' : 'הפעל רדיו HQ'}
+            >
+              <div className="logo-halo" />
+              <div className="neon-ring" />
+              <div className="neon-ring2"><div className="ring2-dot" /></div>
+              <img className="logo-img" src={aragonLogo} alt="Aragon" />
+            </button>
 
-          {/* מרכז קבוע: לוגו אראגון הרשמי */}
-          <div className="banner-logo">
-            <div className="logo-halo"></div>
-            <div className="neon-ring"></div>
-            <div className="neon-ring2"><div className="ring2-dot"></div></div>
-            <img className="logo-img" src={aragonLogo} alt="Aragon Logo"/>
-          </div>
-
-          {/* צד ימין: יתרת המטבעות */}
-          <div className="circuit-right-wrap">
-            <div className="circuit-right-svg">
-              <svg viewBox="0 0 110 70" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-                <line x1="0" y1="35" x2="35" x2="35" stroke="#7c3aed" strokeWidth="1.5" opacity="0.7"/>
-                <line x1="35" y1="35" x2="55" y2="18" stroke="#7c3aed" strokeWidth="1" opacity="0.5"/>
-                <line x1="35" y1="35" x2="60" y2="35" stroke="#38bdf8" strokeWidth="1" opacity="0.6"/>
-                <circle cx="35" cy="35" r="3" fill="#7c3aed" opacity="0.9"/>
-                <circle cx="60" cy="35" r="2.5" fill="#38bdf8" opacity="0.8"/>
-              </svg>
-            </div>
             <div className="balance-chip-banner">
               <span className="bal-num">{balance}</span>
-              <span className="bal-label">🪙 COINS</span>
+              <span className="bal-label">אראגונים</span>
             </div>
           </div>
         </div>
 
+        <div className="home-scroll">
         {/* WELCOME HEADER */}
         <div className="header">
           <div className="welcome-text">ברוך הבא</div>
@@ -446,9 +690,9 @@ export default function StudentHome() {
 
         {/* BALANCE DISPLAY */}
         <div className="balance-section">
-          <div className="balance-label">יתרת מטבעות</div>
+          <div className="balance-label">יתרת אראגונים</div>
           <div className="balance-number">{balance}</div>
-          <div className="balance-unit">ARAGON COINS</div>
+          <div className="balance-unit">אראגונים</div>
         </div>
 
         {/* SPINNING 3D COIN STAGE */}
@@ -503,27 +747,72 @@ export default function StudentHome() {
           </div>
         </div>
 
-        {/* 🟢 כרטיסיית זירת הסייבר המשובצת: ממוקמת אסטרטגית מתחת למטבע */}
-        <div className="arena-card fu" onClick={() => navigate('/student/game')}>
-          <div className="arena-header">
-            <span style={{ fontSize: '14px' }}>🕹️</span>
-            <div className="arena-title">זירת הסייבר · MATRIX RUNNER</div>
-          </div>
-          <div className="arena-meta">
-            <div className="arena-score">שיא חודשי: <span>{playerXp} XP</span></div>
-            <button className="arena-btn-launch" type="button">כנס לקרב ⚔️</button>
-          </div>
-        </div>
+        {/* 🎮 פורטלי משחק — מתחת למטבע המסתובב */}
+        <div className="game-portals">
+          <div className="game-portal game-portal-cyber fu" onClick={() => navigate('/student/game')}>
+            <div className="game-portal-bg" />
+            <div className="game-portal-grid" />
+            <div className="game-portal-scan" />
+            <div className="game-portal-corner tl" />
+            <div className="game-portal-corner tr" />
+            <div className="game-portal-corner bl" />
+            <div className="game-portal-corner br" />
 
-        {/* ⚡ כרטיסיית משחק החשמל של סייבוט (ירוק ניאון) */}
-        <div className="arena-card arena-card-green fu" style={{ animationDelay: '0.1s' }} onClick={() => navigate('/student/games/lights')}>
-          <div className="arena-header">
-            <span style={{ fontSize: '14px' }}>⚡</span>
-            <div className="arena-title">סייבוט · מתח גבוה</div>
+            <div className="game-portal-content">
+              <div className="game-portal-badge">🕹️</div>
+              <div className="game-portal-info">
+                <div className="game-portal-tag">LIVE ARENA</div>
+                <div className="game-portal-title">זירת הסייבר</div>
+                <div className="game-portal-sub">MATRIX RUNNER</div>
+              </div>
+            </div>
+
+            <div className="game-portal-footer">
+              <div className="game-portal-stat">שיא חודשי: <span>{playerXp} XP</span></div>
+              <button
+                className="game-portal-cta"
+                type="button"
+                onClick={(e) => { e.stopPropagation(); navigate('/student/game'); }}
+              >
+                <span>כנס למשחק</span>
+                <i className="ti ti-player-play-filled" />
+              </button>
+            </div>
           </div>
-          <div className="arena-meta">
-            <div className="arena-score" style={{ color: 'rgba(0, 229, 160, 0.7)' }}>סטטוס: <span>מעגל פתוח</span></div>
-            <button className="arena-btn-launch" type="button">טען סוללה 🔋</button>
+
+          <div
+            className="game-portal game-portal-voltage fu"
+            style={{ animationDelay: '0.1s' }}
+            onClick={() => navigate('/student/games/lights')}
+          >
+            <div className="game-portal-bg" />
+            <div className="game-portal-grid" />
+            <div className="game-portal-scan" />
+            <div className="game-portal-corner tl" />
+            <div className="game-portal-corner tr" />
+            <div className="game-portal-corner bl" />
+            <div className="game-portal-corner br" />
+
+            <div className="game-portal-content">
+              <div className="game-portal-badge">⚡</div>
+              <div className="game-portal-info">
+                <div className="game-portal-tag">HIGH VOLTAGE</div>
+                <div className="game-portal-title">סייבוט · מתח גבוה</div>
+                <div className="game-portal-sub">CIRCUIT CHALLENGE</div>
+              </div>
+            </div>
+
+            <div className="game-portal-footer">
+              <div className="game-portal-stat">סטטוס: <span>מעגל פתוח</span></div>
+              <button
+                className="game-portal-cta"
+                type="button"
+                onClick={(e) => { e.stopPropagation(); navigate('/student/games/lights'); }}
+              >
+                <span>כנס למשחק</span>
+                <i className="ti ti-player-play-filled" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -532,6 +821,7 @@ export default function StudentHome() {
           <div className="stat-pill"><div className="stat-val">+{balance}</div><div className="stat-lbl">סך הכל</div></div>
           <div className="stat-pill"><div className="stat-val">{statsCount.missions}</div><div className="stat-lbl">Missions</div></div>
           <div className="stat-pill"><div className="stat-val">{statsCount.orders}</div><div className="stat-lbl">הזמנות</div></div>
+        </div>
         </div>
 
         {/* FIXED CORE NAVIGATION BAR */}
@@ -554,7 +844,7 @@ export default function StudentHome() {
               <span className="nav-label">פרופיל</span>
             </button>
             <button className="nav-item" type="button" onClick={() => navigate('/student/updates')}>
-              <div className="nav-icon-3d"><svg width="30" height="30" viewBox="0 0 30 30"><path d="M15 4 Q9 4 8 13 L7 20 L23 20 L22 13 Q21 4 15 4Z" fill="#a78bfa"/><path d="M19 4.5 Q22 6 22 13 L21.5 20 L23 20 L22 13 Q21.5 5.5 19 4.5Z" fill="#5b21b6" opacity="0.85"/><rect x="5" y="19" width="20" height="3" rx="1.5" fill="#7c3aed"/><ellipse cx="15" cy="25" rx="3.5" ry="2" fill="#7c3aed"/><circle cx="22" cy="7" r="4" fill="#ef4444"/><text x="22" y="9.5" textAnchor="middle" fontSize="5.5" fill="white" fontWeight="bold">3</text></svg></div>
+              <div className="nav-icon-3d"><StudentNavUpdatesIcon unreadCount={unreadUpdates} /></div>
               <span className="nav-label">עדכונים</span>
             </button>
           </div>
