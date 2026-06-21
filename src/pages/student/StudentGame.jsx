@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
+import { getLoggedUser } from '../../utils/authStorage';
 
 // ייבוא הלוגואים הרשמיים לעולם הגרפי של ה-Canvas
 import aragonLogo from '../../assets/aragonlogo.png';
@@ -11,7 +12,7 @@ export default function StudentGame() {
   const navigate = useNavigate();
   const canvasRef = useRef(null);
 
-  const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'student1';
+  const loggedUser = getLoggedUser() || '';
 
   // ניהול מצבי אפליקציה ולוחות מובילים
   const [gameState, setGameState] = useState('START'); // START | PLAYING | GAMEOVER

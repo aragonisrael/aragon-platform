@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import aragonLogo from '../../assets/aragonlogo.png';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
+import { getLoggedUser } from '../../utils/authStorage';
 import StudentNavUpdatesIcon from '../../components/student/StudentNavUpdatesIcon';
 import { useStudentUnreadUpdates } from '../../hooks/useStudentUnreadUpdates';
 
@@ -25,7 +26,7 @@ export default function StudentShop() {
   const [modal, setModal] = useState(null);
 
   // שם המשתמש הנוכחי שגולש באפליקציה
-  const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'student1';
+  const loggedUser = getLoggedUser() || '';
 
   // משיכת כמות המטבעות ורשימת המוצרים המעודכנת מהדאטה-בייס בענן
   useEffect(() => {

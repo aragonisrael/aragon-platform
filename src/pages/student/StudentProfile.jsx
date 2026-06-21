@@ -8,6 +8,7 @@ import { supabase } from '../../supabaseClient';
 import aragonLogo from '../../assets/aragonlogo.png';
 import StudentNavUpdatesIcon from '../../components/student/StudentNavUpdatesIcon';
 import { useStudentUnreadUpdates } from '../../hooks/useStudentUnreadUpdates';
+import { getLoggedUser, clearAuth } from '../../utils/authStorage';
 import { getPushPermissionStatus, registerForPushNotifications } from '../../hooks/usePushNotifications';
 
 export default function StudentProfile() {
@@ -29,7 +30,7 @@ export default function StudentProfile() {
   const [walletHistory, setWalletHistory] = useState([]);
 
   // שם המשתמש הנוכחי שגולש באפליקציה
-  const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'student1';
+  const loggedUser = getLoggedUser() || '';
 
   // Password state core logic - נמשך דינמית מה-DB
   const [storedPassword, setStoredPassword] = useState('12345678');
@@ -250,7 +251,7 @@ export default function StudentProfile() {
   };
 
   const executeLogout = () => {
-    sessionStorage.removeItem('aragon_logged_user'); 
+    clearAuth();
     setIsLoggedOut(true);
   };
 

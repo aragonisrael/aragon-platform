@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import aragonLogo from '../../assets/aragonlogo.png';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
+import { getLoggedUser } from '../../utils/authStorage';
 import StudentNavUpdatesIcon from '../../components/student/StudentNavUpdatesIcon';
 import { useStudentUnreadUpdates } from '../../hooks/useStudentUnreadUpdates';
 import {
@@ -40,8 +41,9 @@ export default function StudentHome() {
   useEffect(() => {
     const fetchStudentCoinsAndStats = async () => {
       // זיהוי המשתמש המחובר מהסשן
-      const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'student1';
-      
+      const loggedUser = getLoggedUser();
+      if (!loggedUser) return;
+
       try {
         // 1. שליפת רשומת התלמיד מהענן (כולל עמודת ה-XP החדשה)
         const { data: userData, error } = await supabase

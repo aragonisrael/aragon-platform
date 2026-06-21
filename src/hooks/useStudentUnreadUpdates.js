@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
+import { getLoggedUser } from '../utils/authStorage';
 import { fetchStudentUnreadCount } from '../utils/studentUpdates';
 
 export function useStudentUnreadUpdates() {
-  const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'student1';
+  const loggedUser = getLoggedUser() || '';
   const [unreadCount, setUnreadCount] = useState(0);
 
   const refresh = useCallback(() => {

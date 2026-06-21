@@ -1,6 +1,10 @@
 const USER_KEY = 'aragon_logged_user';
 const ROLE_KEY = 'aragon_logged_role';
 
+/** חשבון בדיקה באפליקציה Native — במקום student1 הישן */
+export const NATIVE_TEST_STUDENT_USERNAME = 'student';
+export const LEGACY_TEST_STUDENT_USERNAME = 'student1';
+
 function usePersistentStorage() {
   return typeof window !== 'undefined' && window.Capacitor;
 }

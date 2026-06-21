@@ -10,6 +10,7 @@ import {
   STUDENT_TASK_CATEGORIES,
   taskAppliesToStudent,
 } from '../../utils/studentTasks';
+import { getLoggedUser } from '../../utils/authStorage';
 import StudentNavUpdatesIcon from '../../components/student/StudentNavUpdatesIcon';
 import { useStudentUnreadUpdates } from '../../hooks/useStudentUnreadUpdates';
 
@@ -31,7 +32,8 @@ export default function StudentMissions() {
   // משיכת כמות המטבעות והמשימות האמיתיות של התלמיד מהענן בריאל-טיים
   useEffect(() => {
     const fetchStudentCoinsAndMissions = async () => {
-      const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'student1';
+      const loggedUser = getLoggedUser();
+      if (!loggedUser) return;
       
       try {
         // 1. שליפת פרטי החניך והארנק שלו

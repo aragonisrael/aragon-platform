@@ -4,6 +4,7 @@ import aragonLogo from '../../assets/aragonlogo.png';
 import { supabase } from '../../supabaseClient';
 import StudentNavUpdatesIcon from '../../components/student/StudentNavUpdatesIcon';
 import { useStudentUnreadUpdates } from '../../hooks/useStudentUnreadUpdates';
+import { getLoggedUser } from '../../utils/authStorage';
 import {
   fetchStudentNotifications,
   isUpdateRead,
@@ -20,7 +21,7 @@ export default function StudentUpdates() {
   const [notifs, setNotifs] = useState([]);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'student1';
+  const loggedUser = getLoggedUser() || '';
   const markedOnVisit = useRef(false);
 
   useEffect(() => {
