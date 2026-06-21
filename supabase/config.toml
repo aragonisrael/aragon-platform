@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.meeting-reminders]
 verify_jwt = false
+
+[functions.notify-student-task]
+verify_jwt = false

@@ -63,12 +63,13 @@ async function ensureAndroidChannel() {
 
 let listenersReady = false;
 
-async function ensureListeners(username) {
+async function ensureListeners() {
   if (listenersReady) return;
   await PushNotifications.addListener('registration', (ev) => {
-    if (!ev.value || !username) return;
-    console.log('[Push] token:', ev.value);
-    savePushToken(username, ev.value).catch((err) => console.error('[Push] save failed:', err));
+    const currentUser = getLoggedUser();
+    if (!ev.value || !currentUser) return;
+    console.log('[Push] token for', currentUser, ev.value.slice(0, 12) + '...');
+    savePushToken(currentUser, ev.value).catch((err) => console.error('[Push] save failed:', err));
   });
   await PushNotifications.addListener('registrationError', (err) => {
     console.error('[Push] registration error:', err);
@@ -94,7 +95,7 @@ export async function registerForPushNotifications(username) {
 
   try {
     await ensureAndroidChannel();
-    await ensureListeners(username);
+    await ensureListeners();
 
     let permStatus = await PushNotifications.checkPermissions();
     if (permStatus.receive === 'prompt') {
