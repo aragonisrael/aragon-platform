@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
 
@@ -7,6 +8,7 @@ import { supabase } from '../../supabaseClient';
 import aragonLogo from '../../assets/aragonlogo.png';
 import StudentNavUpdatesIcon from '../../components/student/StudentNavUpdatesIcon';
 import { useStudentUnreadUpdates } from '../../hooks/useStudentUnreadUpdates';
+import { getPushPermissionStatus, registerForPushNotifications } from '../../hooks/usePushNotifications';
 
 export default function StudentProfile() {
   const navigate = useNavigate();
@@ -35,9 +37,45 @@ export default function StudentProfile() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [formMsg, setFormMsg] = useState({ text: '', type: '' });
+  const [pushStatus, setPushStatus] = useState('loading');
+  const [pushBusy, setPushBusy] = useState(false);
 
   // State למעקב אחרי השמעת הרדיו המרכזי
   const [isPlaying, setIsPlaying] = useState(false);
+
+  const refreshPushStatus = useCallback(async () => {
+    if (!Capacitor.isNativePlatform()) {
+      setPushStatus('unsupported');
+      return;
+    }
+    setPushStatus(await getPushPermissionStatus());
+  }, []);
+
+  useEffect(() => { refreshPushStatus(); }, [refreshPushStatus]);
+
+  const handleEnablePush = async () => {
+    setPushBusy(true);
+    try {
+      const result = await registerForPushNotifications(loggedUser);
+      await refreshPushStatus();
+      setFormMsg({
+        text: result.ok ? `✅ ${result.message}` : `⚠️ ${result.message}`,
+        type: result.ok ? 'ok' : 'err',
+      });
+      setTimeout(() => setFormMsg({ text: '', type: '' }), 2500);
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const pushStatusLabel = {
+    granted: 'פעיל — תקבל התראות על משימות ואתגרים',
+    denied: 'חסום — הפעל בהגדרות האייפון',
+    prompt: 'לחץ להפעלת התראות',
+    unavailable: 'הרץ מחדש את האפליקציה מ-Xcode',
+    loading: 'בודק...',
+    unsupported: 'זמין רק באפליקציה המותקנת',
+  }[pushStatus] || pushStatus;
 
   const avatarOptions = ['🤖', '🎮', '🦾', '👾', '🚀', '🦁', '⚡', '🐉', '🌀', '💎', '🔥', '🎯'];
 
@@ -602,6 +640,23 @@ export default function StudentProfile() {
               <div className="sval">{balance + 14}</div>
               <div className="slbl">סה"כ נצברו</div>
             </div>
+          </div>
+
+          {/* PUSH NOTIFICATIONS */}
+          <div
+            className="ab fu"
+            onClick={handleEnablePush}
+            style={{
+              opacity: pushStatus === 'unsupported' || pushStatus === 'granted' ? 0.75 : 1,
+              pointerEvents: pushBusy || pushStatus === 'unsupported' || pushStatus === 'granted' ? 'none' : 'auto',
+            }}
+          >
+            <div className="abi"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div>
+            <div className="abt">
+              <div className="abti">🔔 התראות Push</div>
+              <div className="abts">{pushBusy ? 'מפעיל...' : pushStatusLabel}</div>
+            </div>
+            <div className="aba"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></div>
           </div>
 
           {/* SECURITY ACTION TOGGLE BUTTON */}

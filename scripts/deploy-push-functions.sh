@@ -38,4 +38,10 @@ npx supabase functions deploy notify-new-task --no-verify-jwt
 echo "→ Deploying meeting-reminders..."
 npx supabase functions deploy meeting-reminders --no-verify-jwt
 
-echo "✅ Done! Now run notify_new_task_webhook.sql and meeting_reminders_cron.sql in Supabase SQL Editor."
+echo "→ Deploying notify-student-task..."
+npx supabase functions deploy notify-student-task --no-verify-jwt
+
+echo "✅ Done! Now run in Supabase SQL Editor:"
+echo "   - notify_new_task_webhook.sql"
+echo "   - notify_student_task_webhook.sql"
+echo "   - meeting_reminders_cron.sql"

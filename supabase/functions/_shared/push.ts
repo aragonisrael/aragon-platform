@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { sendFcmToToken, type PushPayload } from './fcm.ts';
 
-const MANAGEMENT_ROLES = new Set(['management', 'admin']);
+const PUSH_ROLES = new Set(['management', 'admin', 'student']);
 
 export function getAdminClient() {
   const url = Deno.env.get('SUPABASE_URL');
@@ -34,7 +34,7 @@ export async function getActiveTokensForUser(username: string): Promise<string[]
     .eq('username', username)
     .maybeSingle();
 
-  if (!userRow || !MANAGEMENT_ROLES.has(userRow.role)) return [];
+  if (!userRow || !PUSH_ROLES.has(userRow.role)) return [];
 
   const { data: tokens } = await supabase
     .from('push_subscriptions')
