@@ -64,8 +64,8 @@ export default function App() {
         <Route path="/student/missions" element={<ProtectedRoute allowedRoles={['student']}><StudentMissions /></ProtectedRoute>} />
         <Route path="/student/profile" element={<ProtectedRoute allowedRoles={['student']}><StudentProfile /></ProtectedRoute>} />
         <Route path="/student/updates" element={<ProtectedRoute allowedRoles={['student']}><StudentUpdates /></ProtectedRoute>} />
-        <Route path="/student/game" element={<ProtectedRoute allowedRoles={['student']}><StudentHomeGame /></ProtectedRoute>} />
-        <Route path="/student/games/lights" element={<ProtectedRoute allowedRoles={['student']}><LightsGame /></ProtectedRoute>} />
+        <Route path="/student/game" element={<ProtectedRoute allowedRoles={['student', 'instructor', 'temp_instructor']}><StudentHomeGame /></ProtectedRoute>} />
+        <Route path="/student/games/lights" element={<ProtectedRoute allowedRoles={['student', 'instructor', 'temp_instructor']}><LightsGame /></ProtectedRoute>} />
         
         {/* 👨‍🏫 עולם המדריך - פתוח כעת רשמית גם למדריכים קבועים וגם למדריכים זמניים (temp_instructor) */}
         <Route path="/instructor" element={<ProtectedRoute allowedRoles={['instructor', 'temp_instructor']}><InstructorHome /></ProtectedRoute>} />

@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
-
-// מייבאים את הלוגו של אראגון לעיצוב העליון המשותף
-import aragonLogo from '../../assets/aragonlogo.png';
+import InstructorHeroHeader, { INSTRUCTOR_HERO_STYLES } from '../../components/instructor/InstructorHeroHeader';
+import { INSTRUCTOR_LAYOUT_STYLES } from '../../components/instructor/instructorLayoutStyles';
+import { useAuth } from '../../context/AuthContext';
+import { getLoggedUser } from '../../utils/authStorage';
+import { getPushPermissionStatus, registerForPushNotifications } from '../../hooks/usePushNotifications';
 
 export default function InstructorProfile() {
   const navigate = useNavigate();
+  const { logoutContext } = useAuth();
 
   // Modal Open/Close States
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
@@ -40,12 +44,10 @@ export default function InstructorProfile() {
 
   // Toast System State
   const [toast, setToast] = useState({ show: false, message: '' });
+  const [pushStatus, setPushStatus] = useState('loading');
+  const [pushBusy, setPushBusy] = useState(false);
 
-  // State למעקב אחרי השמעת הרדיו המרכזי
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  // זיהוי המדריך המחובר כרגע במערכת
-  const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'guide1';
+  const loggedUser = getLoggedUser() || '';
 
   const GEAR_ITEMS = [
     { key: 'laptops', label: 'מחשבים', icon: '💻' },
@@ -210,6 +212,42 @@ export default function InstructorProfile() {
     fetchMyGearFromCloud(); // 🟢 שליפת הציוד מהענן מיד עם טעינת הדף
   }, [loggedUser]);
 
+  const refreshPushStatus = useCallback(async () => {
+    if (!Capacitor.isNativePlatform()) {
+      setPushStatus('unsupported');
+      return;
+    }
+    setPushStatus(await getPushPermissionStatus());
+  }, []);
+
+  useEffect(() => {
+    refreshPushStatus();
+  }, [refreshPushStatus]);
+
+  const handleEnablePush = async () => {
+    if (!loggedUser) {
+      triggerToast('⚠️ לא מחובר למערכת');
+      return;
+    }
+    setPushBusy(true);
+    try {
+      const result = await registerForPushNotifications(loggedUser);
+      await refreshPushStatus();
+      triggerToast(result.ok ? `✅ ${result.message}` : `⚠️ ${result.message}`);
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const pushStatusLabel = {
+    granted: 'פעיל — התראות מהאפליקציה מופעלות',
+    denied: 'חסום — הפעל בהגדרות האייפון',
+    prompt: 'לחץ להפעלת התראות מהאפליקציה',
+    unavailable: 'הרץ מחדש את האפליקציה מ-Xcode',
+    loading: 'בודק...',
+    unsupported: 'זמין רק באפליקציה המותקנת',
+  }[pushStatus] || pushStatus;
+
   // פונקציית שליחת תקלה חדשה לחמ"ל הלוגיסטי מתוך הפרופיל
   const handleFaultSubmit = async (e) => {
     e.preventDefault();
@@ -251,27 +289,6 @@ export default function InstructorProfile() {
     }
   };
 
-  // מסנכרן את מצב כפתור הנגן מול האודיו הגלובלי ב-App.jsx בעת מעבר דפים
-  useEffect(() => {
-    const globalAudio = document.getElementById('hq-cyber-radio');
-    if (globalAudio) {
-      setIsPlaying(!globalAudio.paused);
-    }
-  }, []);
-
-  // שליטה בנגן הרדיו הגלובלי המשותף ברקע
-  const toggleRadioPlay = () => {
-    const globalAudio = document.getElementById('hq-cyber-radio');
-    if (!globalAudio) return;
-
-    if (globalAudio.paused) {
-      globalAudio.play().catch(err => console.log("Audio play blocked", err));
-    } else {
-      globalAudio.pause();
-    }
-    setIsPlaying(!globalAudio.paused);
-  };
-
   // Trigger Action Toast Feedback Alert
   const triggerToast = (msg) => {
     setToast({ show: true, message: msg });
@@ -280,19 +297,23 @@ export default function InstructorProfile() {
 
   // 🔥 עדכון סיסמה אמיתי ומאובטח ישירות בתוך ה-Database בענן!
   const handleSavePass = async () => {
-    if (!curPass || !newPass || !confPass) {
+    const current = curPass.trim();
+    const next = newPass.trim();
+    const confirm = confPass.trim();
+
+    if (!current || !next || !confirm) {
       triggerToast('⚠️ יש למלא את כל השדות');
       return;
     }
-    if (curPass !== storedPassword) {
+    if (current !== storedPassword) {
       triggerToast('❌ הסיסמה הנוכחית שגויה');
       return;
     }
-    if (newPass.length < 8) {
+    if (next.length < 8) {
       triggerToast('⚠️ הסיסמה חייבת להכיל לפחות 8 תווים');
       return;
     }
-    if (newPass !== confPass) {
+    if (next !== confirm) {
       triggerToast('⚠️ הסיסמאות אינן תואמות');
       return;
     }
@@ -300,7 +321,7 @@ export default function InstructorProfile() {
     try {
       const { error } = await supabase
         .from('users')
-        .update({ password: newPass })
+        .update({ password: next })
         .eq('username', loggedUser);
 
       if (error) {
@@ -308,7 +329,7 @@ export default function InstructorProfile() {
         return;
       }
 
-      setStoredPassword(newPass);
+      setStoredPassword(next);
       setIsPassModalOpen(false);
       setCurPass('');
       setNewPass('');
@@ -323,7 +344,7 @@ export default function InstructorProfile() {
   };
 
   const handleExecuteLogout = () => {
-    sessionStorage.removeItem('aragon_logged_user');
+    logoutContext();
     setIsLogoutModalOpen(false);
     setIsLoggedOut(true);
   };
@@ -357,77 +378,16 @@ export default function InstructorProfile() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
+
+        ${INSTRUCTOR_HERO_STYLES}
+        ${INSTRUCTOR_LAYOUT_STYLES}
         
         .profile-main-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #050a14; width: 100%; }
 
-        .app { width: 390px; min-height: 860px; background: #08080f; font-family: 'Heebo',sans-serif; position: relative; overflow: hidden; border-radius: 36px; border: 1.5px solid #1c1c30; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.8); height: 860px; }
-
-        .hero { width: 100%; height: 190px; position: relative; overflow: hidden; border-radius: 36px 36px 0 0; background: #060610; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-        .hg { position: absolute; inset: 0; background-image: linear-gradient(rgba(80,60,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(80,60,255,.05) 1px,transparent 1px); background-size: 28px 28px; }
-        .hs { position: absolute; inset: 0; background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(60,80,255,.013) 3px,rgba(60,80,255,.013) 4px); }
-        .hgl { position: absolute; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle,rgba(60,40,220,.22) 0%,transparent 70%); left: -40px; top: 50%; transform: translateY(-50%); }
-        .hgr { position: absolute; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle,rgba(40,80,255,.18) 0%,transparent 70%); right: -40px; top: 50%; transform: translateY(-50%); }
-        .hbot { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg,transparent,#4060ff,#9040ff,#4060ff,transparent); }
-        
-        .tc { position: absolute; width: 30px; height: 30px; }
-        .tc.tl { top: 12px; left: 14px; border-top: 1.5px solid rgba(100,140,255,.44); border-left: 1.5px solid rgba(100,140,255,.44); }
-        .tc.tr { top: 12px; right: 14px; border-top: 1.5px solid rgba(100,140,255,.44); border-right: 1.5px solid rgba(100,140,255,.44); }
-        .tc.bl { bottom: 16px; left: 14px; border-bottom: 1.5px solid rgba(100,140,255,.26); border-left: 1.5px solid rgba(100,140,255,.26); }
-        .tc.br { bottom: 16px; right: 14px; border-bottom: 1.5px solid rgba(100,140,255,.26); border-right: 1.5px solid rgba(100,140,255,.26); }
-        
-        .dbars { position: absolute; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 5px; }
-        .dbars.l { left: 16px; }
-        .dbars.r { right: 16px; }
-        .dbar { height: 3px; border-radius: 2px; background: rgba(80,120,255,.27); }
-        .hdot { position: absolute; width: 6px; height: 6px; border-radius: 50%; }
-        
-        .rw { position: relative; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center; z-index: 4; }
-        .ro { position: absolute; inset: 0; border-radius: 50%; border: 2px dashed rgba(80,120,255,.2); animation: spin 14s linear infinite; }
-        
-        .rm { position: absolute; inset: 8px; border-radius: 50%; border: 1.5px solid transparent; border-top-color: #6040ff; border-right-color: #4080ff; animation: spin 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,.4); }
-        .rm2 { position: absolute; inset: 14px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #4060ff; animation: spin 7s linear infinite reverse; box-shadow: inset 0 0 10px rgba(64,128,255,.3); }
-        .ric position: absolute; inset: 22px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(80,100,255,.18); }
-        .rp { position: absolute; inset: 22px; border-radius: 50%; background: radial-gradient(circle,rgba(60,80,255,.13) 0%,transparent 70%); animation: pulse 2.5s ease-in-out infinite; }
-        @keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
-        @keyframes pulse { 0%,100%{opacity:.4;transform:scale(.9)} 50%{opacity:1;transform:scale(1.05)} }
-        
-        .limg { width: 50px; height: 50px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 2px; box-shadow: 0 0 10px rgba(64,128,255,0.4); }
-
-        .cyber-dots-purple, .cyber-dots-blue { position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; }
-        .cyber-dots-purple { animation: cyberSpinPurple 3s linear infinite; z-index: 6; }
-        .cyber-dots-blue { animation: cyberSpinBlue 5s linear infinite reverse; z-index: 6; }
-        .cyber-dots-purple::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #8050ff; border-radius: 50%; box-shadow: 0 0 15px #8050ff, 0 0 30px #8050ff; }
-        .cyber-dots-blue::before { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #4080ff; border-radius: 50%; box-shadow: 0 0 15px #4080ff, 0 0 30px #4080ff; }
-
-        @keyframes cyberSpinPurple { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes cyberSpinBlue { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-        .page-label { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; font-family: 'Orbitron',monospace; font-size: 11px; letter-spacing: 3px; color: #5060aa; }
-
-        .hero-radio-capsule {
-          position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 10;
-          display: flex; align-items: center; justify-content: space-between; width: 125px;
-          background: linear-gradient(#080814, #080814) padding-box, linear-gradient(135deg, #00d4ff 0%, #8b5cf6 100%) border-box; 
-          border: 1px solid transparent; border-radius: 20px; padding: 5px 12px; cursor: pointer; user-select: none;
-          box-shadow: 0 0 10px rgba(0, 212, 255, 0.2); transition: all 0.2s ease;
-        }
-        .hero-radio-capsule:hover { transform: translateX(-50%) scale(1.03); box-shadow: 0 0 15px rgba(0, 212, 255, 0.4); }
-        .capsule-left { display: flex; align-items: center; gap: 6px; }
-        .capsule-play-btn { background: #ffffff; color: #080814; width: 14px; height: 14px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 900; }
-        .hero-radio-capsule.playing .capsule-play-btn { background: #00e5a0; color: #080814; box-shadow: 0 0 6px #00e5a0; }
-        .capsule-text { font-family: 'Heebo', sans-serif; font-size: 10.5px; font-weight: 800; color: #ffffff; }
-        .hero-radio-capsule.playing .capsule-text { background: linear-gradient(90deg, #00d4ff, #00e5a0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .capsule-wave { display: flex; align-items: flex-end; gap: 1.5px; height: 8px; }
-        .capsule-wave-bar { width: 1.5px; height: 2px; background: rgba(0,212,255,0.3); border-radius: 1px; }
-        .hero-radio-capsule.playing .capsule-wave-bar { background: #00e5a0; animation: liveWave 0.6s ease-in-out infinite alternate; }
-
-        .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 95px; scrollbar-width: none; }
-        .scroll::-webkit-scrollbar { display: none; }
-
         .avatar-section { display: flex; flex-direction: column; align-items: center; padding: 20px 16px 0; }
         .avatar-wrap { position: relative; width: 88px; height: 88px; margin-bottom: 14px; }
-        .avatar-ring { position: absolute; inset: -4px; border-radius: 50%; border: 2px solid transparent; border-top-color: #7050cc; border-right-color: #4080ff; animation: spin 6s linear infinite; }
-        .avatar-ring2 { position: absolute; inset: -8px; border-radius: 50%; border: 1px dashed rgba(80,120,255,.2); animation: spin 12s linear infinite reverse; }
+        .avatar-ring { position: absolute; inset: -4px; border-radius: 50%; border: 2px solid transparent; border-top-color: #7050cc; border-right-color: #4080ff; animation: avatarSpin 6s linear infinite; }
+        .avatar-ring2 { position: absolute; inset: -8px; border-radius: 50%; border: 1px dashed rgba(80,120,255,.2); animation: avatarSpin 12s linear infinite reverse; }
         .avatar-circle { width: 88px; height: 88px; border-radius: 50%; background: linear-gradient(135deg,#1e1050,#0e1848); border: 2px solid #2a2a50; display: flex; align-items: center; justify-content: center; font-family: 'Orbitron',monospace; font-size: 24px; font-weight: 700; color: #a090e8; position: relative; z-index: 2; overflow: hidden; }
         .avatar-glow { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 40% 30%,rgba(120,90,255,.15),transparent 65%); }
         .edit-btn { position: absolute; bottom: 2px; right: 2px; width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg,#5030aa,#302088); border: 1.5px solid #6040cc; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 3; font-size: 11px; color: #c0a0ff; transition: all .2s; }
@@ -435,8 +395,7 @@ export default function InstructorProfile() {
 
         .prof-name { font-family: 'Orbitron',monospace; font-size: 16px; font-weight: 700; color: #e0d8ff; letter-spacing: .5px; margin-bottom: 4px; text-align: center; }
         .prof-role { font-size: 12px; color: #8070aa; letter-spacing: .5px; margin-bottom: 3px; text-align: center; }
-        .prof-username { font-family: 'Orbitron',monospace; font-size: 10px; color: #505088; letter-spacing: 1px; margin-bottom: 3px; text-align: center; direction: ltr; }
-        .prof-email { font-size: 12px; color: #4a4a7a; text-align: center; margin-bottom: 6px; direction: ltr; }
+        .prof-username { font-family: 'Orbitron',monospace; font-size: 12px; color: #c0b0ff; letter-spacing: 0.5px; margin-top: 6px; text-align: center; direction: ltr; font-weight: 700; }
 
         .stats-row { display: flex; gap: 1px; margin: 14px 16px 0; background: #1a1a30; border-radius: 14px; overflow: hidden; border: 1px solid #1a1a30; direction: rtl; }
         .stat-box { flex: 1; background: #0d0d1a; padding: 10px 6px; text-align: center; }
@@ -559,73 +518,13 @@ export default function InstructorProfile() {
         .nav-item.active i { color: #8050ff; }
         .nav-label { font-size: 9px; color: #2e2e4e; letter-spacing: .4px; transition: color .15s; }
         .nav-item.active .nav-label { color: #8050ff; }
-        @keyframes liveWave { 0% { height: 2px; } 100% { height: 8px; } }
+        @keyframes avatarSpin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
       `}</style>
 
       <div className="app" role="main">
         <h2 style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>Profile Screen</h2>
 
-        {/* HERO RADIAL BLOCKS */}
-        <div className="hero">
-          <div className="hg"></div><div className="hs"></div>
-          <div className="hgl"></div><div className="hgr"></div>
-          <div className="tc tl"></div><div className="tc tr"></div><div className="tc bl"></div><div className="tc br"></div>
-          
-          <div className="dbars l">
-            <div className="dbar" style={{ width: '24px', opacity: .58 }}></div>
-            <div className="dbar" style={{ width: '16px', opacity: .38 }}></div>
-            <div className="dbar" style={{ width: '20px', opacity: .48 }}></div>
-            <div className="dbar" style={{ width: '13px', opacity: .3 }}></div>
-            <div className="dbar" style={{ width: '18px', opacity: .44 }}></div>
-          </div>
-          
-          <div className="dbars r">
-            <div className="dbar" style={{ width: '18px', opacity: .44 }}></div>
-            <div className="dbar" style={{ width: '26px', opacity: .58 }}></div>
-            <div className="dbar" style={{ width: '14px', opacity: .34 }}></div>
-            <div className="dbar" style={{ width: '22px', opacity: .5 }}></div>
-            <div className="dbar" style={{ width: '11px', opacity: .28 }}></div>
-          </div>
-          
-          <div className="hdot" style={{ top: '22px', left: '60px', background: 'rgba(80,120,255,.5)' }}></div>
-          <div className="hdot" style={{ top: '36px', right: '64px', background: 'rgba(120,60,255,.4)' }}></div>
-          <div className="hdot" style={{ bottom: '30px', left: '78px', background: 'rgba(60,100,255,.34)' }}></div>
-          <div className="hdot" style={{ bottom: '22px', right: '82px', background: 'rgba(100,60,220,.38)' }}></div>
-          
-          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: .16 }} viewBox="0 0 390 190">
-            <path d="M58 90 L108 90 L128 70 L165 70" stroke="#4060ff" strokeWidth="1" fill="none"/>
-            <path d="M322 90 L272 90 L252 110 L215 110" stroke="#8040ff" strokeWidth="1" fill="none"/>
-            <circle cx="165" cy="70" r="2.5" fill="#4060ff" opacity=".8"/>
-            <circle cx="215" cy="110" r="2.5" fill="#8040ff" opacity=".8"/>
-          </svg>
-          
-          {/* קפסולת נגן הלהיטים של רדיו אראגון משודרגת ניאון */}
-          <div className={`hero-radio-capsule ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
-            <div className="capsule-left">
-              <div className="capsule-play-btn">
-                <i className={isPlaying ? "ti ti-player-pause-filled" : "ti ti-player-play-filled"}></i>
-              </div>
-              <div className="capsule-text">רדיו אראגון</div>
-            </div>
-            <div className="capsule-wave">
-              <div className="capsule-wave-bar"></div>
-              <div className="capsule-wave-bar"></div>
-              <div className="capsule-wave-bar"></div>
-            </div>
-          </div>
-
-          <div className="rw">
-            <div className="ro"></div><div className="rm"></div><div className="rm2"></div>
-            <div className="ric"></div><div className="rp"></div>
-            
-            <div className="cyber-dots-purple"></div>
-            <div className="cyber-dots-blue"></div>
-            
-            <img className="limg" src={aragonLogo} alt="Aragon Coin" />
-          </div>
-          <div className="page-label">PROFILE · פרופיל מדריך</div>
-          <div className="hbot"></div>
-        </div>
+        <InstructorHeroHeader pageLabel="פרופיל" />
 
         {/* PROFILE SCROLL ELEMENT */}
         <div className="scroll">
@@ -645,8 +544,7 @@ export default function InstructorProfile() {
             </div>
             <div className="prof-name">{instructorName}</div>
             <div className="prof-role">מדריך בכיר · אראגון</div>
-            <div className="prof-username">@{loggedUser}_aragon</div>
-            <div className="prof-email">{loggedUser}@aragon.co.il</div>
+            <div className="prof-username">{loggedUser}</div>
           </div>
 
           {/* TOTAL INSTRUCTOR STATS GRID COUNTERS - CONNECTED */}
@@ -663,10 +561,6 @@ export default function InstructorProfile() {
               <div className="stat-val">{ilsBalance}₪</div>
               <div className="stat-lbl">בונוס</div>
             </div>
-            <div className="stat-box">
-              <div className="stat-val">1</div>
-              <div className="stat-lbl">חודשים</div>
-            </div>
           </div>
 
           <div className="divider"></div>
@@ -675,8 +569,8 @@ export default function InstructorProfile() {
           <div className="gear-wallet-section">
             <div className="gear-wallet-card">
               <div className="gear-wallet-top">
-                <div className="gear-wallet-badge">⚙️ מטריצת חומרה</div>
-                <div className="gear-wallet-title-txt">ארנק ציוד שטח אקטיבי</div>
+                <div className="gear-wallet-badge">⚙️ ציוד שלי</div>
+                <div className="gear-wallet-title-txt">מערכת מעודכנת בלייב</div>
               </div>
               <div className="ins-gear-compact">
                 <div className="ins-gc-cell"><div className="ins-gc-lbl-wrap"><span>💻</span><span>מחשבים</span></div><span className="ins-gc-val">{myGear.laptops}</span></div>
@@ -738,20 +632,18 @@ export default function InstructorProfile() {
               <i className="ti ti-chevron-left setting-arrow"></i>
             </div>
 
-            <div className="setting-row" onClick={() => triggerToast('🔔 הגדרות התראות Push פתוחות')}>
+            <div
+              className="setting-row"
+              onClick={handleEnablePush}
+              style={{
+                opacity: pushStatus === 'unsupported' || pushStatus === 'granted' ? 0.75 : 1,
+                pointerEvents: pushBusy || pushStatus === 'unsupported' || pushStatus === 'granted' ? 'none' : 'auto',
+              }}
+            >
               <div className="setting-icon blue"><i className="ti ti-bell" style={{ color: '#5080cc', fontSize: '17px' }}></i></div>
               <div className="setting-body">
                 <div className="setting-title">התראות והתאמות</div>
-                <div className="setting-sub">ניהול הודעות Push ואימייל</div>
-              </div>
-              <i className="ti ti-chevron-left setting-arrow"></i>
-            </div>
-
-            <div className="setting-row" onClick={() => triggerToast('📋 הורדת דוח פעילות אישי...')} >
-              <div className="setting-icon green"><i className="ti ti-file-text" style={{ color: '#30a070', fontSize: '17px' }}></i></div>
-              <div className="setting-body">
-                <div className="setting-title">דוח פעילות אישי</div>
-                <div className="setting-sub">ייצוא היסטוריית פעולות</div>
+                <div className="setting-sub">{pushBusy ? 'מפעיל...' : pushStatusLabel}</div>
               </div>
               <i className="ti ti-chevron-left setting-arrow"></i>
             </div>

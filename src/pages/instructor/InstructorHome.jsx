@@ -2,19 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
-
-// ייבוא הלוגו המרכזי של אראגון לעיצוב העליון המשותף
-import aragonLogo from '../../assets/aragonlogo.png';
+import InstructorHeroHeader, { INSTRUCTOR_HERO_STYLES } from '../../components/instructor/InstructorHeroHeader';
+import { INSTRUCTOR_LAYOUT_STYLES } from '../../components/instructor/instructorLayoutStyles';
+import GamePortals from '../../components/shared/GamePortals';
 
 export default function InstructorHome() {
   const navigate = useNavigate();
-  const [isPlaying, setIsPlaying] = useState(false);
 
   // States לטעינה דינמית מהשרת בענן
   const [instructorName, setInstructorName] = useState('ARAGON SYSTEM');
   const [ilsBalance, setIlsBalance] = useState(0);
   const [stats, setStats] = useState({ groupsCount: 0, studentsCount: 0, average: 0 });
   const [myGroups, setMyGroups] = useState([]);
+  const [playerXp, setPlayerXp] = useState(0);
 
   // 🛠️ סטייט ייעודי לניהול מודאל והיסטוריית תקלות חומרה בשטח
   const [isFaultModalOpen, setIsFaultModalOpen] = useState(false);
@@ -60,7 +60,7 @@ export default function InstructorHome() {
         // 1. משיכת פרטי המדריך וארנק השקלים שלו
         const { data: userData } = await supabase
           .from('users')
-          .select('full_name, ils_balance')
+          .select('full_name, ils_balance, xp')
           .eq('username', loggedUser)
           .single();
 
@@ -68,6 +68,7 @@ export default function InstructorHome() {
           const fullName = userData.full_name || 'מדריך אראגון';
           setInstructorName(fullName);
           setIlsBalance(userData.ils_balance || 0);
+          setPlayerXp(userData.xp || 0);
 
           // טעינת היסטוריית תקלות הציוד האישית של המדריך
           fetchMyFaultsData(fullName);
@@ -175,94 +176,16 @@ export default function InstructorHome() {
   // חישוב דינמי של נקודות הבונוס המוארות
   const activeDotsCount = Math.min(5, Math.floor((ilsBalance / 1000) * 5));
 
-  // מסנכרן את מצב כפתור הנגן מול האודיו הגלובלי בעת מעבר דפים
-  useEffect(() => {
-    const globalAudio = document.getElementById('hq-cyber-radio');
-    if (globalAudio) {
-      setIsPlaying(!globalAudio.paused);
-    }
-  }, []);
-
-  // שליטה בנגן הרדיו הגלובלי המשותף ברקע
-  const toggleRadioPlay = () => {
-    const globalAudio = document.getElementById('hq-cyber-radio');
-    if (!globalAudio) return;
-
-    if (globalAudio.paused) {
-      globalAudio.play().catch(err => console.log("Audio play blocked", err));
-    } else {
-      globalAudio.pause();
-    }
-    setIsPlaying(!globalAudio.paused);
-  };
-
   return (
     <div className="ins-global-viewport">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Exo+2:wght@300;400;500;600;700&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
+
+        ${INSTRUCTOR_HERO_STYLES}
+        ${INSTRUCTOR_LAYOUT_STYLES}
         
         .ins-global-viewport { width: 100%; min-height: 100vh; background: #050a14; display: flex; justify-content: center; align-items: center; }
-        
-        .app { width: 390px; min-height: 860px; background: #08080f; font-family: 'Exo 2','Segoe UI',sans-serif; position: relative; overflow: hidden; border-radius: 36px; border: 1.5px solid #1c1c30; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.8); height: 860px; }
-
-        .hero { width: 100%; height: 190px; position: relative; overflow: hidden; border-radius: 36px 36px 0 0; background: #060610; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-        .hero-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(80,60,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(80,60,255,.05) 1px,transparent 1px); background-size: 28px 28px; }
-        .hero-scanline { position: absolute; inset: 0; background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(60,80,255,.015) 3px,rgba(60,80,255,.015) 4px); }
-        .hero-glow-l { position: absolute; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle,rgba(60,40,220,.25) 0%,transparent 70%); left: -40px; top: 50%; transform: translateY(-50%); }
-        .hero-glow-r { position: absolute; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle,rgba(40,80,255,.2) 0%,transparent 70%); right: -40px; top: 50%; transform: translateY(-50%); }
-        .hero-bottom { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg,transparent,#4060ff,#9040ff,#4060ff,transparent); }
-        
-        .tech-corner { position: absolute; width: 32px; height: 32px; }
-        .tech-corner.tl { top: 12px; left: 14px; border-top: 1.5px solid rgba(100,140,255,.5); border-left: 1.5px solid rgba(100,140,255,.5); }
-        .tech-corner.tr { top: 12px; right: 14px; border-top: 1.5px solid rgba(100,140,255,.5); border-right: 1.5px solid rgba(100,140,255,.5); }
-        .tech-corner.bl { bottom: 16px; left: 14px; border-bottom: 1.5px solid rgba(100,140,255,.3); border-left: 1.5px solid rgba(100,140,255,.3); }
-        .tech-corner.br { bottom: 16px; right: 14px; border-bottom: 1.5px solid rgba(100,140,255,.3); border-right: 1.5px solid rgba(100,140,255,.3); }
-        
-        .data-bars { position: absolute; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 5px; }
-        .data-bars.left { left: 16px; }
-        .data-bars.right { right: 16px; }
-        .d-bar { height: 3px; border-radius: 2px; background: rgba(80,120,255,.3); }
-        
-        .ring-wrap { position: relative; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center; z-index: 4; }
-        .ro { position: absolute; inset: 0; border-radius: 50%; border: 2px dashed rgba(80,120,255,.2); animation: insSpin 14s linear infinite; }
-        .rm { position: absolute; inset: 8px; border-radius: 50%; border: 1.5px solid transparent; border-top-color: #6040ff; border-right-color: #4080ff; animation: insSpin 5s linear infinite; }
-        .rm2 { position: absolute; inset: 14px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #4060ff; animation: insSpin 7s linear infinite reverse; }
-        .ric { position: absolute; inset: 22px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(80,100,255,.18); }
-        .rp { position: absolute; inset: 22px; border-radius: 50%; background: radial-gradient(circle,rgba(60,80,255,.14) 0%,transparent 70%); animation: insPulse 2.5s ease-in-out infinite; }
-        
-        .cyber-dots-purple, .cyber-dots-blue { position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; }
-        .cyber-dots-purple { animation: cyberSpinPurple 3s linear infinite; z-index: 6; }
-        .cyber-dots-blue { animation: cyberSpinBlue 5s linear infinite reverse; z-index: 6; }
-        .cyber-dots-purple::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #8050ff; border-radius: 50%; box-shadow: 0 0 15px #8050ff, 0 0 30px #8050ff; }
-        .cyber-dots-blue::before { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #4080ff; border-radius: 50%; box-shadow: 0 0 15px #4080ff, 0 0 30px #4080ff; }
-
-        @keyframes cyberSpinPurple { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes cyberSpinBlue { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-        .limg { width: 50px; height: 50px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 2px; box-shadow: 0 0 10px rgba(64,128,255,0.4); }
-        .page-label { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; font-family: 'Orbitron',monospace; font-size: 11px; letter-spacing: 3px; color: #5060aa; }
-
-        /* 📻 שדרוג רדיו אראגון - מסגרת גרדיאנט ניאון וכפתור מודגש במובייל */
-        .hero-radio-capsule {
-          position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 10;
-          display: flex; align-items: center; justify-content: space-between; width: 125px;
-          background: linear-gradient(#080814, #080814) padding-box, linear-gradient(135deg, #00d4ff 0%, #8b5cf6 100%) border-box; 
-          border: 1px solid transparent; border-radius: 20px; padding: 5px 12px; cursor: pointer; user-select: none;
-          box-shadow: 0 0 10px rgba(0, 212, 255, 0.2); transition: all 0.2s ease;
-        }
-        .hero-radio-capsule:hover { transform: translateX(-50%) scale(1.03); box-shadow: 0 0 15px rgba(0, 212, 255, 0.4); }
-        .capsule-left { display: flex; align-items: center; gap: 6px; }
-        .capsule-play-btn { background: #ffffff; color: #080814; width: 14px; height: 14px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 900; }
-        .hero-radio-capsule.playing .capsule-play-btn { background: #00e5a0; color: #080814; box-shadow: 0 0 6px #00e5a0; }
-        .capsule-text { font-family: 'Heebo', sans-serif; font-size: 10.5px; font-weight: 800; color: #ffffff; }
-        .hero-radio-capsule.playing .capsule-text { background: linear-gradient(90deg, #00d4ff, #00e5a0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .capsule-wave { display: flex; align-items: flex-end; gap: 1.5px; height: 8px; }
-        .capsule-wave-bar { width: 1.5px; height: 2px; background: rgba(0,212,255,0.3); border-radius: 1px; }
-        .hero-radio-capsule.playing .capsule-wave-bar { background: #00e5a0; animation: liveWave 0.6s ease-in-out infinite alternate; }
-
-        .content-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 95px; scrollbar-width: none; }
-        .content-scroll::-webkit-scrollbar { display: none; }
 
         .header-row { padding: 22px 16px 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; }
         .greeting { font-size: 13.5px; font-weight: 600; color: #6a6a9a; letter-spacing: 0.5px; }
@@ -377,57 +300,11 @@ export default function InstructorHome() {
         .nav-item.active i { color: #8050ff; }
         .nav-label { font-size: 9px; color: #2e2e4e; letter-spacing: .4px; transition: color .15s; }
         .nav-item.active .nav-label { color: #8050ff; }
-        
-        @keyframes insSpin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
-        @keyframes insPulse { 0%,100%{opacity:.4;transform:scale(.9)} 50%{opacity:1;transform:scale(1.05)} }
-        @keyframes liveWave { 0% { height: 2px; } 100% { height: 8px; } }
       `}</style>
 
       <div className="app">
         
-        {/* Hero Block Area */}
-        <div className="hero">
-          <div className="hero-grid"></div><div className="hero-scanline"></div>
-          <div className="hero-glow-l"></div><div className="hero-glow-r"></div>
-          <div className="tech-corner tl"></div><div className="tech-corner tr"></div>
-          <div className="tech-corner bl"></div><div className="tech-corner br"></div>
-          
-          <div className="data-bars left">
-            <div className="d-bar" style={{ width: '26px', opacity: .6 }}></div>
-            <div className="d-bar" style={{ width: '18px', opacity: .4 }}></div>
-            <div className="d-bar" style={{ width: '22px', opacity: .55 }}></div>
-          </div>
-          
-          <div className="data-bars right">
-            <div className="d-bar" style={{ width: '20px', opacity: .5 }}></div>
-            <div className="d-bar" style={{ width: '28px', opacity: .65 }}></div>
-            <div className="d-bar" style={{ width: '16px', opacity: .4 }}></div>
-          </div>
-          
-          <div className="hex-dot" style={{ top: '22px', left: '60px', background: 'rgba(80,120,255,.5)' }}></div>
-          <div className="hex-dot" style={{ bottom: '22px', right: '82px', background: 'rgba(100,60,220,.4)' }}></div>
-          
-          {/* Radio Aragon Music Stream Player */}
-          <div className={`hero-radio-capsule ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
-            <div className="capsule-left">
-              <div className="capsule-play-btn"><i className={isPlaying ? "ti ti-player-pause-filled" : "ti ti-player-play-filled"}></i></div>
-              <div className="capsule-text">רדיו אראגון</div>
-            </div>
-            <div className="capsule-wave"><div className="capsule-wave-bar"></div><div className="capsule-wave-bar"></div><div className="capsule-wave-bar"></div></div>
-          </div>
-
-          <div className="ring-wrap">
-            <div className="ro"></div><div className="rm"></div><div className="rm2"></div>
-            <div className="ric"></div><div className="rp"></div>
-            
-            <div className="cyber-dots-purple"></div>
-            <div className="cyber-dots-blue"></div>
-
-            <img className="limg" src={aragonLogo} alt="Aragon Coin" />
-          </div>
-          <div className="page-label">DASHBOARD · ראשי</div>
-          <div className="hero-bottom"></div>
-        </div>
+        <InstructorHeroHeader pageLabel="בית" />
 
         {/* Dynamic Content Scroll Layer */}
         <div className="content-scroll">
@@ -512,6 +389,10 @@ export default function InstructorHome() {
                 )}
               </div>
             </div>
+          </div>
+
+          <div style={{ marginTop: '14px' }}>
+            <GamePortals playerXp={playerXp} />
           </div>
 
           {/* רשימת הקבוצות המשויכות האמיתיות מהענן */}

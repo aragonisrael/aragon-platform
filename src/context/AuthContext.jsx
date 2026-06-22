@@ -4,8 +4,10 @@ import { deactivatePushTokens } from '../hooks/usePushNotifications';
 import { supabase } from '../supabaseClient';
 import {
   clearAuth,
+  getDevAutoLoginCredentials,
   getLoggedRole,
   getLoggedUser,
+  getNativeAutoLoginCredentials,
   LEGACY_TEST_STUDENT_USERNAME,
   NATIVE_TEST_STUDENT_USERNAME,
   saveAuth,
@@ -13,24 +15,61 @@ import {
 
 const AuthContext = createContext(null);
 
-const NATIVE_TEST_PASSWORD = '12345678';
+const INSTRUCTOR_ROLES = new Set(['instructor', 'temp_instructor']);
 
-async function tryNativeStudentAutoLogin() {
-  if (!Capacitor.isNativePlatform()) return null;
+async function tryDevWebAutoLogin() {
+  if (!import.meta.env.DEV || Capacitor.isNativePlatform()) return null;
 
-  const savedUser = getLoggedUser();
-  if (savedUser && savedUser !== LEGACY_TEST_STUDENT_USERNAME) return null;
+  const creds = getDevAutoLoginCredentials();
+  if (!creds) return null;
 
   const { data: dbUser, error } = await supabase
     .from('users')
     .select('username, role, password')
-    .eq('username', NATIVE_TEST_STUDENT_USERNAME)
+    .eq('username', creds.username)
     .single();
 
   if (error || !dbUser) return null;
-  if (dbUser.password !== NATIVE_TEST_PASSWORD || dbUser.role !== 'student') return null;
+  if (dbUser.password !== creds.password) return null;
 
-  if (savedUser === LEGACY_TEST_STUDENT_USERNAME) clearAuth();
+  saveAuth(dbUser.username, dbUser.role);
+  return { username: dbUser.username, role: dbUser.role };
+}
+
+async function tryNativeAutoLogin() {
+  if (!Capacitor.isNativePlatform()) return null;
+
+  const creds = getNativeAutoLoginCredentials();
+  if (!creds) return null;
+
+  const savedUser = getLoggedUser();
+  const savedRole = getLoggedRole();
+  const legacyStudentUsers = new Set([
+    LEGACY_TEST_STUDENT_USERNAME,
+    NATIVE_TEST_STUDENT_USERNAME,
+  ]);
+
+  if (savedUser && legacyStudentUsers.has(savedUser)) {
+    clearAuth();
+  } else if (
+    savedUser === creds.username &&
+    savedRole &&
+    INSTRUCTOR_ROLES.has(savedRole)
+  ) {
+    return { username: savedUser, role: savedRole };
+  } else if (savedUser && savedUser !== creds.username) {
+    return null;
+  }
+
+  const { data: dbUser, error } = await supabase
+    .from('users')
+    .select('username, role, password')
+    .eq('username', creds.username)
+    .single();
+
+  if (error || !dbUser) return null;
+  if (dbUser.password !== creds.password) return null;
+  if (!INSTRUCTOR_ROLES.has(dbUser.role)) return null;
 
   saveAuth(dbUser.username, dbUser.role);
   return { username: dbUser.username, role: dbUser.role };
@@ -45,7 +84,8 @@ export function AuthProvider({ children }) {
     let cancelled = false;
 
     (async () => {
-      const autoLogin = await tryNativeStudentAutoLogin();
+      const autoLogin =
+        (await tryNativeAutoLogin()) || (await tryDevWebAutoLogin());
       if (cancelled) return;
 
       if (autoLogin) {

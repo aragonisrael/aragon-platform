@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
-
-// מייבאים את הלוגו של אראגון לעיצוב העליון המשותף
-import aragonLogo from '../../assets/aragonlogo.png';
+import InstructorHeroHeader, { INSTRUCTOR_HERO_STYLES } from '../../components/instructor/InstructorHeroHeader';
+import { INSTRUCTOR_LAYOUT_STYLES } from '../../components/instructor/instructorLayoutStyles';
 
 const STATUSLABEL = {
   green: 'אושר השבוע',
@@ -12,6 +11,36 @@ const STATUSLABEL = {
   red: 'ללא מדריך',
   turquoise: 'מעבר ונסיעה'
 };
+
+function getInstructorWeekDates(weekOffset = 0) {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() - today.getDay() + weekOffset * 7);
+
+  const dates = [];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(sunday);
+    d.setDate(sunday.getDate() + i);
+    dates.push(d);
+  }
+  return dates;
+}
+
+function isSameCalendarDay(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function toLocalDateKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 export default function InstructorSchedule() {
   const navigate = useNavigate();
@@ -30,9 +59,6 @@ export default function InstructorSchedule() {
 
   // Toast Notification System State
   const [toast, setToast] = useState({ show: false, message: '' });
-
-  // State למעקב אחרי השמעת הרדיו המרכזי
-  const [isPlaying, setIsPlaying] = useState(false);
 
   // מאגר לו"ז דינמי שייטען מהשרת לענן
   const [liveSchedule, setLiveSchedule] = useState([[], [], [], [], [], []]);
@@ -60,15 +86,7 @@ export default function InstructorSchedule() {
         setCurrentCoins(userData.coins || 0);
 
         // חישוב ימי השבוע הנוכחי בתוך הפונקציה לצורך בדיקה תאריכית מול טבלת הקייטנות
-        const now = new Date(2026, 4, 17); 
-        const base = new Date(now);
-        base.setDate(base.getDate() + weekOffset * 7);
-        const currentWeekDaysList = [];
-        for (let i = 0; i < 6; i++) {
-          const d = new Date(base);
-          d.setDate(d.getDate() + i);
-          currentWeekDaysList.push(d.toISOString().split('T')[0]);
-        }
+        const currentWeekDaysList = getInstructorWeekDates(weekOffset).map(toLocalDateKey);
 
         // 1. שליפת הקבוצות המשויכות למדריך הנוכחי
         const { data: dbGroups } = await supabase
@@ -244,42 +262,11 @@ export default function InstructorSchedule() {
   }, [loggedUser, weekOffset]);
 
   useEffect(() => {
-    const globalAudio = document.getElementById('hq-cyber-radio');
-    if (globalAudio) {
-      setIsPlaying(!globalAudio.paused);
-    }
-  }, []);
-
-  useEffect(() => {
     setIsWeekApproved(false);
+    setActiveDay(0);
   }, [weekOffset]);
 
-  const toggleRadioPlay = () => {
-    const globalAudio = document.getElementById('hq-cyber-radio');
-    if (!globalAudio) return;
-
-    if (globalAudio.paused) {
-      globalAudio.play().catch(err => console.log("Audio play blocked", err));
-    } else {
-      globalAudio.pause();
-    }
-    setIsPlaying(!globalAudio.paused);
-  };
-
-  const getWeekDates = () => {
-    const now = new Date(2026, 4, 17); 
-    const base = new Date(now);
-    base.setDate(base.getDate() + weekOffset * 7);
-    const dates = [];
-    for (let i = 0; i < 6; i++) {
-      const d = new Date(base);
-      d.setDate(d.getDate() + i);
-      dates.push(d);
-    }
-    return dates;
-  };
-
-  const datesList = getWeekDates();
+  const datesList = getInstructorWeekDates(weekOffset);
   const firstDayOfWeek = datesList[0];
   const lastDayOfWeek = datesList[5];
 
@@ -380,54 +367,20 @@ export default function InstructorSchedule() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Heebo:wght@300;400;500;600;700;800&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
+
+        ${INSTRUCTOR_HERO_STYLES}
+        ${INSTRUCTOR_LAYOUT_STYLES}
         
         .schedule-main-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #050a14; width: 100%; }
-        .app { width: 390px; min-height: 860px; background: #08080f; font-family: 'Heebo', sans-serif; position: relative; overflow: hidden; border-radius: 36px; border: 1.5px solid #1c1c30; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
-        .hero { width: 100%; height: 190px; position: relative; overflow: hidden; border-radius: 36px 36px 0 0; background: #060610; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-        .hg { position: absolute; inset: 0; background-image: linear-gradient(rgba(80,60,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(80,60,255,.05) 1px,transparent 1px); background-size: 28px 28px; }
-        .hs { position: absolute; inset: 0; background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(60,80,255,.013) 3px,rgba(60,80,255,.013) 4px); }
-        .hgl { position: absolute; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle,rgba(60,40,220,.22) 0%,transparent 70%); left: -40px; top: 50%; transform: translateY(-50%); }
-        .hgr { position: absolute; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle,rgba(40,80,255,.18) 0%,transparent 70%); right: -40px; top: 50%; transform: translateY(-50%); }
-        .hbot { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg,transparent,#4060ff,#9040ff,#4060ff,transparent); }
-        .tc { position: absolute; width: 30px; height: 30px; }
-        .tc.tl { top: 12px; left: 14px; border-top: 1.5px solid rgba(100,140,255,.44); border-left: 1.5px solid rgba(100,140,255,.44); }
-        .tc.tr { top: 12px; right: 14px; border-top: 1.5px solid rgba(100,140,255,.44); border-right: 1.5px solid rgba(100,140,255,.44); }
-        .tc.bl { bottom: 16px; left: 14px; border-bottom: 1.5px solid rgba(100,140,255,.26); border-left: 1.5px solid rgba(100,140,255,.26); }
-        .tc.br { bottom: 16px; right: 14px; border-bottom: 1.5px solid rgba(100,140,255,.26); border-right: 1.5px solid rgba(100,140,255,.26); }
-        
-        .rw { position: relative; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center; z-index: 4; }
-        .ro { position: absolute; inset: 0; border-radius: 50%; border: 2px dashed rgba(80,120,255,.2); animation: spin 14s linear infinite; }
-        .rm { position: absolute; inset: 8px; border-radius: 50%; border: 1.5px solid transparent; border-top-color: #6040ff; border-right-color: #00c8ff; animation: spin 5s linear infinite; box-shadow: 0 0 10px rgba(0,200,255,.4); }
-        .rm2 { position: absolute; inset: 14px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #00c8ff; animation: spin 7s linear infinite reverse; box-shadow: inset 0 0 10px rgba(64,128,255,.3); }
-        .ric { position: absolute; inset: 22px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(0,200,255,0.18); }
-        .rp { position: absolute; inset: 22px; border-radius: 50%; background: radial-gradient(circle,rgba(60,80,255,.13) 0%,transparent 70%); animation: pulse 2.5s ease-in-out infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes pulse { 0%,100%{opacity:.4;transform:scale(.9)} 50%{opacity:1;transform:scale(1.05)} }
-        .limg { width: 50px; height: 50px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 2px; box-shadow: 0 0 10px rgba(64,128,255,0.4); }
-        
-        .cyber-dots-purple, .cyber-dots-blue { position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; }
-        .cyber-dots-purple { animation: hqSpin 3s linear infinite; z-index: 6; }
-        .cyber-dots-blue { animation: hqSpin 5s linear infinite reverse; z-index: 6; }
-        .cyber-dots-purple::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #8050ff; border-radius: 50%; box-shadow: 0 0 15px #8050ff, 0 0 30px #8050ff; }
-        .cyber-dots-blue::before { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #00c8ff; border-radius: 50%; box-shadow: 0 0 15px #00c8ff, 0 0 30px #00c8ff; }
-        
-        .page-label { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; font-family: 'Orbitron',monospace; font-size: 11px; letter-spacing: 3px; color: #5060aa; }
-        
-        .hero-radio-capsule { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; align-items: center; justify-content: space-between; width: 115px; background: rgba(8, 8, 20, 0.6); border: 1px solid rgba(80, 100, 255, 0.2); border-radius: 20px; padding: 4px 10px; cursor: pointer; user-select: none; transition: all 0.2s ease; }
-        .hero-radio-capsule.playing { border-color: #18b090; background: rgba(5, 20, 16, 0.6); }
-        .capsule-left { display: flex; align-items: center; gap: 6px; }
-        .capsule-play-btn { color: #5070ff; font-size: 11px; display: flex; align-items: center; }
-        .hero-radio-capsule.playing .capsule-play-btn { color: #18b090; }
-        .capsule-text { font-size: 8.5px; font-family: 'Orbitron', monospace; font-weight: 700; color: #48487a; letter-spacing: 0.5px; }
-        .hero-radio-capsule.playing .capsule-text { color: #18b090; }
-        .capsule-wave { display: flex; align-items: flex-end; gap: 1.5px; height: 8px; }
-        .capsule-wave-bar { width: 1.5px; height: 2px; background: #2e2e4e; border-radius: 1px; }
-        .hero-radio-capsule.playing .capsule-wave-bar { background: #18b090; animation: liveWave 0.6s ease-in-out infinite alternate; }
-        
-        .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 95px; scrollbar-width: none; }
-        .scroll::-webkit-scrollbar { display: none; }
         .week-nav { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 8px; direction: rtl; }
-        .week-lbl { font-family: 'Orbitron',monospace; font-size: 10px; letter-spacing: 2px; color: #7060aa; }
+        .week-lbl {
+          font-family: 'Exo 2', sans-serif;
+          font-size: 13px;
+          font-weight: 800;
+          letter-spacing: 0.3px;
+          color: #c4b5fd;
+          text-shadow: 0 0 12px rgba(167, 139, 250, 0.35);
+        }
         .week-arrows { display: flex; gap: 6px; }
         .warrow { width: 28px; height: 28px; border-radius: 7px; border: 1px solid #2a2a42; background: #0d0d1a; color: #5a5a8a; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .18s; }
         .warrow:hover { border-color: #4030aa; color: #9070ee; }
@@ -441,7 +394,18 @@ export default function InstructorSchedule() {
         .day-pills::-webkit-scrollbar { display: none; }
         .dpill { padding: 5px 10px; border-radius: 8px; border: 1px solid #1e1e38; background: #0d0d1a; font-size: 11px; color: #5a5a8a; cursor: pointer; white-space: nowrap; transition: all .18s; flex-shrink: 0; }
         .dpill.active { border-color: #4030aa; background: rgba(80,48,170,.15); color: #c0a0ff; }
-        .dpill.today { border-color: #2a4a2a; color: #40a060; }
+        .dpill.today {
+          border-color: #20b070;
+          background: rgba(30, 200, 120, 0.18);
+          color: #2dd484;
+          font-weight: 700;
+          box-shadow: 0 0 10px rgba(32, 176, 112, 0.2);
+        }
+        .dpill.today.active {
+          border-color: #20b070;
+          background: rgba(30, 200, 120, 0.28);
+          color: #ffffff;
+        }
         
         .sched-grid { padding: 0 16px 4px; direction: rtl; }
         .sched-day { margin-bottom: 8px; }
@@ -508,7 +472,7 @@ export default function InstructorSchedule() {
         .sub-section { margin: 6px 16px 0; direction: rtl; }
         .sub-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
         .sub-title { font-family: 'Orbitron',monospace; font-size: 10px; letter-spacing: 2px; color: #8060aa; }
-        .sub-ping { width: 8px; height: 8px; border-radius: 50%; background: #9060ff; box-shadow: 0 0 8px rgba(144,96,255,.6); animation: pulse 1.5s ease-in-out infinite; }
+        .sub-ping { width: 8px; height: 8px; border-radius: 50%; background: #9060ff; box-shadow: 0 0 8px rgba(144,96,255,.6); animation: subPulse 1.5s ease-in-out infinite; }
         .sub-card { background: linear-gradient(145deg,#111128,#0d0d1e); border: 1px solid #2a2a48; border-radius: 14px; padding: 14px; margin-bottom: 10px; text-align: right; }
         .sub-card-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
         .sub-badge-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
@@ -534,39 +498,13 @@ export default function InstructorSchedule() {
         .nav-item.active i { color: #8050ff; }
         .nav-label { font-size: 9px; color: #2e2e4e; }
         .nav-item.active .nav-label { color: #8050ff; }
-        @keyframes liveWave { 0% { height: 2px; } 100% { height: 8px; } }
+        @keyframes subPulse { 0%,100%{opacity:.4;transform:scale(.9)} 50%{opacity:1;transform:scale(1.05)} }
       `}</style>
 
       <div className="app" role="main">
         <h2 style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>Schedule Screen</h2>
 
-        {/* HERO HEADER */}
-        <div className="hero">
-          <div className="hg"></div><div className="hs"></div>
-          <div className="hgl"></div><div className="hgr"></div>
-          <div className="tc tl"></div><div className="tc tr"></div><div className="tc bl"></div><div className="tc br"></div>
-          
-          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: .16 }} viewBox="0 0 390 190">
-            <path d="M58 90 L108 90 L128 70 L165 70" stroke="#4060ff" strokeWidth="1" fill="none"/>
-            <path d="M322 90 L272 90 L252 110 L215 110" stroke="#8040ff" strokeWidth="1" fill="none"/>
-          </svg>
-          
-          <div className={`hero-radio-capsule ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
-            <div className="capsule-left">
-              <div className="capsule-play-btn"><i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i></div>
-              <div className="capsule-text">HQ RADIO</div>
-            </div>
-            <div className="capsule-wave"><div className="capsule-wave-bar"></div><div className="capsule-wave-bar"></div><div className="capsule-wave-bar"></div></div>
-          </div>
-
-          <div className="rw">
-            <div className="ro"></div><div className="rm"></div><div className="rm2"></div><div className="ric"></div><div className="rp"></div>
-            <div className="cyber-dots-purple"></div><div className="cyber-dots-blue"></div>
-            <img className="limg" src={aragonLogo} alt="Aragon" />
-          </div>
-          <div className="page-label">SCHEDULE · לו"ז ובקשות מחליפים</div>
-          <div className="hbot"></div>
-        </div>
+        <InstructorHeroHeader pageLabel="לוח זמנים" />
 
         {/* SCROLL AREA */}
         <div className="scroll">
@@ -588,7 +526,7 @@ export default function InstructorSchedule() {
           <div className="day-pills">
             <div className={`dpill ${activeDay === 0 ? 'active' : ''}`} onClick={() => setActiveDay(0)}>הכל</div>
             {datesList.map((d, i) => {
-              const isToday = (weekOffset === 0 && i === 0);
+              const isToday = weekOffset === 0 && isSameCalendarDay(d, new Date());
               return (
                 <div key={i} className={`dpill ${activeDay === i + 1 ? 'active' : ''} ${isToday ? 'today' : ''}`} onClick={() => setActiveDay(i + 1)}>
                   {daysShort[i]} {d.getDate()}

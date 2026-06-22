@@ -4,7 +4,11 @@ import { supabase } from '../supabaseClient';
 import aragonLogo from '../assets/aragonlogo.png';
 import { useAuth } from '../context/AuthContext';
 import { Capacitor } from '@capacitor/core';
-import { routeForRole, NATIVE_TEST_STUDENT_USERNAME } from '../utils/authStorage';
+import {
+  getDevAutoLoginCredentials,
+  getNativeAutoLoginCredentials,
+  routeForRole,
+} from '../utils/authStorage';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -41,8 +45,19 @@ export default function Login() {
     }
 
     if (Capacitor.isNativePlatform()) {
-      setUsername(NATIVE_TEST_STUDENT_USERNAME);
-      setPassword('12345678');
+      const nativeCreds = getNativeAutoLoginCredentials();
+      if (nativeCreds) {
+        setUsername(nativeCreds.username);
+        setPassword(nativeCreds.password);
+        setRememberMe(true);
+      }
+      return;
+    }
+
+    const devCreds = getDevAutoLoginCredentials();
+    if (devCreds) {
+      setUsername(devCreds.username);
+      setPassword(devCreds.password);
       setRememberMe(true);
     }
   }, []);

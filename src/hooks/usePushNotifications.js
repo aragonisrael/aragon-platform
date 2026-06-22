@@ -4,7 +4,7 @@ import { PushNotifications } from '@capacitor/push-notifications';
 import { supabase } from '../supabaseClient';
 import { getLoggedRole, getLoggedUser } from '../utils/authStorage';
 
-const PUSH_ROLES = new Set(['management', 'admin', 'student']);
+const PUSH_ROLES = new Set(['management', 'admin', 'student', 'instructor', 'temp_instructor']);
 
 function isPushPluginAvailable() {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('PushNotifications');

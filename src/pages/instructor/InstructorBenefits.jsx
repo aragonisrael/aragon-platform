@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import aragonLogo from '../../assets/aragonlogo.png';
+import InstructorHeroHeader, { INSTRUCTOR_HERO_STYLES } from '../../components/instructor/InstructorHeroHeader';
+import { INSTRUCTOR_LAYOUT_STYLES } from '../../components/instructor/instructorLayoutStyles';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
 
@@ -9,9 +10,6 @@ export default function InstructorBenefits() {
 
   // Toast System State
   const [toast, setToast] = useState({ show: false, message: '' });
-
-  // State למעקב אחרי השמעת הרדיו המרכזי
-  const [isPlaying, setIsPlaying] = useState(false);
 
   // State לטעינת ארנק השקלים האמיתי של המדריך מהשרת
   const [ilsBalance, setIlsBalance] = useState(0);
@@ -110,27 +108,6 @@ export default function InstructorBenefits() {
   // חישוב דינמי של אחוז ההתקדמות לעבר היעד החודשי של 1,000 ש"ח
   const progressPercentage = Math.min(100, Math.round((ilsBalance / 1000) * 100));
 
-  // מסנכרן את מצב כפתור הנגן מול האודיו הגלובלי ב-App.jsx בעת מעבר דפים
-  useEffect(() => {
-    const globalAudio = document.getElementById('hq-cyber-radio');
-    if (globalAudio) {
-      setIsPlaying(!globalAudio.paused);
-    }
-  }, []);
-
-  // שליטה בנגן הרדיו הגלובלי המשותף ברקע
-  const toggleRadioPlay = () => {
-    const globalAudio = document.getElementById('hq-cyber-radio');
-    if (!globalAudio) return;
-
-    if (globalAudio.paused) {
-      globalAudio.play().catch(err => console.log("Audio play blocked", err));
-    } else {
-      globalAudio.pause();
-    }
-    setIsPlaying(!globalAudio.paused);
-  };
-
   // Trigger Toast Notification Feedback Window
   const triggerToast = (msg) => {
     setToast({ show: true, message: msg });
@@ -150,6 +127,9 @@ export default function InstructorBenefits() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Exo+2:wght@300;400;500;600&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
+
+        ${INSTRUCTOR_HERO_STYLES}
+        ${INSTRUCTOR_LAYOUT_STYLES}
         
         .benefits-main-container {
           display: flex;
@@ -159,74 +139,6 @@ export default function InstructorBenefits() {
           background: #050a14;
           width: 100%;
         }
-
-        .app { width: 390px; min-height: 860px; background: #08080f; font-family: 'Exo 2','Segoe UI',sans-serif; position: relative; overflow: hidden; border-radius: 36px; border: 1.5px solid #1c1c30; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
-
-        .hero { width: 100%; height: 190px; position: relative; overflow: hidden; border-radius: 36px 36px 0 0; background: #060610; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-        .hero-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(80,60,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(80,60,255,.05) 1px,transparent 1px); background-size: 28px 28px; }
-        .hero-scanline { position: absolute; inset: 0; background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(60,80,255,.015) 3px,rgba(60,80,255,.015) 4px); }
-        .hero-glow-l { position: absolute; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle,rgba(60,40,220,.25) 0%,transparent 70%); left: -40px; top: 50%; transform: translateY(-50%); }
-        .hero-glow-r { position: absolute; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle,rgba(40,80,255,.2) 0%,transparent 70%); right: -40px; top: 50%; transform: translateY(-50%); }
-        .hero-bottom { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg,transparent,#4060ff,#9040ff,#4060ff,transparent); }
-        
-        .tech-corner { position: absolute; width: 32px; height: 32px; }
-        .tech-corner.tl { top: 12px; left: 14px; border-top: 1.5px solid rgba(100,140,255,.5); border-left: 1.5px solid rgba(100,140,255,.5); }
-        .tech-corner.tr { top: 12px; right: 14px; border-top: 1.5px solid rgba(100,140,255,.5); border-right: 1.5px solid rgba(100,140,255,.5); }
-        .tech-corner.bl { bottom: 16px; left: 14px; border-bottom: 1.5px solid rgba(100,140,255,.3); border-left: 1.5px solid rgba(100,140,255,.3); }
-        .tech-corner.br { bottom: 16px; right: 14px; border-bottom: 1.5px solid rgba(100,140,255,.3); border-right: 1.5px solid rgba(100,140,255,.3); }
-        
-        .data-bars { position: absolute; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 5px; }
-        .data-bars.left { left: 16px; }
-        .data-bars.right { right: 16px; }
-        .d-bar { height: 3px; border-radius: 2px; background: rgba(80,120,255,.3); }
-        .hex-dot { position: absolute; width: 6px; height: 6px; border-radius: 50%; }
-        
-        .ring-wrap { position: relative; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center; z-index: 4; }
-        .ring-outer { position: absolute; inset: 0; border-radius: 50%; border: 2px dashed rgba(80,120,255,.2); animation: spinRing 14s linear infinite; }
-        
-        .ring-mid { position: absolute; inset: 8px; border-radius: 50%; border: 1.5px solid transparent; border-top-color: #6040ff; border-right-color: #4080ff; animation: spinRing 5s linear infinite; box-shadow: 0 0 10px rgba(120,80,255,.4); }
-        .ring-mid2 { position: absolute; inset: 14px; border-radius: 50%; border: 1px solid transparent; border-bottom-color: #9060ff; border-left-color: #4060ff; animation: spinRing 7s linear infinite reverse; box-shadow: inset 0 0 10px rgba(64,128,255,.3); }
-        
-        .ring-inner-circle { position: absolute; inset: 22px; border-radius: 50%; background: linear-gradient(145deg,#0e0e28,#080818); border: 1px solid rgba(80,100,255,.18); }
-        .ring-pulse { position: absolute; inset: 22px; border-radius: 50%; background: radial-gradient(circle,rgba(60,80,255,.15) 0%,transparent 70%); animation: pulse 2.5s ease-in-out infinite; }
-        @spinRing { from{transform:rotate(0)} to{transform:rotate(360deg)} }
-        @keyframes pulse { 0%,100%{opacity:.4;transform:scale(.9)} 50%{opacity:1;transform:scale(1.05)} }
-        
-        .limg { width: 50px; height: 50px; border-radius: 50%; position: relative; z-index: 5; object-fit: cover; background: rgba(255,255,255,0.9); padding: 2px; box-shadow: 0 0 10px rgba(64,128,255,0.4); }
-
-        .cyber-dots-purple, .cyber-dots-blue { position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; }
-        .cyber-dots-purple { animation: cyberSpinPurple 3s linear infinite; z-index: 6; }
-        .cyber-dots-blue { animation: cyberSpinBlue 5s linear infinite reverse; z-index: 6; }
-        
-        .cyber-dots-purple::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #8050ff; border-radius: 50%; box-shadow: 0 0 15px #8050ff, 0 0 30px #8050ff; }
-        .cyber-dots-blue::before { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: #4080ff; border-radius: 50%; box-shadow: 0 0 15px #4080ff, 0 0 30px #4080ff; }
-        
-        @keyframes cyberSpinPurple { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes cyberSpinBlue { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-        .page-label { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; font-family: 'Orbitron',monospace; font-size: 11px; letter-spacing: 3px; color: #7060aa; }
-
-        .hero-radio-capsule {
-          position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 10;
-          display: flex; align-items: center; justify-content: space-between; width: 115px;
-          background: rgba(8, 8, 20, 0.6); border: 1px solid rgba(80, 100, 255, 0.2);
-          border-radius: 20px; padding: 4px 10px; cursor: pointer; user-select: none; transition: all 0.2s ease;
-        }
-        .hero-radio-capsule:hover { border-color: rgba(80, 120, 255, 0.5); background: rgba(8, 8, 20, 0.85); }
-        .hero-radio-capsule.playing { border-color: #18b090; background: rgba(5, 20, 16, 0.6); }
-        .capsule-left { display: flex; align-items: center; gap: 6px; }
-        .capsule-play-btn { color: #5070ff; font-size: 11px; display: flex; align-items: center; }
-        .hero-radio-capsule.playing .capsule-play-btn { color: #18b090; }
-        .capsule-text { font-size: 8.5px; font-family: 'Orbitron', monospace; font-weight: 700; color: #48487a; letter-spacing: 0.5px; }
-        .hero-radio-capsule.playing .capsule-text { color: #18b090; }
-        .capsule-wave { display: flex; align-items: flex-end; gap: 1.5px; height: 8px; }
-        .capsule-wave-bar { width: 1.5px; height: 2px; background: #2e2e4e; border-radius: 1px; }
-        .hero-radio-capsule.playing .capsule-wave-bar { background: #18b090; animation: liveWave 0.6s ease-in-out infinite alternate; }
-        .hero-radio-capsule.playing .capsule-wave-bar:nth-child(2) { animation-delay: 0.15s; }
-        .hero-radio-capsule.playing .capsule-wave-bar:nth-child(3) { animation-delay: 0.35s; }
-
-        .content-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 95px; /* מרווח ביטחון בתחתית כדי שהתוכן לא ייבלע מאחורי הבר הצף */ scrollbar-width: none; }
-        .content-scroll::-webkit-scrollbar { display: none; }
 
         .bonus-hero { margin: 14px 16px 0; background: linear-gradient(145deg,#100c00,#0c0900); border: 1px solid #3a2e06; border-radius: 20px; padding: 22px 20px 18px; position: relative; overflow: hidden; direction: rtl; text-align: right; }
         .bonus-hero::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg,transparent,#c08010,#ffe060,#f0b020,transparent); }
@@ -346,76 +258,12 @@ export default function InstructorBenefits() {
           box-shadow: 0 10px 40px rgba(0,0,0,0.6);
         }
         .toast.show { opacity: 1; transform: translate(-50%, -50%); }
-        @keyframes liveWave { 0% { height: 2px; } 100% { height: 8px; } }
       `}</style>
 
       <div className="app" id="benefitsApp">
         <h2 style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>Benefits Screen</h2>
 
-        {/* HERO RADIAL HEADER SECTION */}
-        <div className="hero">
-          <div className="hero-grid"></div><div className="hero-scanline"></div>
-          <div className="hero-glow-l"></div><div className="hero-glow-r"></div>
-          <div className="tech-corner tl"></div><div className="tech-corner tr"></div>
-          <div className="tech-corner bl"></div><div className="tech-corner br"></div>
-          
-          <div className="data-bars left">
-            <div className="d-bar" style={{ width: '26px', opacity: .6 }}></div>
-            <div className="d-bar" style={{ width: '18px', opacity: .4 }}></div>
-            <div className="d-bar" style={{ width: '22px', opacity: .55 }}></div>
-            <div className="d-bar" style={{ width: '14px', opacity: .3 }}></div>
-            <div className="d-bar" style={{ width: '20px', opacity: .5 }}></div>
-          </div>
-          
-          <div className="data-bars right">
-            <div className="d-bar" style={{ width: '20px', opacity: .5 }}></div>
-            <div className="d-bar" style={{ width: '28px', opacity: .65 }}></div>
-            <div className="d-bar" style={{ width: '16px', opacity: .4 }}></div>
-            <div className="d-bar" style={{ width: '24px', opacity: .55 }}></div>
-            <div className="d-bar" style={{ width: '12px', opacity: .3 }}></div>
-          </div>
-          
-          <div className="hex-dot" style={{ top: '22px', left: '60px', background: 'rgba(80,120,255,.5)' }}></div>
-          <div className="hex-dot" style={{ top: '36px', right: '64px', background: 'rgba(120,60,255,.4)' }}></div>
-          <div className="hex-dot" style={{ bottom: '30px', left: '78px', background: 'rgba(60,100,255,.35)' }}></div>
-          <div className="hex-dot" style={{ bottom: '22px', right: '82px', background: 'rgba(100,60,220,.4)' }}></div>
-          
-          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: .18 }} viewBox="0 0 390 190">
-            <path d="M58 90 L108 90 L128 70 L168 70" stroke="#4060ff" strokeWidth="1" fill="none"/>
-            <path d="M322 90 L272 90 L252 110 L212 110" stroke="#8040ff" strokeWidth="1" fill="none"/>
-            <circle cx="168" cy="70" r="2.5" fill="#4060ff" opacity=".8"/>
-            <circle cx="212" cy="110" r="2.5" fill="#8040ff" opacity=".8"/>
-          </svg>
-          
-          <div className={`hero-radio-capsule ${isPlaying ? 'playing' : ''}`} onClick={toggleRadioPlay}>
-            <div className="capsule-left">
-              <div className="capsule-play-btn">
-                <i className={isPlaying ? "ti ti-player-pause" : "ti ti-player-play"}></i>
-              </div>
-              <div className="capsule-text">HQ RADIO</div>
-            </div>
-            <div className="capsule-wave">
-              <div className="capsule-wave-bar"></div>
-              <div className="capsule-wave-bar"></div>
-              <div className="capsule-wave-bar"></div>
-            </div>
-          </div>
-
-          <div className="ring-wrap">
-            <div className="ring-outer"></div>
-            <div className="ring-mid"></div>
-            <div className="ring-mid2"></div>
-            <div className="ring-inner-circle"></div>
-            <div className="ring-pulse"></div>
-            
-            <div className="cyber-dots-purple"></div>
-            <div className="cyber-dots-blue"></div>
-            
-            <img className="limg" src={aragonLogo} alt="Aragon Coin" />
-          </div>
-          <div className="page-label">BENEFITS · הטבות ומענקים</div>
-          <div className="hero-bottom"></div>
-        </div>
+        <InstructorHeroHeader pageLabel="הטבות ומענקים" />
 
         {/* MAIN CONTAINER CONTENT SCROLL */}
         <div className="content-scroll">

@@ -1,9 +1,35 @@
 const USER_KEY = 'aragon_logged_user';
 const ROLE_KEY = 'aragon_logged_role';
 
-/** חשבון בדיקה באפליקציה Native — במקום student1 הישן */
+/** חשבונות בדיקה ישנים — מוחלפים אוטומטית ב-Native */
 export const NATIVE_TEST_STUDENT_USERNAME = 'student';
 export const LEGACY_TEST_STUDENT_USERNAME = 'student1';
+
+/** ברירת מחדל לתצוגה מקדימה (Cursor) ולבדיקות Native */
+export const DEV_PREVIEW_INSTRUCTOR_USERNAME = 'guide';
+export const DEV_PREVIEW_PASSWORD = '12345678';
+
+export function getDevAutoLoginCredentials() {
+  if (!import.meta.env.DEV) return null;
+
+  const username =
+    import.meta.env.VITE_DEV_AUTO_LOGIN_USERNAME || DEV_PREVIEW_INSTRUCTOR_USERNAME;
+  const password =
+    import.meta.env.VITE_DEV_AUTO_LOGIN_PASSWORD || DEV_PREVIEW_PASSWORD;
+
+  if (!username || !password) return null;
+  return { username, password };
+}
+
+export function getNativeAutoLoginCredentials() {
+  const username =
+    import.meta.env.VITE_NATIVE_AUTO_LOGIN_USERNAME || DEV_PREVIEW_INSTRUCTOR_USERNAME;
+  const password =
+    import.meta.env.VITE_NATIVE_AUTO_LOGIN_PASSWORD || DEV_PREVIEW_PASSWORD;
+
+  if (!username || !password) return null;
+  return { username, password };
+}
 
 function usePersistentStorage() {
   return typeof window !== 'undefined' && window.Capacitor;
