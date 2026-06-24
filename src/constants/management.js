@@ -11,12 +11,27 @@ export const TASK_PRIORITIES = [
 ];
 
 export const DEPARTMENTS = [
-  { id: 'general', label: 'כללי' },
+  { id: 'office', label: 'משרד' },
   { id: 'content', label: 'תוכן' },
   { id: 'training', label: 'ניהול הדרכה' },
   { id: 'marketing', label: 'שיווק' },
   { id: 'logistics', label: 'לוגיסטיקה' },
+  { id: 'hr', label: 'משאבי אנוש' },
 ];
+
+/** חשבונות הנהלה לפי מחלקה — role: management */
+export const MANAGEMENT_DEPARTMENT_ACCOUNTS = [
+  { username: 'hey', department: 'office', fullName: 'משרד' },
+  { username: 'edu', department: 'content', fullName: 'תוכן' },
+  { username: 'manager', department: 'training', fullName: 'ניהול הדרכה' },
+  { username: 'hello', department: 'marketing', fullName: 'שיווק' },
+  { username: 'logistic', department: 'logistics', fullName: 'לוגיסטיקה' },
+  { username: 'hr', department: 'hr', fullName: 'משאבי אנוש' },
+];
+
+const LEGACY_DEPARTMENT_LABELS = {
+  general: 'כללי',
+};
 
 export const MEETING_TYPES = [
   { id: 'weekly', label: 'ישיבת צוות שבועית' },
@@ -43,7 +58,8 @@ export const AGENDA_ITEM_STATUSES = [
   { id: 'skipped', label: 'נדחה' },
 ];
 
-export const deptLabel = (id) => DEPARTMENTS.find(d => d.id === id)?.label || id || 'כללי';
+export const deptLabel = (id) =>
+  DEPARTMENTS.find(d => d.id === id)?.label || LEGACY_DEPARTMENT_LABELS[id] || id || '—';
 export const statusLabel = (id) => TASK_STATUSES.find(s => s.id === id)?.label || id;
 export const meetingTypeLabel = (id) => MEETING_TYPES.find(m => m.id === id)?.label || id;
 export const meetingStatusLabel = (id) => MEETING_STATUSES.find(s => s.id === id)?.label || id;

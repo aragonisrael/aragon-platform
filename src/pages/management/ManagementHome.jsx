@@ -32,7 +32,7 @@ export default function ManagementHome() {
   const [formAssignee, setFormAssignee] = useState('');
   const [formPriority, setFormPriority] = useState('normal');
   const [formDueDate, setFormDueDate] = useState('');
-  const [formDepartment, setFormDepartment] = useState('general');
+  const [formDepartment, setFormDepartment] = useState('office');
 
   const showToast = (message, warn = false) => {
     setToast({ show: true, message, warn });
@@ -45,7 +45,7 @@ export default function ManagementHome() {
       const { data: me } = await supabase.from('users').select('username, full_name, department, role').eq('username', loggedUser).single();
       if (me) {
         setMyProfile(me);
-        setFormDepartment(me.department || 'general');
+        setFormDepartment(me.department || 'office');
         setFormAssignee(me.username);
       }
       const { data: team } = await supabase.from('users').select('username, full_name, department, role').in('role', ['management', 'admin']).order('full_name');
@@ -90,7 +90,7 @@ export default function ManagementHome() {
   const resetCreateForm = () => {
     setFormTitle(''); setFormDesc(''); setFormAssignee(loggedUser);
     setFormPriority('normal'); setFormDueDate('');
-    setFormDepartment(myProfile?.department || 'general');
+    setFormDepartment(myProfile?.department || 'office');
   };
 
   const handleCreateTask = async () => {
@@ -120,7 +120,7 @@ export default function ManagementHome() {
     setFormAssignee(task.assignee_username);
     setFormPriority(task.priority || 'normal');
     setFormDueDate(task.due_date || '');
-    setFormDepartment(task.department || 'general');
+    setFormDepartment(task.department || 'office');
     setIsDetailOpen(false);
     setIsEditOpen(true);
   };

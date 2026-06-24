@@ -35,7 +35,7 @@ export default function AdminOperations({ view = 'tasks' }) {
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [formTitle, setFormTitle] = useState('');
   const [formType, setFormType] = useState('weekly');
-  const [formDept, setFormDept] = useState('content');
+  const [formDept, setFormDept] = useState('office');
   const [formDate, setFormDate] = useState('');
 
   const [taskFormTitle, setTaskFormTitle] = useState('');
@@ -63,7 +63,7 @@ export default function AdminOperations({ view = 'tasks' }) {
       const me = (u || []).find(x => x.username === loggedUser);
       if (me) {
         setTaskFormAssignee(me.username);
-        setTaskFormDepartment(me.department || 'general');
+        setTaskFormDepartment(me.department || 'office');
       } else if (loggedUser) {
         setTaskFormAssignee(loggedUser);
       }
@@ -97,7 +97,7 @@ export default function AdminOperations({ view = 'tasks' }) {
     setTaskFormAssignee(loggedUser || '');
     setTaskFormPriority('normal');
     setTaskFormDue('');
-    setTaskFormDepartment(me?.department || 'general');
+    setTaskFormDepartment(me?.department || 'office');
   };
 
   const handleCreateTask = async () => {
@@ -155,7 +155,7 @@ export default function AdminOperations({ view = 'tasks' }) {
   const resetMeetingForm = () => {
     setFormTitle('');
     setFormType('weekly');
-    setFormDept('content');
+    setFormDept('office');
     setFormDate('');
     setEditingMeetingId(null);
   };
@@ -169,7 +169,7 @@ export default function AdminOperations({ view = 'tasks' }) {
     setEditingMeetingId(meeting.id);
     setFormTitle(meeting.title || '');
     setFormType(meeting.meeting_type || 'weekly');
-    setFormDept(meeting.topic_department || 'content');
+    setFormDept(meeting.topic_department || 'office');
     setFormDate(toDatetimeLocalValue(meeting.meeting_date));
     setIsEditMeetingOpen(true);
   };
@@ -525,7 +525,7 @@ export default function AdminOperations({ view = 'tasks' }) {
               <div className="ops-field">
                 <label>מחלקה</label>
                 <select className="ops-select" style={{ width: '100%' }} value={formDept} onChange={(e) => setFormDept(e.target.value)}>
-                  {DEPARTMENTS.filter(d => d.id !== 'general').map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+                  {DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
                 </select>
               </div>
             )}
@@ -559,7 +559,7 @@ export default function AdminOperations({ view = 'tasks' }) {
               <div className="ops-field">
                 <label>מחלקה</label>
                 <select className="ops-select" style={{ width: '100%' }} value={formDept} onChange={(e) => setFormDept(e.target.value)}>
-                  {DEPARTMENTS.filter(d => d.id !== 'general').map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+                  {DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
                 </select>
               </div>
             )}

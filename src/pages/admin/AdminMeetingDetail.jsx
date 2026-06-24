@@ -29,7 +29,7 @@ export default function AdminMeetingDetail() {
   const [isDeleteMeetingOpen, setIsDeleteMeetingOpen] = useState(false);
   const [formTitle, setFormTitle] = useState('');
   const [formType, setFormType] = useState('weekly');
-  const [formDept, setFormDept] = useState('content');
+  const [formDept, setFormDept] = useState('office');
   const [formDate, setFormDate] = useState('');
 
   const showToast = (message, warn = false) => {
@@ -84,7 +84,7 @@ export default function AdminMeetingDetail() {
     if (!meeting) return;
     setFormTitle(meeting.title || '');
     setFormType(meeting.meeting_type || 'weekly');
-    setFormDept(meeting.topic_department || 'content');
+    setFormDept(meeting.topic_department || 'office');
     setFormDate(toDatetimeLocalValue(meeting.meeting_date));
     setIsEditMeetingOpen(true);
   };
@@ -328,7 +328,7 @@ export default function AdminMeetingDetail() {
               <div className="ops-field">
                 <label>מחלקה</label>
                 <select className="ops-select" style={{ width: '100%' }} value={formDept} onChange={(e) => setFormDept(e.target.value)}>
-                  {DEPARTMENTS.filter(d => d.id !== 'general').map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+                  {DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
                 </select>
               </div>
             )}
