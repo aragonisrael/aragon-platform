@@ -5,9 +5,14 @@ import { supabase } from '../../supabaseClient';
 import InstructorHeroHeader, { INSTRUCTOR_HERO_STYLES } from '../../components/instructor/InstructorHeroHeader';
 import { INSTRUCTOR_LAYOUT_STYLES } from '../../components/instructor/instructorLayoutStyles';
 import GamePortals from '../../components/shared/GamePortals';
+import { useAuth } from '../../context/AuthContext';
+import { getLoggedUser } from '../../utils/authStorage';
+import { fetchInstructorGroups } from '../../utils/instructorGroups';
 
 export default function InstructorHome() {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
+  const loggedUser = authUser || getLoggedUser();
 
   // States לטעינה דינמית מהשרת בענן
   const [instructorName, setInstructorName] = useState('ARAGON SYSTEM');
@@ -24,7 +29,6 @@ export default function InstructorHome() {
   const [faultGear, setFaultGear] = useState({ laptops: 0, tablets: 0, chargers: 0, mice: 0, routers: 0, suitcases: 0 });
 
   // זיהוי המדריך המחובר כרגע במערכת
-  const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'guide1';
 
   const GEAR_ITEMS = [
     { key: 'laptops', label: 'מחשבים', icon: '💻' },
@@ -55,31 +59,21 @@ export default function InstructorHome() {
   };
 
   useEffect(() => {
+    if (!loggedUser) return;
+
     const fetchDashboardData = async () => {
       try {
-        // 1. משיכת פרטי המדריך וארנק השקלים שלו
-        const { data: userData } = await supabase
-          .from('users')
-          .select('full_name, ils_balance, xp')
-          .eq('username', loggedUser)
-          .single();
+        const { userData, groups: dbGroups } = await fetchInstructorGroups(supabase, loggedUser);
+        if (!userData) return;
 
-        if (userData) {
-          const fullName = userData.full_name || 'מדריך אראגון';
-          setInstructorName(fullName);
-          setIlsBalance(userData.ils_balance || 0);
-          setPlayerXp(userData.xp || 0);
+        const fullName = userData.full_name || userData.username || 'מדריך אראגון';
+        setInstructorName(fullName);
+        setIlsBalance(userData.ils_balance || 0);
+        setPlayerXp(userData.xp || 0);
 
-          // טעינת היסטוריית תקלות הציוד האישית של המדריך
-          fetchMyFaultsData(fullName);
+        fetchMyFaultsData(fullName);
 
-          // 2. משיכת הקבוצות המשויכות אך ורק למדריך הנוכחי
-          const { data: dbGroups } = await supabase
-            .from('groups')
-            .select('*')
-            .eq('instructor', fullName);
-
-          if (dbGroups) {
+        if (dbGroups) {
             const totalGroups = dbGroups.length;
 
             // 3. שליפת התלמידים במערכת כדי לספור חניכים פעילים בכל קבוצה שלו
@@ -121,7 +115,6 @@ export default function InstructorHome() {
               studentCount: studentCountsMap[g.id] || 0
             }));
             setMyGroups(mappedHomeGroups);
-          }
         }
 
       } catch (err) {

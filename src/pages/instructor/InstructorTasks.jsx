@@ -4,9 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import InstructorHeroHeader, { INSTRUCTOR_HERO_STYLES } from '../../components/instructor/InstructorHeroHeader';
 import { INSTRUCTOR_LAYOUT_STYLES } from '../../components/instructor/instructorLayoutStyles';
+import { useAuth } from '../../context/AuthContext';
+import { getLoggedUser } from '../../utils/authStorage';
+import { fetchInstructorGroups } from '../../utils/instructorGroups';
 
 export default function InstructorTasks() {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
+  const loggedUser = authUser || getLoggedUser();
 
   // Page level states
   const [activeTab, setActiveTab] = useState(1); // 1 = My Missions, 2 = Admin Tasks
@@ -26,27 +31,15 @@ export default function InstructorTasks() {
   const [instructorTasks, setInstructorTasks] = useState([]);
   const [adminTasks, setAdminTasks] = useState([]);
 
-  // זיהוי המדריך המחובר כרגע במערכת
-  const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'guide1';
-
   // פונקציה מרכזית למשיכת משתמשים, קבוצות ומשימות דו-כיווניות מהענן
   const fetchLiveMissionsContext = async () => {
+    if (!loggedUser) return;
+
     try {
-      // 1. שליפת פרטי המדריך הנוכחי
-      const { data: userData } = await supabase
-        .from('users')
-        .select('full_name')
-        .eq('username', loggedUser)
-        .single();
+      const { userData, groups: dbGroups } = await fetchInstructorGroups(supabase, loggedUser);
+      if (!userData) return;
 
-      if (userData) {
-        const currentFullName = userData.full_name;
-
-        // 2. שליפת הקבוצות האמיתיות שמשויכות אליו
-        const { data: dbGroups } = await supabase
-          .from('groups')
-          .select('*')
-          .eq('instructor', currentFullName);
+      const currentFullName = userData.full_name || userData.username;
 
         let groupNamesArray = [];
         let groupIdsArray = [];
@@ -119,7 +112,6 @@ export default function InstructorTasks() {
           });
           setAdminTasks(mappedAdminTasks);
         }
-      }
     } catch (err) {
       console.error("Error syncing tasks matrix room:", err);
     }

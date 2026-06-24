@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import InstructorHeroHeader, { INSTRUCTOR_HERO_STYLES } from '../../components/instructor/InstructorHeroHeader';
 import { INSTRUCTOR_LAYOUT_STYLES } from '../../components/instructor/instructorLayoutStyles';
+import { useAuth } from '../../context/AuthContext';
+import { getLoggedUser } from '../../utils/authStorage';
+import { fetchInstructorGroups } from '../../utils/instructorGroups';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
 import {
@@ -12,6 +15,8 @@ import {
 
 export default function InstructorGroups() {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
+  const loggedUser = authUser || getLoggedUser();
 
   // Reactive Control States
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,54 +45,39 @@ export default function InstructorGroups() {
   // סטייט לשמירת נתוני הקייטנות המשובצות למדריך מהענן
   const [campsData, setCampsData] = useState([]);
 
-  // שם המדריך המחובר כרגע במערכת
-  const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'guide1';
-
   // פונקציה מרכזית למשיכת כל התלמידים מהענן וחלוקתם לקבוצות שלהם בלייב
   const fetchLiveGroupsAndStudents = async () => {
+    if (!loggedUser) return;
+
     try {
-      // 1. שליפת השם המלא של המדריך המחובר כרגע
-      const { data: userData } = await supabase
-        .from('users')
-        .select('full_name')
-        .eq('username', loggedUser)
-        .single();
-
+      const { userData, groups: dbGroups } = await fetchInstructorGroups(supabase, loggedUser);
       if (!userData) return;
-      setInstructorName(userData.full_name);
 
-      // 2. שליפת הקבוצות האמיתיות שמשויכות למדריך הזה מהענן
-      const { data: dbGroups } = await supabase
-        .from('groups')
-        .select('*')
-        .eq('instructor', userData.full_name);
+      setInstructorName(userData.full_name || userData.username);
 
-      if (dbGroups) {
-        const colorPresets = ['green', 'blue', 'purple', 'amber'];
-        const DAYS_MAP = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי'];
-        
-        const minToHourStr = (m) => {
-          const h = Math.floor(m / 60);
-          const mm = m % 60;
-          return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-        };
+      const colorPresets = ['green', 'blue', 'purple', 'amber'];
+      const DAYS_MAP = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי'];
 
-        // מיפוי הקבוצות מהענן למבנה העיצוב הקיים
-        const liveGroups = dbGroups.map((g, idx) => ({
-          id: g.id,
-          color: colorPresets[idx % colorPresets.length],
-          name: g.name,
-          school: g.venue,
-          city: g.city,
-          day: DAYS_MAP[g.day] || 'ראשון',
-          time: `${minToHourStr(g.start_min || 960)}–${minToHourStr((g.start_min || 960) + (g.dur || 60))}`,
-          grades: g.grades || "ד'",
-          count: 0,
-          students: []
-        }));
+      const minToHourStr = (m) => {
+        const h = Math.floor(m / 60);
+        const mm = m % 60;
+        return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+      };
 
-        // 3. שליפת כל התלמידים ששייכים לקבוצות של המדריך הזה
-        if (liveGroups.length > 0) {
+      const liveGroups = (dbGroups || []).map((g, idx) => ({
+        id: g.id,
+        color: colorPresets[idx % colorPresets.length],
+        name: g.name,
+        school: g.venue,
+        city: g.city,
+        day: DAYS_MAP[g.day] || 'ראשון',
+        time: `${minToHourStr(g.start_min || 960)}–${minToHourStr((g.start_min || 960) + (g.dur || 60))}`,
+        grades: g.grades || "ד'",
+        count: 0,
+        students: []
+      }));
+
+      if (liveGroups.length > 0) {
           const groupIds = liveGroups.map(lg => lg.id);
           const { data: dbStudents } = await supabase
             .from('users')
@@ -127,23 +117,21 @@ export default function InstructorGroups() {
           }
         }
 
-        // עדכון מוני התלמידים בכל כרטיסייה החוצה
-        liveGroups.forEach(g => {
-          g.count = g.students.length;
-          g.students.sort((a, b) => a.name.localeCompare(b.name, 'he')); // מיון א-ב נקי
-        });
+      liveGroups.forEach(g => {
+        g.count = g.students.length;
+        g.students.sort((a, b) => a.name.localeCompare(b.name, 'he'));
+      });
 
-        setGroupsData(liveGroups);
-      }
+      setGroupsData(liveGroups);
 
-      // 4. סעיף מעודכן וחסין: שליפת קייטנות ומחזורי קיץ משובצים למדריך באמצעות סינון צד-לקוח מאובטח
       const { data: dbCamps } = await supabase
         .from('camp_compounds')
         .select('room_type, senior_instructor, temp_instructor, camps (*)');
 
       if (dbCamps) {
+        const instructorFullName = userData.full_name || '';
         const mappedCamps = dbCamps
-          .filter(c => c.camps && (c.senior_instructor === userData.full_name || c.temp_instructor === userData.full_name))
+          .filter(c => c.camps && (c.senior_instructor === instructorFullName || c.temp_instructor === instructorFullName))
           .map(c => ({
             id: c.camps.id,
             title: c.camps.title,
@@ -154,6 +142,8 @@ export default function InstructorGroups() {
             manager: c.camps.manager
           }));
         setCampsData(mappedCamps);
+      } else {
+        setCampsData([]);
       }
 
     } catch (err) {

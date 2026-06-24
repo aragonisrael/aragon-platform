@@ -4,9 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import InstructorHeroHeader, { INSTRUCTOR_HERO_STYLES } from '../../components/instructor/InstructorHeroHeader';
 import { INSTRUCTOR_LAYOUT_STYLES } from '../../components/instructor/instructorLayoutStyles';
+import { useAuth } from '../../context/AuthContext';
+import { getLoggedUser } from '../../utils/authStorage';
+import { fetchInstructorGroups } from '../../utils/instructorGroups';
 
 export default function InstructorUpdates() {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
+  const loggedUser = authUser || getLoggedUser();
 
   // Navigation & Modal state toggles
   const [activeTab, setActiveTab] = useState(1); // 1 = Received Updates, 2 = Sent Updates
@@ -31,27 +36,15 @@ export default function InstructorUpdates() {
   const [adminSystemNotices, setAdminSystemNotices] = useState([]);
   const [sentHistory, setSentHistory] = useState([]);
 
-  // זיהוי המדריך המחובר כרגע במערכת
-  const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'guide1';
-
   // משיכת רשימת התלמידים, הקבוצות, הפרסים וההודעות מהענן בריאל-טיים
   const fetchLiveUpdatesAndLogistics = async () => {
+    if (!loggedUser) return;
+
     try {
-      // 1. שליפת השם המלא של המדריך הנוכחי
-      const { data: userData } = await supabase
-        .from('users')
-        .select('full_name')
-        .eq('username', loggedUser)
-        .single();
+      const { userData, groups: dbGroups } = await fetchInstructorGroups(supabase, loggedUser);
+      if (!userData) return;
 
-      if (userData) {
-        const currentFullName = userData.full_name;
-
-        // 2. שליפת קבוצות המדריך ליצירת אופציות בחירה בטופס
-        const { data: dbGroups } = await supabase
-          .from('groups')
-          .select('id, name, venue')
-          .eq('instructor', currentFullName);
+      const currentFullName = userData.full_name || userData.username;
 
         let groupNames = [];
         let groupIds = [];
@@ -128,7 +121,6 @@ export default function InstructorUpdates() {
             time: new Date(ann.created_at).toLocaleDateString('he-IL')
           })));
         }
-      }
     } catch (err) {
       console.error("Error loading live updates station:", err);
     }
