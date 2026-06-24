@@ -102,6 +102,12 @@ export function defaultResponsibilityForUser(username, teamUsers = []) {
 }
 
 /** ממפה בחירת אחריות (מחלקה) לשדות משימה בשרת */
+export function taskFieldsFromResponsibility(departmentId, createdByUsername) {
+  const department = departmentId || 'office';
+  const assignee_username = assigneeForDepartment(department) || createdByUsername;
+  return { department, assignee_username };
+}
+
 /** האם משימה מוצגת בלשונית "שויכו אליי" כולל צירוף אחריות */
 export function isTaskInMyQueue(task, loggedUser, profile) {
   if (!task || !loggedUser) return false;
