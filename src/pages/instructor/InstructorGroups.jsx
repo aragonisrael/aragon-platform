@@ -4,6 +4,11 @@ import InstructorHeroHeader, { INSTRUCTOR_HERO_STYLES } from '../../components/i
 import { INSTRUCTOR_LAYOUT_STYLES } from '../../components/instructor/instructorLayoutStyles';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
+import {
+  COIN_AWARD_PRESETS,
+  DEFAULT_COIN_EARN_CAP,
+  grantRequiresApproval,
+} from '../../constants/coins';
 
 export default function InstructorGroups() {
   const navigate = useNavigate();
@@ -86,9 +91,18 @@ export default function InstructorGroups() {
           const groupIds = liveGroups.map(lg => lg.id);
           const { data: dbStudents } = await supabase
             .from('users')
-            .select('id, username, password, full_name, coins, group_id') 
+            .select('id, username, password, full_name, coins, coin_earn_cap, group_id')
             .eq('role', 'student')
             .in('group_id', groupIds);
+
+          const { data: pendingReqs, error: pendingErr } = await supabase
+            .from('coin_grant_requests')
+            .select('student_id')
+            .eq('status', 'pending');
+
+          const pendingStudentIds = pendingErr
+            ? new Set()
+            : new Set((pendingReqs || []).map((r) => r.student_id));
 
           if (dbStudents) {
             dbStudents.forEach(st => {
@@ -101,9 +115,12 @@ export default function InstructorGroups() {
                   id: st.id,
                   name: st.full_name || st.username,
                   coins: st.coins || 0,
+                  coinEarnCap: st.coin_earn_cap ?? DEFAULT_COIN_EARN_CAP,
+                  groupName: `${foundGroup.school} — ${foundGroup.name}`,
+                  hasPendingApproval: pendingStudentIds.has(st.id),
                   initials: initials,
                   username: st.username,
-                  password: st.password || '12345678' 
+                  password: st.password || '12345678'
                 });
               }
             });
@@ -244,27 +261,88 @@ export default function InstructorGroups() {
     setActivePanel(activePanel === panelType ? '' : panelType);
   };
 
-  const handleGiveCoins = async (amount, emoji) => {
-    const newCoinsTotal = selectedStudent.coins + amount;
+  const applyCoinGrant = async (newCoinsTotal) => {
+    const { error } = await supabase
+      .from('users')
+      .update({ coins: newCoinsTotal })
+      .eq('id', selectedStudent.id);
+
+    if (error) throw error;
+    await fetchLiveGroupsAndStudents();
+    handleCloseModal();
+  };
+
+  const submitCoinApprovalRequest = async ({ amount, emoji, label, reasonType }) => {
+    const { data: existing } = await supabase
+      .from('coin_grant_requests')
+      .select('id')
+      .eq('student_id', selectedStudent.id)
+      .eq('status', 'pending')
+      .maybeSingle();
+
+    if (existing) {
+      triggerToast('⏳ כבר קיימת בקשה ממתינה לאישור עבור תלמיד זה');
+      return;
+    }
+
+    const balanceBefore = selectedStudent.coins;
+    const balanceAfter = balanceBefore + amount;
+    const earnCap = selectedStudent.coinEarnCap ?? DEFAULT_COIN_EARN_CAP;
+    const thresholdCrossed = reasonType === 'friend_referral'
+      ? null
+      : (balanceAfter > earnCap ? earnCap : null);
+
+    const { error } = await supabase.from('coin_grant_requests').insert([{
+      student_id: selectedStudent.id,
+      student_username: selectedStudent.username,
+      student_full_name: selectedStudent.name,
+      group_name: selectedStudent.groupName || '—',
+      instructor_username: loggedUser,
+      instructor_name: instructorName,
+      amount,
+      reason_type: reasonType,
+      reason_label: label,
+      reason_emoji: emoji,
+      balance_before: balanceBefore,
+      balance_after: balanceAfter,
+      threshold_crossed: thresholdCrossed,
+      status: 'pending',
+    }]);
+
+    if (error) {
+      console.error('Error submitting coin approval:', error.message);
+      alert('תקלה בשליחת הבקשה לאישור הנהלה.');
+      return;
+    }
+
+    await fetchLiveGroupsAndStudents();
+    handleCloseModal();
+    if (reasonType === 'friend_referral') {
+      triggerToast(`🤝 בקשת חבר מביא חבר נשלחה לאישור הנהלה (${selectedStudent.name})`);
+    } else {
+      triggerToast(`⏳ המענק נשלח לאישור הנהלה — התלמיד הגיע לתקרת ${earnCap} מטבעות`);
+    }
+  };
+
+  const handleGiveCoins = async ({ amount, emoji, label, reasonType }) => {
+    const needsApproval = grantRequiresApproval({
+      balance: selectedStudent.coins,
+      amount,
+      earnCap: selectedStudent.coinEarnCap,
+      reasonType,
+    });
 
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ coins: newCoinsTotal })
-        .eq('id', selectedStudent.id); 
-
-      if (error) {
-        console.error("Error awarding coins:", error.message);
-        alert("תקלה: המטבעות לא עודכנו בשרת.");
+      if (needsApproval) {
+        await submitCoinApprovalRequest({ amount, emoji, label, reasonType });
         return;
       }
 
-      await fetchLiveGroupsAndStudents();
-      handleCloseModal();
+      await applyCoinGrant(selectedStudent.coins + amount);
       triggerToast(`${emoji} ${amount} מטבעות הוענקו ל-${selectedStudent.name}!`);
-
     } catch (err) {
       console.error(err);
+      alert('תקלה בעדכון המטבעות.');
     }
   };
 
@@ -386,6 +464,8 @@ export default function InstructorGroups() {
         .student-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg,#1a1040,#0e1a40); border: 1px solid #2a2a4a; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #8080cc; font-weight: 600; }
         .student-name { flex: 1; font-size: 13px; color: #b0b0cc; text-align: right; }
         .student-coins { font-family: 'Orbitron',monospace; font-size: 10px; color: #d0a030; display: flex; align-items: center; gap: 3px; }
+        .pending-badge { font-size: 9px; color: #f0a820; background: rgba(240,168,32,0.12); border: 1px solid rgba(240,168,32,0.3); border-radius: 6px; padding: 2px 6px; margin-left: 4px; white-space: nowrap; }
+        .coins-cap-note { margin-bottom: 10px; padding: 8px 10px; border-radius: 8px; background: rgba(240,168,32,0.08); border: 1px solid rgba(240,168,32,0.25); color: #f0c060; font-size: 11px; text-align: right; line-height: 1.4; }
         
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,10,.85); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity .25s; }
         .modal-overlay.open { opacity: 1; pointer-events: all; }
@@ -508,7 +588,10 @@ export default function InstructorGroups() {
                       {g.students.map((s, sIdx) => (
                         <div key={sIdx} className="student-row" onClick={() => handleOpenModal(s)}>
                           <div className="student-avatar">{s.initials}</div>
-                          <div className="student-name">{s.name}</div>
+                          <div className="student-name">
+                            {s.name}
+                            {s.hasPendingApproval && <span className="pending-badge">⏳ ממתין לאישור</span>}
+                          </div>
                           <div className="student-coins"><i className="ti ti-coin"></i>{s.coins}</div>
                           <i className="ti ti-chevron-right student-arrow"></i>
                         </div>
@@ -578,11 +661,27 @@ export default function InstructorGroups() {
             
             {/* Coins panel */}
             <div className={`coins-panel ${activePanel === 'coins' ? 'open' : ''}`}>
+              {selectedStudent && (
+                <div className="coins-cap-note">
+                  תקרת צבירה מאושרת: {selectedStudent.coinEarnCap ?? DEFAULT_COIN_EARN_CAP} מטבעות
+                  {selectedStudent.coins >= (selectedStudent.coinEarnCap ?? DEFAULT_COIN_EARN_CAP)
+                    ? ' — מענקים נוספים יישלחו לאישור הנהלה'
+                    : ''}
+                </div>
+              )}
               <div className="coins-grid">
-                <button className="coin-btn" type="button" onClick={() => handleGiveCoins(3, '🏆')}><span className="cb-emoji">🏆</span><span className="cb-label">תלמיד מצטיין</span><span className="cb-amount">+3</span></button>
-                <button className="coin-btn" type="button" onClick={() => handleGiveCoins(7, '🤝')}><span className="cb-emoji">🤝</span><span className="cb-label">חבר מביא חבר</span><span className="cb-amount">+7</span></button>
-                <button className="coin-btn" type="button" onClick={() => handleGiveCoins(1, '❤️')}><span className="cb-emoji">❤️</span><span className="cb-label">עזרה לזולת</span><span className="cb-amount">+1</span></button>
-                <button className="coin-btn" type="button" onClick={() => handleGiveCoins(1, '🙌')}><span className="cb-emoji">🙌</span><span className="cb-label">עזרה למדריך</span><span className="cb-amount">+1</span></button>
+                {COIN_AWARD_PRESETS.map((award) => (
+                  <button
+                    key={award.label}
+                    className="coin-btn"
+                    type="button"
+                    onClick={() => handleGiveCoins(award)}
+                  >
+                    <span className="cb-emoji">{award.emoji}</span>
+                    <span className="cb-label">{award.label}</span>
+                    <span className="cb-amount">+{award.amount}</span>
+                  </button>
+                ))}
               </div>
             </div>
             

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
+import { adminRequestSummary, earnCapAfterGrant, DEFAULT_COIN_EARN_CAP } from '../../constants/coins';
 
 // ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
 import aragonLogo from '../../assets/aragonlogo.png';
@@ -32,6 +32,9 @@ export default function AdminShopLogistics() {
   // סטייט דינמי לקטלוג והזמנות מהענן
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [coinRequests, setCoinRequests] = useState([]);
+
+  const loggedUser = sessionStorage.getItem('aragon_logged_user') || 'admin';
 
   // פונקציה מרכזית למשיכת קטלוג הפרסים וההזמנות הפתוחות מהשרת בענן
   const fetchShopAndLogisticsData = async () => {
@@ -55,6 +58,14 @@ export default function AdminShopLogistics() {
         }));
         setOrders(mappedOrders);
       }
+
+      const { data: dbCoinRequests } = await supabase
+        .from('coin_grant_requests')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true });
+
+      if (dbCoinRequests) setCoinRequests(dbCoinRequests);
     } catch (err) {
       console.error("Error syncing shop logistics:", err);
     }
@@ -72,12 +83,14 @@ export default function AdminShopLogistics() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders' },
         (payload) => {
-          // 1. משיכה מיידית ומסונכרנת של השורות החדשות אל תוך ה-UI ללא שום רענון ידני!
           fetchShopAndLogisticsData();
-          
-          // 2. הקפצת חלונית סייבר-ירוקה חגיגית ופועמת על המסך
           triggerToast(`🛒 הזמנה חדשה התקבלה בריאל-טיים! החניך ${payload.new.student} רכש ${payload.new.product} ${payload.new.emoji || ''}`);
         }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'coin_grant_requests' },
+        () => fetchShopAndLogisticsData()
       )
       .subscribe();
 
@@ -95,9 +108,9 @@ export default function AdminShopLogistics() {
     }
   }, []);
 
-  const triggerToast = (msg) => {
-    setToast({ show: true, message: msg });
-    setTimeout(() => setToast({ show: false, message: '' }), 4500); // הארכת זמן הצפייה בהודעה הרציפה
+  const triggerToast = (msg, isError = false) => {
+    setToast({ show: true, message: msg, isError });
+    setTimeout(() => setToast({ show: false, message: '', isError: false }), 4500);
   };
 
   // שליטה בנגן הרדיו הגלובלי הפעיל ברקע
@@ -203,8 +216,68 @@ export default function AdminShopLogistics() {
     setTimeout(() => window.print(), 500);
   };
 
+  const handleApproveCoinRequest = async (request) => {
+    try {
+      const { data: student, error: studentErr } = await supabase
+        .from('users')
+        .select('coins, coin_earn_cap')
+        .eq('id', request.student_id)
+        .single();
+
+      if (studentErr || !student) throw studentErr || new Error('student not found');
+
+      const newBalance = (student.coins || 0) + request.amount;
+      const newCap = earnCapAfterGrant(newBalance, student.coin_earn_cap ?? DEFAULT_COIN_EARN_CAP);
+
+      const { error: userErr } = await supabase
+        .from('users')
+        .update({ coins: newBalance, coin_earn_cap: newCap })
+        .eq('id', request.student_id);
+
+      if (userErr) throw userErr;
+
+      const { error: reqErr } = await supabase
+        .from('coin_grant_requests')
+        .update({
+          status: 'approved',
+          reviewed_by: loggedUser,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq('id', request.id);
+
+      if (reqErr) throw reqErr;
+
+      await fetchShopAndLogisticsData();
+      triggerToast(`✓ אושר מענק של +${request.amount} ל-${request.student_full_name}`);
+    } catch (err) {
+      console.error(err);
+      triggerToast('❌ שגיאה באישור המענק', true);
+    }
+  };
+
+  const handleRejectCoinRequest = async (request) => {
+    try {
+      const { error } = await supabase
+        .from('coin_grant_requests')
+        .update({
+          status: 'rejected',
+          reviewed_by: loggedUser,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq('id', request.id);
+
+      if (error) throw error;
+      await fetchShopAndLogisticsData();
+      triggerToast(`הבקשה עבור ${request.student_full_name} נדחתה`);
+    } catch (err) {
+      console.error(err);
+      triggerToast('❌ שגיאה בדחיית הבקשה', true);
+    }
+  };
+
   // ספירת הזמנות פתוחות
   const openOrdersCount = orders.filter(o => o.status !== 'completed').length;
+  const pendingCoinCount = coinRequests.length;
 
   return (
     <div className="hq-global-wrapper">
@@ -304,6 +377,24 @@ export default function AdminShopLogistics() {
         
         .toast-container { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; }
         .toast { background: #041a08; border: 1px solid #00e67666; border-radius: 10px; padding: 12px 20px; color: #00e676; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 20px rgba(0,230,118,0.15); text-align: center; direction: rtl; }
+        .toast.error { background: #1a0808; border-color: #ff555566; color: #ff8888; box-shadow: 0 4px 20px rgba(255,85,85,0.15); }
+
+        .coin-approval-panel { background: #070e1c; border: 1px solid #c8860a44; border-radius: 14px; overflow: hidden; }
+        .coin-approval-head { padding: 14px 20px; border-bottom: 1px solid #1a2a4a; background: linear-gradient(90deg, #1a0f02, #070e1c); display: flex; align-items: center; justify-content: space-between; }
+        .coin-approval-title { display: flex; align-items: center; gap: 8px; font-family: 'Orbitron', monospace; font-size: 11px; letter-spacing: 1.5px; color: #fbbf24; }
+        .coin-approval-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: rgba(251,191,36,0.1); color: #fbbf24; border: 1px solid rgba(251,191,36,0.35); }
+        .coin-req-list { display: flex; flex-direction: column; }
+        .coin-req-row { padding: 14px 20px; border-bottom: 1px solid #0a1428; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+        .coin-req-row:last-child { border-bottom: none; }
+        .coin-req-row.friend-referral { background: rgba(251,191,36,0.04); }
+        .coin-req-text { flex: 1; min-width: 220px; font-size: 13px; color: #c0d8f0; line-height: 1.5; text-align: right; }
+        .coin-req-meta { font-size: 11px; color: #4a6080; margin-top: 4px; }
+        .coin-req-actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .coin-approve-btn { background: linear-gradient(135deg, #0a2a18, #0d3a22); border: 1px solid #00e67655; color: #00e676; padding: 8px 14px; border-radius: 8px; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+        .coin-approve-btn:hover { border-color: #00e676; }
+        .coin-reject-btn { background: transparent; border: 1px solid #ff555544; color: #ff8888; padding: 8px 14px; border-radius: 8px; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+        .coin-reject-btn:hover { border-color: #ff5555; }
+        .coin-req-empty { padding: 24px; text-align: center; color: #4a6080; font-size: 13px; }
         
         .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
         .modal { background: #080f1e; border: 1px solid #1a2a4a; border-radius: 16px; width: 460px; max-width: 100%; max-height: 90vh; overflow-y: auto; direction: rtl; text-align: right; }
@@ -323,7 +414,7 @@ export default function AdminShopLogistics() {
       `}</style>
 
       {toast.show && (
-        <div className="toast-container"><div className="toast"><i className="ti ti-check"></i><span>{toast.message}</span></div></div>
+        <div className="toast-container"><div className={`toast ${toast.isError ? 'error' : ''}`}><i className={`ti ${toast.isError ? 'ti-alert-circle' : 'ti-check'}`}></i><span>{toast.message}</span></div></div>
       )}
 
       <AdminSidebar active="shop" />
@@ -352,6 +443,48 @@ export default function AdminShopLogistics() {
         </div>
 
         <div className="content">
+          {/* אישורי מטבעות ממתינים */}
+          <div>
+            <div className="sech">
+              <div className="secdot" style={{ background: '#fbbf24' }}></div>
+              <div className="sectitle" style={{ color: '#fbbf24' }}>אישורי מטבעות — COIN APPROVALS</div>
+              <div className="secline"></div>
+            </div>
+            <div className="coin-approval-panel">
+              <div className="coin-approval-head">
+                <div className="coin-approval-title"><i className="ti ti-coin" style={{ color: '#fbbf24' }}></i> בקשות מענק ממתינות לאישור הנהלה</div>
+                <div className="coin-approval-badge">{pendingCoinCount > 0 ? `${pendingCoinCount} ממתינות` : 'אין בקשות פתוחות ✓'}</div>
+              </div>
+              {coinRequests.length === 0 ? (
+                <div className="coin-req-empty">כל בקשות המטבעות טופלו — אין ממתינות לאישור</div>
+              ) : (
+                <div className="coin-req-list">
+                  {coinRequests.map((req) => (
+                    <div
+                      key={req.id}
+                      className={`coin-req-row ${req.reason_type === 'friend_referral' ? 'friend-referral' : ''}`}
+                    >
+                      <div className="coin-req-text">
+                        {adminRequestSummary(req)}
+                        <div className="coin-req-meta">
+                          נשלח ע״י המדריך {req.instructor_name || '—'} · {req.created_at ? new Date(req.created_at).toLocaleString('he-IL') : ''}
+                        </div>
+                      </div>
+                      <div className="coin-req-actions">
+                        <button className="coin-approve-btn" type="button" onClick={() => handleApproveCoinRequest(req)}>
+                          <i className="ti ti-check"></i> אשר
+                        </button>
+                        <button className="coin-reject-btn" type="button" onClick={() => handleRejectCoinRequest(req)}>
+                          דחה
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* קטלוג מוצרים */}
           <div>
             <div className="sech">
