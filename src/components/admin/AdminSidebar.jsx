@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 export const ADMIN_NAV = [
   { key: 'home', path: '/admin', icon: 'ti-layout-dashboard', label: 'בית' },
@@ -25,6 +26,9 @@ export const adminSidebarStyles = `
   .nav-btn.active { background: linear-gradient(135deg, #0a1f3d, #0d2a50); color: #00c8ff; border: 1px solid #1a4a80; }
   .nav-btn.active::before { content: ''; position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 20px; background: #00c8ff; border-radius: 2px 0 0 2px; }
   .nav-label { font-size: 9px; font-family: 'Rajdhani', sans-serif; line-height: 1.1; text-align: center; }
+  .nav-spacer { flex: 1; }
+  .nav-btn.logout-btn { margin-top: auto; color: #ff6b7a; border: 1px solid rgba(255, 90, 90, 0.2); background: rgba(80, 20, 25, 0.2); }
+  .nav-btn.logout-btn:hover { background: rgba(120, 30, 40, 0.35); color: #ff8a96; border-color: rgba(255, 120, 120, 0.45); }
   .main-col { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; overflow-x: hidden; min-width: 0; }
   .ops-content { padding: 24px; flex: 1; }
 
@@ -114,6 +118,13 @@ export const adminOpsStyles = adminSidebarStyles;
 
 export default function AdminSidebar({ active = 'home' }) {
   const navigate = useNavigate();
+  const { logoutContext } = useAuth();
+
+  const handleLogout = () => {
+    logoutContext();
+    navigate('/', { replace: true });
+  };
+
   return (
     <div className="sidebar">
       <div className="sidebar-logo">A</div>
@@ -129,6 +140,16 @@ export default function AdminSidebar({ active = 'home' }) {
           <span className="nav-label">{item.label}</span>
         </button>
       ))}
+      <div className="nav-spacer" />
+      <button
+        type="button"
+        className="nav-btn logout-btn"
+        onClick={handleLogout}
+        title="התנתקות"
+      >
+        <i className="ti ti-logout" />
+        <span className="nav-label">התנתקות</span>
+      </button>
     </div>
   );
 }

@@ -117,7 +117,7 @@ export default function Login() {
       }
 
       // 🔥 אבטחת סביבה: חסימת גישת ניהול ולוגיסטיקה באפליקציית מובייל בלבד
-      const isMobileApp = !!window.Capacitor;
+      const isMobileApp = Capacitor.isNativePlatform();
       if (isMobileApp && (dbUser.role === 'admin' || dbUser.role === 'logistics')) {
         setErrorMsg('⚠️ חמ"ל Aragon HQ נגיש ממחשב בלבד לטובת שליטה מבצעית רחבה. אנא התחבר מהלפטופ.');
         setLoading(false);
