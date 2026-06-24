@@ -112,6 +112,11 @@ export const adminSidebarStyles = `
   .ops-toast.warn { background: rgba(26,4,4,0.95); border-color: rgba(255,85,85,0.4); color: #ff5555; }
   .ops-meta-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
   .ops-meta-chip { font-size: 11px; padding: 4px 10px; border-radius: 6px; border: 1px solid #1a2a4a; color: #8098b0; background: #060b18; }
+  .ops-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: flex-start; }
+  .ops-action-btn { padding: 5px 8px; border-radius: 6px; border: 1px solid #1a2a4a; background: #060b18; color: #8098b0; cursor: pointer; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; font-family: 'Rajdhani', sans-serif; font-weight: 700; white-space: nowrap; }
+  .ops-action-btn:hover { border-color: #00c8ff55; color: #00c8ff; }
+  .ops-action-btn.gmail:hover { border-color: rgba(66,133,244,0.45); color: #4285f4; }
+  .ops-action-btn.danger:hover { border-color: rgba(255,85,85,0.45); color: #ff5555; }
 `;
 
 export const adminOpsStyles = adminSidebarStyles;

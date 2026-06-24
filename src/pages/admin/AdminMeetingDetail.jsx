@@ -5,9 +5,10 @@ import { useAuth } from '../../context/AuthContext';
 import AdminSidebar, { adminOpsStyles } from '../../components/admin/AdminSidebar';
 import AdminTopBar from '../../components/admin/AdminTopBar';
 import {
-  AGENDA_ITEM_TYPES, TASK_PRIORITIES,
+  AGENDA_ITEM_TYPES, TASK_PRIORITIES, MEETING_TYPES, DEPARTMENTS,
   deptLabel, meetingTypeLabel, meetingStatusLabel, agendaItemStatusLabel,
 } from '../../constants/management';
+import { openGoogleCalendarEvent, toDatetimeLocalValue } from '../../utils/googleCalendar';
 
 export default function AdminMeetingDetail() {
   const { id } = useParams();
@@ -24,6 +25,12 @@ export default function AdminMeetingDetail() {
   const [taskAssignee, setTaskAssignee] = useState('');
   const [taskPriority, setTaskPriority] = useState('normal');
   const [taskDue, setTaskDue] = useState('');
+  const [isEditMeetingOpen, setIsEditMeetingOpen] = useState(false);
+  const [isDeleteMeetingOpen, setIsDeleteMeetingOpen] = useState(false);
+  const [formTitle, setFormTitle] = useState('');
+  const [formType, setFormType] = useState('weekly');
+  const [formDept, setFormDept] = useState('content');
+  const [formDate, setFormDate] = useState('');
 
   const showToast = (message, warn = false) => {
     setToast({ show: true, message, warn });
@@ -71,6 +78,68 @@ export default function AdminMeetingDetail() {
     } catch {
       showToast('שגיאה', true);
     }
+  };
+
+  const openEditMeetingModal = () => {
+    if (!meeting) return;
+    setFormTitle(meeting.title || '');
+    setFormType(meeting.meeting_type || 'weekly');
+    setFormDept(meeting.topic_department || 'content');
+    setFormDate(toDatetimeLocalValue(meeting.meeting_date));
+    setIsEditMeetingOpen(true);
+  };
+
+  const handleUpdateMeeting = async () => {
+    if (!formTitle.trim() || !formDate) {
+      showToast('נא למלא כותרת ותאריך', true);
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('management_meetings')
+        .update({
+          title: formTitle.trim(),
+          meeting_type: formType,
+          topic_department: formType === 'topic' ? formDept : null,
+          meeting_date: new Date(formDate).toISOString(),
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      await fetchMeeting();
+      setIsEditMeetingOpen(false);
+      showToast('✓ הישיבה עודכנה');
+    } catch (err) {
+      console.error(err);
+      showToast('שגיאה בעדכון ישיבה', true);
+    }
+  };
+
+  const handleDeleteMeeting = async () => {
+    try {
+      const { error } = await supabase
+        .from('management_meetings')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      showToast('✓ הישיבה נמחקה');
+      navigate('/admin/operations/meetings');
+    } catch (err) {
+      console.error(err);
+      showToast('שגיאה במחיקת ישיבה', true);
+    }
+  };
+
+  const handleSyncMeetingToGoogle = () => {
+    if (!meeting) return;
+    openGoogleCalendarEvent(meeting, {
+      departmentLabel: meeting.topic_department ? deptLabel(meeting.topic_department) : '',
+      creatorLabel: userName(meeting.created_by_username),
+      details: `${meetingTypeLabel(meeting.meeting_type)} · Aragon Platform`,
+    });
+    showToast('📅 נפתח חלון הוספה ל-Google Calendar');
   };
 
   const handleConvertToTask = async () => {
@@ -155,6 +224,17 @@ export default function AdminMeetingDetail() {
               )}
             </div>
           )}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button type="button" className="ops-action-btn" onClick={openEditMeetingModal}>
+              <i className="ti ti-edit" /> עריכה
+            </button>
+            <button type="button" className="ops-action-btn gmail" onClick={handleSyncMeetingToGoogle}>
+              <i className="ti ti-calendar-plus" /> Gmail
+            </button>
+            <button type="button" className="ops-action-btn danger" onClick={() => setIsDeleteMeetingOpen(true)}>
+              <i className="ti ti-trash" /> מחק
+            </button>
+          </div>
         </div>
 
         <div className="page-sub" style={{ marginBottom: '12px' }}>סדר היום ({agenda.length} נושאים)</div>
@@ -225,6 +305,57 @@ export default function AdminMeetingDetail() {
             <div style={{ display: 'flex', gap: '10px' }}>
               <button type="button" className="ops-btn-primary" style={{ flex: 1 }} onClick={handleConvertToTask}>צור משימה</button>
               <button type="button" className="ops-btn-ghost" style={{ flex: 1 }} onClick={() => setConvertItem(null)}>ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isEditMeetingOpen && (
+        <div className="ops-modal-bg" onClick={(e) => e.target === e.currentTarget && setIsEditMeetingOpen(false)}>
+          <div className="ops-modal">
+            <div className="ops-modal-title">עריכת ישיבת צוות</div>
+            <div className="ops-field">
+              <label>כותרת</label>
+              <input className="ops-input" style={{ width: '100%' }} value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
+            </div>
+            <div className="ops-field">
+              <label>סוג ישיבה</label>
+              <select className="ops-select" style={{ width: '100%' }} value={formType} onChange={(e) => setFormType(e.target.value)}>
+                {MEETING_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+            </div>
+            {formType === 'topic' && (
+              <div className="ops-field">
+                <label>מחלקה</label>
+                <select className="ops-select" style={{ width: '100%' }} value={formDept} onChange={(e) => setFormDept(e.target.value)}>
+                  {DEPARTMENTS.filter(d => d.id !== 'general').map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+                </select>
+              </div>
+            )}
+            <div className="ops-field">
+              <label>תאריך ושעה</label>
+              <input className="ops-input" style={{ width: '100%' }} type="datetime-local" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" className="ops-btn-primary" style={{ flex: 1 }} onClick={handleUpdateMeeting}>שמור שינויים</button>
+              <button type="button" className="ops-btn-ghost" style={{ flex: 1 }} onClick={() => setIsEditMeetingOpen(false)}>ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDeleteMeetingOpen && (
+        <div className="ops-modal-bg" onClick={(e) => e.target === e.currentTarget && setIsDeleteMeetingOpen(false)}>
+          <div className="ops-modal">
+            <div className="ops-modal-title">מחיקת ישיבה</div>
+            <div className="ops-detail-block" style={{ marginBottom: '16px' }}>
+              האם למחוק את הישיבה &quot;{meeting.title}&quot;?
+              <br />
+              פעולה זו תמחק גם את סדר היום של הישיבה.
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" className="ops-btn-primary" style={{ flex: 1, borderColor: 'rgba(255,85,85,0.45)', color: '#ff5555' }} onClick={handleDeleteMeeting}>כן, מחק</button>
+              <button type="button" className="ops-btn-ghost" style={{ flex: 1 }} onClick={() => setIsDeleteMeetingOpen(false)}>ביטול</button>
             </div>
           </div>
         </div>
