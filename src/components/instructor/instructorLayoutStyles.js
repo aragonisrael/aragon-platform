@@ -1,18 +1,19 @@
 export const INSTRUCTOR_LAYOUT_STYLES = `
   .app {
-    width: 390px;
-    min-height: 860px;
+    width: 100%;
+    max-width: 100%;
+    min-height: 100dvh;
     height: 100dvh;
     max-height: 100dvh;
     background: #08080f;
     font-family: 'Exo 2','Segoe UI',sans-serif;
     position: relative;
     overflow: hidden;
-    border-radius: 36px;
-    border: 1.5px solid #1c1c30;
+    border-radius: 0;
+    border: none;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+    box-shadow: none;
   }
 
   .content-scroll,

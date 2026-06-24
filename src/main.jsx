@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import './index.css'
+import './styles/native-app-layout.css'
 import App from './App.jsx'
 
 if (Capacitor.isNativePlatform()) {

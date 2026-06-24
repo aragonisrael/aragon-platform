@@ -1,0 +1,58 @@
+/* Capacitor — full-bleed layout on all phone sizes (Pro, Pro Max, Air, etc.) */
+
+html.native-app,
+html.native-app body,
+html.native-app #root {
+  width: 100%;
+  max-width: 100%;
+}
+
+html.native-app [class$='-main-container'],
+html.native-app .student-home-container,
+html.native-app .ins-global-viewport,
+html.native-app .aragon-root {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 100dvh !important;
+  height: 100dvh !important;
+  padding: 0 !important;
+}
+
+html.native-app .app,
+html.native-app .app-logout-screen {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 100dvh !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  flex: 1 !important;
+}
+
+html.native-app .navbar {
+  left: 0 !important;
+  right: 0 !important;
+  transform: none !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  border-radius: 0 !important;
+  padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+html.native-app .student-bottom-nav > div {
+  max-width: none !important;
+  width: 100% !important;
+}
+
+html.native-app .mgmt-shell,
+html.native-app .mgmt-shell-inner {
+  max-width: none !important;
+  width: 100% !important;
+}

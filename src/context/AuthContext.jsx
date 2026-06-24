@@ -7,15 +7,11 @@ import {
   getDevAutoLoginCredentials,
   getLoggedRole,
   getLoggedUser,
-  getNativeAutoLoginCredentials,
-  LEGACY_TEST_STUDENT_USERNAME,
-  NATIVE_TEST_STUDENT_USERNAME,
+  hasRememberMeSession,
   saveAuth,
 } from '../utils/authStorage';
 
 const AuthContext = createContext(null);
-
-const INSTRUCTOR_ROLES = new Set(['instructor', 'temp_instructor']);
 
 async function tryDevWebAutoLogin() {
   if (!import.meta.env.DEV || Capacitor.isNativePlatform()) return null;
@@ -32,46 +28,7 @@ async function tryDevWebAutoLogin() {
   if (error || !dbUser) return null;
   if (dbUser.password !== creds.password) return null;
 
-  saveAuth(dbUser.username, dbUser.role);
-  return { username: dbUser.username, role: dbUser.role };
-}
-
-async function tryNativeAutoLogin() {
-  if (!Capacitor.isNativePlatform()) return null;
-
-  const creds = getNativeAutoLoginCredentials();
-  if (!creds) return null;
-
-  const savedUser = getLoggedUser();
-  const savedRole = getLoggedRole();
-  const legacyStudentUsers = new Set([
-    LEGACY_TEST_STUDENT_USERNAME,
-    NATIVE_TEST_STUDENT_USERNAME,
-  ]);
-
-  if (savedUser && legacyStudentUsers.has(savedUser)) {
-    clearAuth();
-  } else if (
-    savedUser === creds.username &&
-    savedRole &&
-    INSTRUCTOR_ROLES.has(savedRole)
-  ) {
-    return { username: savedUser, role: savedRole };
-  } else if (savedUser && savedUser !== creds.username) {
-    return null;
-  }
-
-  const { data: dbUser, error } = await supabase
-    .from('users')
-    .select('username, role, password')
-    .eq('username', creds.username)
-    .single();
-
-  if (error || !dbUser) return null;
-  if (dbUser.password !== creds.password) return null;
-  if (!INSTRUCTOR_ROLES.has(dbUser.role)) return null;
-
-  saveAuth(dbUser.username, dbUser.role);
+  saveAuth(dbUser.username, dbUser.role, { persistent: false });
   return { username: dbUser.username, role: dbUser.role };
 }
 
@@ -84,8 +41,7 @@ export function AuthProvider({ children }) {
     let cancelled = false;
 
     (async () => {
-      const autoLogin =
-        (await tryNativeAutoLogin()) || (await tryDevWebAutoLogin());
+      const autoLogin = await tryDevWebAutoLogin();
       if (cancelled) return;
 
       if (autoLogin) {
@@ -95,13 +51,24 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      const savedUser = getLoggedUser();
-      const savedRole = getLoggedRole();
-
-      if (savedUser && savedRole) {
-        setUser(savedUser);
-        setRole(savedRole);
+      if (hasRememberMeSession()) {
+        const savedUser = localStorage.getItem('aragon_logged_user');
+        const savedRole = localStorage.getItem('aragon_logged_role');
+        if (savedUser && savedRole) {
+          setUser(savedUser);
+          setRole(savedRole);
+        }
+      } else {
+        localStorage.removeItem('aragon_logged_user');
+        localStorage.removeItem('aragon_logged_role');
+        const savedUser = sessionStorage.getItem('aragon_logged_user');
+        const savedRole = sessionStorage.getItem('aragon_logged_role');
+        if (savedUser && savedRole) {
+          setUser(savedUser);
+          setRole(savedRole);
+        }
       }
+
       setLoading(false);
     })();
 
@@ -110,10 +77,14 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const loginContext = (username, userRole) => {
+  const loginContext = (username, userRole, remember = false) => {
     setUser(username);
     setRole(userRole);
-    saveAuth(username, userRole);
+    saveAuth(username, userRole, { persistent: remember });
+    if (!remember) {
+      localStorage.removeItem('aragon_remember_user');
+      localStorage.removeItem('aragon_remember_pass');
+    }
   };
 
   const logoutContext = () => {

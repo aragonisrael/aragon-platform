@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthContext';
 import { Capacitor } from '@capacitor/core';
 import {
   getDevAutoLoginCredentials,
-  getNativeAutoLoginCredentials,
   routeForRole,
 } from '../utils/authStorage';
 
@@ -41,16 +40,6 @@ export default function Login() {
       setUsername(savedUser);
       setPassword(savedPass);
       setRememberMe(true);
-      return;
-    }
-
-    if (Capacitor.isNativePlatform()) {
-      const nativeCreds = getNativeAutoLoginCredentials();
-      if (nativeCreds) {
-        setUsername(nativeCreds.username);
-        setPassword(nativeCreds.password);
-        setRememberMe(true);
-      }
       return;
     }
 
@@ -133,7 +122,7 @@ export default function Login() {
         localStorage.removeItem('aragon_remember_pass');
       }
 
-      loginContext(dbUser.username, dbUser.role);
+      loginContext(dbUser.username, dbUser.role, rememberMe);
 
       // 🟢 חיווט הניתובים הראשיים של אראגון לפי רולים קשיחים - כולל תמיכה מלאה במדריך זמני
       if (dbUser.role === 'admin') navigate('/admin');
@@ -241,7 +230,10 @@ export default function Login() {
 
         .brand-bar {
           width: 100%;
-          height: 120px;
+          min-height: 120px;
+          height: auto;
+          padding-top: max(env(safe-area-inset-top, 0px), 14px);
+          padding-bottom: 16px;
           background: linear-gradient(180deg, #0a0f1e 0%, #050a14 100%);
           border-bottom: 1px solid #1e2d4d;
           display: flex;
@@ -307,6 +299,8 @@ export default function Login() {
 
         .ring-orbit {
           position: absolute;
+          top: 50%;
+          left: 50%;
           border-radius: 50%;
           border: 1.5px solid transparent;
           animation: spinRing linear infinite;
@@ -318,9 +312,9 @@ export default function Login() {
 
         .ring-dot { width: 5px; height: 5px; border-radius: 50%; background: #7c3aed; position: absolute; top: -3px; left: 50%; transform: translateX(-50%); box-shadow: 0 0 8px #7c3aed; }
 
-        @pragma spinRing {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
+        @keyframes spinRing {
+          from { transform: translate(-50%, -50%) rotate(0deg); }
+          to   { transform: translate(-50%, -50%) rotate(360deg); }
         }
 
         .tech-dots { position: absolute; display: flex; gap: 6px; align-items: center; z-index: 2; }
