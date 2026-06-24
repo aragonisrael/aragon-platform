@@ -15,3 +15,14 @@ ON CONFLICT (username) DO UPDATE SET
   full_name = EXCLUDED.full_name,
   department = EXCLUDED.department,
   is_active = EXCLUDED.is_active;
+
+-- לוח לוגיסטיקה מבצעי (/admin/logistics) — נפרד מאפליקציית המשימות
+INSERT INTO users (username, password, role, full_name, department, is_active, coins, ils_balance)
+VALUES
+  ('לוגיסטיקה', '12345678', 'logistics', 'לוגיסטיקה', 'logistics', true, 0, 0)
+ON CONFLICT (username) DO UPDATE SET
+  password = EXCLUDED.password,
+  role = EXCLUDED.role,
+  full_name = EXCLUDED.full_name,
+  department = EXCLUDED.department,
+  is_active = EXCLUDED.is_active;

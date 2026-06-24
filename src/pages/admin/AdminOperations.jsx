@@ -6,7 +6,7 @@ import AdminSidebar, { adminOpsStyles } from '../../components/admin/AdminSideba
 import AdminTopBar from '../../components/admin/AdminTopBar';
 import {
   TASK_STATUSES, TASK_PRIORITIES, DEPARTMENTS, MEETING_TYPES,
-  deptLabel, statusLabel, meetingTypeLabel, meetingStatusLabel,
+  deptLabel, statusLabel, meetingTypeLabel, meetingStatusLabel, departmentForUser,
 } from '../../constants/management';
 import { openGoogleCalendarEvent, toDatetimeLocalValue } from '../../utils/googleCalendar';
 
@@ -128,6 +128,11 @@ export default function AdminOperations({ view = 'tasks' }) {
   };
 
   const userName = (username) => users.find(u => u.username === username)?.full_name || username;
+
+  const handleTaskAssigneeChange = (username) => {
+    setTaskFormAssignee(username);
+    setTaskFormDepartment(departmentForUser(username, users));
+  };
 
   const openCount = tasks.filter(t => t.status !== 'done').length;
   const urgentCount = tasks.filter(t => t.priority === 'urgent' && t.status !== 'done').length;
@@ -479,7 +484,7 @@ export default function AdminOperations({ view = 'tasks' }) {
             </div>
             <div className="ops-field">
               <label>אחראי</label>
-              <select className="ops-select" style={{ width: '100%' }} value={taskFormAssignee} onChange={(e) => setTaskFormAssignee(e.target.value)}>
+              <select className="ops-select" style={{ width: '100%' }} value={taskFormAssignee} onChange={(e) => handleTaskAssigneeChange(e.target.value)}>
                 {users.map(u => <option key={u.username} value={u.username}>{u.full_name}</option>)}
               </select>
             </div>

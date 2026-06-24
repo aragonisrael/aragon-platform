@@ -3,7 +3,7 @@ import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import ManagementShell from './ManagementShell';
 import ManagementModal from '../../components/ManagementModal';
-import { TASK_STATUSES, TASK_PRIORITIES, DEPARTMENTS, deptLabel, statusLabel } from '../../constants/management';
+import { TASK_STATUSES, TASK_PRIORITIES, DEPARTMENTS, deptLabel, statusLabel, departmentForUser } from '../../constants/management';
 
 export default function ManagementHome() {
   const { user } = useAuth();
@@ -77,6 +77,11 @@ export default function ManagementHome() {
   useEffect(() => { fetchContext(); }, [fetchContext]);
 
   const userName = (username) => teamUsers.find(x => x.username === username)?.full_name || username;
+
+  const handleAssigneeChange = (username) => {
+    setFormAssignee(username);
+    setFormDepartment(departmentForUser(username, teamUsers));
+  };
 
   const isSelfCreatedTask = (task) =>
     task?.created_by_username === loggedUser && task?.assignee_username === loggedUser;
@@ -276,7 +281,7 @@ export default function ManagementHome() {
         <div className="mgmt-field"><label>כותרת *</label><input className="mgmt-input" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} placeholder="מה צריך לבצע?" /></div>
         <div className="mgmt-field"><label>תיאור</label><textarea className="mgmt-textarea" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} /></div>
         <div className="mgmt-field"><label>אחראי</label>
-          <select className="mgmt-select" value={formAssignee} onChange={(e) => setFormAssignee(e.target.value)}>
+          <select className="mgmt-select" value={formAssignee} onChange={(e) => handleAssigneeChange(e.target.value)}>
             {teamUsers.map(u => <option key={u.username} value={u.username}>{u.full_name}</option>)}
           </select>
         </div>
@@ -343,7 +348,7 @@ export default function ManagementHome() {
         <div className="mgmt-field"><label>כותרת *</label><input className="mgmt-input" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} /></div>
         <div className="mgmt-field"><label>תיאור</label><textarea className="mgmt-textarea" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} /></div>
         <div className="mgmt-field"><label>אחראי</label>
-          <select className="mgmt-select" value={formAssignee} onChange={(e) => setFormAssignee(e.target.value)}>
+          <select className="mgmt-select" value={formAssignee} onChange={(e) => handleAssigneeChange(e.target.value)}>
             {teamUsers.map(u => <option key={u.username} value={u.username}>{u.full_name}</option>)}
           </select>
         </div>

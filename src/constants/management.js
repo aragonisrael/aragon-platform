@@ -29,6 +29,13 @@ export const MANAGEMENT_DEPARTMENT_ACCOUNTS = [
   { username: 'hr', department: 'hr', fullName: 'משאבי אנוש' },
 ];
 
+/** לוח לוגיסטיקה מבצעי (/admin/logistics) — role: logistics */
+export const LOGISTICS_ADMIN_ACCOUNT = {
+  username: 'לוגיסטיקה',
+  fullName: 'לוגיסטיקה',
+  department: 'logistics',
+};
+
 const LEGACY_DEPARTMENT_LABELS = {
   general: 'כללי',
 };
@@ -74,3 +81,12 @@ const ROLE_LABELS = {
 };
 
 export const roleLabel = (id) => ROLE_LABELS[id] || id || '—';
+
+/** מחזיר מחלקה לפי משתמש — לניתוב משימות בין מחלקות */
+export function departmentForUser(username, teamUsers = []) {
+  const mapped = MANAGEMENT_DEPARTMENT_ACCOUNTS.find((a) => a.username === username);
+  if (mapped) return mapped.department;
+
+  const member = teamUsers.find((u) => u.username === username);
+  return member?.department || 'office';
+}
