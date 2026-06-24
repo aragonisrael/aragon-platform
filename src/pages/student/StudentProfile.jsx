@@ -8,11 +8,13 @@ import { supabase } from '../../supabaseClient';
 import aragonLogo from '../../assets/aragonlogo.png';
 import StudentNavUpdatesIcon from '../../components/student/StudentNavUpdatesIcon';
 import { useStudentUnreadUpdates } from '../../hooks/useStudentUnreadUpdates';
-import { getLoggedUser, clearAuth } from '../../utils/authStorage';
+import { getLoggedUser } from '../../utils/authStorage';
 import { getPushPermissionStatus, registerForPushNotifications } from '../../hooks/usePushNotifications';
+import { useAuth } from '../../context/AuthContext';
 
 export default function StudentProfile() {
   const navigate = useNavigate();
+  const { logoutContext } = useAuth();
   const unreadUpdates = useStudentUnreadUpdates();
 
   // Functional application states - מחוברים לשרת
@@ -22,7 +24,6 @@ export default function StudentProfile() {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [pwdOpen, setPwdOpen] = useState(false);
 
   // סטייט דינמי לשמירת פרטי הקבוצה האמיתית מהענן
@@ -251,33 +252,10 @@ export default function StudentProfile() {
   };
 
   const executeLogout = () => {
-    clearAuth();
-    setIsLoggedOut(true);
+    logoutContext();
+    setShowLogoutModal(false);
+    navigate('/', { replace: true });
   };
-
-  if (isLoggedOut) {
-    return (
-      <div className="profile-main-container">
-        <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
-          .profile-main-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #050a14; width: 100%; font-family: 'Orbitron', sans-serif; }
-          .app-logout-screen { width: 380px; min-height: 700px; background: #05010f; border-radius: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
-        `}</style>
-        <div className="app-logout-screen">
-          <div style={{ fontSize: '48px' }}>👋</div>
-          <div style={{ fontSize: '14px', color: '#a78bfa', letterSpacing: '2px' }}>להתראות!</div>
-          <div style={{ fontSize: '10px', color: 'rgba(167,139,250,.5)', letterSpacing: '1px' }}>יצאת מהחשבון בהצלחה</div>
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            style={{ marginTop: '12px', padding: '10px 24px', borderRadius: '12px', background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', border: '1px solid rgba(167,139,250,.4)', color: '#e0d7ff', fontFamily: 'Orbitron,sans-serif', fontSize: '11px', cursor: 'pointer' }}
-          >
-            חזרה לעמוד הלוגין
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="profile-main-container">
