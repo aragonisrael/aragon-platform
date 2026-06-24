@@ -1,14 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 // 🔌 ייבוא קליינט סופאבייס הרשמי של הפרויקט שלך
 import { supabase } from '../../supabaseClient';
-
-// ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
-import aragonLogo from '../../assets/aragonlogo.png';
+import LogisticsSidebar from '../../components/logistics/LogisticsSidebar';
 
 export default function LogisticsUpdates() {
-  const navigate = useNavigate();
 
   // ── סטייט תפעולי גלובלי למסך ──
   const [isPlaying, setIsPlaying] = useState(false);
@@ -330,17 +326,7 @@ export default function LogisticsUpdates() {
       `}</style>
 
       {/* SIDEBAR NAVIGATION */}
-      <div className="sidebar">
-        <div className="sb-logo" onClick={() => navigate('/admin')}><img src={aragonLogo} alt="Logo" /></div>
-        <button className="nb" onClick={() => navigate('/admin/logistics')} title="בית"><i className="ti ti-home"></i>בית</button>
-        <button className="nb on" title="עדכונים"><i className="ti ti-bell"></i>עדכונים</button>
-        <button className="nb" onClick={() => navigate('/admin/logistics/tasks')} title="משימות"><i className="ti ti-list-check"></i>Missions</button>
-        <div className="nb-sep"></div>
-        <button className="nb" onClick={() => navigate('/admin/logistics/classes')} title="חוגים"><i className="ti ti-device-laptop"></i>חוגים</button>
-        <button className="nb" onClick={() => navigate('/admin/logistics/camps')} title="קייטנות"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 17 22 12"/></svg>קייטנות</button>
-        <div className="nb-sep"></div>
-        <button className="nb" onClick={() => navigate('/admin/logistics/purchase')} title="רכש"><i className="ti ti-shopping-cart"></i>רכש</button>
-      </div>
+      <LogisticsSidebar active="updates" />
 
       <div className="main">
         <div className="topbar">

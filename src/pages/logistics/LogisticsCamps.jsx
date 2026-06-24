@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 // ייבוא צינור התקשורת הרשמי ל-Supabase
 import { supabase } from '../../supabaseClient';
-
-// ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
-import aragonLogo from '../../assets/aragonlogo.png';
+import LogisticsSidebar from '../../components/logistics/LogisticsSidebar';
 
 const fmtDateLabelStr = (dateStr) => {
   if (!dateStr) return '';
@@ -13,7 +10,6 @@ const fmtDateLabelStr = (dateStr) => {
 };
 
 export default function LogisticsCamps() {
-  const navigate = useNavigate();
 
   // סטייט תפעולי גלובלי למסך
   const [isPlaying, setIsPlaying] = useState(false);
@@ -603,19 +599,7 @@ const removeExtraItem = (routeId, index) => {
       `}</style>
 
       {/* SIDEBAR NAVIGATION */}
-      <div className="sidebar">
-        <div className="sb-logo" onClick={() => navigate('/admin')}>
-          <img src={aragonLogo} alt="Aragon Platform Logo" />
-        </div>
-        <button className="nb" onClick={() => navigate('/admin/logistics')} type="button" title="בית"><i className="ti ti-home"></i>בית</button>
-        <button className="nb" onClick={() => navigate('/admin/logistics/updates')} type="button" title="עדכונים"><i className="ti ti-bell"></i>עדכונים</button>
-        <button className="nb" onClick={() => navigate('/admin/logistics/tasks')} type="button" title="משימות"><i className="ti ti-list-check"></i>Missions</button>
-        <div className="nb-sep"></div>
-        <button className="nb" onClick={() => navigate('/admin/logistics/classes')} type="button" title="חוגים"><i className="ti ti-device-laptop"></i>חוגים</button>
-        <button className="nb on" type="button" title="קייטנות"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 17 22 12"/></svg>קייטנות</button>
-        <div className="nb-sep"></div>
-        <button className="nb" onClick={() => navigate('/admin/logistics/purchase')} type="button" title="רכש"><i className="ti ti-shopping-cart"></i>רכש</button>
-      </div>
+      <LogisticsSidebar active="camps" />
 
       <div className="main">
         {/* TOPBAR */}
