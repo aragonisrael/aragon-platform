@@ -655,6 +655,64 @@ export const managementMobileStyles = `
   .mgmt-profile-name { font-size: 18px; font-weight: 800; margin-bottom: 12px; }
   .mgmt-profile-row { font-size: 13px; color: #8aa0c0; margin-bottom: 8px; }
 
+  .mgmt-coverage-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #e8eeff;
+    margin-bottom: 6px;
+  }
+  .mgmt-coverage-hint {
+    font-size: 12px;
+    color: #8aa0c0;
+    line-height: 1.55;
+    margin: 0 0 14px;
+  }
+  .mgmt-coverage-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    color: #e8eeff;
+    user-select: none;
+  }
+  .mgmt-coverage-toggle input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .mgmt-coverage-toggle-ui {
+    width: 46px;
+    height: 26px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    position: relative;
+    transition: background 0.2s ease, border-color 0.2s ease;
+    flex-shrink: 0;
+  }
+  .mgmt-coverage-toggle-ui::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #c8d4ea;
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+  .mgmt-coverage-toggle input:checked + .mgmt-coverage-toggle-ui {
+    background: rgba(99, 102, 241, 0.45);
+    border-color: rgba(167, 139, 250, 0.55);
+  }
+  .mgmt-coverage-toggle input:checked + .mgmt-coverage-toggle-ui::after {
+    transform: translateX(-20px);
+    background: #fff;
+  }
+
   .mgmt-meeting-card {
     background: rgba(255, 255, 255, 0.09);
     backdrop-filter: blur(32px) saturate(1.6);

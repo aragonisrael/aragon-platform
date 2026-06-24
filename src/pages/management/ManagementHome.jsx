@@ -3,7 +3,7 @@ import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import ManagementShell from './ManagementShell';
 import ManagementModal from '../../components/ManagementModal';
-import { TASK_STATUSES, TASK_PRIORITIES, DEPARTMENTS, deptLabel, statusLabel, departmentForUser } from '../../constants/management';
+import { TASK_STATUSES, TASK_PRIORITIES, DEPARTMENTS, deptLabel, statusLabel, defaultResponsibilityForUser, taskFieldsFromResponsibility, isTaskInMyQueue } from '../../constants/management';
 
 export default function ManagementHome() {
   const { user } = useAuth();
@@ -29,10 +29,9 @@ export default function ManagementHome() {
 
   const [formTitle, setFormTitle] = useState('');
   const [formDesc, setFormDesc] = useState('');
-  const [formAssignee, setFormAssignee] = useState('');
+  const [formResponsibility, setFormResponsibility] = useState('office');
   const [formPriority, setFormPriority] = useState('normal');
   const [formDueDate, setFormDueDate] = useState('');
-  const [formDepartment, setFormDepartment] = useState('office');
 
   const showToast = (message, warn = false) => {
     setToast({ show: true, message, warn });
@@ -42,14 +41,17 @@ export default function ManagementHome() {
   const fetchContext = useCallback(async () => {
     if (!loggedUser) return;
     try {
-      const { data: me } = await supabase.from('users').select('username, full_name, department, role').eq('username', loggedUser).single();
-      if (me) {
-        setMyProfile(me);
-        setFormDepartment(me.department || 'office');
-        setFormAssignee(me.username);
-      }
+      const { data: me } = await supabase
+        .from('users')
+        .select('username, full_name, department, role, responsibility_coverage_enabled, responsibility_coverage_department')
+        .eq('username', loggedUser)
+        .single();
       const { data: team } = await supabase.from('users').select('username, full_name, department, role').in('role', ['management', 'admin']).order('full_name');
       if (team) setTeamUsers(team);
+      if (me) {
+        setMyProfile(me);
+        setFormResponsibility(defaultResponsibilityForUser(me.username, team || []));
+      }
       const { data: allTasks, error } = await supabase.from('management_tasks').select('*').order('updated_at', { ascending: false });
       if (error) throw error;
       setTasks(allTasks || []);
@@ -76,35 +78,47 @@ export default function ManagementHome() {
 
   useEffect(() => { fetchContext(); }, [fetchContext]);
 
-  const userName = (username) => teamUsers.find(x => x.username === username)?.full_name || username;
+  useEffect(() => {
+    const onCoverageUpdated = () => { fetchContext(); };
+    window.addEventListener('mgmt-coverage-updated', onCoverageUpdated);
+    return () => window.removeEventListener('mgmt-coverage-updated', onCoverageUpdated);
+  }, [fetchContext]);
 
-  const handleAssigneeChange = (username) => {
-    setFormAssignee(username);
-    setFormDepartment(departmentForUser(username, teamUsers));
-  };
+  const userName = (username) => teamUsers.find(x => x.username === username)?.full_name || username;
 
   const isSelfCreatedTask = (task) =>
     task?.created_by_username === loggedUser && task?.assignee_username === loggedUser;
 
   const visibleTasks = tasks.filter(t => {
-    if (viewTab === 'mine') return t.assignee_username === loggedUser;
+    if (viewTab === 'mine') return isTaskInMyQueue(t, loggedUser, myProfile);
     if (viewTab === 'created') return t.created_by_username === loggedUser;
     return true;
   }).filter(t => statusFilter === 'all' || t.status === statusFilter);
 
+  const isCoverageTask = (task) =>
+    !!myProfile?.responsibility_coverage_enabled
+    && myProfile?.responsibility_coverage_department
+    && task.department === myProfile.responsibility_coverage_department
+    && task.assignee_username !== loggedUser;
+
   const resetCreateForm = () => {
-    setFormTitle(''); setFormDesc(''); setFormAssignee(loggedUser);
-    setFormPriority('normal'); setFormDueDate('');
-    setFormDepartment(myProfile?.department || 'office');
+    setFormTitle('');
+    setFormDesc('');
+    setFormPriority('normal');
+    setFormDueDate('');
+    setFormResponsibility(defaultResponsibilityForUser(loggedUser, teamUsers));
   };
 
   const handleCreateTask = async () => {
     if (!formTitle.trim()) { showToast('נא להזין כותרת', true); return; }
+    const routing = taskFieldsFromResponsibility(formResponsibility, loggedUser);
     try {
       const { error } = await supabase.from('management_tasks').insert([{
         title: formTitle.trim(), description: formDesc.trim(),
-        assignee_username: formAssignee, created_by_username: loggedUser,
-        department: formDepartment, status: 'open', priority: formPriority,
+        assignee_username: routing.assignee_username,
+        created_by_username: loggedUser,
+        department: routing.department,
+        status: 'open', priority: formPriority,
         due_date: formDueDate || null,
       }]);
       if (error) throw error;
@@ -122,22 +136,22 @@ export default function ManagementHome() {
     setSelectedTask(task);
     setFormTitle(task.title);
     setFormDesc(task.description || '');
-    setFormAssignee(task.assignee_username);
     setFormPriority(task.priority || 'normal');
     setFormDueDate(task.due_date || '');
-    setFormDepartment(task.department || 'office');
+    setFormResponsibility(task.department || defaultResponsibilityForUser(loggedUser, teamUsers));
     setIsDetailOpen(false);
     setIsEditOpen(true);
   };
 
   const handleUpdateTask = async () => {
     if (!selectedTask || !formTitle.trim()) { showToast('נא להזין כותרת', true); return; }
+    const routing = taskFieldsFromResponsibility(formResponsibility, loggedUser);
     try {
       const { error } = await supabase.from('management_tasks').update({
         title: formTitle.trim(),
         description: formDesc.trim(),
-        assignee_username: formAssignee,
-        department: formDepartment,
+        assignee_username: routing.assignee_username,
+        department: routing.department,
         priority: formPriority,
         due_date: formDueDate || null,
         updated_at: new Date().toISOString(),
@@ -257,8 +271,10 @@ export default function ManagementHome() {
           <div className="mgmt-task-title">{task.title}</div>
           <div className="mgmt-task-meta">
             <span className={`mgmt-pill status-${task.status}`}>{statusLabel(task.status)}</span>
-            <span className="mgmt-pill">{userName(task.assignee_username)}</span>
-            <span className="mgmt-pill">{deptLabel(task.department)}</span>
+            <span className="mgmt-pill">אחריות: {deptLabel(task.department)}</span>
+            {isCoverageTask(task) && (
+              <span className="mgmt-pill" style={{ color: '#a78bfa' }}>צירוף אחריות</span>
+            )}
             {task.due_date && <span className="mgmt-pill">עד {task.due_date}</span>}
             {task.priority === 'urgent' && <span className="mgmt-pill" style={{ color: '#ff5555' }}>דחוף</span>}
           </div>
@@ -280,13 +296,9 @@ export default function ManagementHome() {
       >
         <div className="mgmt-field"><label>כותרת *</label><input className="mgmt-input" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} placeholder="מה צריך לבצע?" /></div>
         <div className="mgmt-field"><label>תיאור</label><textarea className="mgmt-textarea" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} /></div>
-        <div className="mgmt-field"><label>אחראי</label>
-          <select className="mgmt-select" value={formAssignee} onChange={(e) => handleAssigneeChange(e.target.value)}>
-            {teamUsers.map(u => <option key={u.username} value={u.username}>{u.full_name}</option>)}
-          </select>
-        </div>
-        <div className="mgmt-field"><label>מחלקה</label>
-          <select className="mgmt-select" value={formDepartment} onChange={(e) => setFormDepartment(e.target.value)}>
+        <div className="mgmt-field">
+          <label>אחריות</label>
+          <select className="mgmt-select" value={formResponsibility} onChange={(e) => setFormResponsibility(e.target.value)}>
             {DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
           </select>
         </div>
@@ -316,7 +328,7 @@ export default function ManagementHome() {
       >
         {selectedTask?.description && <p style={{ fontSize: '13px', color: '#8aa0c0', marginBottom: '14px', lineHeight: 1.6 }}>{selectedTask.description}</p>}
         <div className="mgmt-task-meta" style={{ marginBottom: '16px' }}>
-          <span className="mgmt-pill">אחראי: {userName(selectedTask?.assignee_username)}</span>
+          <span className="mgmt-pill">אחריות: {deptLabel(selectedTask?.department)}</span>
           <span className="mgmt-pill">ממונה: {userName(selectedTask?.created_by_username)}</span>
         </div>
         <div style={{ fontSize: '12px', color: '#8aa0c0', fontWeight: 700, marginBottom: '8px' }}>עדכן סטטוס</div>
@@ -347,13 +359,9 @@ export default function ManagementHome() {
       >
         <div className="mgmt-field"><label>כותרת *</label><input className="mgmt-input" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} /></div>
         <div className="mgmt-field"><label>תיאור</label><textarea className="mgmt-textarea" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} /></div>
-        <div className="mgmt-field"><label>אחראי</label>
-          <select className="mgmt-select" value={formAssignee} onChange={(e) => handleAssigneeChange(e.target.value)}>
-            {teamUsers.map(u => <option key={u.username} value={u.username}>{u.full_name}</option>)}
-          </select>
-        </div>
-        <div className="mgmt-field"><label>מחלקה</label>
-          <select className="mgmt-select" value={formDepartment} onChange={(e) => setFormDepartment(e.target.value)}>
+        <div className="mgmt-field">
+          <label>אחריות</label>
+          <select className="mgmt-select" value={formResponsibility} onChange={(e) => setFormResponsibility(e.target.value)}>
             {DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
           </select>
         </div>

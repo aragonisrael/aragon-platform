@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getPushPermissionStatus, registerForPushNotifications } from '../../hooks/usePushNotifications';
 import ManagementShell from './ManagementShell';
 import ManagementModal from '../../components/ManagementModal';
-import { roleLabel } from '../../constants/management';
+import { roleLabel, deptLabel, coverageDepartmentOptions } from '../../constants/management';
 
 function compressAvatar(file) {
   return new Promise((resolve, reject) => {
@@ -59,6 +59,9 @@ export default function ManagementProfile() {
   const [confPass, setConfPass] = useState('');
   const [pushStatus, setPushStatus] = useState('loading');
   const [pushBusy, setPushBusy] = useState(false);
+  const [coverageEnabled, setCoverageEnabled] = useState(false);
+  const [coverageDepartment, setCoverageDepartment] = useState('');
+  const [savingCoverage, setSavingCoverage] = useState(false);
 
   const refreshPushStatus = useCallback(async () => {
     if (!Capacitor.isNativePlatform()) {
@@ -99,7 +102,7 @@ export default function ManagementProfile() {
     if (!loggedUser) return;
     const { data } = await supabase
       .from('users')
-      .select('username, full_name, department, role, password, avatar_url')
+      .select('username, full_name, department, role, password, avatar_url, responsibility_coverage_enabled, responsibility_coverage_department')
       .eq('username', loggedUser)
       .single();
     if (data) {
@@ -107,8 +110,46 @@ export default function ManagementProfile() {
       setDisplayName(data.full_name || '');
       setAvatarUrl(data.avatar_url || '');
       setStoredPassword(data.password || '');
+      setCoverageEnabled(!!data.responsibility_coverage_enabled);
+      setCoverageDepartment(data.responsibility_coverage_department || '');
     }
   }, [loggedUser]);
+
+  const coverageDirty =
+    coverageEnabled !== !!profile?.responsibility_coverage_enabled
+    || (coverageEnabled && coverageDepartment !== (profile?.responsibility_coverage_department || ''));
+
+  const handleSaveCoverage = async () => {
+    if (coverageEnabled && !coverageDepartment) {
+      showToast('נא לבחור מחלקה לצירוף אחריות', true);
+      return;
+    }
+
+    setSavingCoverage(true);
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          responsibility_coverage_enabled: coverageEnabled,
+          responsibility_coverage_department: coverageEnabled ? coverageDepartment : null,
+        })
+        .eq('username', loggedUser);
+      if (error) throw error;
+
+      setProfile((p) => ({
+        ...p,
+        responsibility_coverage_enabled: coverageEnabled,
+        responsibility_coverage_department: coverageEnabled ? coverageDepartment : null,
+      }));
+      window.dispatchEvent(new CustomEvent('mgmt-coverage-updated'));
+      showToast('✓ צירוף האחריות נשמר');
+    } catch (err) {
+      console.error(err);
+      showToast('❌ שגיאה בשמירה — ודא שהטבלה עודכנה ב-Supabase', true);
+    } finally {
+      setSavingCoverage(false);
+    }
+  };
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
@@ -291,10 +332,62 @@ export default function ManagementProfile() {
           <input className="mgmt-input mgmt-input-readonly" value={profile?.username || ''} readOnly tabIndex={-1} />
         </div>
 
-        <div className="mgmt-field" style={{ marginBottom: 0 }}>
+        <div className="mgmt-field">
           <label>תפקיד</label>
           <input className="mgmt-input mgmt-input-readonly" value={roleLabel(profile?.role)} readOnly tabIndex={-1} />
         </div>
+
+        <div className="mgmt-field" style={{ marginBottom: 0 }}>
+          <label>מחלקה</label>
+          <input className="mgmt-input mgmt-input-readonly" value={deptLabel(profile?.department)} readOnly tabIndex={-1} />
+        </div>
+      </div>
+
+      <div className="mgmt-profile-card" style={{ marginTop: '14px' }}>
+        <div className="mgmt-coverage-title">צירוף אחריות</div>
+        <p className="mgmt-coverage-hint">
+          בזמן חופש של מחלקה אחרת — קלוט גם את המשימות שלה לרשימה שלך.
+        </p>
+
+        <label className="mgmt-coverage-toggle">
+          <input
+            type="checkbox"
+            checked={coverageEnabled}
+            onChange={(e) => {
+              const next = e.target.checked;
+              setCoverageEnabled(next);
+              if (!next) setCoverageDepartment('');
+            }}
+          />
+          <span className="mgmt-coverage-toggle-ui" aria-hidden="true" />
+          <span>{coverageEnabled ? 'פעיל' : 'כבוי'}</span>
+        </label>
+
+        {coverageEnabled && (
+          <div className="mgmt-field" style={{ marginTop: '14px', marginBottom: 0 }}>
+            <label>מחלקה לצירוף</label>
+            <select
+              className="mgmt-select"
+              value={coverageDepartment}
+              onChange={(e) => setCoverageDepartment(e.target.value)}
+            >
+              <option value="">בחר מחלקה...</option>
+              {coverageDepartmentOptions(profile?.department).map((d) => (
+                <option key={d.id} value={d.id}>{d.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="mgmt-btn-primary"
+          style={{ width: '100%', marginTop: '16px' }}
+          disabled={savingCoverage || !coverageDirty || (coverageEnabled && !coverageDepartment)}
+          onClick={handleSaveCoverage}
+        >
+          {savingCoverage ? 'שומר...' : 'שמור'}
+        </button>
       </div>
 
       <button

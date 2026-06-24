@@ -6,7 +6,8 @@ import AdminSidebar, { adminOpsStyles } from '../../components/admin/AdminSideba
 import AdminTopBar from '../../components/admin/AdminTopBar';
 import {
   TASK_STATUSES, TASK_PRIORITIES, DEPARTMENTS, MEETING_TYPES,
-  deptLabel, statusLabel, meetingTypeLabel, meetingStatusLabel, departmentForUser,
+  deptLabel, statusLabel, meetingTypeLabel, meetingStatusLabel,
+  defaultResponsibilityForUser, taskFieldsFromResponsibility,
 } from '../../constants/management';
 import { openGoogleCalendarEvent, toDatetimeLocalValue } from '../../utils/googleCalendar';
 
@@ -40,10 +41,9 @@ export default function AdminOperations({ view = 'tasks' }) {
 
   const [taskFormTitle, setTaskFormTitle] = useState('');
   const [taskFormDesc, setTaskFormDesc] = useState('');
-  const [taskFormAssignee, setTaskFormAssignee] = useState('');
+  const [taskFormResponsibility, setTaskFormResponsibility] = useState('office');
   const [taskFormPriority, setTaskFormPriority] = useState('normal');
   const [taskFormDue, setTaskFormDue] = useState('');
-  const [taskFormDepartment, setTaskFormDepartment] = useState('general');
 
   const showToast = (message, warn = false) => {
     setToast({ show: true, message, warn });
@@ -62,10 +62,7 @@ export default function AdminOperations({ view = 'tasks' }) {
       setUsers(u || []);
       const me = (u || []).find(x => x.username === loggedUser);
       if (me) {
-        setTaskFormAssignee(me.username);
-        setTaskFormDepartment(me.department || 'office');
-      } else if (loggedUser) {
-        setTaskFormAssignee(loggedUser);
+        setTaskFormResponsibility(defaultResponsibilityForUser(me.username, u || []));
       }
 
       const doneIds = (t || []).filter(x => x.status === 'done').map(x => x.id);
@@ -94,10 +91,9 @@ export default function AdminOperations({ view = 'tasks' }) {
     const me = users.find(u => u.username === loggedUser);
     setTaskFormTitle('');
     setTaskFormDesc('');
-    setTaskFormAssignee(loggedUser || '');
     setTaskFormPriority('normal');
     setTaskFormDue('');
-    setTaskFormDepartment(me?.department || 'office');
+    setTaskFormResponsibility(defaultResponsibilityForUser(me?.username || loggedUser, users));
   };
 
   const handleCreateTask = async () => {
@@ -105,13 +101,14 @@ export default function AdminOperations({ view = 'tasks' }) {
       showToast('נא להזין כותרת', true);
       return;
     }
+    const routing = taskFieldsFromResponsibility(taskFormResponsibility, loggedUser);
     try {
       const { error } = await supabase.from('management_tasks').insert([{
         title: taskFormTitle.trim(),
         description: taskFormDesc.trim(),
-        assignee_username: taskFormAssignee,
+        assignee_username: routing.assignee_username,
         created_by_username: loggedUser,
-        department: taskFormDepartment,
+        department: routing.department,
         status: 'open',
         priority: taskFormPriority,
         due_date: taskFormDue || null,
@@ -128,11 +125,6 @@ export default function AdminOperations({ view = 'tasks' }) {
   };
 
   const userName = (username) => users.find(u => u.username === username)?.full_name || username;
-
-  const handleTaskAssigneeChange = (username) => {
-    setTaskFormAssignee(username);
-    setTaskFormDepartment(departmentForUser(username, users));
-  };
 
   const openCount = tasks.filter(t => t.status !== 'done').length;
   const urgentCount = tasks.filter(t => t.priority === 'urgent' && t.status !== 'done').length;
@@ -329,9 +321,8 @@ export default function AdminOperations({ view = 'tasks' }) {
                   <thead>
                     <tr>
                       <th>משימה</th>
-                      <th>אחראי</th>
+                      <th>אחריות</th>
                       <th>ממונה</th>
-                      <th>מחלקה</th>
                       <th>סטטוס</th>
                       <th>עדיפות</th>
                       <th>עודכן</th>
@@ -341,9 +332,8 @@ export default function AdminOperations({ view = 'tasks' }) {
                     {filteredTasks.map(t => (
                       <tr key={t.id} onClick={() => setSelectedTask(t)}>
                         <td style={{ fontWeight: 700, color: '#00c8ff' }}>{t.title}</td>
-                        <td>{userName(t.assignee_username)}</td>
-                        <td>{userName(t.created_by_username)}</td>
                         <td>{deptLabel(t.department)}</td>
+                        <td>{userName(t.created_by_username)}</td>
                         <td><span className={`status-pill status-${t.status}`}>{statusLabel(t.status)}</span></td>
                         <td style={{ color: t.priority === 'urgent' ? '#ff5555' : '#8098b0' }}>{t.priority === 'urgent' ? 'דחוף' : 'רגיל'}</td>
                         <td style={{ color: '#6080a0', fontSize: '12px' }}>{formatDate(t.updated_at)}</td>
@@ -442,9 +432,8 @@ export default function AdminOperations({ view = 'tasks' }) {
             <div className="ops-modal-title">{selectedTask.title}</div>
             <div className="ops-meta-row">
               <span className={`status-pill status-${selectedTask.status}`}>{statusLabel(selectedTask.status)}</span>
-              <span className="ops-meta-chip">אחראי: {userName(selectedTask.assignee_username)}</span>
+              <span className="ops-meta-chip">אחריות: {deptLabel(selectedTask.department)}</span>
               <span className="ops-meta-chip">ממונה: {userName(selectedTask.created_by_username)}</span>
-              <span className="ops-meta-chip">{deptLabel(selectedTask.department)}</span>
               {selectedTask.due_date && <span className="ops-meta-chip">יעד: {selectedTask.due_date}</span>}
               {selectedTask.priority === 'urgent' && <span className="ops-meta-chip" style={{ color: '#ff5555' }}>דחוף</span>}
             </div>
@@ -483,14 +472,8 @@ export default function AdminOperations({ view = 'tasks' }) {
               <textarea className="ops-textarea" value={taskFormDesc} onChange={(e) => setTaskFormDesc(e.target.value)} />
             </div>
             <div className="ops-field">
-              <label>אחראי</label>
-              <select className="ops-select" style={{ width: '100%' }} value={taskFormAssignee} onChange={(e) => handleTaskAssigneeChange(e.target.value)}>
-                {users.map(u => <option key={u.username} value={u.username}>{u.full_name}</option>)}
-              </select>
-            </div>
-            <div className="ops-field">
-              <label>מחלקה</label>
-              <select className="ops-select" style={{ width: '100%' }} value={taskFormDepartment} onChange={(e) => setTaskFormDepartment(e.target.value)}>
+              <label>אחריות</label>
+              <select className="ops-select" style={{ width: '100%' }} value={taskFormResponsibility} onChange={(e) => setTaskFormResponsibility(e.target.value)}>
                 {DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
               </select>
             </div>

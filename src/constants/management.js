@@ -90,3 +90,34 @@ export function departmentForUser(username, teamUsers = []) {
   const member = teamUsers.find((u) => u.username === username);
   return member?.department || 'office';
 }
+
+/** משתמש אחראי לפי מחלקה */
+export function assigneeForDepartment(departmentId) {
+  return MANAGEMENT_DEPARTMENT_ACCOUNTS.find((a) => a.department === departmentId)?.username || null;
+}
+
+/** ברירת מחדל לאחריות — המחלקה של המשתמש המחובר */
+export function defaultResponsibilityForUser(username, teamUsers = []) {
+  return departmentForUser(username, teamUsers);
+}
+
+/** ממפה בחירת אחריות (מחלקה) לשדות משימה בשרת */
+/** האם משימה מוצגת בלשונית "שויכו אליי" כולל צירוף אחריות */
+export function isTaskInMyQueue(task, loggedUser, profile) {
+  if (!task || !loggedUser) return false;
+  if (task.assignee_username === loggedUser) return true;
+
+  if (
+    profile?.responsibility_coverage_enabled &&
+    profile?.responsibility_coverage_department &&
+    task.department === profile.responsibility_coverage_department
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+export function coverageDepartmentOptions(userDepartment) {
+  return DEPARTMENTS.filter((d) => d.id !== userDepartment);
+}

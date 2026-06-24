@@ -4,6 +4,8 @@
 -- מחלקה למשתמשי הנהלה (אופציונלי לשאר התפקידים)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS department text DEFAULT 'general';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS responsibility_coverage_enabled boolean NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS responsibility_coverage_department text;
 
 -- ישיבות הנהלה
 CREATE TABLE IF NOT EXISTS management_meetings (
