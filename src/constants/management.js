@@ -144,6 +144,39 @@ export function isTaskInAdminMineQueue(task, mirrorUsername, profile, options = 
   return true;
 }
 
+function taskTimestampMs(task, field) {
+  const value = task?.[field];
+  return value ? new Date(value).getTime() : 0;
+}
+
+/** מיון תצוגה: דחוף למעלה, פעילות לפי עדכון אחרון, הושלמו לתחתית לפי סגירה אחרונה */
+export function compareTasksForDisplay(a, b) {
+  const aDone = a.status === 'done';
+  const bDone = b.status === 'done';
+
+  if (aDone !== bDone) return aDone ? 1 : -1;
+
+  if (!aDone) {
+    const aUrgent = a.priority === 'urgent';
+    const bUrgent = b.priority === 'urgent';
+    if (aUrgent !== bUrgent) return aUrgent ? -1 : 1;
+
+    const byUpdated = taskTimestampMs(b, 'updated_at') - taskTimestampMs(a, 'updated_at');
+    if (byUpdated !== 0) return byUpdated;
+    return taskTimestampMs(b, 'created_at') - taskTimestampMs(a, 'created_at');
+  }
+
+  const byCompleted = taskTimestampMs(b, 'completed_at') - taskTimestampMs(a, 'completed_at');
+  if (byCompleted !== 0) return byCompleted;
+  const byUpdated = taskTimestampMs(b, 'updated_at') - taskTimestampMs(a, 'updated_at');
+  if (byUpdated !== 0) return byUpdated;
+  return taskTimestampMs(b, 'created_at') - taskTimestampMs(a, 'created_at');
+}
+
+export function sortTasksForDisplay(tasks) {
+  return [...tasks].sort(compareTasksForDisplay);
+}
+
 export function coverageDepartmentOptions(userDepartment) {
   return DEPARTMENTS.filter((d) => d.id !== userDepartment);
 }

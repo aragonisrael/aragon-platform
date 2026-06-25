@@ -3,7 +3,7 @@ import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import ManagementShell from './ManagementShell';
 import ManagementModal from '../../components/ManagementModal';
-import { TASK_STATUSES, TASK_PRIORITIES, DEPARTMENTS, deptLabel, statusLabel, defaultResponsibilityForUser, taskFieldsFromResponsibility, isTaskInMyQueue } from '../../constants/management';
+import { TASK_STATUSES, TASK_PRIORITIES, DEPARTMENTS, deptLabel, statusLabel, defaultResponsibilityForUser, taskFieldsFromResponsibility, isTaskInMyQueue, sortTasksForDisplay } from '../../constants/management';
 
 export default function ManagementHome() {
   const { user } = useAuth();
@@ -89,11 +89,11 @@ export default function ManagementHome() {
   const isSelfCreatedTask = (task) =>
     task?.created_by_username === loggedUser && task?.assignee_username === loggedUser;
 
-  const visibleTasks = tasks.filter(t => {
+  const visibleTasks = sortTasksForDisplay(tasks.filter(t => {
     if (viewTab === 'mine') return isTaskInMyQueue(t, loggedUser, myProfile);
     if (viewTab === 'created') return t.created_by_username === loggedUser;
     return true;
-  }).filter(t => statusFilter === 'all' || t.status === statusFilter);
+  }).filter(t => statusFilter === 'all' || t.status === statusFilter));
 
   const isCoverageTask = (task) =>
     !!myProfile?.responsibility_coverage_enabled

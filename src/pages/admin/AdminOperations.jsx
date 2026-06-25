@@ -7,7 +7,7 @@ import AdminTopBar from '../../components/admin/AdminTopBar';
 import {
   TASK_STATUSES, TASK_PRIORITIES, DEPARTMENTS, MEETING_TYPES, AGENDA_ITEM_TYPES,
   deptLabel, statusLabel, meetingTypeLabel, meetingStatusLabel,
-  defaultResponsibilityForUser, taskFieldsFromResponsibility, isTaskInAdminMineQueue,
+  defaultResponsibilityForUser, taskFieldsFromResponsibility, isTaskInAdminMineQueue, sortTasksForDisplay,
 } from '../../constants/management';
 import { openGoogleCalendarEvent, toDatetimeLocalValue } from '../../utils/googleCalendar';
 
@@ -241,7 +241,7 @@ export default function AdminOperations({ view = 'tasks' }) {
 
   const mirrorProfile = users.find((u) => u.username === adminTaskMirrorUser);
 
-  const filteredTasks = tasks.filter(t => {
+  const filteredTasks = sortTasksForDisplay(tasks.filter(t => {
     if (taskViewScope === 'mine' && !isTaskInAdminMineQueue(t, adminTaskMirrorUser, mirrorProfile, {
       adminUsername: loggedUser === 'admin' ? loggedUser : null,
       teamUsers: users,
@@ -254,7 +254,7 @@ export default function AdminOperations({ view = 'tasks' }) {
       if (!hay.includes(q)) return false;
     }
     return true;
-  });
+  }));
 
   const filteredMeetings = meetings.filter(m => {
     if (meetingFilter === 'active') return m.status !== 'closed';
