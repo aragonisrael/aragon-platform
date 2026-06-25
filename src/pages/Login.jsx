@@ -32,13 +32,11 @@ export default function Login() {
   const [regHubName, setRegHubName] = useState('');
   const [regParentPhone, setRegParentPhone] = useState('');
 
-  // 🔄 טעינת פרטי גישה שמורים / ברירת מחדל לבדיקות Native
+  // 🔄 טעינת פרטי זיהוי שמורים / ברירת מחדל לבדיקות DEV
   useEffect(() => {
     const savedUser = localStorage.getItem('aragon_remember_user');
-    const savedPass = localStorage.getItem('aragon_remember_pass');
-    if (savedUser && savedPass) {
+    if (savedUser) {
       setUsername(savedUser);
-      setPassword(savedPass);
       setRememberMe(true);
       return;
     }
@@ -116,10 +114,8 @@ export default function Login() {
       // שמירת נתונים מקומית לפי סטטוס צ'קבוקס "זכור אותי"
       if (rememberMe) {
         localStorage.setItem('aragon_remember_user', username.trim());
-        localStorage.setItem('aragon_remember_pass', password.trim());
       } else {
         localStorage.removeItem('aragon_remember_user');
-        localStorage.removeItem('aragon_remember_pass');
       }
 
       loginContext(dbUser.username, dbUser.role, rememberMe);
@@ -532,6 +528,8 @@ export default function Login() {
               <input 
                 className="form-input" 
                 type="text" 
+                autoComplete="username"
+                name="username"
                 placeholder="הכנס שם משתמש..." 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -545,6 +543,8 @@ export default function Login() {
                 <input 
                   className="form-input" 
                   type={showPassword ? "text" : "password"} 
+                  autoComplete="current-password"
+                  name="password"
                   placeholder="הכנס סיסמה..." 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

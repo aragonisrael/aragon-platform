@@ -59,13 +59,19 @@ export function AuthProvider({ children }) {
           setRole(savedRole);
         }
       } else {
-        localStorage.removeItem('aragon_logged_user');
-        localStorage.removeItem('aragon_logged_role');
-        const savedUser = sessionStorage.getItem('aragon_logged_user');
-        const savedRole = sessionStorage.getItem('aragon_logged_role');
-        if (savedUser && savedRole) {
-          setUser(savedUser);
-          setRole(savedRole);
+        // On native apps, "remember me" is the only allowed persistence mode.
+        // Without it, every fresh app launch must return to login.
+        if (Capacitor.isNativePlatform()) {
+          clearAuth();
+        } else {
+          localStorage.removeItem('aragon_logged_user');
+          localStorage.removeItem('aragon_logged_role');
+          const savedUser = sessionStorage.getItem('aragon_logged_user');
+          const savedRole = sessionStorage.getItem('aragon_logged_role');
+          if (savedUser && savedRole) {
+            setUser(savedUser);
+            setRole(savedRole);
+          }
         }
       }
 
