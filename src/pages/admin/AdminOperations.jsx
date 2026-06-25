@@ -29,6 +29,11 @@ export default function AdminOperations({ view = 'tasks' }) {
   const [taskViewScope, setTaskViewScope] = useState('mine');
   const [meetingFilter, setMeetingFilter] = useState('active');
   const [selectedTask, setSelectedTask] = useState(null);
+  const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
+  const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
+  const [isDeleteTaskOpen, setIsDeleteTaskOpen] = useState(false);
+  const [isCompleteTaskOpen, setIsCompleteTaskOpen] = useState(false);
+  const [completionReport, setCompletionReport] = useState('');
 
   const [isCreateMeetingOpen, setIsCreateMeetingOpen] = useState(false);
   const [isEditMeetingOpen, setIsEditMeetingOpen] = useState(false);
@@ -100,6 +105,103 @@ export default function AdminOperations({ view = 'tasks' }) {
     setTaskFormPriority('normal');
     setTaskFormDue('');
     setTaskFormResponsibility(defaultResponsibilityForUser(me?.username || adminTaskMirrorUser, users));
+  };
+
+  const canEditOrDeleteTask = (task) => {
+    if (!task) return false;
+    if (loggedUser === 'admin') {
+      return task.created_by_username === loggedUser || task.assignee_username === adminTaskMirrorUser;
+    }
+    return task.created_by_username === loggedUser && task.assignee_username === loggedUser;
+  };
+
+  const openTaskDetail = (task) => {
+    setSelectedTask(task);
+    setIsTaskDetailOpen(true);
+  };
+
+  const closeTaskDetail = () => {
+    setIsTaskDetailOpen(false);
+    setSelectedTask(null);
+  };
+
+  const openEditTask = (task) => {
+    setSelectedTask(task);
+    setTaskFormTitle(task.title);
+    setTaskFormDesc(task.description || '');
+    setTaskFormPriority(task.priority || 'normal');
+    setTaskFormDue(task.due_date || '');
+    setTaskFormResponsibility(task.department || defaultResponsibilityForUser(adminTaskMirrorUser, users));
+    setIsTaskDetailOpen(false);
+    setIsEditTaskOpen(true);
+  };
+
+  const handleUpdateTask = async () => {
+    if (!selectedTask || !taskFormTitle.trim()) {
+      showToast('נא להזין כותרת', true);
+      return;
+    }
+    const routing = taskFieldsFromResponsibility(taskFormResponsibility, adminTaskMirrorUser);
+    try {
+      const { error } = await supabase.from('management_tasks').update({
+        title: taskFormTitle.trim(),
+        description: taskFormDesc.trim(),
+        assignee_username: routing.assignee_username,
+        department: routing.department,
+        priority: taskFormPriority,
+        due_date: taskFormDue || null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', selectedTask.id);
+      if (error) throw error;
+      await loadData();
+      setIsEditTaskOpen(false);
+      setSelectedTask(null);
+      resetTaskForm();
+      showToast('✓ המשימה עודכנה');
+    } catch (err) {
+      console.error(err);
+      showToast('שגיאה בעדכון משימה', true);
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (!selectedTask) return;
+    try {
+      const { error } = await supabase.from('management_tasks').delete().eq('id', selectedTask.id);
+      if (error) throw error;
+      await loadData();
+      setIsDeleteTaskOpen(false);
+      closeTaskDetail();
+      showToast('✓ המשימה נמחקה');
+    } catch (err) {
+      console.error(err);
+      showToast('שגיאה במחיקת משימה', true);
+    }
+  };
+
+  const applyStatusChange = async (task, newStatus, report = '') => {
+    try {
+      const updates = { status: newStatus, updated_at: new Date().toISOString() };
+      if (newStatus === 'done') updates.completed_at = new Date().toISOString();
+      const { error } = await supabase.from('management_tasks').update(updates).eq('id', task.id);
+      if (error) throw error;
+      if (newStatus === 'done' && report.trim()) {
+        await supabase.from('management_task_updates').insert([{
+          task_id: task.id,
+          author_username: loggedUser,
+          update_type: 'completion_report',
+          body: report.trim(),
+        }]);
+      }
+      await loadData();
+      setIsCompleteTaskOpen(false);
+      closeTaskDetail();
+      setCompletionReport('');
+      showToast(newStatus === 'done' ? '✓ נסגרה עם דיווח' : '✓ הסטטוס עודכן');
+    } catch (err) {
+      console.error(err);
+      showToast('שגיאה בעדכון סטטוס', true);
+    }
   };
 
   const handleCreateTask = async () => {
@@ -362,7 +464,7 @@ export default function AdminOperations({ view = 'tasks' }) {
                   </thead>
                   <tbody>
                     {filteredTasks.map(t => (
-                      <tr key={t.id} onClick={() => setSelectedTask(t)}>
+                      <tr key={t.id} onClick={() => openTaskDetail(t)}>
                         <td style={{ fontWeight: 700, color: '#00c8ff' }}>{t.title}</td>
                         <td>{deptLabel(t.department)}</td>
                         <td>{userName(t.created_by_username)}</td>
@@ -472,8 +574,8 @@ export default function AdminOperations({ view = 'tasks' }) {
 
       {toast.show && <div className={`ops-toast ${toast.warn ? 'warn' : ''}`}>{toast.message}</div>}
 
-      {selectedTask && (
-        <div className="ops-modal-bg" onClick={(e) => e.target === e.currentTarget && setSelectedTask(null)}>
+      {isTaskDetailOpen && selectedTask && (
+        <div className="ops-modal-bg" onClick={(e) => e.target === e.currentTarget && closeTaskDetail()}>
           <div className="ops-modal">
             <div className="ops-modal-title">{selectedTask.title}</div>
             <div className="ops-meta-row">
@@ -500,7 +602,117 @@ export default function AdminOperations({ view = 'tasks' }) {
             {selectedTask.status === 'done' && selectedTask.completed_at && (
               <div style={{ fontSize: '11px', color: '#4a6080', marginBottom: '12px' }}>נסגרה: {formatDate(selectedTask.completed_at)}</div>
             )}
-            <button type="button" className="ops-btn-ghost" style={{ width: '100%' }} onClick={() => setSelectedTask(null)}>סגור</button>
+            <div style={{ fontSize: '12px', color: '#8aa0c0', fontWeight: 700, marginBottom: '8px' }}>עדכן סטטוס</div>
+            <div className="ops-toolbar" style={{ marginBottom: '14px' }}>
+              {TASK_STATUSES.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className="ops-view-chip"
+                  style={{ color: s.color, borderColor: `${s.color}55` }}
+                  onClick={() => {
+                    if (s.id === 'done') {
+                      setIsTaskDetailOpen(false);
+                      setIsCompleteTaskOpen(true);
+                    } else {
+                      applyStatusChange(selectedTask, s.id);
+                    }
+                  }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            {canEditOrDeleteTask(selectedTask) && (
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                <button type="button" className="ops-btn-primary" style={{ flex: 1 }} onClick={() => openEditTask(selectedTask)}>ערוך משימה</button>
+                <button type="button" className="ops-btn-primary" style={{ flex: 1, borderColor: 'rgba(255,85,85,0.45)', color: '#ff5555' }} onClick={() => setIsDeleteTaskOpen(true)}>מחק</button>
+              </div>
+            )}
+            <button type="button" className="ops-btn-ghost" style={{ width: '100%' }} onClick={closeTaskDetail}>סגור</button>
+          </div>
+        </div>
+      )}
+
+      {isEditTaskOpen && selectedTask && (
+        <div className="ops-modal-bg" onClick={(e) => e.target === e.currentTarget && setIsEditTaskOpen(false)}>
+          <div className="ops-modal">
+            <div className="ops-modal-title">עריכת משימה</div>
+            <div className="ops-field">
+              <label>כותרת *</label>
+              <input className="ops-input" style={{ width: '100%' }} value={taskFormTitle} onChange={(e) => setTaskFormTitle(e.target.value)} />
+            </div>
+            <div className="ops-field">
+              <label>תיאור</label>
+              <textarea className="ops-textarea" value={taskFormDesc} onChange={(e) => setTaskFormDesc(e.target.value)} />
+            </div>
+            <div className="ops-field">
+              <label>אחריות</label>
+              <select className="ops-select" style={{ width: '100%' }} value={taskFormResponsibility} onChange={(e) => setTaskFormResponsibility(e.target.value)}>
+                {DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+              </select>
+            </div>
+            <div className="ops-field">
+              <label>עדיפות</label>
+              <select className="ops-select" style={{ width: '100%' }} value={taskFormPriority} onChange={(e) => setTaskFormPriority(e.target.value)}>
+                {TASK_PRIORITIES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+              </select>
+            </div>
+            <div className="ops-field">
+              <label>תאריך יעד</label>
+              <input className="ops-input" style={{ width: '100%' }} type="date" value={taskFormDue} onChange={(e) => setTaskFormDue(e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" className="ops-btn-primary" style={{ flex: 1 }} onClick={handleUpdateTask}>שמור שינויים</button>
+              <button type="button" className="ops-btn-ghost" style={{ flex: 1 }} onClick={() => { setIsEditTaskOpen(false); setSelectedTask(null); resetTaskForm(); }}>ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDeleteTaskOpen && selectedTask && (
+        <div className="ops-modal-bg" onClick={(e) => e.target === e.currentTarget && setIsDeleteTaskOpen(false)}>
+          <div className="ops-modal">
+            <div className="ops-modal-title">מחיקת משימה</div>
+            <div className="ops-detail-block" style={{ marginBottom: '16px' }}>
+              האם למחוק את המשימה &quot;{selectedTask.title}&quot;? פעולה זו לא ניתנת לביטול.
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" className="ops-btn-primary" style={{ flex: 1, borderColor: 'rgba(255,85,85,0.45)', color: '#ff5555' }} onClick={handleDeleteTask}>מחק לצמיתות</button>
+              <button type="button" className="ops-btn-ghost" style={{ flex: 1 }} onClick={() => setIsDeleteTaskOpen(false)}>ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isCompleteTaskOpen && selectedTask && (
+        <div className="ops-modal-bg" onClick={(e) => e.target === e.currentTarget && setIsCompleteTaskOpen(false)}>
+          <div className="ops-modal">
+            <div className="ops-modal-title">דיווח סגירה</div>
+            <p style={{ fontSize: '12px', color: '#8aa0c0', marginBottom: '12px', lineHeight: 1.5 }}>
+              חובה לתאר מה בוצע בפועל לפני סגירת: <strong>{selectedTask.title}</strong>
+            </p>
+            <div className="ops-field">
+              <label>מה בוצע? *</label>
+              <textarea className="ops-textarea" value={completionReport} onChange={(e) => setCompletionReport(e.target.value)} rows={5} placeholder="תאר בקצרה מה עשית ומה התוצאה..." />
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                className="ops-btn-primary"
+                style={{ flex: 1 }}
+                onClick={() => {
+                  if (completionReport.trim().length < 10) {
+                    showToast('נא לכתוב דיווח מפורט יותר', true);
+                    return;
+                  }
+                  applyStatusChange(selectedTask, 'done', completionReport);
+                }}
+              >
+                סגור משימה
+              </button>
+              <button type="button" className="ops-btn-ghost" style={{ flex: 1 }} onClick={() => { setIsCompleteTaskOpen(false); setCompletionReport(''); }}>ביטול</button>
+            </div>
           </div>
         </div>
       )}
