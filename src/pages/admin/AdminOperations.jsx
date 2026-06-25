@@ -7,7 +7,7 @@ import AdminTopBar from '../../components/admin/AdminTopBar';
 import {
   TASK_STATUSES, TASK_PRIORITIES, DEPARTMENTS, MEETING_TYPES, AGENDA_ITEM_TYPES,
   deptLabel, statusLabel, meetingTypeLabel, meetingStatusLabel,
-  defaultResponsibilityForUser, taskFieldsFromResponsibility,
+  defaultResponsibilityForUser, taskFieldsFromResponsibility, isTaskInAdminMineQueue,
 } from '../../constants/management';
 import { openGoogleCalendarEvent, toDatetimeLocalValue } from '../../utils/googleCalendar';
 
@@ -66,7 +66,7 @@ export default function AdminOperations({ view = 'tasks' }) {
       const [{ data: t }, { data: m }, { data: u }] = await Promise.all([
         supabase.from('management_tasks').select('*').order('updated_at', { ascending: false }),
         supabase.from('management_meetings').select('*').order('meeting_date', { ascending: false }),
-        supabase.from('users').select('username, full_name, department, role').in('role', ['management', 'admin']).order('full_name'),
+        supabase.from('users').select('username, full_name, department, role, responsibility_coverage_enabled, responsibility_coverage_department').in('role', ['management', 'admin']).order('full_name'),
       ]);
       setTasks(t || []);
       setMeetings(m || []);
@@ -239,8 +239,13 @@ export default function AdminOperations({ view = 'tasks' }) {
   const doneCount = tasks.filter(t => t.status === 'done').length;
   const activeMeetings = meetings.filter(m => m.status !== 'closed').length;
 
+  const mirrorProfile = users.find((u) => u.username === adminTaskMirrorUser);
+
   const filteredTasks = tasks.filter(t => {
-    if (taskViewScope === 'mine' && t.assignee_username !== adminTaskMirrorUser) return false;
+    if (taskViewScope === 'mine' && !isTaskInAdminMineQueue(t, adminTaskMirrorUser, mirrorProfile, {
+      adminUsername: loggedUser === 'admin' ? loggedUser : null,
+      teamUsers: users,
+    })) return false;
     if (taskStatusFilter !== 'all' && t.status !== taskStatusFilter) return false;
     if (taskDeptFilter !== 'all' && t.department !== taskDeptFilter) return false;
     if (taskSearch.trim()) {

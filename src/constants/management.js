@@ -124,6 +124,26 @@ export function isTaskInMyQueue(task, loggedUser, profile) {
   return false;
 }
 
+/** Admin/web "המשימות שלי" — תור המשימות של המשתמש המשוקף, ללא משימות ששלח לאחרים */
+export function isTaskInAdminMineQueue(task, mirrorUsername, profile, options = {}) {
+  const { adminUsername, teamUsers = [] } = options;
+  if (!isTaskInMyQueue(task, mirrorUsername, profile)) return false;
+
+  const mirrorDept = departmentForUser(mirrorUsername, teamUsers);
+  const senders = [mirrorUsername];
+  if (adminUsername) senders.push(adminUsername);
+
+  if (senders.includes(task.created_by_username) && task.assignee_username !== mirrorUsername) {
+    return false;
+  }
+
+  if (task.created_by_username === mirrorUsername && task.department !== mirrorDept) {
+    return false;
+  }
+
+  return true;
+}
+
 export function coverageDepartmentOptions(userDepartment) {
   return DEPARTMENTS.filter((d) => d.id !== userDepartment);
 }
