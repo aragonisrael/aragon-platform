@@ -7,7 +7,7 @@ import AdminTopBar from '../../components/admin/AdminTopBar';
 import {
   AGENDA_ITEM_TYPES, TASK_PRIORITIES, MEETING_TYPES, DEPARTMENTS,
   deptLabel, meetingTypeLabel, meetingStatusLabel, agendaItemStatusLabel,
-  defaultResponsibilityForUser, taskFieldsFromResponsibility,
+  defaultResponsibilityForUser, taskFieldsFromResponsibility, MANAGEMENT_DEPARTMENT_ACCOUNTS,
 } from '../../constants/management';
 import { openGoogleCalendarEvent, toDatetimeLocalValue } from '../../utils/googleCalendar';
 
@@ -43,6 +43,12 @@ export default function AdminMeetingDetail() {
   const showToast = (message, warn = false) => {
     setToast({ show: true, message, warn });
     setTimeout(() => setToast({ show: false, message: '', warn: false }), 3000);
+  };
+
+  const allowedAssigneeUsernames = MANAGEMENT_DEPARTMENT_ACCOUNTS.map((acc) => acc.username);
+  const assigneeDeptLabel = (username) => {
+    const account = MANAGEMENT_DEPARTMENT_ACCOUNTS.find((acc) => acc.username === username);
+    return account ? deptLabel(account.department) : username;
   };
 
   const fetchMeeting = useCallback(async () => {
@@ -314,7 +320,7 @@ export default function AdminMeetingDetail() {
                     <button type="button" className="ops-btn-primary" onClick={() => {
                       setConvertItem(item);
                       setTaskTitle(item.title);
-                      setTaskAssignee(teamUsers[0]?.username || '');
+                      setTaskAssignee(allowedAssigneeUsernames[0] || '');
                     }}>→ צור משימה</button>
                     <button type="button" className="ops-btn-ghost" onClick={() => updateAgendaStatus(item.id, 'skipped')}>דחה</button>
                   </div>
@@ -339,7 +345,7 @@ export default function AdminMeetingDetail() {
             <div className="ops-field">
               <label>אחראי</label>
               <select className="ops-select" style={{ width: '100%' }} value={taskAssignee} onChange={(e) => setTaskAssignee(e.target.value)}>
-                {teamUsers.map(u => <option key={u.username} value={u.username}>{u.full_name}</option>)}
+                {MANAGEMENT_DEPARTMENT_ACCOUNTS.map(acc => <option key={acc.username} value={acc.username}>{assigneeDeptLabel(acc.username)}</option>)}
               </select>
             </div>
             <div className="ops-field">
