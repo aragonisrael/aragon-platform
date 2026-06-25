@@ -16,6 +16,7 @@ export default function AdminMeetingDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const loggedUser = user || sessionStorage.getItem('aragon_logged_user');
+  const adminTaskMirrorUser = loggedUser === 'admin' ? 'hey' : loggedUser;
 
   const [meeting, setMeeting] = useState(null);
   const [agenda, setAgenda] = useState([]);
@@ -55,13 +56,13 @@ export default function AdminMeetingDetail() {
       const { data: team } = await supabase.from('users').select('username, full_name').in('role', ['management', 'admin']).order('full_name');
       if (team) {
         setTeamUsers(team);
-        setCreateTaskResponsibility(defaultResponsibilityForUser(loggedUser, team));
+        setCreateTaskResponsibility(defaultResponsibilityForUser(adminTaskMirrorUser, team));
       }
     } catch (err) {
       console.error(err);
       showToast('שגיאה בטעינה', true);
     }
-  }, [id]);
+  }, [adminTaskMirrorUser, id]);
 
   useEffect(() => { fetchMeeting(); }, [fetchMeeting]);
 
@@ -183,7 +184,7 @@ export default function AdminMeetingDetail() {
     setCreateTaskDesc('');
     setCreateTaskPriority('normal');
     setCreateTaskDue('');
-    setCreateTaskResponsibility(defaultResponsibilityForUser(loggedUser, teamUsers));
+    setCreateTaskResponsibility(defaultResponsibilityForUser(adminTaskMirrorUser, teamUsers));
     setIsCreateTaskOpen(true);
   };
 
@@ -193,7 +194,7 @@ export default function AdminMeetingDetail() {
       return;
     }
     try {
-      const routing = taskFieldsFromResponsibility(createTaskResponsibility, loggedUser);
+      const routing = taskFieldsFromResponsibility(createTaskResponsibility, adminTaskMirrorUser);
       const { error } = await supabase.from('management_tasks').insert([{
         title: createTaskTitle.trim(),
         description: createTaskDesc.trim(),

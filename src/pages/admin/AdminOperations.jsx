@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import AdminSidebar, { adminOpsStyles } from '../../components/admin/AdminSidebar';
 import AdminTopBar from '../../components/admin/AdminTopBar';
 import {
-  TASK_STATUSES, TASK_PRIORITIES, DEPARTMENTS, MEETING_TYPES,
+  TASK_STATUSES, TASK_PRIORITIES, DEPARTMENTS, MEETING_TYPES, AGENDA_ITEM_TYPES,
   deptLabel, statusLabel, meetingTypeLabel, meetingStatusLabel,
   defaultResponsibilityForUser, taskFieldsFromResponsibility,
 } from '../../constants/management';
@@ -15,6 +15,7 @@ export default function AdminOperations({ view = 'tasks' }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const loggedUser = user || sessionStorage.getItem('aragon_logged_user');
+  const adminTaskMirrorUser = loggedUser === 'admin' ? 'hey' : loggedUser;
 
   const [tasks, setTasks] = useState([]);
   const [meetings, setMeetings] = useState([]);
@@ -65,7 +66,7 @@ export default function AdminOperations({ view = 'tasks' }) {
       setTasks(t || []);
       setMeetings(m || []);
       setUsers(u || []);
-      const me = (u || []).find(x => x.username === loggedUser);
+      const me = (u || []).find(x => x.username === adminTaskMirrorUser);
       if (me) {
         setTaskFormResponsibility(defaultResponsibilityForUser(me.username, u || []));
       }
@@ -88,17 +89,17 @@ export default function AdminOperations({ view = 'tasks' }) {
       console.error(err);
       showToast('שגיאה בטעינת נתונים', true);
     }
-  }, [loggedUser]);
+  }, [adminTaskMirrorUser]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   const resetTaskForm = () => {
-    const me = users.find(u => u.username === loggedUser);
+    const me = users.find(u => u.username === adminTaskMirrorUser);
     setTaskFormTitle('');
     setTaskFormDesc('');
     setTaskFormPriority('normal');
     setTaskFormDue('');
-    setTaskFormResponsibility(defaultResponsibilityForUser(me?.username || loggedUser, users));
+    setTaskFormResponsibility(defaultResponsibilityForUser(me?.username || adminTaskMirrorUser, users));
   };
 
   const handleCreateTask = async () => {
@@ -106,7 +107,7 @@ export default function AdminOperations({ view = 'tasks' }) {
       showToast('נא להזין כותרת', true);
       return;
     }
-    const routing = taskFieldsFromResponsibility(taskFormResponsibility, loggedUser);
+    const routing = taskFieldsFromResponsibility(taskFormResponsibility, adminTaskMirrorUser);
     try {
       const { error } = await supabase.from('management_tasks').insert([{
         title: taskFormTitle.trim(),
@@ -137,7 +138,7 @@ export default function AdminOperations({ view = 'tasks' }) {
   const activeMeetings = meetings.filter(m => m.status !== 'closed').length;
 
   const filteredTasks = tasks.filter(t => {
-    if (taskViewScope === 'mine' && t.assignee_username !== loggedUser) return false;
+    if (taskViewScope === 'mine' && t.assignee_username !== adminTaskMirrorUser) return false;
     if (taskStatusFilter !== 'all' && t.status !== taskStatusFilter) return false;
     if (taskDeptFilter !== 'all' && t.department !== taskDeptFilter) return false;
     if (taskSearch.trim()) {
