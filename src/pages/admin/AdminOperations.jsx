@@ -31,13 +31,18 @@ export default function AdminOperations({ view = 'tasks' }) {
 
   const [isCreateMeetingOpen, setIsCreateMeetingOpen] = useState(false);
   const [isEditMeetingOpen, setIsEditMeetingOpen] = useState(false);
+  const [isAgendaOpen, setIsAgendaOpen] = useState(false);
   const [deletingMeeting, setDeletingMeeting] = useState(null);
   const [editingMeetingId, setEditingMeetingId] = useState(null);
+  const [selectedMeetingId, setSelectedMeetingId] = useState(null);
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [formTitle, setFormTitle] = useState('');
   const [formType, setFormType] = useState('weekly');
   const [formDept, setFormDept] = useState('office');
   const [formDate, setFormDate] = useState('');
+  const [agendaTitle, setAgendaTitle] = useState('');
+  const [agendaDesc, setAgendaDesc] = useState('');
+  const [agendaType, setAgendaType] = useState('discussion');
 
   const [taskFormTitle, setTaskFormTitle] = useState('');
   const [taskFormDesc, setTaskFormDesc] = useState('');
@@ -243,6 +248,32 @@ export default function AdminOperations({ view = 'tasks' }) {
     }
   };
 
+  const handleAddAgenda = async () => {
+    if (!agendaTitle.trim() || !selectedMeetingId) {
+      showToast('נא להזין נושא לסדר היום', true);
+      return;
+    }
+    try {
+      const { error } = await supabase.from('meeting_agenda_items').insert([{
+        meeting_id: selectedMeetingId,
+        title: agendaTitle.trim(),
+        description: agendaDesc.trim(),
+        item_type: agendaType,
+        submitted_by_username: loggedUser,
+      }]);
+      if (error) throw error;
+      setIsAgendaOpen(false);
+      setSelectedMeetingId(null);
+      setAgendaTitle('');
+      setAgendaDesc('');
+      setAgendaType('discussion');
+      showToast('✓ נוסף נושא לסדר היום');
+    } catch (err) {
+      console.error(err);
+      showToast('שגיאה בהוספת נושא', true);
+    }
+  };
+
   const handleSyncMeetingToGoogle = (meeting, event) => {
     event?.stopPropagation();
     openGoogleCalendarEvent(meeting, {
@@ -390,6 +421,20 @@ export default function AdminOperations({ view = 'tasks' }) {
                             <button
                               type="button"
                               className="ops-action-btn"
+                              title="הוסף נושא לסדר היום"
+                              onClick={() => {
+                                setSelectedMeetingId(m.id);
+                                setAgendaTitle('');
+                                setAgendaDesc('');
+                                setAgendaType('discussion');
+                                setIsAgendaOpen(true);
+                              }}
+                            >
+                              <i className="ti ti-list-plus" /> הוסף נושא לסדר היום
+                            </button>
+                            <button
+                              type="button"
+                              className="ops-action-btn"
                               title="עריכת ישיבה"
                               onClick={() => openEditMeetingModal(m)}
                             >
@@ -490,6 +535,32 @@ export default function AdminOperations({ view = 'tasks' }) {
             <div style={{ display: 'flex', gap: '10px' }}>
               <button type="button" className="ops-btn-primary" style={{ flex: 1 }} onClick={handleCreateTask}>צור משימה</button>
               <button type="button" className="ops-btn-ghost" style={{ flex: 1 }} onClick={() => setIsCreateTaskOpen(false)}>ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isAgendaOpen && (
+        <div className="ops-modal-bg" onClick={(e) => e.target === e.currentTarget && setIsAgendaOpen(false)}>
+          <div className="ops-modal">
+            <div className="ops-modal-title">נושא לסדר היום</div>
+            <div className="ops-field">
+              <label>כותרת *</label>
+              <input className="ops-input" style={{ width: '100%' }} value={agendaTitle} onChange={(e) => setAgendaTitle(e.target.value)} />
+            </div>
+            <div className="ops-field">
+              <label>פירוט</label>
+              <textarea className="ops-textarea" value={agendaDesc} onChange={(e) => setAgendaDesc(e.target.value)} />
+            </div>
+            <div className="ops-field">
+              <label>סוג</label>
+              <select className="ops-select" style={{ width: '100%' }} value={agendaType} onChange={(e) => setAgendaType(e.target.value)}>
+                {AGENDA_ITEM_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" className="ops-btn-primary" style={{ flex: 1 }} onClick={handleAddAgenda}>הוסף</button>
+              <button type="button" className="ops-btn-ghost" style={{ flex: 1 }} onClick={() => setIsAgendaOpen(false)}>ביטול</button>
             </div>
           </div>
         </div>

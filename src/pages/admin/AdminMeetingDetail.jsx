@@ -7,6 +7,7 @@ import AdminTopBar from '../../components/admin/AdminTopBar';
 import {
   AGENDA_ITEM_TYPES, TASK_PRIORITIES, MEETING_TYPES, DEPARTMENTS,
   deptLabel, meetingTypeLabel, meetingStatusLabel, agendaItemStatusLabel,
+  defaultResponsibilityForUser, taskFieldsFromResponsibility,
 } from '../../constants/management';
 import { openGoogleCalendarEvent, toDatetimeLocalValue } from '../../utils/googleCalendar';
 
@@ -25,6 +26,12 @@ export default function AdminMeetingDetail() {
   const [taskAssignee, setTaskAssignee] = useState('');
   const [taskPriority, setTaskPriority] = useState('normal');
   const [taskDue, setTaskDue] = useState('');
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [createTaskTitle, setCreateTaskTitle] = useState('');
+  const [createTaskDesc, setCreateTaskDesc] = useState('');
+  const [createTaskResponsibility, setCreateTaskResponsibility] = useState('office');
+  const [createTaskPriority, setCreateTaskPriority] = useState('normal');
+  const [createTaskDue, setCreateTaskDue] = useState('');
   const [isEditMeetingOpen, setIsEditMeetingOpen] = useState(false);
   const [isDeleteMeetingOpen, setIsDeleteMeetingOpen] = useState(false);
   const [formTitle, setFormTitle] = useState('');
@@ -46,7 +53,10 @@ export default function AdminMeetingDetail() {
       if (iErr) throw iErr;
       setAgenda(items || []);
       const { data: team } = await supabase.from('users').select('username, full_name').in('role', ['management', 'admin']).order('full_name');
-      if (team) setTeamUsers(team);
+      if (team) {
+        setTeamUsers(team);
+        setCreateTaskResponsibility(defaultResponsibilityForUser(loggedUser, team));
+      }
     } catch (err) {
       console.error(err);
       showToast('שגיאה בטעינה', true);
@@ -168,6 +178,42 @@ export default function AdminMeetingDetail() {
     }
   };
 
+  const openCreateTaskModal = () => {
+    setCreateTaskTitle('');
+    setCreateTaskDesc('');
+    setCreateTaskPriority('normal');
+    setCreateTaskDue('');
+    setCreateTaskResponsibility(defaultResponsibilityForUser(loggedUser, teamUsers));
+    setIsCreateTaskOpen(true);
+  };
+
+  const handleCreateTask = async () => {
+    if (!createTaskTitle.trim()) {
+      showToast('נא להזין כותרת', true);
+      return;
+    }
+    try {
+      const routing = taskFieldsFromResponsibility(createTaskResponsibility, loggedUser);
+      const { error } = await supabase.from('management_tasks').insert([{
+        title: createTaskTitle.trim(),
+        description: createTaskDesc.trim(),
+        assignee_username: routing.assignee_username,
+        created_by_username: loggedUser,
+        department: routing.department,
+        meeting_id: Number(id),
+        status: 'open',
+        priority: createTaskPriority,
+        due_date: createTaskDue || null,
+      }]);
+      if (error) throw error;
+      setIsCreateTaskOpen(false);
+      showToast('✓ המשימה נוצרה');
+    } catch (err) {
+      console.error(err);
+      showToast('שגיאה ביצירת משימה', true);
+    }
+  };
+
   if (!meeting) {
     return (
       <div className="hq-global-wrapper">
@@ -217,6 +263,9 @@ export default function AdminMeetingDetail() {
                   <i className="ti ti-player-play" /> התחל ישיבה
                 </button>
               )}
+              <button type="button" className="ops-btn-primary" onClick={openCreateTaskModal}>
+                <i className="ti ti-plus" /> הוספת משימה חדשה
+              </button>
               {meeting.status === 'live' && (
                 <button type="button" className="ops-btn-primary" style={{ borderColor: 'rgba(0,230,118,0.4)', color: '#00e676' }} onClick={() => setMeetingStatus('closed')}>
                   <i className="ti ti-check" /> סגור ישיבה
@@ -305,6 +354,42 @@ export default function AdminMeetingDetail() {
             <div style={{ display: 'flex', gap: '10px' }}>
               <button type="button" className="ops-btn-primary" style={{ flex: 1 }} onClick={handleConvertToTask}>צור משימה</button>
               <button type="button" className="ops-btn-ghost" style={{ flex: 1 }} onClick={() => setConvertItem(null)}>ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isCreateTaskOpen && (
+        <div className="ops-modal-bg" onClick={(e) => e.target === e.currentTarget && setIsCreateTaskOpen(false)}>
+          <div className="ops-modal">
+            <div className="ops-modal-title">משימה חדשה</div>
+            <div className="ops-field">
+              <label>כותרת *</label>
+              <input className="ops-input" style={{ width: '100%' }} value={createTaskTitle} onChange={(e) => setCreateTaskTitle(e.target.value)} placeholder="מה צריך לבצע?" />
+            </div>
+            <div className="ops-field">
+              <label>תיאור</label>
+              <textarea className="ops-textarea" value={createTaskDesc} onChange={(e) => setCreateTaskDesc(e.target.value)} />
+            </div>
+            <div className="ops-field">
+              <label>אחריות</label>
+              <select className="ops-select" style={{ width: '100%' }} value={createTaskResponsibility} onChange={(e) => setCreateTaskResponsibility(e.target.value)}>
+                {DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+              </select>
+            </div>
+            <div className="ops-field">
+              <label>עדיפות</label>
+              <select className="ops-select" style={{ width: '100%' }} value={createTaskPriority} onChange={(e) => setCreateTaskPriority(e.target.value)}>
+                {TASK_PRIORITIES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+              </select>
+            </div>
+            <div className="ops-field">
+              <label>תאריך יעד</label>
+              <input className="ops-input" style={{ width: '100%' }} type="date" value={createTaskDue} onChange={(e) => setCreateTaskDue(e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" className="ops-btn-primary" style={{ flex: 1 }} onClick={handleCreateTask}>צור משימה</button>
+              <button type="button" className="ops-btn-ghost" style={{ flex: 1 }} onClick={() => setIsCreateTaskOpen(false)}>ביטול</button>
             </div>
           </div>
         </div>
