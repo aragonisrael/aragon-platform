@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { sendFcmToToken, type PushPayload } from './fcm.ts';
 
-const PUSH_ROLES = new Set(['management', 'admin', 'student']);
+const PUSH_ROLES = new Set(['management', 'admin', 'student', 'instructor', 'temp_instructor']);
 
 export function getAdminClient() {
   const url = Deno.env.get('SUPABASE_URL');

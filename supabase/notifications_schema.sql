@@ -13,3 +13,4 @@ ALTER TABLE notification_log ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "notification_log_all" ON notification_log FOR ALL USING (true) WITH CHECK (true);
 
 -- הגדרת cron לתזכורות ישיבות: הרץ בנפרד את meeting_reminders_cron.sql (אחרי deploy)
+-- הגדרת cron לתזכורות שיעור מדריך: הרץ בנפרד את instructor_lesson_reminders_cron.sql (אחרי deploy)

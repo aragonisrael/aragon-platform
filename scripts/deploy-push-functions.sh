@@ -41,7 +41,15 @@ npx supabase functions deploy meeting-reminders --no-verify-jwt
 echo "→ Deploying notify-student-task..."
 npx supabase functions deploy notify-student-task --no-verify-jwt
 
+echo "→ Deploying notify-instructor-task..."
+npx supabase functions deploy notify-instructor-task --no-verify-jwt
+
+echo "→ Deploying instructor-lesson-reminders..."
+npx supabase functions deploy instructor-lesson-reminders --no-verify-jwt
+
 echo "✅ Done! Now run in Supabase SQL Editor:"
 echo "   - notify_new_task_webhook.sql"
 echo "   - notify_student_task_webhook.sql"
+echo "   - notify_instructor_task_webhook.sql"
 echo "   - meeting_reminders_cron.sql"
+echo "   - instructor_lesson_reminders_cron.sql"

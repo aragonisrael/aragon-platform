@@ -6,3 +6,9 @@ verify_jwt = false
 
 [functions.notify-student-task]
 verify_jwt = false
+
+[functions.notify-instructor-task]
+verify_jwt = false
+
+[functions.instructor-lesson-reminders]
+verify_jwt = false
