@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
+import { migrateStudentAuthUsers, provisionAuthUser } from '../../utils/provisionAuth';
 
 // ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
 import aragonLogo from '../../assets/aragonlogo.png';
@@ -21,6 +22,7 @@ export default function AdminGroupsList() {
 
   // מערכת ניהול התראות צפות (Toast System)
   const [toast, setToast] = useState({ show: false, message: '', isWarn: false });
+  const [authSyncing, setAuthSyncing] = useState(false);
 
   // בקרת מודאלים וכרטיסיות פנימיות
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -401,14 +403,23 @@ export default function AdminGroupsList() {
       // הפעלת מחולל השמות העברי ובדיקת כפילויות דינמית ב-Supabase
       const generatedUsername = await generateUniqueHebrewUsername(newStudentName);
 
-      await supabase.from('users').insert([{
+      const { data: createdUser, error } = await supabase.from('users').insert([{
         username: generatedUsername, // ➔ "הדס.ואקנין" או "הדס.ואקנין1"
         password: '12345678',
         role: 'student',
         full_name: newStudentName.trim(),
         group_id: selectedGroupId,
         coins: 0
-      }]);
+      }]).select('id').single();
+
+      if (error) throw error;
+
+      try {
+        if (createdUser?.id) await provisionAuthUser(createdUser.id);
+      } catch (authErr) {
+        console.error(authErr);
+        triggerToast('התלמיד נוצר, אך סנכרון Auth נכשל', true);
+      }
 
       await fetchLiveGroupsAndRosters();
       triggerToast(`התלמיד/ה ${newStudentName.trim()} נוצר/ה ושויך/ה בהצלחה בעברית לענן!`);
@@ -416,6 +427,25 @@ export default function AdminGroupsList() {
     } catch (err) {
       console.error(err);
       triggerToast('❌ תקלה ברישום החניך בענן', true);
+    }
+  };
+
+  const handleMigrateStudentAuth = async () => {
+    if (authSyncing) return;
+    if (!window.confirm('לסנכרן Auth לכל התלמידים שעדיין לא מחוברים? אפשר ללחוץ שוב אם יש הרבה.')) return;
+    setAuthSyncing(true);
+    try {
+      const data = await migrateStudentAuthUsers();
+      const summary = data?.summary || {};
+      triggerToast(
+        `סנכרון תלמידים: ${summary.created || 0} נוצרו, ${summary.failed || 0} נכשלו, ${summary.skipped || 0} כבר היו`,
+        (summary.failed || 0) > 0
+      );
+    } catch (err) {
+      console.error(err);
+      triggerToast(`סנכרון Auth נכשל: ${err.message || err}`, true);
+    } finally {
+      setAuthSyncing(false);
     }
   };
 
@@ -636,6 +666,16 @@ export default function AdminGroupsList() {
               <div className="table-head-actions">
                 <button className="add-group-btn" type="button" onClick={handleOpenAddGroupModal}>
                   <i className="ti ti-plus"></i> הוסף קבוצה
+                </button>
+                <button
+                  className="add-group-btn"
+                  type="button"
+                  disabled={authSyncing}
+                  onClick={handleMigrateStudentAuth}
+                  style={{ marginInlineStart: 8, opacity: authSyncing ? 0.7 : 1 }}
+                >
+                  <i className="ti ti-shield-lock"></i>
+                  {authSyncing ? 'מסנכרן תלמידים...' : 'סנכרן Auth לתלמידים'}
                 </button>
                 <div className="table-badge">{filteredGroups.length} קבוצות נמצאו</div>
               </div>

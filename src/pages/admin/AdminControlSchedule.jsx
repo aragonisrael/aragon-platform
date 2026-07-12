@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
+import { provisionAuthUsers } from '../../utils/provisionAuth';
 
 // ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
 import aragonLogo from '../../assets/aragonlogo.png';
@@ -318,7 +319,19 @@ export default function AdminControlSchedule() {
         };
       });
 
-      await supabase.from('users').insert(newStudentsBatch);
+      const { data: createdStudents, error } = await supabase
+        .from('users')
+        .insert(newStudentsBatch)
+        .select('id');
+      if (error) throw error;
+
+      try {
+        await provisionAuthUsers((createdStudents || []).map((u) => u.id));
+      } catch (authErr) {
+        console.error(authErr);
+        triggerToast('התלמידים נוספו, אך סנכרון Auth חלקי נכשל', true);
+      }
+
       setActiveModal(null); 
       triggerToast(`${filteredNames.length} תלמידים נוספו בהצלחה לחוג ✓`);
     } catch (err) {

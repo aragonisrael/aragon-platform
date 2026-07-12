@@ -38,6 +38,7 @@ export const AUTH_BOOTSTRAP_ROLES = new Set([
   'logistics',
   'instructor',
   'temp_instructor',
+  'student',
 ]);
 
 export function isAuthBootstrapRole(role) {

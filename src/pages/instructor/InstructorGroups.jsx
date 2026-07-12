@@ -7,6 +7,7 @@ import { getLoggedUser } from '../../utils/authStorage';
 import { fetchInstructorGroups } from '../../utils/instructorGroups';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
+import { provisionAuthUsers } from '../../utils/provisionAuth';
 import {
   COIN_AWARD_PRESETS,
   DEFAULT_COIN_EARN_CAP,
@@ -210,14 +211,22 @@ export default function InstructorGroups() {
       });
     });
 
-    const { error } = await supabase
+    const { data: createdStudents, error } = await supabase
       .from('users')
-      .insert(newStudentsPoolForDB);
+      .insert(newStudentsPoolForDB)
+      .select('id');
 
     if (error) {
       console.error("Bulk insert failed:", error.message);
       alert("תקלה ברישום התלמידים לענן. נא לנסות שוב.");
       return;
+    }
+
+    try {
+      await provisionAuthUsers((createdStudents || []).map((u) => u.id));
+    } catch (authErr) {
+      console.error(authErr);
+      triggerToast('התלמידים נוצרו, אך חלק מסנכרון Auth נכשל');
     }
 
     await fetchLiveGroupsAndStudents();
