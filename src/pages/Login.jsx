@@ -104,7 +104,7 @@ export default function Login() {
         return;
       }
 
-      // שלב 1: הנהלה + אדמין — התחברות אמיתית בלבד
+      // שלב Auth: הנהלה + אדמין + לוגיסטיקה
       if (isAuthBootstrapRole(dbUser.role)) {
         if (!dbUser.auth_user_id) {
           setErrorMsg('❌ החשבון עדיין לא חובר להתחברות מאובטחת. פנה למנהל המערכת.');
@@ -138,14 +138,8 @@ export default function Login() {
           return;
         }
 
-        const { data: staffCheck, error: staffErr } = await supabase.rpc('is_staff_management');
-        if (staffErr || staffCheck !== true) {
-          console.error('is_staff_management failed', staffErr, staffCheck);
-          // לא מנתקים כאן — נמשיך ונאבחן דרך מסך המשימות / policy זמני
-        }
-
         const isMobileApp = Capacitor.isNativePlatform();
-        if (isMobileApp && dbUser.role === 'admin') {
+        if (isMobileApp && (dbUser.role === 'admin' || dbUser.role === 'logistics')) {
           await supabase.auth.signOut();
           setErrorMsg('⚠️ חמ"ל Aragon HQ נגיש ממחשב בלבד לטובת שליטה מבצעית רחבה. אנא התחבר מהלפטופ.');
           setLoading(false);
@@ -166,13 +160,6 @@ export default function Login() {
       // שאר התפקידים (לבינתיים): מסלול ישן מול טבלת users
       if (dbUser.password !== cleanPassword) {
         setErrorMsg('❌ הסיסמה שהזנת אינה נכונה');
-        setLoading(false);
-        return;
-      }
-
-      const isMobileApp = Capacitor.isNativePlatform();
-      if (isMobileApp && dbUser.role === 'logistics') {
-        setErrorMsg('⚠️ חמ"ל Aragon HQ נגיש ממחשב בלבד לטובת שליטה מבצעית רחבה. אנא התחבר מהלפטופ.');
         setLoading(false);
         return;
       }

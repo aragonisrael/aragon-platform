@@ -38,7 +38,7 @@ async function tryDevWebAutoLogin() {
   if (error || !dbUser) return null;
   if (dbUser.password !== creds.password) return null;
 
-  // הנהלה/אדמין בפיתוח חייבים Auth — לא עוקפים את זה
+  // הנהלה/אדמין/לוגיסטיקה בפיתוח חייבים Auth — לא עוקפים את זה
   if (isAuthBootstrapRole(dbUser.role)) return null;
 
   saveAuth(dbUser.username, dbUser.role, { persistent: false });
