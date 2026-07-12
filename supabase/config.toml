@@ -12,3 +12,6 @@ verify_jwt = false
 
 [functions.instructor-lesson-reminders]
 verify_jwt = false
+
+[functions.provision-auth-user]
+verify_jwt = false

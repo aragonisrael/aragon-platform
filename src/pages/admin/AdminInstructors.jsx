@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
+import { migrateInstructorAuthUsers, provisionAuthUser } from '../../utils/provisionAuth';
 
 // ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
 import aragonLogo from '../../assets/aragonlogo.png';
@@ -34,6 +35,7 @@ export default function AdminInstructors() {
   
   // פילטר טאבים ייעודיים לסינון סגל
   const [filterRole, setFilterRole] = useState('all'); // 'all' | 'senior' | 'temp'
+  const [authSyncing, setAuthSyncing] = useState(false);
 
   // שדות טופס מדריך קבוע
   const [formName, setFormName] = useState('');
@@ -162,7 +164,7 @@ export default function AdminInstructors() {
         counter++;
       }
 
-      const { error } = await supabase.from('users').insert([{
+      const { data: createdUser, error } = await supabase.from('users').insert([{
         username: generatedUsername,
         password: '12345678',
         role: 'instructor',
@@ -171,9 +173,16 @@ export default function AdminInstructors() {
         ils_balance: 0,
         coins: 0,
         is_active: true
-      }]);
+      }]).select('id').single();
 
       if (error) throw error;
+
+      try {
+        if (createdUser?.id) await provisionAuthUser(createdUser.id);
+      } catch (authErr) {
+        console.error(authErr);
+        triggerToast('המדריך נוצר, אך סנכרון Auth נכשל — לחץ "סנכרן Auth למדריכים"', true);
+      }
 
       await fetchLiveInstructorsMatrix();
       setIsAddModalOpen(false);
@@ -210,7 +219,7 @@ export default function AdminInstructors() {
         counter++;
       }
 
-      const { error } = await supabase.from('users').insert([{
+      const { data: createdUser, error } = await supabase.from('users').insert([{
         username: generatedUsername,
         password: '12345678',
         role: 'temp_instructor',
@@ -222,9 +231,16 @@ export default function AdminInstructors() {
         ils_balance: 0,
         coins: 0,
         is_active: true
-      }]);
+      }]).select('id').single();
 
       if (error) throw error;
+
+      try {
+        if (createdUser?.id) await provisionAuthUser(createdUser.id);
+      } catch (authErr) {
+        console.error(authErr);
+        triggerToast('המדריך נוצר, אך סנכרון Auth נכשל — לחץ "סנכרן Auth למדריכים"', true);
+      }
 
       await fetchLiveInstructorsMatrix();
       setIsAddTempModalOpen(false);
@@ -234,6 +250,27 @@ export default function AdminInstructors() {
     } catch (err) {
       console.error(err);
       alert('❌ תקלה ברישום: ' + err.message);
+    }
+  };
+
+  const handleMigrateInstructorAuth = async () => {
+    if (authSyncing) return;
+    if (!window.confirm('לסנכרן Auth לכל המדריכים שעדיין לא מחוברים? פעולה חד-פעמית.')) return;
+
+    setAuthSyncing(true);
+    try {
+      const data = await migrateInstructorAuthUsers();
+      const summary = data?.summary || {};
+      triggerToast(
+        `סנכרון Auth: ${summary.created || 0} נוצרו, ${summary.failed || 0} נכשלו, ${summary.skipped || 0} כבר היו מחוברים`,
+        (summary.failed || 0) > 0
+      );
+      await fetchLiveInstructorsMatrix();
+    } catch (err) {
+      console.error(err);
+      triggerToast(`סנכרון Auth נכשל: ${err.message || err}`, true);
+    } finally {
+      setAuthSyncing(false);
     }
   };
 
@@ -529,6 +566,16 @@ export default function AdminInstructors() {
                 setIsAddTempModalOpen(true);
               }}>
                 <i className="ti ti-bolt"></i> הוסף מדריך זמני
+              </button>
+              <button
+                className="ct-btn btn-build-board"
+                type="button"
+                disabled={authSyncing}
+                onClick={handleMigrateInstructorAuth}
+                style={{ opacity: authSyncing ? 0.7 : 1 }}
+              >
+                <i className="ti ti-shield-lock"></i>
+                {authSyncing ? 'מסנכרן Auth...' : 'סנכרן Auth למדריכים'}
               </button>
             </div>
           </div>
