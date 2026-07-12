@@ -8,6 +8,10 @@ import {
   getDevAutoLoginCredentials,
   routeForRole,
 } from '../utils/authStorage';
+import {
+  authEmailFromUsername,
+  isAuthBootstrapRole,
+} from '../utils/authEmail';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -84,11 +88,14 @@ export default function Login() {
     setLoading(true);
     setErrorMsg('');
 
+    const cleanUsername = username.trim();
+    const cleanPassword = password.trim();
+
     try {
       const { data: dbUser, error } = await supabase
         .from('users')
         .select('*')
-        .eq('username', username.trim())
+        .eq('username', cleanUsername)
         .single();
 
       if (error || !dbUser) {
@@ -97,35 +104,87 @@ export default function Login() {
         return;
       }
 
-      if (dbUser.password !== password.trim()) {
+      // שלב 1: הנהלה + אדמין — התחברות אמיתית בלבד
+      if (isAuthBootstrapRole(dbUser.role)) {
+        if (!dbUser.auth_user_id) {
+          setErrorMsg('❌ החשבון עדיין לא חובר להתחברות מאובטחת. פנה למנהל המערכת.');
+          setLoading(false);
+          return;
+        }
+
+        const authEmail = authEmailFromUsername(cleanUsername);
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: authEmail,
+          password: cleanPassword,
+        });
+
+        if (authError || !authData?.user) {
+          setErrorMsg('❌ הסיסמה שהזנת אינה נכונה');
+          setLoading(false);
+          return;
+        }
+
+        if (authData.user.id !== dbUser.auth_user_id) {
+          await supabase.auth.signOut();
+          setErrorMsg('❌ חיבור החשבון לא מסונכרן. פנה למנהל המערכת.');
+          setLoading(false);
+          return;
+        }
+
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData?.session?.access_token) {
+          setErrorMsg('❌ ההתחברות לא נשמרה. נסה שוב.');
+          setLoading(false);
+          return;
+        }
+
+        const { data: staffCheck, error: staffErr } = await supabase.rpc('is_staff_management');
+        if (staffErr || staffCheck !== true) {
+          console.error('is_staff_management failed', staffErr, staffCheck);
+          // לא מנתקים כאן — נמשיך ונאבחן דרך מסך המשימות / policy זמני
+        }
+
+        const isMobileApp = Capacitor.isNativePlatform();
+        if (isMobileApp && dbUser.role === 'admin') {
+          await supabase.auth.signOut();
+          setErrorMsg('⚠️ חמ"ל Aragon HQ נגיש ממחשב בלבד לטובת שליטה מבצעית רחבה. אנא התחבר מהלפטופ.');
+          setLoading(false);
+          return;
+        }
+
+        if (rememberMe) {
+          localStorage.setItem('aragon_remember_user', cleanUsername);
+        } else {
+          localStorage.removeItem('aragon_remember_user');
+        }
+
+        loginContext(dbUser.username, dbUser.role, rememberMe);
+        navigate(routeForRole(dbUser.role));
+        return;
+      }
+
+      // שאר התפקידים (לבינתיים): מסלול ישן מול טבלת users
+      if (dbUser.password !== cleanPassword) {
         setErrorMsg('❌ הסיסמה שהזנת אינה נכונה');
         setLoading(false);
         return;
       }
 
-      // 🔥 אבטחת סביבה: חסימת גישת ניהול ולוגיסטיקה באפליקציית מובייל בלבד
       const isMobileApp = Capacitor.isNativePlatform();
-      if (isMobileApp && (dbUser.role === 'admin' || dbUser.role === 'logistics')) {
+      if (isMobileApp && dbUser.role === 'logistics') {
         setErrorMsg('⚠️ חמ"ל Aragon HQ נגיש ממחשב בלבד לטובת שליטה מבצעית רחבה. אנא התחבר מהלפטופ.');
         setLoading(false);
         return;
       }
 
-      // שמירת נתונים מקומית לפי סטטוס צ'קבוקס "זכור אותי"
       if (rememberMe) {
-        localStorage.setItem('aragon_remember_user', username.trim());
+        localStorage.setItem('aragon_remember_user', cleanUsername);
       } else {
         localStorage.removeItem('aragon_remember_user');
       }
 
       loginContext(dbUser.username, dbUser.role, rememberMe);
-
-      // 🟢 חיווט הניתובים הראשיים של אראגון לפי רולים קשיחים - כולל תמיכה מלאה במדריך זמני
-      if (dbUser.role === 'admin') navigate('/admin');
-      else if (dbUser.role === 'logistics') navigate('/admin/logistics');
-      else if (dbUser.role === 'management') navigate('/management');
-      else if (dbUser.role === 'instructor' || dbUser.role === 'temp_instructor') navigate('/instructor');
-      else navigate('/student'); 
+      navigate(routeForRole(dbUser.role));
 
     } catch (err) {
       console.error(err);

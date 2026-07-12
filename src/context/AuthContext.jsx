@@ -5,13 +5,23 @@ import { supabase } from '../supabaseClient';
 import {
   clearAuth,
   getDevAutoLoginCredentials,
-  getLoggedRole,
-  getLoggedUser,
   hasRememberMeSession,
   saveAuth,
 } from '../utils/authStorage';
+import { isAuthBootstrapRole } from '../utils/authEmail';
 
 const AuthContext = createContext(null);
+
+async function loadProfileFromAuthUser(authUserId) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('username, role')
+    .eq('auth_user_id', authUserId)
+    .single();
+
+  if (error || !data || !isAuthBootstrapRole(data.role)) return null;
+  return data;
+}
 
 async function tryDevWebAutoLogin() {
   if (!import.meta.env.DEV || Capacitor.isNativePlatform()) return null;
@@ -28,6 +38,9 @@ async function tryDevWebAutoLogin() {
   if (error || !dbUser) return null;
   if (dbUser.password !== creds.password) return null;
 
+  // הנהלה/אדמין בפיתוח חייבים Auth — לא עוקפים את זה
+  if (isAuthBootstrapRole(dbUser.role)) return null;
+
   saveAuth(dbUser.username, dbUser.role, { persistent: false });
   return { username: dbUser.username, role: dbUser.role };
 }
@@ -41,6 +54,22 @@ export function AuthProvider({ children }) {
     let cancelled = false;
 
     (async () => {
+      // קודם: סשן Auth אמיתי (הנהלה/אדמין)
+      const { data: sessionData } = await supabase.auth.getSession();
+      const authUserId = sessionData?.session?.user?.id;
+      if (authUserId) {
+        const profile = await loadProfileFromAuthUser(authUserId);
+        if (!cancelled && profile) {
+          const persistent = hasRememberMeSession();
+          saveAuth(profile.username, profile.role, { persistent });
+          setUser(profile.username);
+          setRole(profile.role);
+          setLoading(false);
+          return;
+        }
+        await supabase.auth.signOut();
+      }
+
       const autoLogin = await tryDevWebAutoLogin();
       if (cancelled) return;
 
@@ -54,7 +83,8 @@ export function AuthProvider({ children }) {
       if (hasRememberMeSession()) {
         const savedUser = localStorage.getItem('aragon_logged_user');
         const savedRole = localStorage.getItem('aragon_logged_role');
-        if (savedUser && savedRole) {
+        // לא משחזרים הנהלה/אדמין מ-localStorage בלי סשן Auth
+        if (savedUser && savedRole && !isAuthBootstrapRole(savedRole)) {
           setUser(savedUser);
           setRole(savedRole);
         }
@@ -68,7 +98,7 @@ export function AuthProvider({ children }) {
           localStorage.removeItem('aragon_logged_role');
           const savedUser = sessionStorage.getItem('aragon_logged_user');
           const savedRole = sessionStorage.getItem('aragon_logged_role');
-          if (savedUser && savedRole) {
+          if (savedUser && savedRole && !isAuthBootstrapRole(savedRole)) {
             setUser(savedUser);
             setRole(savedRole);
           }
@@ -78,8 +108,19 @@ export function AuthProvider({ children }) {
       setLoading(false);
     })();
 
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event) => {
+      if (event !== 'SIGNED_OUT') return;
+      const savedRole = localStorage.getItem('aragon_logged_role') || sessionStorage.getItem('aragon_logged_role');
+      if (isAuthBootstrapRole(savedRole)) {
+        setUser(null);
+        setRole(null);
+        clearAuth();
+      }
+    });
+
     return () => {
       cancelled = true;
+      sub?.subscription?.unsubscribe();
     };
   }, []);
 
@@ -93,9 +134,14 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logoutContext = () => {
-    const username = getLoggedUser();
+  const logoutContext = async () => {
+    const username = user;
     deactivatePushTokens(username);
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error(err);
+    }
     setUser(null);
     setRole(null);
     clearAuth();

@@ -11,6 +11,7 @@ export const TASK_PRIORITIES = [
 ];
 
 export const DEPARTMENTS = [
+  { id: 'ceo', label: 'מנכ״ל' },
   { id: 'office', label: 'משרד' },
   { id: 'content', label: 'תוכן' },
   { id: 'training', label: 'ניהול הדרכה' },
@@ -21,6 +22,7 @@ export const DEPARTMENTS = [
 
 /** חשבונות הנהלה לפי מחלקה — role: management */
 export const MANAGEMENT_DEPARTMENT_ACCOUNTS = [
+  { username: 'ceo', department: 'ceo', fullName: 'מנכ״ל' },
   { username: 'hey', department: 'office', fullName: 'משרד' },
   { username: 'edu', department: 'content', fullName: 'תוכן' },
   { username: 'manager', department: 'training', fullName: 'ניהול הדרכה' },
