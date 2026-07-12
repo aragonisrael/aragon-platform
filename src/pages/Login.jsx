@@ -112,7 +112,12 @@ export default function Login() {
           return;
         }
 
-        const authEmail = authEmailFromUsername(cleanUsername);
+        const authEmail = authEmailFromUsername(cleanUsername, { userId: dbUser.id });
+        if (!authEmail) {
+          setErrorMsg('❌ לא ניתן לבנות אימייל Auth לחשבון זה. פנה למנהל המערכת.');
+          setLoading(false);
+          return;
+        }
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
           email: authEmail,
           password: cleanPassword,
