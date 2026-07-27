@@ -8,6 +8,71 @@ const SUBSCRIPTION_LABELS = {
   inactive: 'לא בתוקף',
 };
 
+function formatGroupLabel(group) {
+  if (!group) return 'ללא קבוצה';
+  const status = group.is_active === false ? 'לא פעילה' : 'פעילה';
+  return `${group.venue} — ${group.name} · ${group.city} (${status})`;
+}
+
+function GroupSearchPicker({ groups, value, onChange }) {
+  const [search, setSearch] = useState('');
+
+  const filteredGroups = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return [];
+    return groups.filter((group) => {
+      const haystack = `${group.venue} ${group.name} ${group.city}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [groups, search]);
+
+  const selectedGroup = value ? groups.find((group) => String(group.id) === String(value)) : null;
+
+  const handleSelect = (groupId) => {
+    onChange(groupId);
+    setSearch('');
+  };
+
+  return (
+    <div className="group-picker">
+      {selectedGroup && (
+        <div className="group-picker-selected">
+          <span>{formatGroupLabel(selectedGroup)}</span>
+          <button type="button" className="group-picker-clear" onClick={() => handleSelect('')}>
+            הסר שיוך
+          </button>
+        </div>
+      )}
+      <input
+        className="students-input"
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="חפש קבוצה לפי עיר, מוקד או חוג..."
+      />
+      <div className="group-picker-list">
+        <button type="button" className={`group-picker-item ${!value ? 'selected' : ''}`} onClick={() => handleSelect('')}>
+          ללא קבוצה
+        </button>
+        {!search.trim() ? (
+          <div className="group-picker-empty">הקלד עיר, מוקד או שם חוג כדי לחפש קבוצה</div>
+        ) : filteredGroups.length > 0 ? filteredGroups.map((group) => (
+          <button
+            key={group.id}
+            type="button"
+            className={`group-picker-item ${String(value) === String(group.id) ? 'selected' : ''}`}
+            onClick={() => handleSelect(String(group.id))}
+          >
+            {formatGroupLabel(group)}
+          </button>
+        )) : (
+          <div className="group-picker-empty">לא נמצאו קבוצות תואמות</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminStudentsManagement() {
   const [students, setStudents] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -192,6 +257,14 @@ export default function AdminStudentsManagement() {
         .students-field { margin-bottom: 12px; flex: 1; }
         .students-field label { display: block; margin-bottom: 5px; font-size: 11px; color: #4a6080; }
         .students-input, .students-select { width: 100%; background: #060b18; border: 1px solid #1a2a4a; color: #e0f0ff; border-radius: 8px; padding: 9px 10px; font-size: 13px; }
+        .group-picker { display: flex; flex-direction: column; gap: 8px; }
+        .group-picker-selected { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; background: #0a1428; border: 1px solid #1a4a80; border-radius: 8px; font-size: 12px; }
+        .group-picker-clear { border: none; background: transparent; color: #ff8a96; cursor: pointer; font-size: 11px; white-space: nowrap; }
+        .group-picker-list { max-height: 180px; overflow-y: auto; border: 1px solid #1a2a4a; border-radius: 8px; background: #060b18; }
+        .group-picker-item { width: 100%; text-align: right; border: none; border-bottom: 1px solid #0d1a2e; background: transparent; color: #c0d8f0; padding: 9px 10px; font-size: 12px; cursor: pointer; }
+        .group-picker-item:hover { background: #0a1428; }
+        .group-picker-item.selected { background: rgba(0,200,255,0.08); color: #00c8ff; }
+        .group-picker-empty { padding: 12px 10px; color: #4a6080; font-size: 12px; text-align: center; }
         .students-modal-actions { display: flex; gap: 10px; margin-top: 8px; }
         .students-save { flex: 1; background: linear-gradient(135deg, #0a2a50, #0d3a6a); border: 1px solid #1a6aaa; color: #00c8ff; border-radius: 8px; padding: 10px; font-weight: 700; cursor: pointer; }
         .students-cancel { flex: 1; background: transparent; border: 1px solid #1a2a4a; color: #8098b0; border-radius: 8px; padding: 10px; cursor: pointer; }
@@ -305,14 +378,11 @@ export default function AdminStudentsManagement() {
             </div>
             <div className="students-field">
               <label>שיוך לקבוצה</label>
-              <select className="students-select" value={newStudent.group_id} onChange={(e) => setNewStudent({ ...newStudent, group_id: e.target.value })}>
-                <option value="">ללא קבוצה</option>
-                {groups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.venue} — {group.name} ({group.is_active === false ? 'לא פעילה' : 'פעילה'})
-                  </option>
-                ))}
-              </select>
+              <GroupSearchPicker
+                groups={groups}
+                value={newStudent.group_id}
+                onChange={(groupId) => setNewStudent({ ...newStudent, group_id: groupId })}
+              />
             </div>
             <div className="students-modal-actions">
               <button className="students-save" type="button" onClick={handleCreateStudent}>צור תלמיד</button>
@@ -342,14 +412,11 @@ export default function AdminStudentsManagement() {
             </div>
             <div className="students-field">
               <label>קבוצה</label>
-              <select className="students-select" value={editStudent.group_id || ''} onChange={(e) => handleEditGroupChange(e.target.value)}>
-                <option value="">ללא קבוצה</option>
-                {groups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.venue} — {group.name} ({group.is_active === false ? 'לא פעילה' : 'פעילה'})
-                  </option>
-                ))}
-              </select>
+              <GroupSearchPicker
+                groups={groups}
+                value={editStudent.group_id || ''}
+                onChange={handleEditGroupChange}
+              />
             </div>
             <div className="students-field">
               <label>מנוי</label>
