@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
-import { provisionAuthUsers } from '../../utils/provisionAuth';
+import { provisionAuthUser, provisionAuthUsers } from '../../utils/provisionAuth';
 
 // ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
 import aragonLogo from '../../assets/aragonlogo.png';
@@ -79,6 +79,7 @@ export default function AdminControlSchedule() {
           startMin: Number(g.start_min),
           dur: Number(g.dur),
           status: g.status,
+          isActive: g.is_active !== false,
           grades: g.grades ? g.grades.split(',') : []
         }));
         setGroups(mappedGroups);
@@ -233,7 +234,7 @@ export default function AdminControlSchedule() {
   };
 
   const handleOpenNewGroupModal = () => {
-    setFormGroup({ name: 'הייטק ג׳וניור', city: '', venue: '', day: 0, startStr: '16:00', endStr: '17:00', instructor: '', grades: [] });
+    setFormGroup({ name: 'הייטק ג׳וניור', city: '', venue: '', day: 0, startStr: '16:00', endStr: '17:00', instructor: '', isActive: true, grades: [] });
     setActiveModal('newGroup');
   };
 
@@ -254,6 +255,7 @@ export default function AdminControlSchedule() {
           start_min: s,
           dur: e - s,
           status: formGroup.instructor ? 'yellow' : 'red',
+          is_active: formGroup.isActive !== false,
           grades: (formGroup.grades || []).join(',')
         }]);
 
@@ -275,7 +277,7 @@ export default function AdminControlSchedule() {
     const u = toEng(newInstructorName.trim()) + '.' + Math.floor(10 + Math.random() * 90);
 
     try {
-      await supabase
+      const { data: createdUser, error } = await supabase
         .from('users')
         .insert([{
           username: u,
@@ -284,7 +286,17 @@ export default function AdminControlSchedule() {
           full_name: newInstructorName.trim(),
           ils_balance: 0,
           coins: 0
-        }]);
+        }])
+        .select('id')
+        .single();
+      if (error) throw error;
+
+      try {
+        if (createdUser?.id) await provisionAuthUser(createdUser.id);
+      } catch (authErr) {
+        console.error(authErr);
+        triggerToast('המדריך נוצר, אך סנכרון Auth נכשל', true);
+      }
 
       setGeneratedCreds({ username: u, phone: newInstructorPhone.trim() || '—' });
       await fetchLiveScheduleData();
@@ -309,13 +321,15 @@ export default function AdminControlSchedule() {
       const newStudentsBatch = filteredNames.map(name => {
         const cleaned = name.trim();
         const baseUser = toEng(cleaned).toLowerCase();
+        const targetGroup = groups.find(g => g.id === Number(studentTargetGroupId));
         return {
           username: `${baseUser}.${Math.floor(100 + Math.random() * 899)}`,
           password: '12345678',
           role: 'student',
           full_name: cleaned,
           group_id: studentTargetGroupId,
-          coins: 0
+          coins: 0,
+          subscription_status: targetGroup?.isActive ? 'active' : 'inactive'
         };
       });
 

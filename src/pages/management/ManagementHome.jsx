@@ -26,6 +26,7 @@ export default function ManagementHome() {
   const [completionReports, setCompletionReports] = useState({});
   const [selectedTask, setSelectedTask] = useState(null);
   const [completionReport, setCompletionReport] = useState('');
+  const [completionError, setCompletionError] = useState('');
 
   const [formTitle, setFormTitle] = useState('');
   const [formDesc, setFormDesc] = useState('');
@@ -185,24 +186,57 @@ export default function ManagementHome() {
   };
 
   const applyStatusChange = async (task, newStatus, report = '') => {
+    const previousTask = task;
+    const now = new Date().toISOString();
+    const optimistic = {
+      ...task,
+      status: newStatus,
+      updated_at: now,
+      ...(newStatus === 'done' ? { completed_at: now } : {}),
+    };
+
+    // עדכון מיידי במסך — בלי לחכות לריענון מלא מהשרת
+    setTasks(prev => prev.map(t => (t.id === task.id ? optimistic : t)));
+    setIsDetailOpen(false);
+    setIsCompleteOpen(false);
+    setSelectedTask(null);
+    setCompletionReport('');
+    setCompletionError('');
+    showToast(newStatus === 'done' ? '✓ נסגרה עם דיווח' : '✓ עודכן');
+
     try {
-      const updates = { status: newStatus, updated_at: new Date().toISOString() };
-      if (newStatus === 'done') updates.completed_at = new Date().toISOString();
+      const updates = { status: newStatus, updated_at: now };
+      if (newStatus === 'done') updates.completed_at = now;
       const { error } = await supabase.from('management_tasks').update(updates).eq('id', task.id);
       if (error) throw error;
+
       if (newStatus === 'done' && report.trim()) {
-        await supabase.from('management_task_updates').insert([{
-          task_id: task.id, author_username: loggedUser,
-          update_type: 'completion_report', body: report.trim(),
-        }]);
+        const { data: inserted, error: reportError } = await supabase
+          .from('management_task_updates')
+          .insert([{
+            task_id: task.id,
+            author_username: loggedUser,
+            update_type: 'completion_report',
+            body: report.trim(),
+          }])
+          .select('*')
+          .single();
+        if (reportError) throw reportError;
+        if (inserted) {
+          setCompletionReports(prev => ({ ...prev, [task.id]: inserted }));
+        }
       }
-      await fetchContext();
-      setIsDetailOpen(false); setIsCompleteOpen(false); setSelectedTask(null);
-      setCompletionReport('');
-      showToast(newStatus === 'done' ? '✓ נסגרה עם דיווח' : '✓ עודכן');
     } catch (err) {
       console.error(err);
-      showToast('❌ שגיאה בעדכון', true);
+      setTasks(prev => prev.map(t => (t.id === previousTask.id ? previousTask : t)));
+      if (newStatus === 'done') {
+        setSelectedTask(previousTask);
+        setCompletionReport(report);
+        setIsCompleteOpen(true);
+        setCompletionError('שגיאה בעדכון. נסה שוב.');
+      } else {
+        showToast('❌ שגיאה בעדכון', true);
+      }
     }
   };
 
@@ -337,6 +371,8 @@ export default function ManagementHome() {
             <button key={s.id} type="button" className="mgmt-filter-chip" style={{ color: s.color }}
               onClick={() => {
                 if (s.id === 'done') {
+                  setCompletionError('');
+                  setCompletionReport('');
                   setIsDetailOpen(false);
                   setIsCompleteOpen(true);
                 } else applyStatusChange(selectedTask, s.id);
@@ -391,15 +427,19 @@ export default function ManagementHome() {
 
       <ManagementModal
         open={isCompleteOpen && !!selectedTask}
-        onClose={() => { setIsCompleteOpen(false); setSelectedTask(null); }}
+        onClose={() => { setIsCompleteOpen(false); setSelectedTask(null); setCompletionError(''); }}
         title="דיווח סגירה"
         footer={(
           <div className="mgmt-btn-row" style={{ marginTop: 0 }}>
             <button type="button" className="mgmt-btn-primary" onClick={() => {
-              if (completionReport.trim().length < 10) { showToast('נא לכתוב דיווח מפורט יותר', true); return; }
+              if (completionReport.trim().length < 10) {
+                setCompletionError('נא לכתוב דיווח מפורט יותר (לפחות 10 תווים)');
+                return;
+              }
+              setCompletionError('');
               applyStatusChange(selectedTask, 'done', completionReport);
             }}>סגור משימה</button>
-            <button type="button" className="mgmt-btn-ghost" onClick={() => { setIsCompleteOpen(false); setSelectedTask(null); }}>ביטול</button>
+            <button type="button" className="mgmt-btn-ghost" onClick={() => { setIsCompleteOpen(false); setSelectedTask(null); setCompletionError(''); }}>ביטול</button>
           </div>
         )}
       >
@@ -408,7 +448,22 @@ export default function ManagementHome() {
         </p>
         <div className="mgmt-field" style={{ marginBottom: 0 }}>
           <label>מה בוצע? *</label>
-          <textarea className="mgmt-textarea" value={completionReport} onChange={(e) => setCompletionReport(e.target.value)} rows={5} placeholder="תאר בקצרה מה עשית ומה התוצאה..." />
+          <textarea
+            className="mgmt-textarea"
+            value={completionReport}
+            onChange={(e) => {
+              setCompletionReport(e.target.value);
+              if (completionError) setCompletionError('');
+            }}
+            rows={5}
+            placeholder="תאר בקצרה מה עשית ומה התוצאה..."
+            style={completionError ? { borderColor: 'rgba(255,85,85,0.55)' } : undefined}
+          />
+          {completionError && (
+            <p style={{ margin: '8px 0 0', fontSize: '12px', fontWeight: 700, color: '#ff5555', lineHeight: 1.4 }}>
+              {completionError}
+            </p>
+          )}
         </div>
       </ManagementModal>
 

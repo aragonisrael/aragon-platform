@@ -78,6 +78,7 @@ export default function AdminGroupsList() {
           startMin: Number(g.start_min || 960),
           dur: Number(g.dur || 60),
           status: g.status,
+          isActive: g.is_active !== false,
           grades: g.grades ? g.grades.split(',') : []
         }));
         setGroups(mappedGroups);
@@ -210,6 +211,7 @@ export default function AdminGroupsList() {
           start_min: 960, 
           dur: 60,
           status: inst ? 'green' : 'red',
+          is_active: true,
           grades: gradesStr
         });
       });
@@ -274,6 +276,7 @@ export default function AdminGroupsList() {
         start_min: sMin,
         dur: eMin - sMin,
         status: formInstructor ? 'yellow' : 'red',
+        is_active: true,
         grades: formGrades.length > 0 ? formGrades.join(',') : 'ד'
       }]);
 
@@ -309,6 +312,7 @@ export default function AdminGroupsList() {
       ...g,
       startStr: minToStr(g.startMin),
       endStr: minToStr(g.startMin + g.dur),
+      isActive: g.isActive,
       broadcastMsg: ''
     });
     setNewStudentName('');
@@ -335,9 +339,16 @@ export default function AdminGroupsList() {
           day: parseInt(formGroup.day, 10),
           start_min: sMin,
           dur: eMin - sMin,
+          is_active: formGroup.isActive,
           grades: (formGroup.grades || []).join(',')
         })
         .eq('id', selectedGroupId);
+
+      await supabase
+        .from('users')
+        .update({ subscription_status: formGroup.isActive ? 'active' : 'inactive' })
+        .eq('role', 'student')
+        .eq('group_id', selectedGroupId);
 
       await fetchLiveGroupsAndRosters();
       setIsStudentModalOpen(false);
@@ -402,6 +413,8 @@ export default function AdminGroupsList() {
     try {
       // הפעלת מחולל השמות העברי ובדיקת כפילויות דינמית ב-Supabase
       const generatedUsername = await generateUniqueHebrewUsername(newStudentName);
+      const targetGroup = groups.find(g => g.id === selectedGroupId);
+      const subscriptionStatus = targetGroup?.isActive ? 'active' : 'inactive';
 
       const { data: createdUser, error } = await supabase.from('users').insert([{
         username: generatedUsername, // ➔ "הדס.ואקנין" או "הדס.ואקנין1"
@@ -409,7 +422,8 @@ export default function AdminGroupsList() {
         role: 'student',
         full_name: newStudentName.trim(),
         group_id: selectedGroupId,
-        coins: 0
+        coins: 0,
+        subscription_status: subscriptionStatus
       }]).select('id').single();
 
       if (error) throw error;
@@ -690,6 +704,7 @@ export default function AdminGroupsList() {
                   <th>יום פעילות</th>
                   <th>שעת התחלה</th>
                   <th>שעת סיום</th>
+                  <th>סטטוס קבוצה</th>
                   <th>מיועד לכיתות</th>
                   <th>מדריך אחראי</th>
                 </tr>
@@ -703,6 +718,11 @@ export default function AdminGroupsList() {
                     <td><span className="tag-outline">יום {DAYS[g.day]}</span></td>
                     <td><span style={{ fontFamily: 'Orbitron, monospace', color: '#00e676' }}>{minToStr(g.startMin)}</span></td>
                     <td><span style={{ fontFamily: 'Orbitron, monospace', color: '#ff5555' }}>{minToStr(g.startMin + g.dur)}</span></td>
+                    <td>
+                      <span className="tag-outline" style={{ color: g.isActive ? '#00e676' : '#ff8a96', borderColor: g.isActive ? '#00e67655' : '#ff8a9644' }}>
+                        {g.isActive ? 'פעילה' : 'לא פעילה'}
+                      </span>
+                    </td>
                     <td>
                       <div className="grade-pill-box">
                         {g.grades.map((grade, idx) => <div className="grade-pill" key={idx}>{grade}</div>)}
@@ -820,6 +840,13 @@ export default function AdminGroupsList() {
                   <div className="mfield"><label>סוג החוג / קבוצה</label><select className="mselect" value={formGroup.name} onChange={(e) => setFormGroup({ ...formGroup, name: e.target.value })}><option value="הייטק ג׳וניור">הייטק ג׳וניור</option><option value="הייטק פרו">הייטק פרו</option><option value="הנדסה ורובוטיקה">הנדסה ורובוטיקה</option></select></div>
                   <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 1 }}><label>עיר פעילות</label><input className="minput" type="text" value={formGroup.city} onChange={(e) => setFormGroup({ ...formGroup, city: e.target.value })} /></div><div className="mfield" style={{ flex: 1 }}><label>שם המוקד / בית ספר</label><input className="minput" type="text" value={formGroup.venue} onChange={(e) => setFormGroup({ ...formGroup, venue: e.target.value })} /></div></div>
                   <div style={{ display: 'flex', gap: '8px' }}><div className="mfield" style={{ flex: 1 }}><label>יום בשבוע</label><select className="mselect" value={formGroup.day} onChange={(e) => setFormGroup({ ...formGroup, day: e.target.value })}>{DAYS.map((d, i) => <option key={i} value={i}>יום {d}</option>)}</select></div><div className="mfield" style={{ flex: 1 }}><label>שעת התחלה</label><input className="minput" type="text" value={formGroup.startStr} onChange={(e) => setFormGroup({ ...formGroup, startStr: e.target.value })} /></div><div className="mfield" style={{ flex: 1 }}><label>שעת סיום</label><input className="minput" type="text" value={formGroup.endStr} onChange={(e) => setFormGroup({ ...formGroup, endStr: e.target.value })} /></div></div>
+                  <div className="mfield">
+                    <label>סטטוס קבוצה</label>
+                    <select className="mselect" value={formGroup.isActive ? 'active' : 'inactive'} onChange={(e) => setFormGroup({ ...formGroup, isActive: e.target.value === 'active' })}>
+                      <option value="active">פעילה</option>
+                      <option value="inactive">לא פעילה</option>
+                    </select>
+                  </div>
                   <div className="mfield"><label>שכבת כיתות מיועדת</label><div className="grade-grid">{gradesList.map(g => <div className="grade-cb" key={g}><input type="checkbox" id={`edit_g_${g}`} checked={(formGroup.grades || []).includes(g)} onChange={() => toggleEditGradeSelection(g)} /><label htmlFor={`edit_g_${g}`}>{g}</label></div>)}</div></div>
                   
                   <div className="mrow"><button className="msave" type="button" onClick={handleSaveGroupSettingsEdit}>שמור שינויים</button><button className="mcancel" type="button" onClick={() => setIsStudentModalOpen(false)}>ביטול</button></div>

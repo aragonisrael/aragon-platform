@@ -8,6 +8,7 @@ export const ADMIN_NAV = [
   { key: 'challenges', path: '/admin/missions', icon: 'ti-sword', label: 'אתגרים' },
   { key: 'control', path: '/admin/control', icon: 'ti-calendar', label: 'לו"ז' },
   { key: 'groups', path: '/admin/groups', icon: 'ti-table', label: 'קבוצות' },
+  { key: 'students', path: '/admin/students', icon: 'ti-school', label: 'תלמידים' },
   { key: 'team', path: '/admin/team', icon: 'ti-users', label: 'צוות' },
   { key: 'mgmt-tasks', path: '/admin/operations/tasks', icon: 'ti-checkbox', label: 'משימות' },
   { key: 'mgmt-meetings', path: '/admin/operations/meetings', icon: 'ti-calendar-event', label: 'ישיבות' },

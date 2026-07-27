@@ -22,6 +22,7 @@ export default function StudentHome() {
   const [playerXp, setPlayerXp] = useState(0); // 🟢 סטייט חדש לשמירת השיא האישי
   const [studentName, setStudentName] = useState('תלמיד אראגון');
   const [statsCount, setStatsCount] = useState({ missions: 0, orders: 0 });
+  const [subscriptionStatus, setSubscriptionStatus] = useState('active');
   
   // State for dynamic background stars
   const [stars, setStars] = useState([]);
@@ -49,7 +50,7 @@ export default function StudentHome() {
         // 1. שליפת רשומת התלמיד מהענן (כולל עמודת ה-XP החדשה)
         const { data: userData, error } = await supabase
           .from('users')
-          .select('full_name, coins, group_id, username, xp') // 🟢 הוספת xp לשליפה
+          .select('full_name, coins, group_id, username, xp, subscription_status')
           .eq('username', loggedUser)
           .single();
 
@@ -58,6 +59,7 @@ export default function StudentHome() {
           setStudentName(currentName);
           setBalance(userData.coins || 0);
           setPlayerXp(userData.xp || 0); // 🟢 השמת ערך ה-XP מהענן
+          setSubscriptionStatus(userData.subscription_status || 'inactive');
 
           let groupStr = '';
           if (userData.group_id) {
@@ -257,6 +259,18 @@ export default function StudentHome() {
         }
         @keyframes numGlow { 0%,100%{filter:drop-shadow(0 0 4px rgba(251,191,36,0.3));} 50%{filter:drop-shadow(0 0 12px rgba(251,191,36,0.8));} }
         .bal-label { font-size: 9px; color: rgba(251,191,36,0.7); letter-spacing: 0; font-weight: 700; }
+        .subscription-alert {
+          margin: 10px 16px 0;
+          border-radius: 10px;
+          border: 1px solid rgba(255, 85, 85, 0.4);
+          background: rgba(55, 15, 25, 0.85);
+          color: #ffd5dc;
+          font-size: 12px;
+          line-height: 1.5;
+          padding: 8px 10px;
+          text-align: center;
+          direction: rtl;
+        }
 
         .banner-logo {
           width: 56px;
@@ -432,6 +446,11 @@ export default function StudentHome() {
         </div>
 
         <div className="home-scroll">
+        {subscriptionStatus !== 'active' && (
+          <div className="subscription-alert">
+            המנוי שלך לא בתוקף, פנה למנהל או לשירות לקוחות במספר 03-5254144
+          </div>
+        )}
         {/* WELCOME HEADER */}
         <div className="header">
           <div className="welcome-text">ברוך הבא</div>

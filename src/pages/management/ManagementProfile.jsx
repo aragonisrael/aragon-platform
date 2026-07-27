@@ -7,6 +7,7 @@ import { getPushPermissionStatus, registerForPushNotifications } from '../../hoo
 import ManagementShell from './ManagementShell';
 import ManagementModal from '../../components/ManagementModal';
 import { roleLabel, deptLabel, coverageDepartmentOptions } from '../../constants/management';
+import { authEmailFromUsername } from '../../utils/authEmail';
 
 function compressAvatar(file) {
   return new Promise((resolve, reject) => {
@@ -48,7 +49,6 @@ export default function ManagementProfile() {
   const [profile, setProfile] = useState(null);
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
-  const [storedPassword, setStoredPassword] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', warn: false });
@@ -57,6 +57,8 @@ export default function ManagementProfile() {
   const [curPass, setCurPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confPass, setConfPass] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
   const [pushStatus, setPushStatus] = useState('loading');
   const [pushBusy, setPushBusy] = useState(false);
   const [coverageEnabled, setCoverageEnabled] = useState(false);
@@ -102,14 +104,13 @@ export default function ManagementProfile() {
     if (!loggedUser) return;
     const { data } = await supabase
       .from('users')
-      .select('username, full_name, department, role, password, avatar_url, responsibility_coverage_enabled, responsibility_coverage_department')
+      .select('id, username, full_name, department, role, avatar_url, auth_user_id, responsibility_coverage_enabled, responsibility_coverage_department')
       .eq('username', loggedUser)
       .single();
     if (data) {
       setProfile(data);
       setDisplayName(data.full_name || '');
       setAvatarUrl(data.avatar_url || '');
-      setStoredPassword(data.password || '');
       setCoverageEnabled(!!data.responsibility_coverage_enabled);
       setCoverageDepartment(data.responsibility_coverage_department || '');
     }
@@ -232,39 +233,80 @@ export default function ManagementProfile() {
     }
   };
 
+  const resetPasswordForm = () => {
+    setIsPassOpen(false);
+    setCurPass('');
+    setNewPass('');
+    setConfPass('');
+    setPasswordError('');
+  };
+
   const handleSavePassword = async () => {
-    if (!curPass || !newPass || !confPass) {
-      showToast('נא למלא את כל השדות', true);
+    const current = curPass.trim();
+    const next = newPass.trim();
+    const confirm = confPass.trim();
+
+    if (!current || !next || !confirm) {
+      setPasswordError('נא למלא את כל השדות');
       return;
     }
-    if (curPass !== storedPassword) {
-      showToast('הסיסמה הנוכחית שגויה', true);
+    if (next.length < 8) {
+      setPasswordError('הסיסמה חייבת להכיל לפחות 8 תווים');
       return;
     }
-    if (newPass.length < 8) {
-      showToast('הסיסמה חייבת להכיל לפחות 8 תווים', true);
-      return;
-    }
-    if (newPass !== confPass) {
-      showToast('הסיסמאות החדשות לא תואמות', true);
+    if (next !== confirm) {
+      setPasswordError('הסיסמאות החדשות לא תואמות');
       return;
     }
 
+    setSavingPassword(true);
+    setPasswordError('');
     try {
-      const { error } = await supabase
+      const { data: authData } = await supabase.auth.getUser();
+      const authUser = authData?.user;
+      if (!authUser) {
+        setPasswordError('אין חיבור מאובטח פעיל. התחבר מחדש ונסה שוב.');
+        return;
+      }
+
+      const authEmail = authUser.email
+        || authEmailFromUsername(loggedUser, { userId: profile?.id });
+      if (!authEmail) {
+        setPasswordError('לא ניתן לאמת את החשבון. פנה למנהל המערכת.');
+        return;
+      }
+
+      // אימות מול Auth (מקור האמת ללוגין) — לא מול עמודת users.password בלבד
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: authEmail,
+        password: current,
+      });
+      if (verifyError) {
+        setPasswordError('הסיסמה הנוכחית שגויה');
+        return;
+      }
+
+      const { error: authUpdateError } = await supabase.auth.updateUser({ password: next });
+      if (authUpdateError) throw authUpdateError;
+
+      const { data: updatedRows, error: dbError } = await supabase
         .from('users')
-        .update({ password: newPass })
-        .eq('username', loggedUser);
-      if (error) throw error;
-      setStoredPassword(newPass);
-      setIsPassOpen(false);
-      setCurPass('');
-      setNewPass('');
-      setConfPass('');
+        .update({ password: next })
+        .eq('username', loggedUser)
+        .select('username');
+      if (dbError) throw dbError;
+      if (!updatedRows?.length) {
+        setPasswordError('הסיסמה עודכנה להתחברות, אך לא נשמרה בפרופיל. רענן ונסה שוב.');
+        return;
+      }
+
+      resetPasswordForm();
       showToast('✓ הסיסמה עודכנה');
     } catch (err) {
       console.error(err);
-      showToast('❌ שגיאה בעדכון הסיסמה', true);
+      setPasswordError('שגיאה בעדכון הסיסמה. נסה שוב.');
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -409,7 +451,7 @@ export default function ManagementProfile() {
       <button
         type="button"
         className="mgmt-profile-action-btn"
-        onClick={() => setIsPassOpen(true)}
+        onClick={() => { setPasswordError(''); setIsPassOpen(true); }}
       >
         <i className="ti ti-lock" />
         <span>שינוי סיסמה</span>
@@ -430,18 +472,54 @@ export default function ManagementProfile() {
 
       <ManagementModal
         open={isPassOpen}
-        onClose={() => { setIsPassOpen(false); setCurPass(''); setNewPass(''); setConfPass(''); }}
+        onClose={resetPasswordForm}
         title="שינוי סיסמה"
         footer={(
           <div className="mgmt-btn-row" style={{ marginTop: 0 }}>
-            <button type="button" className="mgmt-btn-primary" onClick={handleSavePassword}>שמור סיסמה</button>
-            <button type="button" className="mgmt-btn-ghost" onClick={() => { setIsPassOpen(false); setCurPass(''); setNewPass(''); setConfPass(''); }}>ביטול</button>
+            <button type="button" className="mgmt-btn-primary" onClick={handleSavePassword} disabled={savingPassword}>
+              {savingPassword ? 'שומר...' : 'שמור סיסמה'}
+            </button>
+            <button type="button" className="mgmt-btn-ghost" onClick={resetPasswordForm} disabled={savingPassword}>ביטול</button>
           </div>
         )}
       >
-        <div className="mgmt-field"><label>סיסמה נוכחית</label><input className="mgmt-input" type="password" value={curPass} onChange={(e) => setCurPass(e.target.value)} autoComplete="current-password" /></div>
-        <div className="mgmt-field"><label>סיסמה חדשה</label><input className="mgmt-input" type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} placeholder="לפחות 8 תווים" autoComplete="new-password" /></div>
-        <div className="mgmt-field" style={{ marginBottom: 0 }}><label>אימות סיסמה חדשה</label><input className="mgmt-input" type="password" value={confPass} onChange={(e) => setConfPass(e.target.value)} autoComplete="new-password" /></div>
+        <div className="mgmt-field">
+          <label>סיסמה נוכחית</label>
+          <input
+            className="mgmt-input"
+            type="password"
+            value={curPass}
+            onChange={(e) => { setCurPass(e.target.value); if (passwordError) setPasswordError(''); }}
+            autoComplete="current-password"
+            style={passwordError ? { borderColor: 'rgba(255,85,85,0.55)' } : undefined}
+          />
+        </div>
+        <div className="mgmt-field">
+          <label>סיסמה חדשה</label>
+          <input
+            className="mgmt-input"
+            type="password"
+            value={newPass}
+            onChange={(e) => { setNewPass(e.target.value); if (passwordError) setPasswordError(''); }}
+            placeholder="לפחות 8 תווים"
+            autoComplete="new-password"
+          />
+        </div>
+        <div className="mgmt-field" style={{ marginBottom: passwordError ? 8 : 0 }}>
+          <label>אימות סיסמה חדשה</label>
+          <input
+            className="mgmt-input"
+            type="password"
+            value={confPass}
+            onChange={(e) => { setConfPass(e.target.value); if (passwordError) setPasswordError(''); }}
+            autoComplete="new-password"
+          />
+        </div>
+        {passwordError && (
+          <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: '#ff5555', lineHeight: 1.4 }}>
+            {passwordError}
+          </p>
+        )}
       </ManagementModal>
     </ManagementShell>
   );

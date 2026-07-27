@@ -213,6 +213,40 @@ export default function Login() {
     setIsRegModalOpen(false);
   };
 
+  // בזמן בדיקת סשן — ספלאש בלבד, בלי טופס לוגין (מונע flash בפתיחת האפליקציה)
+  if (authLoading || (user && role)) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background: '#050a14',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '18px',
+          width: '100%',
+        }}
+      >
+        <img
+          src={aragonLogo}
+          alt="Aragon"
+          style={{ width: '120px', height: 'auto', opacity: 0.95 }}
+        />
+        <div
+          style={{
+            fontFamily: 'sans-serif',
+            fontSize: '13px',
+            color: '#8aa0c0',
+            letterSpacing: '0.04em',
+          }}
+        >
+          טוען...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="aragon-root">
       <style>{`

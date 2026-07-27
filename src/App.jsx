@@ -32,6 +32,7 @@ import AdminMissionsIncentives from './pages/admin/AdminMissionsIncentives';
 import AdminControlSchedule from './pages/admin/AdminControlSchedule';
 import AdminGroupsList from './pages/admin/AdminGroupsList';
 import AdminInstructors from './pages/admin/AdminInstructors';
+import AdminStudentsManagement from './pages/admin/AdminStudentsManagement';
 // 🔥 הייבוא הנכון של העמוד החדש לעולם האדמין
 import AdminCampsManagement from './pages/admin/AdminCampsManagement';
 
@@ -87,6 +88,7 @@ export default function App() {
         <Route path="/admin/control" element={<ProtectedRoute allowedRoles={['admin']}><AdminControlSchedule /></ProtectedRoute>} />
         <Route path="/admin/team" element={<ProtectedRoute allowedRoles={['admin']}><AdminInstructors /></ProtectedRoute>} />
         <Route path="/admin/groups" element={<ProtectedRoute allowedRoles={['admin']}><AdminGroupsList /></ProtectedRoute>} />
+        <Route path="/admin/students" element={<ProtectedRoute allowedRoles={['admin']}><AdminStudentsManagement /></ProtectedRoute>} />
         {/* 🔥 הנתב החדש והנכון בתוך חבילת האדמינים! */}
         <Route path="/admin/camps" element={<ProtectedRoute allowedRoles={['admin']}><AdminCampsManagement /></ProtectedRoute>} />
 

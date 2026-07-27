@@ -28,12 +28,15 @@ export default function AdminDashboard() {
       const { data: dbUsers } = await supabase.from('users').select('*');
 
       if (dbUsers && dbGroups) {
+        const activeGroups = dbGroups.filter(g => g.is_active !== false);
+        const activeGroupIds = new Set(activeGroups.map(g => g.id));
         const allStudents = dbUsers.filter(u => u.role === 'student');
+        const activeStudents = allStudents.filter(stu => (stu.subscription_status || 'inactive') === 'active');
         const allInstructors = dbUsers.filter(u => u.role === 'instructor');
 
         // חישוב ממוצעים ומונים לכרטיסיות ה-KPI
-        const totalStudentsCount = allStudents.length;
-        const totalGroupsCount = dbGroups.length;
+        const totalStudentsCount = activeStudents.length;
+        const totalGroupsCount = activeGroups.length;
         const avgStudents = totalGroupsCount > 0 ? (totalStudentsCount / totalGroupsCount).toFixed(1) : 0;
 
         setKpi({
@@ -60,13 +63,13 @@ export default function AdminDashboard() {
 
         // 3. מנוע ניהול סיכונים חכם: חישוב כמות ילדים אמיתית בכל קבוצה
         const groupCountsMap = {};
-        allStudents.forEach(stu => {
-          if (stu.group_id) {
+        activeStudents.forEach(stu => {
+          if (stu.group_id && activeGroupIds.has(stu.group_id)) {
             groupCountsMap[stu.group_id] = (groupCountsMap[stu.group_id] || 0) + 1;
           }
         });
 
-        const computedRisk = dbGroups.map(g => {
+        const computedRisk = activeGroups.map(g => {
           const currentCount = groupCountsMap[g.id] || 0;
           return {
             name: `${g.venue} — ${g.name}`,

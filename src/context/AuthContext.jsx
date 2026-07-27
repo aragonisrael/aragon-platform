@@ -54,14 +54,19 @@ export function AuthProvider({ children }) {
     let cancelled = false;
 
     (async () => {
-      // קודם: סשן Auth אמיתי (הנהלה/אדמין)
+      const rememberMe = hasRememberMeSession();
+
+      // קודם: סשן Auth אמיתי (הנהלה/אדמין וכו')
+      // Supabase שומר JWT ב-localStorage תמיד — משחזרים כניסה רק אם סומן "תזכור אותי"
       const { data: sessionData } = await supabase.auth.getSession();
       const authUserId = sessionData?.session?.user?.id;
-      if (authUserId) {
+
+      if (authUserId && !rememberMe) {
+        await supabase.auth.signOut();
+      } else if (authUserId) {
         const profile = await loadProfileFromAuthUser(authUserId);
         if (!cancelled && profile) {
-          const persistent = hasRememberMeSession();
-          saveAuth(profile.username, profile.role, { persistent });
+          saveAuth(profile.username, profile.role, { persistent: true });
           setUser(profile.username);
           setRole(profile.role);
           setLoading(false);
@@ -80,7 +85,7 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      if (hasRememberMeSession()) {
+      if (rememberMe) {
         const savedUser = localStorage.getItem('aragon_logged_user');
         const savedRole = localStorage.getItem('aragon_logged_role');
         // לא משחזרים הנהלה/אדמין מ-localStorage בלי סשן Auth
@@ -89,8 +94,7 @@ export function AuthProvider({ children }) {
           setRole(savedRole);
         }
       } else {
-        // On native apps, "remember me" is the only allowed persistence mode.
-        // Without it, every fresh app launch must return to login.
+        // בלי "תזכור אותי" — כל פתיחה חדשה דורשת התחברות מחדש
         if (Capacitor.isNativePlatform()) {
           clearAuth();
         } else {

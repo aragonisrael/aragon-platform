@@ -71,6 +71,7 @@ export default function InstructorGroups() {
         name: g.name,
         school: g.venue,
         city: g.city,
+        isActive: g.is_active !== false,
         day: DAYS_MAP[g.day] || 'ראשון',
         time: `${minToHourStr(g.start_min || 960)}–${minToHourStr((g.start_min || 960) + (g.dur || 60))}`,
         grades: g.grades || "ד'",
@@ -201,7 +202,8 @@ export default function InstructorGroups() {
         role: 'student',
         coins: 0,
         group_id: bulkTargetGroup.id,
-        full_name: fullName.trim()
+        full_name: fullName.trim(),
+        subscription_status: bulkTargetGroup.isActive ? 'active' : 'inactive',
       });
 
       localResultsToShow.push({
