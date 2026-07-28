@@ -36,6 +36,8 @@ export default function AdminGroupsList() {
   const [filterType, setFilterType] = useState('');
   const [filterDay, setFilterDay] = useState('');
   const [filterGrade, setFilterGrade] = useState('');
+  const [filterVenue, setFilterVenue] = useState('');
+  const [filterActive, setFilterActive] = useState('');
 
   // שדות טופס קבוצה חדשה
   const [formCity, setFormCity] = useState('');
@@ -177,6 +179,12 @@ export default function AdminGroupsList() {
     if (filterType && g.name !== filterType) return false;
     if (filterDay !== '' && g.day !== parseInt(filterDay, 10)) return false;
     if (filterGrade && !g.grades.includes(filterGrade)) return false;
+    if (filterVenue.trim()) {
+      const q = filterVenue.trim().toLowerCase();
+      if (!(g.venue || '').toLowerCase().includes(q)) return false;
+    }
+    if (filterActive === 'active' && !g.isActive) return false;
+    if (filterActive === 'inactive' && g.isActive) return false;
     return true;
   });
 
@@ -631,6 +639,17 @@ export default function AdminGroupsList() {
         <div className="content">
           {/* SEARCH FILTERS */}
           <div className="filter-bar">
+            <div className="filter-group" style={{ flex: 1.4 }}>
+              <label>חפש לפי מוקד / בית ספר</label>
+              <input
+                className="filter-select"
+                type="text"
+                placeholder="הקלד שם בית ספר..."
+                value={filterVenue}
+                onChange={(e) => setFilterVenue(e.target.value)}
+              />
+            </div>
+
             <div className="filter-group">
               <label>סנן לפי עיר</label>
               <select className="filter-select" value={filterCity} onChange={(e) => setFilterCity(e.target.value)}>
@@ -663,8 +682,17 @@ export default function AdminGroupsList() {
               </select>
             </div>
 
-            {(filterCity || filterType || filterDay || filterGrade) && (
-              <button className="clear-btn" type="button" onClick={() => { setFilterCity(''); setFilterType(''); setFilterDay(''); setFilterGrade(''); }}>
+            <div className="filter-group">
+              <label>סנן לפי סטטוס</label>
+              <select className="filter-select" value={filterActive} onChange={(e) => setFilterActive(e.target.value)}>
+                <option value="">הכל</option>
+                <option value="active">פעילה</option>
+                <option value="inactive">לא פעילה</option>
+              </select>
+            </div>
+
+            {(filterCity || filterType || filterDay || filterGrade || filterVenue || filterActive) && (
+              <button className="clear-btn" type="button" onClick={() => { setFilterCity(''); setFilterType(''); setFilterDay(''); setFilterGrade(''); setFilterVenue(''); setFilterActive(''); }}>
                 <i className="ti ti-refresh"></i> אפס סינונים
               </button>
             )}
