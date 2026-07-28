@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import ManagementShell from './ManagementShell';
 import ManagementModal from '../../components/ManagementModal';
 import { AGENDA_ITEM_TYPES, TASK_PRIORITIES, deptLabel, meetingTypeLabel } from '../../constants/management';
+import AgendaRichText from '../../components/AgendaRichText';
 
 export default function ManagementMeeting() {
   const { id } = useParams();
@@ -130,7 +131,7 @@ export default function ManagementMeeting() {
             <div style={{ fontWeight: 800, fontSize: '13px' }}>{item.title}</div>
             <span className="mgmt-pill">{agendaTypeLabel(item.item_type)}</span>
           </div>
-          {item.description && <p style={{ fontSize: '12px', color: '#8aa0c0', lineHeight: 1.5 }}>{item.description}</p>}
+          {item.description && <AgendaRichText html={item.description} style={{ fontSize: '12px', color: '#8aa0c0', margin: 0 }} />}
           <div className="mgmt-meeting-meta" style={{ marginTop: '8px' }}>
             <span>{item.submitted_by_username}</span>
             <span>{item.status}</span>

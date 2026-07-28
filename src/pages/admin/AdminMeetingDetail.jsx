@@ -10,6 +10,8 @@ import {
   defaultResponsibilityForUser, taskFieldsFromResponsibility, MANAGEMENT_DEPARTMENT_ACCOUNTS,
 } from '../../constants/management';
 import { openGoogleCalendarEvent, toDatetimeLocalValue } from '../../utils/googleCalendar';
+import AgendaRichTextEditor from '../../components/AgendaRichTextEditor';
+import AgendaRichText, { normalizeRichText } from '../../components/AgendaRichText';
 
 export default function AdminMeetingDetail() {
   const { id } = useParams();
@@ -39,6 +41,10 @@ export default function AdminMeetingDetail() {
   const [formType, setFormType] = useState('weekly');
   const [formDept, setFormDept] = useState('office');
   const [formDate, setFormDate] = useState('');
+  const [editAgendaItem, setEditAgendaItem] = useState(null);
+  const [editAgendaTitle, setEditAgendaTitle] = useState('');
+  const [editAgendaDesc, setEditAgendaDesc] = useState('');
+  const [editAgendaType, setEditAgendaType] = useState('discussion');
 
   const showToast = (message, warn = false) => {
     setToast({ show: true, message, warn });
@@ -82,6 +88,37 @@ export default function AdminMeetingDetail() {
       showToast('✓ עודכן');
     } catch {
       showToast('שגיאה', true);
+    }
+  };
+
+  const openEditAgenda = (item) => {
+    setEditAgendaItem(item);
+    setEditAgendaTitle(item.title || '');
+    setEditAgendaDesc(item.description || '');
+    setEditAgendaType(item.item_type || 'discussion');
+  };
+
+  const handleUpdateAgenda = async () => {
+    if (!editAgendaItem || !editAgendaTitle.trim()) {
+      showToast('נא להזין כותרת לנושא', true);
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('meeting_agenda_items')
+        .update({
+          title: editAgendaTitle.trim(),
+          description: normalizeRichText(editAgendaDesc),
+          item_type: editAgendaType,
+        })
+        .eq('id', editAgendaItem.id);
+      if (error) throw error;
+      setEditAgendaItem(null);
+      await fetchMeeting();
+      showToast('✓ הנושא עודכן');
+    } catch (err) {
+      console.error(err);
+      showToast('שגיאה בעדכון הנושא', true);
     }
   };
 
@@ -310,19 +347,26 @@ export default function AdminMeetingDetail() {
                     </span>
                   </div>
                 </div>
-                {item.description && <p style={{ fontSize: '13px', color: '#8098b0', lineHeight: 1.6, margin: '0 0 10px' }}>{item.description}</p>}
-                <div style={{ fontSize: '11px', color: '#4a6080', marginBottom: meeting.status !== 'closed' && item.status === 'pending' ? '10px' : 0 }}>
+                {item.description && <AgendaRichText html={item.description} />}
+                <div style={{ fontSize: '11px', color: '#4a6080', marginBottom: meeting.status !== 'closed' ? '10px' : 0 }}>
                   הוגש ע&quot;י {userName(item.submitted_by_username)}
                 </div>
-                {meeting.status !== 'closed' && item.status === 'pending' && (
+                {meeting.status !== 'closed' && (
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button type="button" className="ops-btn-ghost" onClick={() => updateAgendaStatus(item.id, 'discussed')}>✓ סומן כנדון</button>
-                    <button type="button" className="ops-btn-primary" onClick={() => {
-                      setConvertItem(item);
-                      setTaskTitle(item.title);
-                      setTaskAssignee(allowedAssigneeUsernames[0] || '');
-                    }}>→ צור משימה</button>
-                    <button type="button" className="ops-btn-ghost" onClick={() => updateAgendaStatus(item.id, 'skipped')}>דחה</button>
+                    <button type="button" className="ops-btn-ghost" onClick={() => openEditAgenda(item)}>
+                      <i className="ti ti-edit" /> עריכה
+                    </button>
+                    {item.status === 'pending' && (
+                      <>
+                        <button type="button" className="ops-btn-ghost" onClick={() => updateAgendaStatus(item.id, 'discussed')}>✓ סומן כנדון</button>
+                        <button type="button" className="ops-btn-primary" onClick={() => {
+                          setConvertItem(item);
+                          setTaskTitle(item.title);
+                          setTaskAssignee(allowedAssigneeUsernames[0] || '');
+                        }}>→ צור משימה</button>
+                        <button type="button" className="ops-btn-ghost" onClick={() => updateAgendaStatus(item.id, 'skipped')}>דחה</button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -397,6 +441,36 @@ export default function AdminMeetingDetail() {
             <div style={{ display: 'flex', gap: '10px' }}>
               <button type="button" className="ops-btn-primary" style={{ flex: 1 }} onClick={handleCreateTask}>צור משימה</button>
               <button type="button" className="ops-btn-ghost" style={{ flex: 1 }} onClick={() => setIsCreateTaskOpen(false)}>ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editAgendaItem && (
+        <div className="ops-modal-bg" onClick={(e) => e.target === e.currentTarget && setEditAgendaItem(null)}>
+          <div className="ops-modal">
+            <div className="ops-modal-title">עריכת נושא בסדר היום</div>
+            <div className="ops-field">
+              <label>כותרת *</label>
+              <input className="ops-input" style={{ width: '100%' }} value={editAgendaTitle} onChange={(e) => setEditAgendaTitle(e.target.value)} />
+            </div>
+            <div className="ops-field">
+              <label>פירוט</label>
+              <AgendaRichTextEditor
+                key={editAgendaItem.id}
+                value={editAgendaDesc}
+                onChange={setEditAgendaDesc}
+              />
+            </div>
+            <div className="ops-field">
+              <label>סוג</label>
+              <select className="ops-select" style={{ width: '100%' }} value={editAgendaType} onChange={(e) => setEditAgendaType(e.target.value)}>
+                {AGENDA_ITEM_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" className="ops-btn-primary" style={{ flex: 1 }} onClick={handleUpdateAgenda}>שמור</button>
+              <button type="button" className="ops-btn-ghost" style={{ flex: 1 }} onClick={() => setEditAgendaItem(null)}>ביטול</button>
             </div>
           </div>
         </div>

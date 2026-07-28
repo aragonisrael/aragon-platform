@@ -5,6 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import ManagementShell from './ManagementShell';
 import ManagementModal from '../../components/ManagementModal';
 import { AGENDA_ITEM_TYPES, deptLabel, meetingTypeLabel } from '../../constants/management';
+import AgendaRichTextEditor from '../../components/AgendaRichTextEditor';
+import { normalizeRichText } from '../../components/AgendaRichText';
 
 export default function ManagementMeetings() {
   const navigate = useNavigate();
@@ -47,7 +49,7 @@ export default function ManagementMeetings() {
     try {
       const { error } = await supabase.from('meeting_agenda_items').insert([{
         meeting_id: selectedMeetingId, title: agendaTitle.trim(),
-        description: agendaDesc.trim(), item_type: agendaType,
+        description: normalizeRichText(agendaDesc), item_type: agendaType,
         submitted_by_username: loggedUser,
       }]);
       if (error) throw error;
@@ -110,7 +112,14 @@ export default function ManagementMeetings() {
         )}
       >
         <div className="mgmt-field"><label>כותרת *</label><input className="mgmt-input" value={agendaTitle} onChange={(e) => setAgendaTitle(e.target.value)} /></div>
-        <div className="mgmt-field"><label>פירוט</label><textarea className="mgmt-textarea" value={agendaDesc} onChange={(e) => setAgendaDesc(e.target.value)} /></div>
+        <div className="mgmt-field">
+          <label>פירוט</label>
+          <AgendaRichTextEditor
+            key={selectedMeetingId || 'mgmt-agenda'}
+            value={agendaDesc}
+            onChange={setAgendaDesc}
+          />
+        </div>
         <div className="mgmt-field" style={{ marginBottom: 0 }}><label>סוג</label>
           <select className="mgmt-select" value={agendaType} onChange={(e) => setAgendaType(e.target.value)}>
             {AGENDA_ITEM_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}

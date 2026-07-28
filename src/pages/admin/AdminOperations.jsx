@@ -10,6 +10,8 @@ import {
   defaultResponsibilityForUser, taskFieldsFromResponsibility, isTaskInAdminMineQueue, sortTasksForDisplay,
 } from '../../constants/management';
 import { openGoogleCalendarEvent, toDatetimeLocalValue } from '../../utils/googleCalendar';
+import AgendaRichTextEditor from '../../components/AgendaRichTextEditor';
+import { normalizeRichText } from '../../components/AgendaRichText';
 
 export default function AdminOperations({ view = 'tasks' }) {
   const navigate = useNavigate();
@@ -365,7 +367,7 @@ export default function AdminOperations({ view = 'tasks' }) {
       const { error } = await supabase.from('meeting_agenda_items').insert([{
         meeting_id: selectedMeetingId,
         title: agendaTitle.trim(),
-        description: agendaDesc.trim(),
+        description: normalizeRichText(agendaDesc),
         item_type: agendaType,
         submitted_by_username: loggedUser,
       }]);
@@ -768,7 +770,11 @@ export default function AdminOperations({ view = 'tasks' }) {
             </div>
             <div className="ops-field">
               <label>פירוט</label>
-              <textarea className="ops-textarea" value={agendaDesc} onChange={(e) => setAgendaDesc(e.target.value)} />
+              <AgendaRichTextEditor
+                key={selectedMeetingId || 'new-agenda'}
+                value={agendaDesc}
+                onChange={setAgendaDesc}
+              />
             </div>
             <div className="ops-field">
               <label>סוג</label>
