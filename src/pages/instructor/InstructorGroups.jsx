@@ -23,6 +23,8 @@ export default function InstructorGroups() {
   const [searchQuery, setSearchQuery] = useState('');
   const [openGroupId, setOpenGroupId] = useState(null);
   const [openTrialGroupId, setOpenTrialGroupId] = useState(null);
+  const [manualTrialGroupId, setManualTrialGroupId] = useState(null);
+  const [manualTrialBulkText, setManualTrialBulkText] = useState('');
   const [isModalOpen, setIsOpen] = useState(false);
   const [activePanel, setActivePanel] = useState(''); // '' | 'coins' | 'task' | 'edit'
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -95,7 +97,7 @@ export default function InstructorGroups() {
               .eq('status', 'pending'),
             supabase
               .from('trial_leads')
-              .select('id, student_full_name, parent_name, status, attended_trial, attended_marked_at, group_id')
+              .select('id, student_full_name, parent_name, parent_phone, student_grade, needs_pickup_from_after_school, status, attended_trial, attended_marked_at, group_id')
               .in('group_id', groupIds)
               .order('created_at', { ascending: false }),
           ]);
@@ -265,6 +267,12 @@ export default function InstructorGroups() {
     setOpenTrialGroupId((prev) => (prev === groupId ? null : groupId));
   };
 
+  const handleToggleManualTrialCreate = (groupId, e) => {
+    if (e) e.stopPropagation();
+    setManualTrialGroupId((prev) => (prev === groupId ? null : groupId));
+    setManualTrialBulkText('');
+  };
+
   const trialStatusLabel = (status) => {
     if (status === 'before_class') return 'לפני שיעור';
     if (status === 'after_class') return 'אחרי שיעור';
@@ -312,6 +320,59 @@ export default function InstructorGroups() {
       console.error(err);
       alert('שגיאה בעדכון נוכחות');
     }
+  };
+
+  const handleCreateManualTrialLeads = async (group) => {
+    const rows = manualTrialBulkText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (!rows.length) {
+      alert('נא להזין לפחות תלמיד אחד');
+      return;
+    }
+
+    const payload = rows
+      .map((line) => {
+        const parts = line.split(',').map((p) => p.trim());
+        const studentFullName = parts[0] || '';
+        const studentGrade = parts[1] || null;
+        const parentPhone = (parts[2] || '').replace(/\D/g, '') || null;
+        const parentName = parts[3] || null;
+
+        if (!studentFullName) return null;
+        return {
+          student_full_name: studentFullName,
+          student_grade: studentGrade,
+          parent_phone: parentPhone,
+          parent_name: parentName,
+          group_id: group.id,
+          source_channel: 'phone',
+          status: 'before_class',
+          attended_trial: false,
+          created_by: loggedUser || null,
+          updated_by: loggedUser || null,
+        };
+      })
+      .filter(Boolean);
+
+    if (!payload.length) {
+      alert('לא נמצאו שורות תקינות. פורמט: שם תלמיד, כיתה, טלפון הורה, שם הורה');
+      return;
+    }
+
+    const { error } = await supabase.from('trial_leads').insert(payload);
+    if (error) {
+      console.error(error);
+      alert(`יצירת שיעורי ניסיון נכשלה: ${error.message}`);
+      return;
+    }
+
+    await fetchLiveGroupsAndStudents();
+    setManualTrialBulkText('');
+    setManualTrialGroupId(null);
+    triggerToast(`✅ נוספו ${payload.length} שיעורי ניסיון`);
   };
 
   const handleOpenModal = (student) => {
@@ -530,6 +591,8 @@ export default function InstructorGroups() {
         .students-list { border-top: 1px solid #1a1a30; padding: 8px 12px 10px; }
         .bulk-create-trigger-btn { width: 100%; background: rgba(64,128,255,0.05); border: 1px dashed #5030aa; color: #c0b0ff; padding: 10px; border-radius: 10px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 12px; }
         .trial-list-trigger-btn { width: 100%; background: rgba(16,185,129,0.08); border: 1px dashed rgba(16,185,129,0.45); color: #6ee7b7; padding: 10px; border-radius: 10px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 12px; }
+        .trial-manual-trigger-btn { width: 100%; background: rgba(34,197,94,0.08); border: 1px dashed rgba(34,197,94,0.45); color: #86efac; padding: 10px; border-radius: 10px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 8px; }
+        .trial-manual-textarea { width: 100%; background: #0a0f1e; border: 1px solid #1a2a40; color: #d7e3ff; border-radius: 8px; padding: 8px; font-size: 12px; min-height: 88px; resize: vertical; }
         .student-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-radius: 9px; cursor: pointer; flex-direction: row-reverse; }
         .student-row:hover { background: rgba(96,64,204,.08); }
         .student-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg,#1a1040,#0e1a40); border: 1px solid #2a2a4a; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #8080cc; font-weight: 600; }
@@ -636,6 +699,7 @@ export default function InstructorGroups() {
             {filteredGroups.map(g => {
               const isGroupOpen = openGroupId === g.id;
               const isTrialListOpen = openTrialGroupId === g.id;
+              const isManualTrialOpen = manualTrialGroupId === g.id;
               return (
                 <div key={g.id} className={`group-card ${isGroupOpen ? 'open' : ''}`}>
                   <div className="gc-header" onClick={() => handleToggleGroup(g.id)}>
@@ -659,8 +723,33 @@ export default function InstructorGroups() {
                       <button className="bulk-create-trigger-btn" type="button" onClick={(e) => handleOpenBulkModal(g, e)}><i className="ti ti-user-plus"></i> צור תלמידים חדשים בקבוצה זו</button>
                       <button className="trial-list-trigger-btn" type="button" onClick={(e) => handleToggleTrialList(g.id, e)}>
                         <i className="ti ti-checkbox"></i>
-                        {isTrialListOpen ? 'סגור רשימת ניסיון' : `רשימת ניסיון (${g.trialLeads.length})`}
+                        {isTrialListOpen ? 'סגור שיעורי ניסיון' : `שיעורי ניסיון (${g.trialLeads.length})`}
                       </button>
+                      <button className="trial-manual-trigger-btn" type="button" onClick={(e) => handleToggleManualTrialCreate(g.id, e)}>
+                        <i className="ti ti-user-plus"></i>
+                        {isManualTrialOpen ? 'סגור הוספה ידנית' : 'הוסף שיעור ניסיון ידני'}
+                      </button>
+                      {isManualTrialOpen && (
+                        <div style={{ marginBottom: '10px' }}>
+                          <div style={{ fontSize: '11px', color: '#8aa0bc', marginBottom: '6px', textAlign: 'right' }}>
+                            שורה לכל תלמיד: שם תלמיד, כיתה, טלפון הורה, שם הורה (אפשר להשאיר שדות ריקים)
+                          </div>
+                          <textarea
+                            className="trial-manual-textarea"
+                            value={manualTrialBulkText}
+                            onChange={(e) => setManualTrialBulkText(e.target.value)}
+                            placeholder={'דנה ישראלי, ה, 0501234567, רותם\nיואב כהן, ו,,\nנועה לוי,,,אמא נועה'}
+                          />
+                          <button
+                            className="trial-manual-trigger-btn"
+                            type="button"
+                            style={{ marginTop: '8px' }}
+                            onClick={() => handleCreateManualTrialLeads(g)}
+                          >
+                            שמור שיעורי ניסיון
+                          </button>
+                        </div>
+                      )}
                       {g.students.map((s, sIdx) => (
                         <div key={sIdx} className="student-row" onClick={() => handleOpenModal(s)}>
                           <div className="student-avatar">{s.initials}</div>
@@ -675,10 +764,10 @@ export default function InstructorGroups() {
                       {isTrialListOpen && (
                       <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #1a2a40' }}>
                         <div style={{ fontSize: '12px', color: '#8aa0bc', marginBottom: '8px', textAlign: 'right' }}>
-                          רשימת ניסיון ({g.trialLeads.length}) — ניתן לסמן רק מי הגיע בפועל
+                          שיעורי ניסיון ({g.trialLeads.length}) — ניתן לסמן רק מי הגיע בפועל
                         </div>
                         {g.trialLeads.length === 0 ? (
-                          <div style={{ fontSize: '11px', color: '#546780', textAlign: 'right' }}>אין תלמידי ניסיון בקבוצה זו</div>
+                          <div style={{ fontSize: '11px', color: '#546780', textAlign: 'right' }}>אין שיעורי ניסיון בקבוצה זו</div>
                         ) : g.trialLeads.map((lead) => (
                           <div
                             key={lead.id}
@@ -703,7 +792,15 @@ export default function InstructorGroups() {
                               <span>{lead.student_full_name}</span>
                             </label>
                             <div style={{ fontSize: '11px', color: '#7f93af', textAlign: 'left' }}>
-                              <div>{trialStatusLabel(lead.status)} · הורה: {lead.parent_name}</div>
+                              <div>
+                                {trialStatusLabel(lead.status)}
+                                {lead.parent_name ? ` · הורה: ${lead.parent_name}` : ''}
+                                {lead.parent_phone ? ` · טלפון: ${lead.parent_phone}` : ''}
+                                {lead.student_grade ? ` · כיתה: ${lead.student_grade}` : ''}
+                              </div>
+                              {lead.needs_pickup_from_after_school && (
+                                <div style={{ color: '#f0c060' }}>נדרש איסוף מצהרון</div>
+                              )}
                               {lead.attended_trial && lead.attended_marked_at && (
                                 <div style={{ color: '#6ee7b7' }}>
                                   תאריך הגעה: {formatAttendanceDate(lead.attended_marked_at)}

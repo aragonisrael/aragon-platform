@@ -28,6 +28,15 @@ CREATE TABLE IF NOT EXISTS public.trial_leads (
     CHECK (source_channel IN ('whatsapp', 'phone'))
 );
 
+-- Backward-compatible schema evolution for existing environments
+ALTER TABLE public.trial_leads
+  ALTER COLUMN parent_name DROP NOT NULL,
+  ALTER COLUMN parent_phone DROP NOT NULL;
+
+ALTER TABLE public.trial_leads
+  ADD COLUMN IF NOT EXISTS student_grade TEXT,
+  ADD COLUMN IF NOT EXISTS needs_pickup_from_after_school BOOLEAN NOT NULL DEFAULT false;
+
 CREATE INDEX IF NOT EXISTS idx_trial_leads_group_id ON public.trial_leads(group_id);
 CREATE INDEX IF NOT EXISTS idx_trial_leads_parent_phone ON public.trial_leads(parent_phone);
 CREATE INDEX IF NOT EXISTS idx_trial_leads_trial_date ON public.trial_leads(trial_date);
