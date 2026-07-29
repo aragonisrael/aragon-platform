@@ -141,6 +141,25 @@ export default function AdminGroupsList() {
     return status || 'לא הוגדר';
   };
 
+  const trialStatusTheme = (status) => {
+    if (status === 'before_class') {
+      return { bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.45)', text: '#93c5fd' };
+    }
+    if (status === 'after_class') {
+      return { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.45)', text: '#fcd34d' };
+    }
+    if (status === 'thinking') {
+      return { bg: 'rgba(168,85,247,0.12)', border: 'rgba(168,85,247,0.45)', text: '#d8b4fe' };
+    }
+    if (status === 'not_interested') {
+      return { bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.45)', text: '#fca5a5' };
+    }
+    if (status === 'registered') {
+      return { bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.45)', text: '#86efac' };
+    }
+    return { bg: 'rgba(71,85,105,0.18)', border: 'rgba(100,116,139,0.45)', text: '#cbd5e1' };
+  };
+
   useEffect(() => {
     fetchLiveGroupsAndRosters();
   }, []);
@@ -1006,8 +1025,21 @@ export default function AdminGroupsList() {
                       </div>
                     </div>
                     <div className="student-modal-list">
-                      {(groupTrialLeads[selectedGroupId] || []).length > 0 ? (groupTrialLeads[selectedGroupId] || []).map((lead, idx) => (
-                        <div className="student-modal-row" key={lead.id || idx} style={{ alignItems: 'flex-start', gap: '8px' }}>
+                      {(groupTrialLeads[selectedGroupId] || []).length > 0 ? (groupTrialLeads[selectedGroupId] || []).map((lead, idx) => {
+                        const theme = trialStatusTheme(lead.status);
+                        return (
+                        <div
+                          className="student-modal-row"
+                          key={lead.id || idx}
+                          style={{
+                            alignItems: 'flex-start',
+                            gap: '8px',
+                            background: theme.bg,
+                            border: `1px solid ${theme.border}`,
+                            borderRadius: '8px',
+                            marginBottom: '6px',
+                          }}
+                        >
                           <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
                             <span style={{ fontWeight: 700 }}>{idx + 1}. {lead.student_full_name}</span>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
@@ -1037,7 +1069,20 @@ export default function AdminGroupsList() {
                               />
                             </div>
                             <div style={{ fontSize: '11px', color: '#8aa0bc' }}>
-                              סטטוס: {trialStatusLabel(lead.status)}
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  padding: '2px 8px',
+                                  borderRadius: '999px',
+                                  border: `1px solid ${theme.border}`,
+                                  color: theme.text,
+                                  background: 'rgba(3,7,18,0.35)',
+                                  fontWeight: 700,
+                                  marginLeft: '6px',
+                                }}
+                              >
+                                {trialStatusLabel(lead.status)}
+                              </span>
                               {lead.student_grade ? ` · כיתה: ${lead.student_grade}` : ''}
                               {lead.needs_pickup_from_after_school ? ' · נדרש איסוף מצהרון' : ''}
                               {lead.parent_phone ? <> · <a href={`tel:${lead.parent_phone}`} style={{ color: '#93c5fd', fontWeight: 'bold', textDecoration: 'none' }}>{lead.parent_phone}</a></> : ''}
@@ -1088,7 +1133,8 @@ export default function AdminGroupsList() {
                             {lead.attended_trial ? 'הגיע בפועל' : 'טרם סומן הגעה'}
                           </span>
                         </div>
-                      )) : <div className="no-students-placeholder">אין עדיין נרשמים לשיעור ניסיון בקבוצה זו</div>}
+                        );
+                      }) : <div className="no-students-placeholder">אין עדיין נרשמים לשיעור ניסיון בקבוצה זו</div>}
                     </div>
                   </div>
                   <div className="mrow"><button className="mcancel" style={{ width: '100%' }} type="button" onClick={() => setIsStudentModalOpen(false)}>סגור קונסולה</button></div>
