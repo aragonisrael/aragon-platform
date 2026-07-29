@@ -95,7 +95,7 @@ export default function InstructorGroups() {
               .eq('status', 'pending'),
             supabase
               .from('trial_leads')
-              .select('id, student_full_name, parent_name, status, attended_trial, group_id')
+              .select('id, student_full_name, parent_name, status, attended_trial, attended_marked_at, group_id')
               .in('group_id', groupIds)
               .order('created_at', { ascending: false }),
           ]);
@@ -274,7 +274,23 @@ export default function InstructorGroups() {
     return status || 'לא הוגדר';
   };
 
-  const handleMarkTrialAttendance = async (leadId, attended) => {
+  const formatAttendanceDate = (isoDate) => {
+    if (!isoDate) return '';
+    const d = new Date(isoDate);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  const handleMarkTrialAttendance = async (lead, attended) => {
+    if (!lead?.id) return;
+
+    if (lead.attended_trial && !attended) {
+      const ok = window.confirm(
+        'האם אתה בטוח שאתה רוצה להסיר את סימון הנוכחות ? פעולה זו תשנה את תאריך הנוכחות של התלמיד | תזכורת : לכל תלמיד יש אישור לנוכחות אחת בלבד'
+      );
+      if (!ok) return;
+    }
+
     try {
       const { error } = await supabase
         .from('trial_leads')
@@ -282,7 +298,7 @@ export default function InstructorGroups() {
           attended_trial: attended,
           updated_by: loggedUser || null,
         })
-        .eq('id', leadId);
+        .eq('id', lead.id);
 
       if (error) {
         console.error(error);
@@ -682,13 +698,18 @@ export default function InstructorGroups() {
                               <input
                                 type="checkbox"
                                 checked={Boolean(lead.attended_trial)}
-                                onChange={(e) => handleMarkTrialAttendance(lead.id, e.target.checked)}
+                                onChange={(e) => handleMarkTrialAttendance(lead, e.target.checked)}
                               />
                               <span>{lead.student_full_name}</span>
                             </label>
-                            <span style={{ fontSize: '11px', color: '#7f93af' }}>
-                              {trialStatusLabel(lead.status)} · הורה: {lead.parent_name}
-                            </span>
+                            <div style={{ fontSize: '11px', color: '#7f93af', textAlign: 'left' }}>
+                              <div>{trialStatusLabel(lead.status)} · הורה: {lead.parent_name}</div>
+                              {lead.attended_trial && lead.attended_marked_at && (
+                                <div style={{ color: '#6ee7b7' }}>
+                                  תאריך הגעה: {formatAttendanceDate(lead.attended_marked_at)}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
