@@ -63,6 +63,7 @@ export default function AdminGroupsList() {
   const [groups, setGroups] = useState([]);
   const [groupStudents, setGroupStudents] = useState({});
   const [groupTrialLeads, setGroupTrialLeads] = useState({});
+  const [manualTrialRows, setManualTrialRows] = useState([{ studentName: '', grade: '', parentPhone: '', parentName: '' }]);
 
   // פונקציה מרכזית למשיכת וסנכרון הקבוצות, התלמידים והמדריכים מהשרת בענן
   const fetchLiveGroupsAndRosters = async () => {
@@ -92,7 +93,7 @@ export default function AdminGroupsList() {
         supabase.from('users').select('*'),
         supabase
           .from('trial_leads')
-          .select('id, parent_name, parent_phone, student_full_name, group_id, status, attended_trial, trial_date')
+          .select('id, parent_name, parent_phone, student_full_name, student_grade, needs_pickup_from_after_school, group_id, status, attended_trial, attended_marked_at, trial_date')
           .order('created_at', { ascending: false }),
       ]);
       if (dbUsers) {
@@ -349,6 +350,7 @@ export default function AdminGroupsList() {
       broadcastMsg: ''
     });
     setNewStudentName('');
+    setManualTrialRows([{ studentName: '', grade: '', parentPhone: '', parentName: '' }]);
     setModalTab(1); 
     setIsStudentModalOpen(true);
   };
@@ -496,6 +498,66 @@ export default function AdminGroupsList() {
     }
   };
 
+  const handleManualTrialRowChange = (idx, field, value) => {
+    setManualTrialRows((prev) => prev.map((r, i) => (i === idx ? { ...r, [field]: value } : r)));
+  };
+
+  const handleAddManualTrialRow = () => {
+    setManualTrialRows((prev) => [...prev, { studentName: '', grade: '', parentPhone: '', parentName: '' }]);
+  };
+
+  const handleRemoveManualTrialRow = (idx) => {
+    setManualTrialRows((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
+  };
+
+  const handleCreateManualTrialLeads = async () => {
+    const payload = manualTrialRows
+      .filter((r) => r.studentName.trim())
+      .map((r) => ({
+        student_full_name: r.studentName.trim(),
+        student_grade: r.grade.trim() || null,
+        parent_phone: r.parentPhone.replace(/\D/g, '') || null,
+        parent_name: r.parentName.trim() || null,
+        group_id: selectedGroupId,
+        source_channel: 'phone',
+        status: 'before_class',
+        attended_trial: false,
+      }));
+
+    if (!payload.length) {
+      triggerToast('נא להזין לפחות שם תלמיד אחד', true);
+      return;
+    }
+
+    const { error } = await supabase.from('trial_leads').insert(payload);
+    if (error) {
+      triggerToast(`יצירת שיעורי ניסיון נכשלה: ${error.message}`, true);
+      return;
+    }
+
+    await fetchLiveGroupsAndRosters();
+    setManualTrialRows([{ studentName: '', grade: '', parentPhone: '', parentName: '' }]);
+    triggerToast(`✅ נוספו ${payload.length} שיעורי ניסיון`);
+  };
+
+  const handleUpdateTrialLead = async (leadId, patch, successMsg = 'שיעור ניסיון עודכן') => {
+    const { error } = await supabase.from('trial_leads').update(patch).eq('id', leadId);
+    if (error) {
+      triggerToast(`עדכון נכשל: ${error.message}`, true);
+      return;
+    }
+    await fetchLiveGroupsAndRosters();
+    triggerToast(successMsg);
+  };
+
+  const handleToggleTrialAttendance = async (lead, attended) => {
+    await handleUpdateTrialLead(
+      lead.id,
+      { attended_trial: attended },
+      attended ? '✅ סומן כהגיע לשיעור ניסיון' : 'הסימון הוסר'
+    );
+  };
+
   const currentGroupObj = groups.find(g => g.id === selectedGroupId);
 
   return (
@@ -615,6 +677,8 @@ export default function AdminGroupsList() {
         .student-modal-list { max-height: 180px; overflow-y: auto; border: 1px solid #1a2a4a; background: #060b18; border-radius: 8px; padding: 6px; margin-bottom: 14px; }
         .student-modal-row { padding: 8px 12px; font-size: 13px; color: #cbd5e1; border-bottom: 1px solid #0d1a2e; display: flex; justify-content: space-between; align-items: center; flex-direction: row-reverse; }
         .no-students-placeholder { font-size: 12px; color: #4a6080; text-align: center; padding: 20px 0; }
+        .trial-manual-input { width: 100%; background: #0a0f1e; border: 1px solid #1a2a40; color: #d7e3ff; border-radius: 8px; padding: 6px 8px; font-size: 12px; outline: none; text-align: right; }
+        .trial-manual-input:focus { border-color: #3b82f6; }
 
         .bottom-bar { display: flex; gap: 10px; padding: 12px 16px; border-top: 1px solid #1a2a4a; background: #060b18; flex-shrink: 0; flex-wrap: wrap; direction: rtl; }
         .bot-btn { display: flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 9px; font-family: 'Orbitron', monospace; font-size: 10px; letter-spacing: 1px; font-weight: 700; cursor: pointer; transition: all 0.2s; border: none; white-space: nowrap; flex-direction: row-reverse; position: relative; }
@@ -885,16 +949,130 @@ export default function AdminGroupsList() {
                   </div>
                   <div className="mfield">
                     <label style={{ marginBottom: '6px', display: 'block' }}>
-                      רשימת ניסיון ({(groupTrialLeads[selectedGroupId] || []).length}) — צפייה בלבד
+                      שיעורי ניסיון ({(groupTrialLeads[selectedGroupId] || []).length})
                     </label>
+                    <div style={{ marginBottom: '10px', border: '1px solid #1a2a4a', borderRadius: '8px', padding: '8px' }}>
+                      <div style={{ fontSize: '11px', color: '#8aa0bc', marginBottom: '8px' }}>הוספה ידנית לשיעורי ניסיון</div>
+                      {manualTrialRows.map((row, idx) => (
+                        <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr 1.5fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
+                          <input
+                            className="trial-manual-input"
+                            placeholder="שם מלא תלמיד"
+                            value={row.studentName}
+                            onChange={(e) => handleManualTrialRowChange(idx, 'studentName', e.target.value)}
+                          />
+                          <input
+                            className="trial-manual-input"
+                            placeholder="כיתה"
+                            value={row.grade}
+                            onChange={(e) => handleManualTrialRowChange(idx, 'grade', e.target.value)}
+                          />
+                          <input
+                            className="trial-manual-input"
+                            placeholder="טלפון הורה"
+                            value={row.parentPhone}
+                            onChange={(e) => handleManualTrialRowChange(idx, 'parentPhone', e.target.value)}
+                          />
+                          <input
+                            className="trial-manual-input"
+                            placeholder="שם הורה"
+                            value={row.parentName}
+                            onChange={(e) => handleManualTrialRowChange(idx, 'parentName', e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px', padding: '0 4px' }}
+                            onClick={() => handleRemoveManualTrialRow(idx)}
+                            title="הסר שורה"
+                          >×</button>
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                        <button
+                          className="pack-btn"
+                          type="button"
+                          onClick={handleAddManualTrialRow}
+                        >
+                          + הוסף תלמיד נוסף
+                        </button>
+                        <button
+                          className="pack-btn"
+                          type="button"
+                          style={{ background: 'linear-gradient(135deg, #041818, #062828)', borderColor: '#00d8b044', color: '#00d8b0' }}
+                          onClick={handleCreateManualTrialLeads}
+                        >
+                          ✅ שמור שיעורי ניסיון
+                        </button>
+                      </div>
+                    </div>
                     <div className="student-modal-list">
                       {(groupTrialLeads[selectedGroupId] || []).length > 0 ? (groupTrialLeads[selectedGroupId] || []).map((lead, idx) => (
-                        <div className="student-modal-row" key={lead.id || idx}>
-                          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <span>{idx + 1}. {lead.student_full_name}</span>
-                            <span style={{ fontSize: '11px', color: '#8aa0bc' }}>
-                              הורה: {lead.parent_name} · סטטוס: {trialStatusLabel(lead.status)}
-                            </span>
+                        <div className="student-modal-row" key={lead.id || idx} style={{ alignItems: 'flex-start', gap: '8px' }}>
+                          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                            <span style={{ fontWeight: 700 }}>{idx + 1}. {lead.student_full_name}</span>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                              <input
+                                className="trial-manual-input"
+                                value={lead.parent_name || ''}
+                                placeholder="שם הורה"
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setGroupTrialLeads((prev) => ({
+                                    ...prev,
+                                    [selectedGroupId]: (prev[selectedGroupId] || []).map((item) => item.id === lead.id ? { ...item, parent_name: value } : item),
+                                  }));
+                                }}
+                              />
+                              <input
+                                className="trial-manual-input"
+                                value={lead.parent_phone || ''}
+                                placeholder="טלפון הורה"
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setGroupTrialLeads((prev) => ({
+                                    ...prev,
+                                    [selectedGroupId]: (prev[selectedGroupId] || []).map((item) => item.id === lead.id ? { ...item, parent_phone: value } : item),
+                                  }));
+                                }}
+                              />
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#8aa0bc' }}>
+                              סטטוס: {trialStatusLabel(lead.status)}
+                              {lead.student_grade ? ` · כיתה: ${lead.student_grade}` : ''}
+                              {lead.needs_pickup_from_after_school ? ' · נדרש איסוף מצהרון' : ''}
+                              {lead.parent_phone ? <> · <a href={`tel:${lead.parent_phone}`} style={{ color: '#93c5fd', fontWeight: 'bold', textDecoration: 'none' }}>{lead.parent_phone}</a></> : ''}
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              <button className="pack-btn" type="button" onClick={() => handleUpdateTrialLead(lead.id, { status: 'before_class' }, 'סטטוס עודכן ללפני שיעור')}>לפני שיעור</button>
+                              <button className="pack-btn" type="button" onClick={() => handleUpdateTrialLead(lead.id, { status: 'after_class' }, 'סטטוס עודכן לאחרי שיעור')}>אחרי שיעור</button>
+                              <button className="pack-btn" type="button" onClick={() => handleUpdateTrialLead(lead.id, { status: 'thinking' }, 'סטטוס עודכן לחושב')}>חושב</button>
+                              <button className="pack-btn" type="button" onClick={() => handleUpdateTrialLead(lead.id, { status: 'not_interested' }, 'סטטוס עודכן ללא מעוניין')}>לא מעוניין</button>
+                              <button className="pack-btn" type="button" onClick={() => handleUpdateTrialLead(lead.id, { status: 'registered' }, 'סטטוס עודכן לנרשם')}>נרשם</button>
+                              <button
+                                className="pack-btn"
+                                type="button"
+                                style={{ borderColor: '#00e67655', color: '#00e676' }}
+                                onClick={() => handleToggleTrialAttendance(lead, !lead.attended_trial)}
+                              >
+                                {lead.attended_trial ? 'בטל הגעה' : 'סמן שהגיע'}
+                              </button>
+                              <button
+                                className="pack-btn"
+                                type="button"
+                                style={{ borderColor: '#00c8ff55', color: '#00c8ff' }}
+                                onClick={() => handleUpdateTrialLead(lead.id, {
+                                  parent_name: (lead.parent_name || '').trim() || null,
+                                  parent_phone: (lead.parent_phone || '').replace(/\D/g, '') || null,
+                                }, 'פרטי הורה עודכנו')}
+                              >
+                                שמור פרטי הורה
+                              </button>
+                            </div>
+                            {lead.attended_trial && lead.attended_marked_at && (
+                              <div style={{ fontSize: '11px', color: '#6ee7b7' }}>
+                                הגעה סומנה בתאריך: {new Date(lead.attended_marked_at).toLocaleDateString('he-IL')}
+                              </div>
+                            )}
                           </div>
                           <span
                             style={{
