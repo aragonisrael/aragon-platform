@@ -535,20 +535,45 @@ export default function AdminGroupsList() {
     setManualTrialRows((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
   };
 
-  const handleCreateManualTrialLeads = async () => {
-    const payload = manualTrialRows
-      .filter((r) => r.studentName.trim())
-      .map((r) => ({
-        student_full_name: r.studentName.trim(),
-        student_grade: r.grade.trim() || null,
-        parent_phone: r.parentPhone.replace(/\D/g, '') || null,
-        parent_name: r.parentName.trim() || null,
-        group_id: selectedGroupId,
-        source_channel: 'phone',
-        status: 'before_class',
-        attended_trial: false,
-      }));
+  const normalizeIsraeliPhone = (raw) => {
+    const digits = String(raw || '').replace(/\D/g, '');
+    if (!digits) return null;
+    if (digits.startsWith('972') && digits.length >= 11) return digits;
+    if (digits.startsWith('0') && digits.length >= 9) return `972${digits.slice(1)}`;
+    if (digits.startsWith('5') && digits.length === 9) return `972${digits}`;
+    return null;
+  };
 
+  const tomorrowIsoDate = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  };
+
+  const handleCreateManualTrialLeads = async () => {
+    const prepared = manualTrialRows
+      .filter((r) => r.studentName.trim())
+      .map((r) => {
+        const studentName = r.studentName.trim();
+        const parentName = r.parentName.trim() || null;
+        const phone = normalizeIsraeliPhone(r.parentPhone);
+        return {
+          lead: {
+            student_full_name: studentName,
+            student_grade: r.grade.trim() || null,
+            parent_phone: phone,
+            parent_name: parentName,
+            group_id: selectedGroupId,
+            source_channel: 'phone',
+            status: 'before_class',
+            attended_trial: false,
+          },
+          // פולואפ רק כשיש שם תלמיד + טלפון תקין (אחרת לא נכנס לטבלת הפולואפים)
+          shouldScheduleFollowup: Boolean(studentName && phone),
+        };
+      });
+
+    const payload = prepared.map((p) => p.lead);
     if (!payload.length) {
       triggerToast('נא להזין לפחות שם תלמיד אחד', true);
       return;
@@ -560,10 +585,33 @@ export default function AdminGroupsList() {
       return;
     }
 
+    const followups = prepared
+      .filter((p) => p.shouldScheduleFollowup)
+      .map((p) => ({
+        phone: p.lead.parent_phone,
+        send_at: tomorrowIsoDate(),
+        message_text: `היי ! אני רואה ש${p.lead.student_full_name} הגיע אלינו לשיעור התנסות - האם תרצו להירשם ?`,
+        status: 'pending',
+      }));
+
+    let followupCount = 0;
+    if (followups.length) {
+      const { error: followupError } = await supabase.from('scheduled_followups').insert(followups);
+      if (followupError) {
+        triggerToast(`הרשומות נשמרו, אך תזמון פולואפ נכשל: ${followupError.message}`, true);
+      } else {
+        followupCount = followups.length;
+      }
+    }
+
     await fetchLiveGroupsAndRosters();
     setManualTrialRows([{ studentName: '', grade: '', parentPhone: '', parentName: '' }]);
     setShowManualTrialAdd(false);
-    triggerToast(`✅ נוספו ${payload.length} שיעורי ניסיון`);
+    triggerToast(
+      followupCount > 0
+        ? `✅ נוספו ${payload.length} שיעורי ניסיון · ${followupCount} פולואפים למחר`
+        : `✅ נוספו ${payload.length} שיעורי ניסיון (ללא פולואפ — חסר טלפון תקין)`
+    );
   };
 
   const handleUpdateTrialLead = async (leadId, patch, successMsg = 'שיעור ניסיון עודכן') => {
