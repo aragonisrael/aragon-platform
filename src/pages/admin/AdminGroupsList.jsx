@@ -64,6 +64,7 @@ export default function AdminGroupsList() {
   const [groupStudents, setGroupStudents] = useState({});
   const [groupTrialLeads, setGroupTrialLeads] = useState({});
   const [manualTrialRows, setManualTrialRows] = useState([{ studentName: '', grade: '', parentPhone: '', parentName: '' }]);
+  const [trialStatusFilter, setTrialStatusFilter] = useState('');
 
   // פונקציה מרכזית למשיכת וסנכרון הקבוצות, התלמידים והמדריכים מהשרת בענן
   const fetchLiveGroupsAndRosters = async () => {
@@ -370,6 +371,7 @@ export default function AdminGroupsList() {
     });
     setNewStudentName('');
     setManualTrialRows([{ studentName: '', grade: '', parentPhone: '', parentName: '' }]);
+    setTrialStatusFilter('');
     setModalTab(1); 
     setIsStudentModalOpen(true);
   };
@@ -578,6 +580,9 @@ export default function AdminGroupsList() {
   };
 
   const currentGroupObj = groups.find(g => g.id === selectedGroupId);
+  const currentTrialLeads = (groupTrialLeads[selectedGroupId] || []).filter((lead) => (
+    !trialStatusFilter || lead.status === trialStatusFilter
+  ));
 
   return (
     <div className="hq-global-wrapper">
@@ -970,6 +975,21 @@ export default function AdminGroupsList() {
                     <label style={{ marginBottom: '6px', display: 'block' }}>
                       שיעורי ניסיון ({(groupTrialLeads[selectedGroupId] || []).length})
                     </label>
+                    <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'flex-start' }}>
+                      <select
+                        className="mselect"
+                        style={{ maxWidth: '220px' }}
+                        value={trialStatusFilter}
+                        onChange={(e) => setTrialStatusFilter(e.target.value)}
+                      >
+                        <option value="">כל הסטטוסים</option>
+                        <option value="before_class">לפני שיעור</option>
+                        <option value="after_class">אחרי שיעור</option>
+                        <option value="thinking">חושב</option>
+                        <option value="not_interested">לא מעוניין</option>
+                        <option value="registered">נרשם</option>
+                      </select>
+                    </div>
                     <div style={{ marginBottom: '10px', border: '1px solid #1a2a4a', borderRadius: '8px', padding: '8px' }}>
                       <div style={{ fontSize: '11px', color: '#8aa0bc', marginBottom: '8px' }}>הוספה ידנית לשיעורי ניסיון</div>
                       {manualTrialRows.map((row, idx) => (
@@ -1025,7 +1045,7 @@ export default function AdminGroupsList() {
                       </div>
                     </div>
                     <div className="student-modal-list">
-                      {(groupTrialLeads[selectedGroupId] || []).length > 0 ? (groupTrialLeads[selectedGroupId] || []).map((lead, idx) => {
+                      {currentTrialLeads.length > 0 ? currentTrialLeads.map((lead, idx) => {
                         const theme = trialStatusTheme(lead.status);
                         return (
                         <div
@@ -1134,7 +1154,7 @@ export default function AdminGroupsList() {
                           </span>
                         </div>
                         );
-                      }) : <div className="no-students-placeholder">אין עדיין נרשמים לשיעור ניסיון בקבוצה זו</div>}
+                      }) : <div className="no-students-placeholder">אין תוצאות לסטטוס שנבחר</div>}
                     </div>
                   </div>
                   <div className="mrow"><button className="mcancel" style={{ width: '100%' }} type="button" onClick={() => setIsStudentModalOpen(false)}>סגור קונסולה</button></div>
