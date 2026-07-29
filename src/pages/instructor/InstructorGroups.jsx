@@ -24,7 +24,7 @@ export default function InstructorGroups() {
   const [openGroupId, setOpenGroupId] = useState(null);
   const [openTrialGroupId, setOpenTrialGroupId] = useState(null);
   const [manualTrialGroupId, setManualTrialGroupId] = useState(null);
-  const [manualTrialBulkText, setManualTrialBulkText] = useState('');
+  const [manualTrialRows, setManualTrialRows] = useState([{ studentName: '', grade: '', parentPhone: '', parentName: '' }]);
   const [isModalOpen, setIsOpen] = useState(false);
   const [activePanel, setActivePanel] = useState(''); // '' | 'coins' | 'task' | 'edit'
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -270,7 +270,7 @@ export default function InstructorGroups() {
   const handleToggleManualTrialCreate = (groupId, e) => {
     if (e) e.stopPropagation();
     setManualTrialGroupId((prev) => (prev === groupId ? null : groupId));
-    setManualTrialBulkText('');
+    setManualTrialRows([{ studentName: '', grade: '', parentPhone: '', parentName: '' }]);
   };
 
   const trialStatusLabel = (status) => {
@@ -322,43 +322,36 @@ export default function InstructorGroups() {
     }
   };
 
+  const handleManualTrialRowChange = (idx, field, value) => {
+    setManualTrialRows((prev) => prev.map((r, i) => i === idx ? { ...r, [field]: value } : r));
+  };
+
+  const handleAddManualTrialRow = () => {
+    setManualTrialRows((prev) => [...prev, { studentName: '', grade: '', parentPhone: '', parentName: '' }]);
+  };
+
+  const handleRemoveManualTrialRow = (idx) => {
+    setManualTrialRows((prev) => prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev);
+  };
+
   const handleCreateManualTrialLeads = async (group) => {
-    const rows = manualTrialBulkText
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean);
-
-    if (!rows.length) {
-      alert('נא להזין לפחות תלמיד אחד');
-      return;
-    }
-
-    const payload = rows
-      .map((line) => {
-        const parts = line.split(',').map((p) => p.trim());
-        const studentFullName = parts[0] || '';
-        const studentGrade = parts[1] || null;
-        const parentPhone = (parts[2] || '').replace(/\D/g, '') || null;
-        const parentName = parts[3] || null;
-
-        if (!studentFullName) return null;
-        return {
-          student_full_name: studentFullName,
-          student_grade: studentGrade,
-          parent_phone: parentPhone,
-          parent_name: parentName,
-          group_id: group.id,
-          source_channel: 'phone',
-          status: 'before_class',
-          attended_trial: false,
-          created_by: loggedUser || null,
-          updated_by: loggedUser || null,
-        };
-      })
-      .filter(Boolean);
+    const payload = manualTrialRows
+      .filter((r) => r.studentName.trim())
+      .map((r) => ({
+        student_full_name: r.studentName.trim(),
+        student_grade: r.grade.trim() || null,
+        parent_phone: r.parentPhone.replace(/\D/g, '') || null,
+        parent_name: r.parentName.trim() || null,
+        group_id: group.id,
+        source_channel: 'phone',
+        status: 'before_class',
+        attended_trial: false,
+        created_by: loggedUser || null,
+        updated_by: loggedUser || null,
+      }));
 
     if (!payload.length) {
-      alert('לא נמצאו שורות תקינות. פורמט: שם תלמיד, כיתה, טלפון הורה, שם הורה');
+      alert('נא להזין לפחות שם תלמיד אחד');
       return;
     }
 
@@ -370,7 +363,7 @@ export default function InstructorGroups() {
     }
 
     await fetchLiveGroupsAndStudents();
-    setManualTrialBulkText('');
+    setManualTrialRows([{ studentName: '', grade: '', parentPhone: '', parentName: '' }]);
     setManualTrialGroupId(null);
     triggerToast(`✅ נוספו ${payload.length} שיעורי ניסיון`);
   };
@@ -593,6 +586,8 @@ export default function InstructorGroups() {
         .trial-list-trigger-btn { width: 100%; background: rgba(16,185,129,0.08); border: 1px dashed rgba(16,185,129,0.45); color: #6ee7b7; padding: 10px; border-radius: 10px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 12px; }
         .trial-manual-trigger-btn { width: 100%; background: rgba(34,197,94,0.08); border: 1px dashed rgba(34,197,94,0.45); color: #86efac; padding: 10px; border-radius: 10px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 8px; }
         .trial-manual-textarea { width: 100%; background: #0a0f1e; border: 1px solid #1a2a40; color: #d7e3ff; border-radius: 8px; padding: 8px; font-size: 12px; min-height: 88px; resize: vertical; }
+        .trial-manual-input { width: 100%; background: #0a0f1e; border: 1px solid #1a2a40; color: #d7e3ff; border-radius: 8px; padding: 6px 8px; font-size: 12px; outline: none; text-align: right; }
+        .trial-manual-input:focus { border-color: #3b82f6; }
         .student-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-radius: 9px; cursor: pointer; flex-direction: row-reverse; }
         .student-row:hover { background: rgba(96,64,204,.08); }
         .student-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg,#1a1040,#0e1a40); border: 1px solid #2a2a4a; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #8080cc; font-weight: 600; }
@@ -731,23 +726,57 @@ export default function InstructorGroups() {
                       </button>
                       {isManualTrialOpen && (
                         <div style={{ marginBottom: '10px' }}>
-                          <div style={{ fontSize: '11px', color: '#8aa0bc', marginBottom: '6px', textAlign: 'right' }}>
-                            שורה לכל תלמיד: שם תלמיד, כיתה, טלפון הורה, שם הורה (אפשר להשאיר שדות ריקים)
+                          {manualTrialRows.map((row, idx) => (
+                            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr 1.5fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
+                              <input
+                                className="trial-manual-input"
+                                placeholder="שם מלא תלמיד"
+                                value={row.studentName}
+                                onChange={(e) => handleManualTrialRowChange(idx, 'studentName', e.target.value)}
+                              />
+                              <input
+                                className="trial-manual-input"
+                                placeholder="כיתה"
+                                value={row.grade}
+                                onChange={(e) => handleManualTrialRowChange(idx, 'grade', e.target.value)}
+                              />
+                              <input
+                                className="trial-manual-input"
+                                placeholder="טלפון הורה"
+                                value={row.parentPhone}
+                                onChange={(e) => handleManualTrialRowChange(idx, 'parentPhone', e.target.value)}
+                              />
+                              <input
+                                className="trial-manual-input"
+                                placeholder="שם הורה"
+                                value={row.parentName}
+                                onChange={(e) => handleManualTrialRowChange(idx, 'parentName', e.target.value)}
+                              />
+                              <button
+                                type="button"
+                                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px', padding: '0 4px' }}
+                                onClick={() => handleRemoveManualTrialRow(idx)}
+                                title="הסר שורה"
+                              >×</button>
+                            </div>
+                          ))}
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                            <button
+                              className="trial-manual-trigger-btn"
+                              type="button"
+                              onClick={handleAddManualTrialRow}
+                            >
+                              + הוסף תלמיד נוסף
+                            </button>
+                            <button
+                              className="trial-manual-trigger-btn"
+                              type="button"
+                              style={{ background: '#1e3a5f' }}
+                              onClick={() => handleCreateManualTrialLeads(g)}
+                            >
+                              ✅ שמור שיעורי ניסיון
+                            </button>
                           </div>
-                          <textarea
-                            className="trial-manual-textarea"
-                            value={manualTrialBulkText}
-                            onChange={(e) => setManualTrialBulkText(e.target.value)}
-                            placeholder={'דנה ישראלי, ה, 0501234567, רותם\nיואב כהן, ו,,\nנועה לוי,,,אמא נועה'}
-                          />
-                          <button
-                            className="trial-manual-trigger-btn"
-                            type="button"
-                            style={{ marginTop: '8px' }}
-                            onClick={() => handleCreateManualTrialLeads(g)}
-                          >
-                            שמור שיעורי ניסיון
-                          </button>
                         </div>
                       )}
                       {g.students.map((s, sIdx) => (
@@ -795,7 +824,9 @@ export default function InstructorGroups() {
                               <div>
                                 {trialStatusLabel(lead.status)}
                                 {lead.parent_name ? ` · הורה: ${lead.parent_name}` : ''}
-                                {lead.parent_phone ? ` · טלפון: ${lead.parent_phone}` : ''}
+                                {lead.parent_phone && (
+                                  <> · <a href={`tel:${lead.parent_phone}`} style={{ fontWeight: 'bold', color: '#93c5fd', textDecoration: 'none' }} onClick={(e) => e.stopPropagation()}>{lead.parent_phone}</a></>
+                                )}
                                 {lead.student_grade ? ` · כיתה: ${lead.student_grade}` : ''}
                               </div>
                               {lead.needs_pickup_from_after_school && (

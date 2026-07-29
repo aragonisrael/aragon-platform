@@ -269,6 +269,7 @@ ALTER TABLE public.trial_lead_status_history ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "trial_leads_admin_all" ON public.trial_leads;
 DROP POLICY IF EXISTS "trial_leads_instructor_select" ON public.trial_leads;
+DROP POLICY IF EXISTS "trial_leads_instructor_insert" ON public.trial_leads;
 DROP POLICY IF EXISTS "trial_leads_instructor_update_attendance" ON public.trial_leads;
 DROP POLICY IF EXISTS "trial_history_admin_all" ON public.trial_lead_status_history;
 DROP POLICY IF EXISTS "trial_history_instructor_select" ON public.trial_lead_status_history;
@@ -289,6 +290,14 @@ CREATE POLICY "trial_leads_instructor_select"
 ON public.trial_leads
 FOR SELECT TO authenticated
 USING (public.can_access_trial_group(group_id) = true);
+
+CREATE POLICY "trial_leads_instructor_insert"
+ON public.trial_leads
+FOR INSERT TO authenticated
+WITH CHECK (
+  public.is_staff_instructor() = true
+  AND public.can_access_trial_group(group_id) = true
+);
 
 CREATE POLICY "trial_leads_instructor_update_attendance"
 ON public.trial_leads
