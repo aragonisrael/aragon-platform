@@ -22,6 +22,7 @@ export default function InstructorGroups() {
   // Reactive Control States
   const [searchQuery, setSearchQuery] = useState('');
   const [openGroupId, setOpenGroupId] = useState(null);
+  const [openTrialGroupId, setOpenTrialGroupId] = useState(null);
   const [isModalOpen, setIsOpen] = useState(false);
   const [activePanel, setActivePanel] = useState(''); // '' | 'coins' | 'task' | 'edit'
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -76,21 +77,28 @@ export default function InstructorGroups() {
         time: `${minToHourStr(g.start_min || 960)}–${minToHourStr((g.start_min || 960) + (g.dur || 60))}`,
         grades: g.grades || "ד'",
         count: 0,
-        students: []
+        students: [],
+        trialLeads: []
       }));
 
       if (liveGroups.length > 0) {
           const groupIds = liveGroups.map(lg => lg.id);
-          const { data: dbStudents } = await supabase
-            .from('users')
-            .select('id, username, password, full_name, coins, coin_earn_cap, group_id')
-            .eq('role', 'student')
-            .in('group_id', groupIds);
-
-          const { data: pendingReqs, error: pendingErr } = await supabase
-            .from('coin_grant_requests')
-            .select('student_id')
-            .eq('status', 'pending');
+          const [{ data: dbStudents }, { data: pendingReqs, error: pendingErr }, { data: dbTrialLeads }] = await Promise.all([
+            supabase
+              .from('users')
+              .select('id, username, password, full_name, coins, coin_earn_cap, group_id')
+              .eq('role', 'student')
+              .in('group_id', groupIds),
+            supabase
+              .from('coin_grant_requests')
+              .select('student_id')
+              .eq('status', 'pending'),
+            supabase
+              .from('trial_leads')
+              .select('id, student_full_name, parent_name, status, attended_trial, group_id')
+              .in('group_id', groupIds)
+              .order('created_at', { ascending: false }),
+          ]);
 
           const pendingStudentIds = pendingErr
             ? new Set()
@@ -117,6 +125,13 @@ export default function InstructorGroups() {
               }
             });
           }
+
+          (dbTrialLeads || []).forEach((lead) => {
+            const foundGroup = liveGroups.find((g) => g.id === Number(lead.group_id));
+            if (foundGroup) {
+              foundGroup.trialLeads.push(lead);
+            }
+          });
         }
 
       liveGroups.forEach(g => {
@@ -243,6 +258,44 @@ export default function InstructorGroups() {
 
   const handleToggleGroup = (id) => {
     setOpenGroupId(openGroupId === id ? null : id);
+  };
+
+  const handleToggleTrialList = (groupId, e) => {
+    if (e) e.stopPropagation();
+    setOpenTrialGroupId((prev) => (prev === groupId ? null : groupId));
+  };
+
+  const trialStatusLabel = (status) => {
+    if (status === 'before_class') return 'לפני שיעור';
+    if (status === 'after_class') return 'אחרי שיעור';
+    if (status === 'thinking') return 'חושב';
+    if (status === 'not_interested') return 'לא מעוניין';
+    if (status === 'registered') return 'נרשם';
+    return status || 'לא הוגדר';
+  };
+
+  const handleMarkTrialAttendance = async (leadId, attended) => {
+    try {
+      const { error } = await supabase
+        .from('trial_leads')
+        .update({
+          attended_trial: attended,
+          updated_by: loggedUser || null,
+        })
+        .eq('id', leadId);
+
+      if (error) {
+        console.error(error);
+        alert('לא הצלחתי לעדכן נוכחות תלמיד ניסיון');
+        return;
+      }
+
+      await fetchLiveGroupsAndStudents();
+      triggerToast(attended ? '✅ נוכחות סומנה' : 'הסימון הוסר');
+    } catch (err) {
+      console.error(err);
+      alert('שגיאה בעדכון נוכחות');
+    }
   };
 
   const handleOpenModal = (student) => {
@@ -460,6 +513,7 @@ export default function InstructorGroups() {
 
         .students-list { border-top: 1px solid #1a1a30; padding: 8px 12px 10px; }
         .bulk-create-trigger-btn { width: 100%; background: rgba(64,128,255,0.05); border: 1px dashed #5030aa; color: #c0b0ff; padding: 10px; border-radius: 10px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 12px; }
+        .trial-list-trigger-btn { width: 100%; background: rgba(16,185,129,0.08); border: 1px dashed rgba(16,185,129,0.45); color: #6ee7b7; padding: 10px; border-radius: 10px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 12px; }
         .student-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-radius: 9px; cursor: pointer; flex-direction: row-reverse; }
         .student-row:hover { background: rgba(96,64,204,.08); }
         .student-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg,#1a1040,#0e1a40); border: 1px solid #2a2a4a; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #8080cc; font-weight: 600; }
@@ -565,6 +619,7 @@ export default function InstructorGroups() {
           <div className="groups-list">
             {filteredGroups.map(g => {
               const isGroupOpen = openGroupId === g.id;
+              const isTrialListOpen = openTrialGroupId === g.id;
               return (
                 <div key={g.id} className={`group-card ${isGroupOpen ? 'open' : ''}`}>
                   <div className="gc-header" onClick={() => handleToggleGroup(g.id)}>
@@ -586,6 +641,10 @@ export default function InstructorGroups() {
                   {isGroupOpen && (
                     <div className="students-list">
                       <button className="bulk-create-trigger-btn" type="button" onClick={(e) => handleOpenBulkModal(g, e)}><i className="ti ti-user-plus"></i> צור תלמידים חדשים בקבוצה זו</button>
+                      <button className="trial-list-trigger-btn" type="button" onClick={(e) => handleToggleTrialList(g.id, e)}>
+                        <i className="ti ti-checkbox"></i>
+                        {isTrialListOpen ? 'סגור רשימת ניסיון' : `רשימת ניסיון (${g.trialLeads.length})`}
+                      </button>
                       {g.students.map((s, sIdx) => (
                         <div key={sIdx} className="student-row" onClick={() => handleOpenModal(s)}>
                           <div className="student-avatar">{s.initials}</div>
@@ -597,6 +656,43 @@ export default function InstructorGroups() {
                           <i className="ti ti-chevron-right student-arrow"></i>
                         </div>
                       ))}
+                      {isTrialListOpen && (
+                      <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #1a2a40' }}>
+                        <div style={{ fontSize: '12px', color: '#8aa0bc', marginBottom: '8px', textAlign: 'right' }}>
+                          רשימת ניסיון ({g.trialLeads.length}) — ניתן לסמן רק מי הגיע בפועל
+                        </div>
+                        {g.trialLeads.length === 0 ? (
+                          <div style={{ fontSize: '11px', color: '#546780', textAlign: 'right' }}>אין תלמידי ניסיון בקבוצה זו</div>
+                        ) : g.trialLeads.map((lead) => (
+                          <div
+                            key={lead.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '8px',
+                              padding: '8px',
+                              borderRadius: '8px',
+                              border: '1px solid #1a2a40',
+                              marginBottom: '6px',
+                              background: '#0b1222'
+                            }}
+                          >
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#c7d2fe', fontSize: '12px', cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={Boolean(lead.attended_trial)}
+                                onChange={(e) => handleMarkTrialAttendance(lead.id, e.target.checked)}
+                              />
+                              <span>{lead.student_full_name}</span>
+                            </label>
+                            <span style={{ fontSize: '11px', color: '#7f93af' }}>
+                              {trialStatusLabel(lead.status)} · הורה: {lead.parent_name}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      )}
                     </div>
                   )}
                 </div>

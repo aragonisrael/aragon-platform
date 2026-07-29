@@ -62,6 +62,7 @@ export default function AdminGroupsList() {
   const [instructors, setInstructors] = useState([]);
   const [groups, setGroups] = useState([]);
   const [groupStudents, setGroupStudents] = useState({});
+  const [groupTrialLeads, setGroupTrialLeads] = useState({});
 
   // פונקציה מרכזית למשיכת וסנכרון הקבוצות, התלמידים והמדריכים מהשרת בענן
   const fetchLiveGroupsAndRosters = async () => {
@@ -86,8 +87,14 @@ export default function AdminGroupsList() {
         setGroups(mappedGroups);
       }
 
-      // 2. משיכת משתמשי הרשת (תלמידים ומדריכים)
-      const { data: dbUsers } = await supabase.from('users').select('*');
+      // 2. משיכת משתמשי הרשת (תלמידים ומדריכים) + רשימות ניסיון
+      const [{ data: dbUsers }, { data: dbTrialLeads }] = await Promise.all([
+        supabase.from('users').select('*'),
+        supabase
+          .from('trial_leads')
+          .select('id, parent_name, parent_phone, student_full_name, group_id, status, attended_trial, trial_date')
+          .order('created_at', { ascending: false }),
+      ]);
       if (dbUsers) {
         const allInstructors = dbUsers.filter(u => u.role === 'instructor').map(u => u.full_name);
         setInstructors(allInstructors);
@@ -110,9 +117,27 @@ export default function AdminGroupsList() {
         });
         setGroupStudents(studentsMap);
       }
+
+      const trialMap = {};
+      mappedGroups.forEach((g) => { trialMap[g.id] = []; });
+      (dbTrialLeads || []).forEach((lead) => {
+        if (!lead.group_id) return;
+        if (!trialMap[lead.group_id]) trialMap[lead.group_id] = [];
+        trialMap[lead.group_id].push(lead);
+      });
+      setGroupTrialLeads(trialMap);
     } catch (err) {
       console.error("Error syncing matrix rosters:", err);
     }
+  };
+
+  const trialStatusLabel = (status) => {
+    if (status === 'before_class') return 'לפני שיעור';
+    if (status === 'after_class') return 'אחרי שיעור';
+    if (status === 'thinking') return 'חושב';
+    if (status === 'not_interested') return 'לא מעוניין';
+    if (status === 'registered') return 'נרשם';
+    return status || 'לא הוגדר';
   };
 
   useEffect(() => {
@@ -856,6 +881,36 @@ export default function AdminGroupsList() {
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <input className="minput" type="text" placeholder="הקלד שם מלא של התלמיד..." value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} />
                       <button className="pack-btn" style={{ background: 'linear-gradient(135deg, #041818, #062828)', borderColor: '#00d8b044', color: '#00d8b0', padding: '0 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }} type="button" onClick={handleAddStudentToGroup}> הוסף לקבוצה</button>
+                    </div>
+                  </div>
+                  <div className="mfield">
+                    <label style={{ marginBottom: '6px', display: 'block' }}>
+                      רשימת ניסיון ({(groupTrialLeads[selectedGroupId] || []).length}) — צפייה בלבד
+                    </label>
+                    <div className="student-modal-list">
+                      {(groupTrialLeads[selectedGroupId] || []).length > 0 ? (groupTrialLeads[selectedGroupId] || []).map((lead, idx) => (
+                        <div className="student-modal-row" key={lead.id || idx}>
+                          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span>{idx + 1}. {lead.student_full_name}</span>
+                            <span style={{ fontSize: '11px', color: '#8aa0bc' }}>
+                              הורה: {lead.parent_name} · סטטוס: {trialStatusLabel(lead.status)}
+                            </span>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              border: `1px solid ${lead.attended_trial ? '#00e67666' : '#4a608055'}`,
+                              color: lead.attended_trial ? '#00e676' : '#8098b0',
+                              background: lead.attended_trial ? '#062012' : '#0a1428',
+                              borderRadius: '999px',
+                              padding: '2px 8px',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {lead.attended_trial ? 'הגיע בפועל' : 'טרם סומן הגעה'}
+                          </span>
+                        </div>
+                      )) : <div className="no-students-placeholder">אין עדיין נרשמים לשיעור ניסיון בקבוצה זו</div>}
                     </div>
                   </div>
                   <div className="mrow"><button className="mcancel" style={{ width: '100%' }} type="button" onClick={() => setIsStudentModalOpen(false)}>סגור קונסולה</button></div>
