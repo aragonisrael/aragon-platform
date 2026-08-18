@@ -7,6 +7,20 @@ import { supabase } from '../../supabaseClient';
 import aragonLogo from '../../assets/aragonlogo.png';
 import AdminSidebar from '../../components/admin/AdminSidebar';
 
+function localIsoDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function isUpcomingTrialLead(lead, todayIso) {
+  if (!lead || lead.attended_trial) return false;
+  if (lead.status && lead.status !== 'before_class') return false;
+  if (lead.trial_date && lead.trial_date < todayIso) return false;
+  return true;
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
 
@@ -14,7 +28,14 @@ export default function AdminDashboard() {
   const [isPlaying, setIsPlaying] = useState(false);
 
   // סטייט כללי לצינורות הנתונים הדינמיים מהענן
-  const [kpi, setKpi] = useState({ totalStudents: 0, totalInstructors: 0, totalGroups: 0, average: 0 });
+  const [kpi, setKpi] = useState({
+    totalStudents: 0,
+    upcomingTrials: 0,
+    attendedTrials: 0,
+    totalInstructors: 0,
+    totalGroups: 0,
+    average: 0,
+  });
   const [instructors, setInstructors] = useState([]);
   const [riskGroups, setRiskGroups] = useState([]);
 
@@ -24,8 +45,15 @@ export default function AdminDashboard() {
   const fetchLiveDashboardStats = async () => {
     try {
       // 1. שליפת קבוצות ומדריכים מהענן
-      const { data: dbGroups } = await supabase.from('groups').select('*');
-      const { data: dbUsers } = await supabase.from('users').select('*');
+      const [{ data: dbGroups }, { data: dbUsers }, { data: trialLeads }] = await Promise.all([
+        supabase.from('groups').select('*'),
+        supabase.from('users').select('*'),
+        supabase.from('trial_leads').select('status, attended_trial, trial_date'),
+      ]);
+
+      const todayIso = localIsoDate(new Date());
+      const upcomingTrials = (trialLeads || []).filter((lead) => isUpcomingTrialLead(lead, todayIso)).length;
+      const attendedTrials = (trialLeads || []).filter((lead) => Boolean(lead.attended_trial)).length;
 
       if (dbUsers && dbGroups) {
         const activeGroups = dbGroups.filter(g => g.is_active !== false);
@@ -41,6 +69,8 @@ export default function AdminDashboard() {
 
         setKpi({
           totalStudents: totalStudentsCount,
+          upcomingTrials,
+          attendedTrials,
           totalInstructors: allInstructors.length,
           totalGroups: totalGroupsCount,
           average: avgStudents
@@ -82,6 +112,8 @@ export default function AdminDashboard() {
         .sort((a, b) => a.count - b.count);
 
         setRiskGroups(computedRisk);
+      } else {
+        setKpi((prev) => ({ ...prev, upcomingTrials, attendedTrials }));
       }
     } catch (err) {
       console.error("Error updating admin nerve center:", err);
@@ -205,14 +237,19 @@ export default function AdminDashboard() {
         .section-title { font-family: 'Orbitron', monospace; font-size: 13px; letter-spacing: 2px; color: #c0d8f0; white-space: nowrap; font-weight: 600; }
         .section-icon { width: 6px; height: 6px; border-radius: 50%; background: #00c8ff; flex-shrink: 0; }
         
-        .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
         .kpi-card { background: linear-gradient(135deg, #070e1c, #0a1428); border: 1px solid #1a2a4a; border-radius: 12px; padding: 18px 20px; position: relative; overflow: hidden; transition: border-color 0.3s; }
         .kpi-card:hover { border-color: #00c8ff66; }
         .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #00c8ff, #1a6fff); }
+        .kpi-card.kpi-trial-future::before { background: linear-gradient(90deg, #f0a820, #00c8ff); }
+        .kpi-card.kpi-trial-attended::before { background: linear-gradient(90deg, #00e676, #00c8ff); }
         .kpi-label { font-size: 11px; color: #4a6080; letter-spacing: 1px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
         .kpi-label i { font-size: 14px; color: #00c8ff66; }
         .kpi-value { font-family: 'Orbitron', monospace; font-size: 28px; font-weight: 700; color: #00c8ff; line-height: 1; margin-bottom: 6px; }
+        .kpi-card.kpi-trial-future .kpi-value { color: #f0a820; }
+        .kpi-card.kpi-trial-attended .kpi-value { color: #00e676; }
         .kpi-sub { font-size: 11px; color: #2a4060; }
+        @media (max-width: 1400px) { .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
         
         .panels-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .panel { background: #070e1c; border: 1px solid #1a2a4a; border-radius: 14px; overflow: hidden; }
@@ -286,6 +323,8 @@ export default function AdminDashboard() {
             <div className="section-header"><div className="section-icon"></div><div className="section-title">מבט על אראגון</div><div className="section-header-line"></div></div>
             <div className="kpi-grid">
               <div className="kpi-card"><div className="kpi-label"><i className="ti ti-users"></i> תלמידים פעילים</div><div className="kpi-value">{kpi.totalStudents}</div><div className="kpi-sub">ברחבי הרשת</div></div>
+              <div className="kpi-card kpi-trial-future"><div className="kpi-label"><i className="ti ti-calendar-event"></i> מיועדים לניסיון</div><div className="kpi-value">{kpi.upcomingTrials}</div><div className="kpi-sub">שיעור ניסיון עתידי</div></div>
+              <div className="kpi-card kpi-trial-attended"><div className="kpi-label"><i className="ti ti-user-check"></i> נוכחו בניסיון</div><div className="kpi-value">{kpi.attendedTrials}</div><div className="kpi-sub">סומנו כהגיעו</div></div>
               <div className="kpi-card"><div className="kpi-label"><i className="ti ti-user-star"></i> מדריכים פעילים</div><div className="kpi-value">{kpi.totalInstructors}</div><div className="kpi-sub">בשטח</div></div>
               <div className="kpi-card"><div className="kpi-label"><i className="ti ti-topology-star"></i> קבוצות פעילות</div><div className="kpi-value">{kpi.totalGroups}</div><div className="kpi-sub">קבוצות רשומות</div></div>
               <div className="kpi-card"><div className="kpi-label"><i className="ti ti-chart-line"></i> ממוצע כללי</div><div className="kpi-value">{kpi.average}</div><div className="kpi-sub">תלמידים לקבוצה</div></div>
