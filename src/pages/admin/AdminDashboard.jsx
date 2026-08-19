@@ -178,6 +178,8 @@ export default function AdminDashboard() {
       <style>{`
         ${adminSidebarStyles}
 
+        .main-area { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; overflow-x: hidden; min-width: 0; }
+
         .content { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
         .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
         .section-header-line { flex: 1; height: 1px; background: linear-gradient(90deg, #1a2a4a, transparent); }
