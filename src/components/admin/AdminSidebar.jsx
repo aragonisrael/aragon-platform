@@ -13,6 +13,7 @@ export const ADMIN_NAV = [
   { key: 'mgmt-tasks', path: '/admin/operations/tasks', icon: 'ti-checkbox', label: 'משימות' },
   { key: 'mgmt-meetings', path: '/admin/operations/meetings', icon: 'ti-calendar-event', label: 'ישיבות' },
   { key: 'camps', path: '/admin/camps', icon: 'ti-tent', label: 'קייטנות' },
+  { key: 'trials', path: '/admin/trials', icon: 'ti-user-question', label: 'מתעניינים' },
 ];
 
 export const adminSidebarStyles = `

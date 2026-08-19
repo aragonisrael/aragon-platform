@@ -1,7 +1,8 @@
 import { AuthProvider } from './context/AuthContext';
 import PushNotificationsSetup from './components/PushNotificationsSetup';
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { supabase } from './supabaseClient';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute'; 
 
@@ -35,6 +36,7 @@ import AdminInstructors from './pages/admin/AdminInstructors';
 import AdminStudentsManagement from './pages/admin/AdminStudentsManagement';
 // 🔥 הייבוא הנכון של העמוד החדש לעולם האדמין
 import AdminCampsManagement from './pages/admin/AdminCampsManagement';
+import AdminTrialLeads from './pages/admin/AdminTrialLeads';
 
 // עמודי מערך הלוגיסטיקה והחמ"ל המשרדי המבוזר (Matrix HQ) 🚚
 import LogisticsDashboard from './pages/logistics/LogisticsDashboard';
@@ -50,11 +52,88 @@ import ManagementMeetings from './pages/management/ManagementMeetings';
 import ManagementMeeting from './pages/management/ManagementMeeting';
 import ManagementProfile from './pages/management/ManagementProfile';
 
+function TrialLeadGlobalPopup() {
+  const [popup, setPopup] = useState(null);
+  const location = useLocation();
+  const isAdminPage = location.pathname.startsWith('/admin');
+  const channelRef = useRef(null);
+  const groupsCacheRef = useRef([]);
+
+  useEffect(() => {
+    supabase.from('groups').select('id, name, city, venue').then(({ data }) => {
+      if (data) groupsCacheRef.current = data;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isAdminPage) return;
+
+    const channel = supabase
+      .channel('app_trial_leads_global')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trial_leads' }, (payload) => {
+        const row = payload.new;
+        const g = groupsCacheRef.current.find(g => g.id === row.group_id);
+        setPopup({
+          student: row.student_full_name || 'תלמיד',
+          group: g ? `${g.venue} — ${g.city}` : `קבוצה #${row.group_id}`,
+          by: row.created_by || null,
+        });
+        setTimeout(() => setPopup(null), 8000);
+      })
+      .subscribe();
+    channelRef.current = channel;
+    return () => { supabase.removeChannel(channel); };
+  }, [isAdminPage]);
+
+  if (!popup) return null;
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 9999, minWidth: 340, maxWidth: 520,
+      background: 'linear-gradient(135deg,#040e1e,#071828)',
+      border: '1px solid rgba(0,200,255,0.35)', borderRadius: 14,
+      padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: 14,
+      boxShadow: '0 8px 32px rgba(0,0,0,0.55), 0 0 24px rgba(0,200,255,0.07)',
+      fontFamily: "'Rajdhani',sans-serif", color: '#e0f0ff', direction: 'rtl',
+      animation: 'tlSlideUp .35s ease',
+    }}>
+      <style>{`@keyframes tlSlideUp { from { opacity:0; transform:translateX(-50%) translateY(16px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }`}</style>
+      <div style={{
+        width: 42, height: 42, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'linear-gradient(135deg,#0a2040,#0d3060)', border: '1px solid rgba(0,200,255,0.3)',
+        fontSize: 20, color: '#00c8ff',
+      }}>
+        <i className="ti ti-user-plus" />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: "'Orbitron',monospace", fontSize: 11, color: '#00c8ff', letterSpacing: 1, marginBottom: 5 }}>
+          🟢 שיעור ניסיון חדש נרשם
+        </div>
+        <div style={{ fontSize: 13, lineHeight: 1.55 }}>
+          התלמיד{' '}
+          <strong style={{ color: '#00e676' }}>{popup.student}</strong>
+          {' '}נרשם לשיעור ניסיון במוקד{' '}
+          <strong style={{ color: '#00e676' }}>{popup.group}</strong>
+          {popup.by ? <> ע״י <strong style={{ color: '#93c5fd' }}>{popup.by}</strong></> : ''}{' '}— בהצלחה!
+        </div>
+      </div>
+      <button
+        onClick={() => setPopup(null)}
+        style={{ background: 'none', border: 'none', color: '#4a6080', cursor: 'pointer', fontSize: 18, lineHeight: 1, flexShrink: 0, padding: 0 }}
+      >
+        <i className="ti ti-x" />
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <PushNotificationsSetup />
       <audio id="hq-cyber-radio" src="https://listen.181fm.com/181-power_128k.mp3" preload="none" />
+      <TrialLeadGlobalPopup />
 
       <Routes>
         <Route path="/" element={<Login />} />
@@ -91,6 +170,7 @@ export default function App() {
         <Route path="/admin/students" element={<ProtectedRoute allowedRoles={['admin']}><AdminStudentsManagement /></ProtectedRoute>} />
         {/* 🔥 הנתב החדש והנכון בתוך חבילת האדמינים! */}
         <Route path="/admin/camps" element={<ProtectedRoute allowedRoles={['admin']}><AdminCampsManagement /></ProtectedRoute>} />
+        <Route path="/admin/trials" element={<ProtectedRoute allowedRoles={['admin']}><AdminTrialLeads /></ProtectedRoute>} />
 
         {/* 🚚 מערך הלוגיסטיקה */}
         <Route path="/admin/logistics" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsDashboard /></ProtectedRoute>} />
