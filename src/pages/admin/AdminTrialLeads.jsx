@@ -78,6 +78,10 @@ export default function AdminTrialLeads() {
         const row = payload.new;
         setLeads(prev => prev.map(l => l.id === row.id ? { ...l, ...row } : l));
       })
+      .on('postgres_changes', { event:'DELETE', schema:'public', table:'trial_leads' }, (payload) => {
+        const row = payload.old;
+        if (row?.id) setLeads(prev => prev.filter(l => l.id !== row.id));
+      })
       .subscribe();
     realtimeRef.current = channel;
     return () => { supabase.removeChannel(channel); };
@@ -128,6 +132,16 @@ export default function AdminTrialLeads() {
     if (error) { showToast('שגיאה: ' + error.message, true); return false; }
     setLeads(prev => prev.map(l => l.id === id ? { ...l, ...data } : l));
     return true;
+  };
+
+  const deleteLead = async (lead) => {
+    const name = lead.student_full_name || 'המתעניין';
+    if (!window.confirm(`האם אתה בטוח?\n\nפעולה זו תמחק את "${name}" מרשימת המתעניינים לצמיתות, ולא ניתן לשחזר אותה.`)) return;
+    const { error } = await supabase.from('trial_leads').delete().eq('id', lead.id);
+    if (error) { showToast('שגיאה במחיקה: ' + error.message, true); return; }
+    setLeads(prev => prev.filter(l => l.id !== lead.id));
+    if (editLead?.id === lead.id) setEditLead(null);
+    showToast('🗑️ המתעניין נמחק');
   };
 
   const toggleAttendance = async (lead) => {
@@ -242,6 +256,10 @@ export default function AdminTrialLeads() {
         .tl-att-yes { color:#86efac; border-color:rgba(34,197,94,0.45); background:rgba(34,197,94,0.1); }
         .tl-att-no  { color:#64748b; border-color:#1a2a4a; }
         .tl-edit-btn { background:transparent; border:1px solid #1a2a4a; color:#8aa0bc; border-radius:8px; width:32px; height:32px; cursor:pointer; }
+        .tl-edit-btn:hover { color:#c0d8f0; border-color:#3a5070; }
+        .tl-del-btn { background:transparent; border:1px solid #3a1520; color:#f87171; border-radius:8px; width:32px; height:32px; cursor:pointer; }
+        .tl-del-btn:hover { background:rgba(239,68,68,0.12); border-color:#ef4444; color:#fca5a5; }
+        .tl-row-actions { display:flex; gap:6px; justify-content:flex-end; }
 
         .tl-modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.65); display:flex; align-items:center; justify-content:center; z-index:1000; padding:16px; }
         .tl-modal { background:#070e1c; border:1px solid #1a2a4a; border-radius:14px; padding:20px; width:100%; max-width:440px; }
@@ -382,9 +400,14 @@ export default function AdminTrialLeads() {
                         </button>
                       </td>
                       <td>
-                        <button className="tl-edit-btn" title="ערוך" onClick={() => setEditLead({ ...lead })}>
-                          <i className="ti ti-pencil"/>
-                        </button>
+                        <div className="tl-row-actions">
+                          <button className="tl-edit-btn" title="ערוך" onClick={() => setEditLead({ ...lead })}>
+                            <i className="ti ti-pencil"/>
+                          </button>
+                          <button className="tl-del-btn" title="מחק מתעניין" onClick={() => deleteLead(lead)}>
+                            <i className="ti ti-trash"/>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

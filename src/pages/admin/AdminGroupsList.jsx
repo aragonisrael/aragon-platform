@@ -577,6 +577,19 @@ export default function AdminGroupsList() {
     }
   };
 
+  const handleDeleteTrialLead = async (lead) => {
+    const name = lead.student_full_name || 'המתעניין';
+    if (!window.confirm(`האם אתה בטוח?\n\nפעולה זו תמחק את "${name}" מרשימת המתעניינים לצמיתות, ולא ניתן לשחזר אותה.`)) return;
+    const { error } = await supabase.from('trial_leads').delete().eq('id', lead.id);
+    if (error) {
+      triggerToast(`מחיקה נכשלה: ${error.message}`, true);
+      return;
+    }
+    if (editingTrialLead?.id === lead.id) setEditingTrialLead(null);
+    await fetchLiveGroupsAndRosters();
+    triggerToast('🗑️ המתעניין נמחק');
+  };
+
   const handleUpdateTrialLead = async (leadId, patch, successMsg = 'שיעור ניסיון עודכן') => {
     const { error } = await supabase.from('trial_leads').update(patch).eq('id', leadId);
     if (error) {
@@ -722,7 +735,7 @@ export default function AdminGroupsList() {
         .trial-manual-input { width: 100%; background: #0a0f1e; border: 1px solid #1a2a40; color: #d7e3ff; border-radius: 8px; padding: 6px 8px; font-size: 12px; outline: none; text-align: right; }
         .trial-manual-input:focus { border-color: #3b82f6; }
         .trial-table-wrap { border: 1px solid #1a2a4a; border-radius: 8px; overflow: hidden; background: #060b18; }
-        .trial-table-header, .trial-table-row { display: grid; grid-template-columns: 2fr 0.55fr 1.1fr 1.1fr 1.1fr 0.85fr 36px; gap: 8px; align-items: center; padding: 8px 10px; }
+        .trial-table-header, .trial-table-row { display: grid; grid-template-columns: 2fr 0.55fr 1.1fr 1.1fr 1.1fr 0.85fr 72px; gap: 8px; align-items: center; padding: 8px 10px; }
         .trial-table-header { background: #0a1428; border-bottom: 1px solid #1a2a4a; font-size: 10px; color: #6080a0; font-weight: 700; letter-spacing: 0.5px; position: sticky; top: 0; z-index: 2; }
         .trial-table-body { max-height: 340px; overflow-y: auto; }
         .trial-table-row { border-bottom: 1px solid #0d1a2e; font-size: 12px; color: #cbd5e1; }
@@ -731,8 +744,11 @@ export default function AdminGroupsList() {
         .trial-attendance-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; white-space: nowrap; text-align: center; }
         .trial-attendance-yes { color: #86efac; border: 1px solid rgba(34,197,94,0.45); background: rgba(34,197,94,0.12); }
         .trial-attendance-no { color: #94a3b8; border: 1px solid rgba(100,116,139,0.45); background: rgba(71,85,105,0.18); }
+        .trial-row-actions { display: flex; gap: 2px; align-items: center; justify-content: flex-end; }
         .trial-edit-btn { background: none; border: none; color: #00c8ff; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; padding: 4px; }
         .trial-edit-btn:hover { color: #7dd3fc; }
+        .trial-delete-btn { background: none; border: none; color: #f87171; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; padding: 4px; }
+        .trial-delete-btn:hover { color: #fca5a5; }
         .trial-cell-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .trial-cell-muted { color: #8aa0bc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .trial-phone-link { color: #93c5fd; font-weight: 700; text-decoration: none; }
@@ -1107,9 +1123,14 @@ export default function AdminGroupsList() {
                           <span className={`trial-attendance-badge ${lead.attended_trial ? 'trial-attendance-yes' : 'trial-attendance-no'}`}>
                             {lead.attended_trial ? 'הגיע' : 'לא הגיע'}
                           </span>
-                          <button className="trial-edit-btn" type="button" title="ערוך רשומה" onClick={() => handleOpenTrialEdit(lead)}>
-                            <i className="ti ti-pencil"></i>
-                          </button>
+                          <div className="trial-row-actions">
+                            <button className="trial-edit-btn" type="button" title="ערוך רשומה" onClick={() => handleOpenTrialEdit(lead)}>
+                              <i className="ti ti-pencil"></i>
+                            </button>
+                            <button className="trial-delete-btn" type="button" title="מחק מתעניין" onClick={() => handleDeleteTrialLead(lead)}>
+                              <i className="ti ti-trash"></i>
+                            </button>
+                          </div>
                         </div>
                       );
                     }) : (
