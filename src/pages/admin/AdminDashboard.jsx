@@ -183,27 +183,27 @@ export default function AdminDashboard() {
         .content { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
         .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
         .section-header-line { flex: 1; height: 1px; background: linear-gradient(90deg, #1a2a4a, transparent); }
-        .section-title { font-family: 'Orbitron', monospace; font-size: 13px; letter-spacing: 2px; color: #c0d8f0; white-space: nowrap; font-weight: 600; }
+        .section-title { font-family: 'Heebo', 'Rajdhani', sans-serif; font-size: 16px; letter-spacing: 0.4px; color: #ffffff; white-space: nowrap; font-weight: 700; }
         .section-icon { width: 6px; height: 6px; border-radius: 50%; background: #00c8ff; flex-shrink: 0; }
         
         .kpi-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
-        .kpi-card { background: linear-gradient(135deg, #070e1c, #0a1428); border: 1px solid #1a2a4a; border-radius: 12px; padding: 18px 20px; position: relative; overflow: hidden; transition: border-color 0.3s; }
+        .kpi-card { background: linear-gradient(135deg, #070e1c, #0a1428); border: 1px solid #1a2a4a; border-radius: 12px; padding: 18px 16px; position: relative; overflow: hidden; transition: border-color 0.3s; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
         .kpi-card:hover { border-color: #00c8ff66; }
         .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #00c8ff, #1a6fff); }
         .kpi-card.kpi-trial-future::before { background: linear-gradient(90deg, #f0a820, #00c8ff); }
         .kpi-card.kpi-trial-attended::before { background: linear-gradient(90deg, #00e676, #00c8ff); }
-        .kpi-label { font-size: 11px; color: #4a6080; letter-spacing: 1px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
-        .kpi-label i { font-size: 14px; color: #00c8ff66; }
-        .kpi-value { font-family: 'Orbitron', monospace; font-size: 28px; font-weight: 700; color: #00c8ff; line-height: 1; margin-bottom: 6px; }
-        .kpi-card.kpi-trial-future .kpi-value { color: #f0a820; }
-        .kpi-card.kpi-trial-attended .kpi-value { color: #00e676; }
-        .kpi-sub { font-size: 11px; color: #2a4060; }
+        .kpi-label { font-family: 'Heebo', 'Rajdhani', sans-serif; font-size: 14px; color: #ffffff; letter-spacing: 0.3px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; width: 100%; }
+        .kpi-label i { font-size: 15px; color: #ffffff; }
+        .kpi-value { font-family: 'Heebo', 'Rajdhani', sans-serif; font-size: 32px; font-weight: 800; color: #ffffff; line-height: 1; margin-bottom: 6px; width: 100%; text-align: center; }
+        .kpi-card.kpi-trial-future .kpi-value { color: #ffd36a; }
+        .kpi-card.kpi-trial-attended .kpi-value { color: #5dffb0; }
+        .kpi-sub { font-family: 'Heebo', 'Rajdhani', sans-serif; font-size: 12px; color: #c5d4e8; font-weight: 600; width: 100%; text-align: center; }
         @media (max-width: 1400px) { .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
         
         .panels-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .panel { background: #070e1c; border: 1px solid #1a2a4a; border-radius: 14px; overflow: hidden; }
         .panel-head { padding: 14px 18px; border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; background: #060b18; }
-        .panel-head-title { display: flex; align-items: center; gap: 8px; font-family: 'Orbitron', monospace; font-size: 11px; letter-spacing: 1.5px; color: #c0d0e0; }
+        .panel-head-title { display: flex; align-items: center; gap: 8px; font-family: 'Heebo', 'Rajdhani', sans-serif; font-size: 15px; letter-spacing: 0.3px; color: #ffffff; font-weight: 700; }
         .panel-head-title i { font-size: 16px; }
         .panel-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 500; }
         .badge-gold { background: #1a0f02; color: #c8860a; border: 1px solid #c8860a44; }
