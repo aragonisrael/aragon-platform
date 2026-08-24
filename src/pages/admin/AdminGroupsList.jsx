@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
 import { migrateStudentAuthUsers, provisionAuthUser } from '../../utils/provisionAuth';
+import { isActiveTrialLead, normalizeIsraeliPhone, registerTrialLead, TRIAL_ACTIVE_STATUSES } from '../../utils/trialLeads';
 
 // ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
 import aragonLogo from '../../assets/aragonlogo.png';
@@ -37,7 +38,7 @@ export default function AdminGroupsList() {
   const [filterDay, setFilterDay] = useState('');
   const [filterGrade, setFilterGrade] = useState('');
   const [filterVenue, setFilterVenue] = useState('');
-  const [filterActive, setFilterActive] = useState('');
+  const [filterActive, setFilterActive] = useState('active');
 
   // שדות טופס קבוצה חדשה
   const [formCity, setFormCity] = useState('');
@@ -63,7 +64,7 @@ export default function AdminGroupsList() {
   const [groups, setGroups] = useState([]);
   const [groupStudents, setGroupStudents] = useState({});
   const [groupTrialLeads, setGroupTrialLeads] = useState({});
-  const [manualTrialRows, setManualTrialRows] = useState([{ studentName: '', grade: '', parentPhone: '', parentName: '' }]);
+  const [manualTrialRows, setManualTrialRows] = useState([{ studentName: '', grade: '', parentPhone: '', parentName: '', needsPickup: false }]);
   const [trialStatusFilter, setTrialStatusFilter] = useState('');
   const [editingTrialLead, setEditingTrialLead] = useState(null);
   const [showManualTrialAdd, setShowManualTrialAdd] = useState(false);
@@ -126,6 +127,7 @@ export default function AdminGroupsList() {
       mappedGroups.forEach((g) => { trialMap[g.id] = []; });
       (dbTrialLeads || []).forEach((lead) => {
         if (!lead.group_id) return;
+        if (!isActiveTrialLead(lead)) return; // נרשם / לא מעוניין — רק במתעניינים
         if (!trialMap[lead.group_id]) trialMap[lead.group_id] = [];
         trialMap[lead.group_id].push(lead);
       });
@@ -528,90 +530,51 @@ export default function AdminGroupsList() {
   };
 
   const handleAddManualTrialRow = () => {
-    setManualTrialRows((prev) => [...prev, { studentName: '', grade: '', parentPhone: '', parentName: '' }]);
+    setManualTrialRows((prev) => [...prev, { studentName: '', grade: '', parentPhone: '', parentName: '', needsPickup: false }]);
   };
 
   const handleRemoveManualTrialRow = (idx) => {
     setManualTrialRows((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
   };
 
-  const normalizeIsraeliPhone = (raw) => {
-    const digits = String(raw || '').replace(/\D/g, '');
-    if (!digits) return null;
-    if (digits.startsWith('972') && digits.length >= 11) return digits;
-    if (digits.startsWith('0') && digits.length >= 9) return `972${digits.slice(1)}`;
-    if (digits.startsWith('5') && digits.length === 9) return `972${digits}`;
-    return null;
-  };
-
-  const tomorrowIsoDate = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
-  };
-
   const handleCreateManualTrialLeads = async () => {
-    const prepared = manualTrialRows
-      .filter((r) => r.studentName.trim())
-      .map((r) => {
-        const studentName = r.studentName.trim();
-        const parentName = r.parentName.trim() || null;
-        const phone = normalizeIsraeliPhone(r.parentPhone);
-        return {
-          lead: {
-            student_full_name: studentName,
-            student_grade: r.grade.trim() || null,
-            parent_phone: phone,
-            parent_name: parentName,
-            group_id: selectedGroupId,
-            source_channel: 'phone',
-            status: 'before_class',
-            attended_trial: false,
-          },
-          // פולואפ רק כשיש שם תלמיד + טלפון תקין (אחרת לא נכנס לטבלת הפולואפים)
-          shouldScheduleFollowup: Boolean(studentName && phone),
-        };
-      });
-
-    const payload = prepared.map((p) => p.lead);
-    if (!payload.length) {
+    const rows = manualTrialRows.filter((r) => r.studentName.trim());
+    if (!rows.length) {
       triggerToast('נא להזין לפחות שם תלמיד אחד', true);
       return;
     }
-
-    const { error } = await supabase.from('trial_leads').insert(payload);
-    if (error) {
-      triggerToast(`יצירת שיעורי ניסיון נכשלה: ${error.message}`, true);
+    if (!selectedGroupId) {
+      triggerToast('לא נבחרה קבוצה', true);
       return;
     }
 
-    const followups = prepared
-      .filter((p) => p.shouldScheduleFollowup)
-      .map((p) => ({
-        phone: p.lead.parent_phone,
-        send_at: tomorrowIsoDate(),
-        message_text: `היי ! אני רואה ש${p.lead.student_full_name} הגיע אלינו לשיעור התנסות - האם תרצו להירשם ?`,
-        status: 'pending',
-      }));
-
-    let followupCount = 0;
-    if (followups.length) {
-      const { error: followupError } = await supabase.from('scheduled_followups').insert(followups);
-      if (followupError) {
-        triggerToast(`הרשומות נשמרו, אך תזמון פולואפ נכשל: ${followupError.message}`, true);
-      } else {
-        followupCount = followups.length;
-      }
+    let okCount = 0;
+    const errors = [];
+    for (const row of rows) {
+      const result = await registerTrialLead({
+        groupId: selectedGroupId,
+        studentFullName: row.studentName,
+        studentGrade: row.grade,
+        parentName: row.parentName,
+        parentPhone: row.parentPhone,
+        needsPickup: Boolean(row.needsPickup),
+        sourceChannel: 'phone',
+      });
+      if (result.ok) okCount += 1;
+      else errors.push(`${row.studentName.trim()}: ${result.error}`);
     }
 
     await fetchLiveGroupsAndRosters();
-    setManualTrialRows([{ studentName: '', grade: '', parentPhone: '', parentName: '' }]);
+    setManualTrialRows([{ studentName: '', grade: '', parentPhone: '', parentName: '', needsPickup: false }]);
     setShowManualTrialAdd(false);
-    triggerToast(
-      followupCount > 0
-        ? `✅ נוספו ${payload.length} שיעורי ניסיון · ${followupCount} פולואפים למחר`
-        : `✅ נוספו ${payload.length} שיעורי ניסיון (ללא פולואפ — חסר טלפון תקין)`
-    );
+
+    if (okCount && !errors.length) {
+      triggerToast(`✅ נוספו ${okCount} שיעורי ניסיון`);
+    } else if (okCount && errors.length) {
+      triggerToast(`נוספו ${okCount}, חלק נכשלו: ${errors[0]}`, true);
+    } else {
+      triggerToast(errors[0] || 'יצירת שיעורי ניסיון נכשלה', true);
+    }
   };
 
   const handleUpdateTrialLead = async (leadId, patch, successMsg = 'שיעור ניסיון עודכן') => {
@@ -627,8 +590,12 @@ export default function AdminGroupsList() {
   const handleToggleTrialAttendance = async (lead, attended) => {
     await handleUpdateTrialLead(
       lead.id,
-      { attended_trial: attended },
-      attended ? '✅ סומן כהגיע לשיעור ניסיון' : 'הסימון הוסר'
+      {
+        attended_trial: attended,
+        // DB trigger also syncs status ↔ attendance
+        status: attended ? 'after_class' : 'before_class',
+      },
+      attended ? '✅ סומן כהגיע · סטטוס אחרי שיעור' : 'הסימון הוסר · סטטוס לפני שיעור'
     );
   };
 
@@ -650,19 +617,32 @@ export default function AdminGroupsList() {
       student_full_name: editingTrialLead.student_full_name.trim(),
       student_grade: editingTrialLead.student_grade.trim() || null,
       parent_name: editingTrialLead.parent_name.trim() || null,
-      parent_phone: editingTrialLead.parent_phone.replace(/\D/g, '') || null,
+      parent_phone: normalizeIsraeliPhone(editingTrialLead.parent_phone) || editingTrialLead.parent_phone.replace(/\D/g, '') || null,
       status: editingTrialLead.status,
-      attended_trial: editingTrialLead.attended_trial,
+      attended_trial: editingTrialLead.status === 'after_class'
+        ? true
+        : editingTrialLead.status === 'before_class'
+          ? false
+          : editingTrialLead.attended_trial,
     }, 'רשומת שיעור ניסיון עודכנה');
     setEditingTrialLead(null);
   };
 
   const handleTrialStatusChange = async (leadId, status) => {
+    const patch = { status };
+    if (status === 'after_class') patch.attended_trial = true;
+    if (status === 'before_class') patch.attended_trial = false;
+
     setGroupTrialLeads((prev) => ({
       ...prev,
-      [selectedGroupId]: (prev[selectedGroupId] || []).map((item) => item.id === leadId ? { ...item, status } : item),
+      [selectedGroupId]: (prev[selectedGroupId] || [])
+        .map((item) => item.id === leadId ? { ...item, ...patch } : item)
+        .filter((item) => TRIAL_ACTIVE_STATUSES.includes(item.status)),
     }));
-    await handleUpdateTrialLead(leadId, { status }, 'סטטוס עודכן');
+    await handleUpdateTrialLead(leadId, patch, 'סטטוס עודכן');
+    if (!TRIAL_ACTIVE_STATUSES.includes(status)) {
+      await fetchLiveGroupsAndRosters();
+    }
   };
 
   const currentGroupObj = groups.find(g => g.id === selectedGroupId);
@@ -858,8 +838,8 @@ export default function AdminGroupsList() {
               </select>
             </div>
 
-            {(filterCity || filterType || filterDay || filterGrade || filterVenue || filterActive) && (
-              <button className="clear-btn" type="button" onClick={() => { setFilterCity(''); setFilterType(''); setFilterDay(''); setFilterGrade(''); setFilterVenue(''); setFilterActive(''); }}>
+            {(filterCity || filterType || filterDay || filterGrade || filterVenue || filterActive !== 'active') && (
+              <button className="clear-btn" type="button" onClick={() => { setFilterCity(''); setFilterType(''); setFilterDay(''); setFilterGrade(''); setFilterVenue(''); setFilterActive('active'); }}>
                 <i className="ti ti-refresh"></i> אפס סינונים
               </button>
             )}
@@ -1043,12 +1023,10 @@ export default function AdminGroupsList() {
                       value={trialStatusFilter}
                       onChange={(e) => setTrialStatusFilter(e.target.value)}
                     >
-                      <option value="">כל הסטטוסים</option>
+                      <option value="">כל הסטטוסים הפעילים</option>
                       <option value="before_class">לפני שיעור</option>
                       <option value="after_class">אחרי שיעור</option>
                       <option value="thinking">חושב</option>
-                      <option value="not_interested">לא מעוניין</option>
-                      <option value="registered">נרשם</option>
                     </select>
                   </div>
 
@@ -1066,12 +1044,18 @@ export default function AdminGroupsList() {
                   <div style={{ marginBottom: '12px', border: '1px solid #1a2a4a', borderRadius: '8px', padding: '8px' }}>
                     <div style={{ fontSize: '11px', color: '#8aa0bc', marginBottom: '8px' }}>הוספה ידנית</div>
                     {manualTrialRows.map((row, idx) => (
-                      <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1.2fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
-                        <input className="trial-manual-input" placeholder="שם מלא תלמיד" value={row.studentName} onChange={(e) => handleManualTrialRowChange(idx, 'studentName', e.target.value)} />
-                        <input className="trial-manual-input" placeholder="כיתה" value={row.grade} onChange={(e) => handleManualTrialRowChange(idx, 'grade', e.target.value)} />
-                        <input className="trial-manual-input" placeholder="טלפון הורה" value={row.parentPhone} onChange={(e) => handleManualTrialRowChange(idx, 'parentPhone', e.target.value)} />
-                        <input className="trial-manual-input" placeholder="שם הורה" value={row.parentName} onChange={(e) => handleManualTrialRowChange(idx, 'parentName', e.target.value)} />
-                        <button type="button" style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px' }} onClick={() => handleRemoveManualTrialRow(idx)} title="הסר שורה">×</button>
+                      <div key={idx} style={{ marginBottom: '8px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 0.7fr 1.2fr 1.2fr auto', gap: '6px', alignItems: 'center' }}>
+                          <input className="trial-manual-input" placeholder="שם מלא תלמיד" value={row.studentName} onChange={(e) => handleManualTrialRowChange(idx, 'studentName', e.target.value)} />
+                          <input className="trial-manual-input" placeholder="כיתה" value={row.grade} onChange={(e) => handleManualTrialRowChange(idx, 'grade', e.target.value)} />
+                          <input className="trial-manual-input" placeholder="טלפון הורה" value={row.parentPhone} onChange={(e) => handleManualTrialRowChange(idx, 'parentPhone', e.target.value)} />
+                          <input className="trial-manual-input" placeholder="שם הורה" value={row.parentName} onChange={(e) => handleManualTrialRowChange(idx, 'parentName', e.target.value)} />
+                          <button type="button" style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px' }} onClick={() => handleRemoveManualTrialRow(idx)} title="הסר שורה">×</button>
+                        </div>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#8aa0bc', marginTop: '4px' }}>
+                          <input type="checkbox" checked={Boolean(row.needsPickup)} onChange={(e) => handleManualTrialRowChange(idx, 'needsPickup', e.target.checked)} />
+                          צריך איסוף מצהרון
+                        </label>
                       </div>
                     ))}
                     <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
 import AdminSidebar, { adminSidebarStyles } from '../../components/admin/AdminSidebar';
 import aragonLogo from '../../assets/aragonlogo.png';
+import { normalizeIsraeliPhone, registerTrialLead } from '../../utils/trialLeads';
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי'];
 
@@ -13,75 +14,44 @@ const STATUS_META = {
   registered:     { label: 'נרשם',         color: '#86efac', bg: 'rgba(34,197,94,0.12)',   border: 'rgba(34,197,94,0.4)' },
 };
 
-const WEEK_FILTERS = [
-  { key: 'today',     label: 'היום' },
-  { key: 'tomorrow',  label: 'מחר' },
-  { key: 'this_week', label: 'השבוע' },
-  { key: 'next_week', label: 'שבוע הבא' },
-  { key: 'last_week', label: 'שבוע שעבר' },
-  { key: 'in_2weeks', label: 'בעוד שבועיים' },
-];
-
-function localIsoDate(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
-function getWeekBounds(offset = 0) {
-  const now = new Date();
-  const day = now.getDay(); // 0=sun
-  const sunday = new Date(now);
-  sunday.setDate(now.getDate() - day + offset * 7);
-  sunday.setHours(0,0,0,0);
-  const saturday = new Date(sunday);
-  saturday.setDate(sunday.getDate() + 6);
-  return { from: localIsoDate(sunday), to: localIsoDate(saturday) };
-}
-
-function formatDate(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d)) return iso;
-  return d.toLocaleDateString('he-IL', { day:'2-digit', month:'2-digit', year:'numeric' });
-}
-
 export default function AdminTrialLeads() {
   const [leads,   setLeads]   = useState([]);
   const [groups,  setGroups]  = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // KPI quick-filter
-  const [activeKpi,    setActiveKpi]    = useState(null); // null|'before'|'attended'|'today'|'tomorrow'
-  // week-range filter
-  const [weekFilter,   setWeekFilter]   = useState('');   // '' | key from WEEK_FILTERS
-  // toolbar filters
+  const [activeKpi,    setActiveKpi]    = useState(null);
   const [searchText,   setSearchText]   = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterCity,   setFilterCity]   = useState('');
 
   const [editLead, setEditLead] = useState(null);
+  const [showRegister, setShowRegister] = useState(false);
+  const [registerForm, setRegisterForm] = useState({
+    groupId: '',
+    studentFullName: '',
+    studentGrade: '',
+    parentName: '',
+    parentPhone: '',
+    needsPickup: false,
+  });
   const [saving,   setSaving]   = useState(false);
   const [toast,    setToast]    = useState(null);
   const [newPopup, setNewPopup] = useState(null);
   const realtimeRef = useRef(null);
-
-  const todayIso    = localIsoDate(new Date());
-  const tomorrowD   = new Date(); tomorrowD.setDate(tomorrowD.getDate()+1);
-  const tomorrowIso = localIsoDate(tomorrowD);
 
   const showToast = (msg, warn=false) => {
     setToast({ msg, warn });
     setTimeout(() => setToast(null), 3500);
   };
 
-  // ── fetch ──────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
     setLoading(true);
     const [{ data: dbLeads }, { data: dbGroups }] = await Promise.all([
       supabase
         .from('trial_leads')
-        .select('id,student_full_name,student_grade,parent_name,parent_phone,group_id,status,attended_trial,attended_marked_at,trial_date,created_by,created_at,needs_pickup_from_after_school')
+        .select('id,student_full_name,student_grade,parent_name,parent_phone,group_id,status,attended_trial,attended_marked_at,created_by,created_at,needs_pickup_from_after_school,source_channel')
         .order('created_at', { ascending: false }),
-      supabase.from('groups').select('id,name,city,venue,day'),
+      supabase.from('groups').select('id,name,city,venue,day,is_active').eq('is_active', true).order('city'),
     ]);
     setLeads(dbLeads || []);
     setGroups(dbGroups || []);
@@ -90,7 +60,6 @@ export default function AdminTrialLeads() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // ── Realtime ───────────────────────────────────────────────────────
   useEffect(() => {
     const channel = supabase
       .channel('tl_page_realtime')
@@ -105,45 +74,27 @@ export default function AdminTrialLeads() {
         setTimeout(() => setNewPopup(null), 8000);
         setLeads(prev => [row, ...prev]);
       })
+      .on('postgres_changes', { event:'UPDATE', schema:'public', table:'trial_leads' }, (payload) => {
+        const row = payload.new;
+        setLeads(prev => prev.map(l => l.id === row.id ? { ...l, ...row } : l));
+      })
       .subscribe();
     realtimeRef.current = channel;
     return () => { supabase.removeChannel(channel); };
   }, [groups]);
 
-  // ── KPI counts ────────────────────────────────────────────────────
   const kpi = {
-    before:   leads.filter(l => !l.attended_trial && l.status === 'before_class').length,
-    attended: leads.filter(l => Boolean(l.attended_trial)).length,
-    today:    leads.filter(l => l.trial_date === todayIso    && !l.attended_trial).length,
-    tomorrow: leads.filter(l => l.trial_date === tomorrowIso && !l.attended_trial).length,
+    before:   leads.filter(l => l.status === 'before_class').length,
+    attended: leads.filter(l => l.status === 'after_class' || Boolean(l.attended_trial)).length,
+    thinking: leads.filter(l => l.status === 'thinking').length,
+    closed:   leads.filter(l => l.status === 'registered' || l.status === 'not_interested').length,
   };
 
-  // ── week-range helper ─────────────────────────────────────────────
-  function weekRange() {
-    if (!weekFilter) return null;
-    if (weekFilter === 'today')    return { from: todayIso,    to: todayIso };
-    if (weekFilter === 'tomorrow') return { from: tomorrowIso, to: tomorrowIso };
-    if (weekFilter === 'this_week')  return getWeekBounds(0);
-    if (weekFilter === 'last_week')  return getWeekBounds(-1);
-    if (weekFilter === 'next_week')  return getWeekBounds(1);
-    if (weekFilter === 'in_2weeks')  return getWeekBounds(2);
-    return null;
-  }
-
-  // ── filtered list ─────────────────────────────────────────────────
   const filtered = leads.filter(l => {
-    // KPI quick filter
-    if (activeKpi === 'before')   { if (l.attended_trial || l.status !== 'before_class') return false; }
-    if (activeKpi === 'attended') { if (!l.attended_trial) return false; }
-    if (activeKpi === 'today')    { if (l.trial_date !== todayIso    || l.attended_trial) return false; }
-    if (activeKpi === 'tomorrow') { if (l.trial_date !== tomorrowIso || l.attended_trial) return false; }
-
-    // week filter
-    const range = weekRange();
-    if (range) {
-      if (!l.trial_date) return false;
-      if (l.trial_date < range.from || l.trial_date > range.to) return false;
-    }
+    if (activeKpi === 'before')   { if (l.status !== 'before_class') return false; }
+    if (activeKpi === 'attended') { if (!(l.status === 'after_class' || l.attended_trial)) return false; }
+    if (activeKpi === 'thinking') { if (l.status !== 'thinking') return false; }
+    if (activeKpi === 'closed')   { if (l.status !== 'registered' && l.status !== 'not_interested') return false; }
 
     if (filterStatus && l.status !== filterStatus) return false;
 
@@ -172,7 +123,6 @@ export default function AdminTrialLeads() {
     return g ? `יום ${DAYS[g.day] ?? '—'}` : '';
   };
 
-  // ── inline updates ────────────────────────────────────────────────
   const patch = async (id, data) => {
     const { error } = await supabase.from('trial_leads').update(data).eq('id', id);
     if (error) { showToast('שגיאה: ' + error.message, true); return false; }
@@ -182,32 +132,70 @@ export default function AdminTrialLeads() {
 
   const toggleAttendance = async (lead) => {
     const next = !lead.attended_trial;
-    const ok = await patch(lead.id, { attended_trial: next });
-    if (ok) showToast(next ? '✅ סומן כהגיע' : 'הסימון הוסר');
+    const ok = await patch(lead.id, {
+      attended_trial: next,
+      status: next ? 'after_class' : 'before_class',
+    });
+    if (ok) showToast(next ? '✅ סומן כהגיע · אחרי שיעור' : 'הסימון הוסר · לפני שיעור');
   };
 
   const changeStatus = async (lead, status) => {
-    await patch(lead.id, { status });
+    const data = { status };
+    if (status === 'after_class') data.attended_trial = true;
+    if (status === 'before_class') data.attended_trial = false;
+    await patch(lead.id, data);
   };
 
   const saveEdit = async () => {
     if (!editLead) return;
     setSaving(true);
+    const phone = normalizeIsraeliPhone(editLead.parent_phone) || String(editLead.parent_phone || '').replace(/\D/g, '') || null;
     const data = {
       student_full_name: editLead.student_full_name?.trim() || null,
       student_grade:     editLead.student_grade?.trim()     || null,
       parent_name:       editLead.parent_name?.trim()       || null,
-      parent_phone:      editLead.parent_phone?.replace(/\D/g,'') || null,
+      parent_phone:      phone,
       status:            editLead.status,
       attended_trial:    Boolean(editLead.attended_trial),
-      trial_date:        editLead.trial_date || null,
+      needs_pickup_from_after_school: Boolean(editLead.needs_pickup_from_after_school),
     };
+    if (data.status === 'after_class') data.attended_trial = true;
+    if (data.status === 'before_class') data.attended_trial = false;
     const ok = await patch(editLead.id, data);
     setSaving(false);
     if (ok) { setEditLead(null); showToast('✓ רשומה עודכנה'); }
   };
 
-  // ── render ────────────────────────────────────────────────────────
+  const submitRegister = async () => {
+    setSaving(true);
+    const result = await registerTrialLead({
+      groupId: registerForm.groupId,
+      studentFullName: registerForm.studentFullName,
+      studentGrade: registerForm.studentGrade,
+      parentName: registerForm.parentName,
+      parentPhone: registerForm.parentPhone,
+      needsPickup: registerForm.needsPickup,
+      sourceChannel: 'phone',
+      createdBy: 'admin_trials',
+    });
+    setSaving(false);
+    if (!result.ok) {
+      showToast(result.error, true);
+      return;
+    }
+    setShowRegister(false);
+    setRegisterForm({
+      groupId: '',
+      studentFullName: '',
+      studentGrade: '',
+      parentName: '',
+      parentPhone: '',
+      needsPickup: false,
+    });
+    showToast('✅ נרשם לשיעור ניסיון');
+    await fetchAll();
+  };
+
   return (
     <div className="hq-global-wrapper">
       <style>{`
@@ -215,92 +203,69 @@ export default function AdminTrialLeads() {
 
         .tl-main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; overflow-x: hidden; }
 
-        /* KPI */
         .tl-kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
         .tl-kpi { background: linear-gradient(135deg,#070e1c,#0a1428); border: 1px solid #1a2a4a; border-radius: 12px; padding: 16px 18px; cursor: pointer; transition: border-color .2s, transform .15s; position: relative; overflow: hidden; user-select: none; }
         .tl-kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
         .tl-kpi.k-before::before   { background: linear-gradient(90deg,#3b82f6,#00c8ff); }
         .tl-kpi.k-attended::before { background: linear-gradient(90deg,#00e676,#00c8ff); }
-        .tl-kpi.k-today::before    { background: linear-gradient(90deg,#f0a820,#fb923c); }
-        .tl-kpi.k-tomorrow::before { background: linear-gradient(90deg,#a855f7,#00c8ff); }
+        .tl-kpi.k-thinking::before { background: linear-gradient(90deg,#a855f7,#00c8ff); }
+        .tl-kpi.k-closed::before   { background: linear-gradient(90deg,#f87171,#86efac); }
         .tl-kpi:hover { border-color:#00c8ff44; transform: translateY(-1px); }
         .tl-kpi.active { border-color:#00c8ff88; box-shadow: 0 0 18px rgba(0,200,255,0.1); }
         .tl-kpi-val { font-family:'Orbitron',monospace; font-size:28px; font-weight:700; line-height:1; margin:8px 0 4px; }
         .k-before .tl-kpi-val   { color:#93c5fd; }
         .k-attended .tl-kpi-val { color:#00e676; }
-        .k-today .tl-kpi-val    { color:#f0a820; }
-        .k-tomorrow .tl-kpi-val { color:#d8b4fe; }
+        .k-thinking .tl-kpi-val { color:#d8b4fe; }
+        .k-closed .tl-kpi-val   { color:#fca5a5; }
         .tl-kpi-lbl { font-size:11px; color:#4a6080; letter-spacing:1px; display:flex; align-items:center; gap:5px; }
         .tl-kpi-lbl i { font-size:13px; }
         .tl-kpi-sub { font-size:10px; color:#2a4060; }
         .tl-kpi-clear { position:absolute; top:8px; left:10px; font-size:10px; color:#00c8ff88; }
 
-        /* week chips */
-        .tl-week-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; align-items:center; }
-        .tl-week-lbl { font-size:11px; color:#4a6080; letter-spacing:1px; white-space:nowrap; margin-left:4px; }
-        .tl-chip { padding:6px 14px; border-radius:999px; border:1px solid #1a2a4a; background:#060b18; color:#6080a0; font-size:12px; font-weight:700; cursor:pointer; font-family:'Rajdhani',sans-serif; transition:all .15s; white-space:nowrap; }
-        .tl-chip:hover { border-color:#00c8ff44; color:#00c8ff; }
-        .tl-chip.active { border-color:#00c8ff66; color:#00c8ff; background:rgba(0,200,255,0.08); }
-
-        /* toolbar */
         .tl-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px; }
         .tl-search { flex:1; min-width:180px; background:#060b18; border:1px solid #1a2a4a; border-radius:8px; padding:9px 12px; color:#c0d8f0; font-family:'Rajdhani',sans-serif; font-size:13px; outline:none; }
         .tl-search:focus { border-color:#00c8ff44; }
         .tl-sel { background:#060b18; border:1px solid #1a2a4a; border-radius:8px; padding:9px 12px; color:#c0d8f0; font-family:'Rajdhani',sans-serif; font-size:13px; outline:none; cursor:pointer; }
-        .tl-count { font-size:11px; color:#4a6080; white-space:nowrap; margin-right:auto; }
+        .tl-count { font-size:12px; color:#4a6080; white-space:nowrap; }
+        .tl-add-btn { display:flex; align-items:center; gap:6px; padding:9px 14px; border-radius:8px; border:1px solid #00d8b055; background:linear-gradient(135deg,#041818,#062828); color:#00d8b0; font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:700; cursor:pointer; }
 
-        /* table */
         .tl-table-wrap { background:#070e1c; border:1px solid #1a2a4a; border-radius:12px; overflow:auto; }
-        .tl-table { width:100%; border-collapse:collapse; min-width:900px; }
-        .tl-table th { background:#060b18; color:#4a6080; font-size:11px; letter-spacing:1px; padding:11px 13px; text-align:right; border-bottom:1px solid #0d1a2e; position:sticky; top:0; z-index:2; white-space:nowrap; }
-        .tl-table td { padding:10px 13px; text-align:right; border-bottom:1px solid #0a1428; font-size:13px; vertical-align:middle; }
-        .tl-table tr:last-child td { border-bottom:none; }
-        .tl-table tbody tr:hover { background:rgba(0,200,255,0.025); }
-        .tl-phone { color:#93c5fd; font-weight:700; text-decoration:none; }
-        .tl-phone:hover { text-decoration:underline; }
-        .tl-status-sel { background:#060b18; border:1px solid #1a2a4a; border-radius:6px; padding:4px 8px; color:#d7e3ff; font-size:12px; font-family:'Rajdhani',sans-serif; outline:none; cursor:pointer; }
-        .tl-att-btn { border-radius:6px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap; transition:opacity .15s; }
-        .tl-att-yes { background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.45); color:#86efac; }
-        .tl-att-no  { background:rgba(71,85,105,0.18); border:1px solid rgba(100,116,139,0.4); color:#94a3b8; }
-        .tl-edit-btn { background:none; border:none; color:#00c8ff; cursor:pointer; font-size:16px; padding:4px; border-radius:4px; }
-        .tl-edit-btn:hover { color:#7dd3fc; background:rgba(0,200,255,0.08); }
-        .tl-grp { font-size:12px; color:#c0d8f0; font-weight:600; }
-        .tl-grp-meta { font-size:10px; color:#3a5070; }
-        .tl-empty-row { text-align:center; color:#4a6080; padding:48px 20px; font-size:14px; }
+        .tl-table { width:100%; border-collapse:collapse; min-width:860px; }
+        .tl-table th { padding:12px 14px; font-size:11px; color:#2a4060; letter-spacing:1px; text-align:right; border-bottom:1px solid #0d1a2e; background:#060b18; }
+        .tl-table td { padding:12px 14px; font-size:13px; border-bottom:1px solid #0a1428; text-align:right; vertical-align:middle; }
+        .tl-empty-row { text-align:center !important; color:#3a5070; padding:40px !important; }
+        .tl-phone { color:#93c5fd; text-decoration:none; font-family:monospace; direction:ltr; display:inline-block; }
+        .tl-grp { color:#c0d8f0; font-size:13px; }
+        .tl-grp-meta { color:#4a6080; font-size:11px; margin-top:2px; }
+        .tl-status-sel { background:#060b18; border:1px solid; border-radius:8px; padding:6px 8px; font-size:12px; outline:none; cursor:pointer; min-width:110px; }
+        .tl-att-btn { border:1px solid; border-radius:999px; padding:5px 10px; font-size:11px; font-weight:700; cursor:pointer; background:transparent; }
+        .tl-att-yes { color:#86efac; border-color:rgba(34,197,94,0.45); background:rgba(34,197,94,0.1); }
+        .tl-att-no  { color:#64748b; border-color:#1a2a4a; }
+        .tl-edit-btn { background:transparent; border:1px solid #1a2a4a; color:#8aa0bc; border-radius:8px; width:32px; height:32px; cursor:pointer; }
 
-        /* edit modal */
-        .tl-modal-bg { position:fixed; inset:0; z-index:500; background:rgba(0,0,0,0.75); display:flex; align-items:center; justify-content:center; padding:20px; }
-        .tl-modal { width:100%; max-width:460px; max-height:90vh; overflow:auto; background:#070e1c; border:1px solid #1a4a80; border-radius:14px; padding:22px; box-shadow:0 24px 80px rgba(0,0,0,0.5); }
-        .tl-modal-title { font-family:'Orbitron',monospace; font-size:12px; color:#00c8ff; letter-spacing:1px; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+        .tl-modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.65); display:flex; align-items:center; justify-content:center; z-index:1000; padding:16px; }
+        .tl-modal { background:#070e1c; border:1px solid #1a2a4a; border-radius:14px; padding:20px; width:100%; max-width:440px; }
+        .tl-modal-title { font-family:'Orbitron',monospace; font-size:12px; letter-spacing:1px; color:#c0d0e0; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
         .tl-field { margin-bottom:12px; }
-        .tl-field label { display:block; font-size:11px; color:#6080a0; margin-bottom:5px; font-weight:700; }
-        .tl-input { width:100%; background:#060b18; border:1px solid #1a2a4a; border-radius:8px; padding:9px 12px; color:#e0f0ff; font-family:'Rajdhani',sans-serif; font-size:13px; outline:none; box-sizing:border-box; }
-        .tl-input:focus { border-color:#00c8ff44; }
-        .tl-modal-btns { display:flex; gap:8px; margin-top:6px; }
-        .tl-btn-save   { flex:1; padding:10px; border-radius:8px; border:1px solid #1a6aaa; background:linear-gradient(135deg,#0a2a50,#0d3a6a); color:#00c8ff; font-weight:700; font-size:13px; cursor:pointer; font-family:'Rajdhani',sans-serif; }
-        .tl-btn-cancel { padding:10px 16px; border-radius:8px; border:1px solid #1a2a4a; background:#060b18; color:#8098b0; font-weight:700; font-size:13px; cursor:pointer; font-family:'Rajdhani',sans-serif; }
-        .tl-cb-row { display:flex; align-items:center; gap:8px; font-size:13px; color:#c0d8f0; cursor:pointer; }
+        .tl-field label { display:block; font-size:11px; color:#4a6080; margin-bottom:5px; }
+        .tl-input { width:100%; background:#060b18; border:1px solid #1a2a4a; border-radius:8px; padding:9px 12px; color:#c0d8f0; font-size:13px; outline:none; }
+        .tl-cb-row { display:flex !important; align-items:center; gap:8px; color:#8aa0bc !important; cursor:pointer; }
+        .tl-modal-btns { display:flex; gap:8px; margin-top:16px; }
+        .tl-btn-save { flex:1; background:linear-gradient(135deg,#041818,#062828); border:1px solid #00d8b044; color:#00d8b0; border-radius:8px; padding:10px; font-weight:700; cursor:pointer; }
+        .tl-btn-cancel { flex:1; background:transparent; border:1px solid #1a2a4a; color:#8aa0bc; border-radius:8px; padding:10px; cursor:pointer; }
 
-        /* toast */
-        .tl-toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:1200; background:rgba(4,26,8,.95); border:1px solid rgba(0,230,118,0.4); color:#00e676; padding:11px 18px; border-radius:10px; font-weight:700; font-size:13px; display:flex; align-items:center; gap:8px; white-space:nowrap; font-family:'Rajdhani',sans-serif; }
-        .tl-toast.warn { background:rgba(26,4,4,.95); border-color:rgba(255,85,85,0.4); color:#ff5555; }
-
-        /* new-trial popup */
-        .tl-popup { position:fixed; bottom:28px; left:50%; transform:translateX(-50%); z-index:900; min-width:320px; max-width:500px; background:linear-gradient(135deg,#040e1e,#071828); border:1px solid rgba(0,200,255,0.35); border-radius:14px; padding:16px 18px; display:flex; align-items:flex-start; gap:12px; box-shadow:0 8px 32px rgba(0,0,0,0.5); font-family:'Rajdhani',sans-serif; direction:rtl; animation:tlUp .3s ease; }
-        .tl-popup-icon { width:40px; height:40px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#0a2040,#0d3060); border:1px solid rgba(0,200,255,0.3); font-size:18px; color:#00c8ff; }
-        .tl-popup-ttl { font-family:'Orbitron',monospace; font-size:10px; color:#00c8ff; letter-spacing:1px; margin-bottom:4px; }
-        .tl-popup-txt { font-size:13px; color:#c0d8f0; line-height:1.5; }
-        .tl-popup-x { background:none; border:none; color:#4a6080; cursor:pointer; font-size:17px; flex-shrink:0; padding:0; }
-        .tl-popup-x:hover { color:#00c8ff; }
-        @keyframes tlUp { from { opacity:0; transform:translateX(-50%) translateY(14px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
-
-        @media(max-width:1100px) { .tl-kpi-grid { grid-template-columns:repeat(2,1fr); } }
+        .tl-toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#0a1428; border:1px solid #00c8ff44; color:#c0d8f0; padding:10px 16px; border-radius:10px; z-index:1100; display:flex; align-items:center; gap:8px; }
+        .tl-toast.warn { border-color:#ff555544; color:#ff8a96; }
+        .tl-popup { position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#0a1428; border:1px solid #00e67655; border-radius:12px; padding:14px 16px; display:flex; gap:12px; align-items:flex-start; z-index:1200; min-width:320px; max-width:520px; box-shadow:0 12px 40px rgba(0,0,0,0.45); }
+        .tl-popup-icon { color:#00e676; font-size:20px; }
+        .tl-popup-ttl { font-weight:700; color:#e2e8f0; margin-bottom:4px; }
+        .tl-popup-txt { font-size:13px; color:#8aa0bc; }
+        .tl-popup-x { background:none; border:none; color:#64748b; cursor:pointer; }
       `}</style>
 
       <AdminSidebar active="trials" />
 
       <div className="tl-main">
-        {/* TOP BAR */}
         <div className="top-bar">
           <div className="top-bar-brand">
             <div className="ring-wrap">
@@ -318,20 +283,17 @@ export default function AdminTrialLeads() {
         </div>
 
         <div className="ops-content">
-
-          {/* ── KPI ── */}
           <div className="tl-kpi-grid">
             {[
-              { key:'before',   label:'לפני שיעור ניסיון', sub:'ממתינים לשיעור',       icon:'ti-clock',          val: kpi.before   },
-              { key:'attended', label:'נוכחו בניסיון',      sub:'סומנו כהגיעו',         icon:'ti-user-check',     val: kpi.attended },
-              { key:'today',    label:'מגיעים היום',         sub:`תאריך ${todayIso}`,    icon:'ti-calendar-today', val: kpi.today    },
-              { key:'tomorrow', label:'מגיעים מחר',          sub:`תאריך ${tomorrowIso}`, icon:'ti-calendar-event', val: kpi.tomorrow },
+              { key:'before',   label:'לפני שיעור ניסיון', sub:'ממתינים לשיעור', icon:'ti-clock', val: kpi.before },
+              { key:'attended', label:'אחרי שיעור', sub:'הגיעו / אחרי שיעור', icon:'ti-user-check', val: kpi.attended },
+              { key:'thinking', label:'חושבים', sub:'בתהליך החלטה', icon:'ti-brain', val: kpi.thinking },
+              { key:'closed',   label:'נסגרו', sub:'נרשם / לא מעוניין', icon:'ti-circle-check', val: kpi.closed },
             ].map(({ key, label, sub, icon, val }) => (
               <div
                 key={key}
                 className={`tl-kpi k-${key}${activeKpi === key ? ' active' : ''}`}
-                onClick={() => { setActiveKpi(p => p === key ? null : key); setWeekFilter(''); }}
-                title={activeKpi === key ? 'לחץ לביטול הסינון' : `סנן: ${label}`}
+                onClick={() => setActiveKpi(p => p === key ? null : key)}
               >
                 {activeKpi === key && <span className="tl-kpi-clear">✕ נקה</span>}
                 <div className="tl-kpi-lbl"><i className={`ti ${icon}`}/>{label}</div>
@@ -341,26 +303,6 @@ export default function AdminTrialLeads() {
             ))}
           </div>
 
-          {/* ── שבועות ── */}
-          <div className="tl-week-row">
-            <span className="tl-week-lbl"><i className="ti ti-calendar-week" style={{marginLeft:4}}/> תאריך ניסיון:</span>
-            {WEEK_FILTERS.map(({ key, label }) => (
-              <button
-                key={key}
-                className={`tl-chip${weekFilter === key ? ' active' : ''}`}
-                onClick={() => { setWeekFilter(p => p === key ? '' : key); setActiveKpi(null); }}
-              >
-                {label}
-              </button>
-            ))}
-            {weekFilter && (
-              <button className="tl-chip" style={{ color:'#ff8a96', borderColor:'rgba(255,138,150,0.3)' }} onClick={() => setWeekFilter('')}>
-                ✕ נקה
-              </button>
-            )}
-          </div>
-
-          {/* ── Toolbar ── */}
           <div className="tl-toolbar">
             <input
               className="tl-search"
@@ -378,10 +320,12 @@ export default function AdminTrialLeads() {
               <option value="">כל הערים</option>
               {cities.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
+            <button className="tl-add-btn" type="button" onClick={() => setShowRegister(true)}>
+              <i className="ti ti-user-plus"/> הרשמה לשיעור ניסיון
+            </button>
             <span className="tl-count">{filtered.length} רשומות</span>
           </div>
 
-          {/* ── Table ── */}
           <div className="tl-table-wrap">
             <table className="tl-table">
               <thead>
@@ -391,7 +335,6 @@ export default function AdminTrialLeads() {
                   <th>שם הורה</th>
                   <th>טלפון</th>
                   <th>קבוצה / מוקד</th>
-                  <th>תאריך ניסיון</th>
                   <th>סטטוס</th>
                   <th>נוכחות</th>
                   <th></th>
@@ -399,13 +342,11 @@ export default function AdminTrialLeads() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={9} className="tl-empty-row">טוען נתונים…</td></tr>
+                  <tr><td colSpan={8} className="tl-empty-row">טוען נתונים…</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={9} className="tl-empty-row">לא נמצאו רשומות עבור הסינון הנבחר</td></tr>
+                  <tr><td colSpan={8} className="tl-empty-row">לא נמצאו רשומות עבור הסינון הנבחר</td></tr>
                 ) : filtered.map(lead => {
                   const sm = STATUS_META[lead.status] || STATUS_META.before_class;
-                  const isToday    = lead.trial_date === todayIso;
-                  const isTomorrow = lead.trial_date === tomorrowIso;
                   return (
                     <tr key={lead.id}>
                       <td style={{ fontWeight:700, color:'#c0d8f0' }}>{lead.student_full_name || '—'}</td>
@@ -419,11 +360,6 @@ export default function AdminTrialLeads() {
                       <td>
                         <div className="tl-grp">{groupLabel(lead.group_id)}</div>
                         <div className="tl-grp-meta">{groupDay(lead.group_id)}</div>
-                      </td>
-                      <td style={{ color: isToday ? '#f0a820' : isTomorrow ? '#d8b4fe' : '#8aa0bc', fontWeight: isToday ? 700 : 400 }}>
-                        {lead.trial_date ? formatDate(lead.trial_date) : '—'}
-                        {isToday    && <span style={{ marginRight:5, fontSize:10, color:'#f0a820' }}>• היום</span>}
-                        {isTomorrow && <span style={{ marginRight:5, fontSize:10, color:'#d8b4fe' }}>• מחר</span>}
                       </td>
                       <td>
                         <select
@@ -441,7 +377,6 @@ export default function AdminTrialLeads() {
                         <button
                           className={`tl-att-btn ${lead.attended_trial ? 'tl-att-yes' : 'tl-att-no'}`}
                           onClick={() => toggleAttendance(lead)}
-                          title={lead.attended_trial ? 'לחץ להסרת סימון' : 'לחץ לסימון הגעה'}
                         >
                           {lead.attended_trial ? '✓ הגיע' : 'לא הגיע'}
                         </button>
@@ -457,11 +392,43 @@ export default function AdminTrialLeads() {
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
 
-        </div>{/* /ops-content */}
-      </div>{/* /tl-main */}
+      {showRegister && (
+        <div className="tl-modal-bg" onClick={e => e.currentTarget === e.target && setShowRegister(false)}>
+          <div className="tl-modal">
+            <div className="tl-modal-title"><i className="ti ti-user-plus"/> הרשמה לשיעור ניסיון</div>
+            <div className="tl-field"><label>קבוצה</label>
+              <select className="tl-input" value={registerForm.groupId} onChange={e=>setRegisterForm({...registerForm,groupId:e.target.value})}>
+                <option value="">בחרו קבוצה</option>
+                {groups.map(g => (
+                  <option key={g.id} value={g.id}>{g.city} · {g.venue} · {g.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="tl-field"><label>שם מלא תלמיד</label>
+              <input className="tl-input" value={registerForm.studentFullName} onChange={e=>setRegisterForm({...registerForm,studentFullName:e.target.value})}/></div>
+            <div className="tl-field"><label>כיתה</label>
+              <input className="tl-input" value={registerForm.studentGrade} onChange={e=>setRegisterForm({...registerForm,studentGrade:e.target.value})}/></div>
+            <div className="tl-field"><label>שם הורה</label>
+              <input className="tl-input" value={registerForm.parentName} onChange={e=>setRegisterForm({...registerForm,parentName:e.target.value})}/></div>
+            <div className="tl-field"><label>טלפון הורה</label>
+              <input className="tl-input" value={registerForm.parentPhone} onChange={e=>setRegisterForm({...registerForm,parentPhone:e.target.value})} dir="ltr"/></div>
+            <div className="tl-field">
+              <label className="tl-cb-row">
+                <input type="checkbox" checked={registerForm.needsPickup} onChange={e=>setRegisterForm({...registerForm,needsPickup:e.target.checked})}/>
+                צריך איסוף מצהרון
+              </label>
+            </div>
+            <div className="tl-modal-btns">
+              <button className="tl-btn-save" disabled={saving} onClick={submitRegister}>{saving?'שומר…':'רשום לשיעור ניסיון'}</button>
+              <button className="tl-btn-cancel" onClick={()=>setShowRegister(false)}>ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* ── Edit modal ── */}
       {editLead && (
         <div className="tl-modal-bg" onClick={e => e.currentTarget === e.target && setEditLead(null)}>
           <div className="tl-modal">
@@ -473,9 +440,7 @@ export default function AdminTrialLeads() {
             <div className="tl-field"><label>שם הורה</label>
               <input className="tl-input" value={editLead.parent_name||''} onChange={e=>setEditLead({...editLead,parent_name:e.target.value})}/></div>
             <div className="tl-field"><label>טלפון הורה</label>
-              <input className="tl-input" value={editLead.parent_phone||''} onChange={e=>setEditLead({...editLead,parent_phone:e.target.value})}/></div>
-            <div className="tl-field"><label>תאריך שיעור ניסיון</label>
-              <input className="tl-input" type="date" value={editLead.trial_date||''} onChange={e=>setEditLead({...editLead,trial_date:e.target.value})}/></div>
+              <input className="tl-input" value={editLead.parent_phone||''} onChange={e=>setEditLead({...editLead,parent_phone:e.target.value})} dir="ltr"/></div>
             <div className="tl-field"><label>סטטוס</label>
               <select className="tl-input" value={editLead.status} onChange={e=>setEditLead({...editLead,status:e.target.value})}>
                 {Object.entries(STATUS_META).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
@@ -486,6 +451,12 @@ export default function AdminTrialLeads() {
                 הגיע לשיעור ניסיון
               </label>
             </div>
+            <div className="tl-field">
+              <label className="tl-cb-row">
+                <input type="checkbox" checked={Boolean(editLead.needs_pickup_from_after_school)} onChange={e=>setEditLead({...editLead,needs_pickup_from_after_school:e.target.checked})}/>
+                צריך איסוף מצהרון
+              </label>
+            </div>
             <div className="tl-modal-btns">
               <button className="tl-btn-save" disabled={saving} onClick={saveEdit}>{saving?'שומר…':'שמור שינויים'}</button>
               <button className="tl-btn-cancel" onClick={()=>setEditLead(null)}>ביטול</button>
@@ -494,7 +465,6 @@ export default function AdminTrialLeads() {
         </div>
       )}
 
-      {/* ── Toast ── */}
       {toast && (
         <div className={`tl-toast${toast.warn?' warn':''}`}>
           <i className={toast.warn?'ti ti-alert-triangle':'ti ti-circle-check'}/>
@@ -502,7 +472,6 @@ export default function AdminTrialLeads() {
         </div>
       )}
 
-      {/* ── New trial popup ── */}
       {newPopup && (
         <div className="tl-popup">
           <div className="tl-popup-icon"><i className="ti ti-user-plus"/></div>
@@ -517,7 +486,6 @@ export default function AdminTrialLeads() {
           <button className="tl-popup-x" onClick={()=>setNewPopup(null)}><i className="ti ti-x"/></button>
         </div>
       )}
-
     </div>
   );
 }

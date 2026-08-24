@@ -8,6 +8,7 @@ import { fetchInstructorGroups } from '../../utils/instructorGroups';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
 import { provisionAuthUsers } from '../../utils/provisionAuth';
+import { isActiveTrialLead, registerTrialLead } from '../../utils/trialLeads';
 import {
   COIN_AWARD_PRESETS,
   DEFAULT_COIN_EARN_CAP,
@@ -24,7 +25,7 @@ export default function InstructorGroups() {
   const [openGroupId, setOpenGroupId] = useState(null);
   const [openTrialGroupId, setOpenTrialGroupId] = useState(null);
   const [manualTrialGroupId, setManualTrialGroupId] = useState(null);
-  const [manualTrialRows, setManualTrialRows] = useState([{ studentName: '', grade: '', parentPhone: '', parentName: '' }]);
+  const [manualTrialRows, setManualTrialRows] = useState([{ studentName: '', grade: '', parentPhone: '', parentName: '', needsPickup: false }]);
   const [isModalOpen, setIsOpen] = useState(false);
   const [activePanel, setActivePanel] = useState(''); // '' | 'coins' | 'task' | 'edit'
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -129,6 +130,7 @@ export default function InstructorGroups() {
           }
 
           (dbTrialLeads || []).forEach((lead) => {
+            if (!isActiveTrialLead(lead)) return;
             const foundGroup = liveGroups.find((g) => g.id === Number(lead.group_id));
             if (foundGroup) {
               foundGroup.trialLeads.push(lead);
@@ -304,6 +306,7 @@ export default function InstructorGroups() {
         .from('trial_leads')
         .update({
           attended_trial: attended,
+          status: attended ? 'after_class' : 'before_class',
           updated_by: loggedUser || null,
         })
         .eq('id', lead.id);
@@ -315,7 +318,7 @@ export default function InstructorGroups() {
       }
 
       await fetchLiveGroupsAndStudents();
-      triggerToast(attended ? '✅ נוכחות סומנה' : 'הסימון הוסר');
+      triggerToast(attended ? '✅ נוכחות סומנה · אחרי שיעור' : 'הסימון הוסר · לפני שיעור');
     } catch (err) {
       console.error(err);
       alert('שגיאה בעדכון נוכחות');
@@ -327,93 +330,48 @@ export default function InstructorGroups() {
   };
 
   const handleAddManualTrialRow = () => {
-    setManualTrialRows((prev) => [...prev, { studentName: '', grade: '', parentPhone: '', parentName: '' }]);
+    setManualTrialRows((prev) => [...prev, { studentName: '', grade: '', parentPhone: '', parentName: '', needsPickup: false }]);
   };
 
   const handleRemoveManualTrialRow = (idx) => {
     setManualTrialRows((prev) => prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev);
   };
 
-  const normalizeIsraeliPhone = (raw) => {
-    const digits = String(raw || '').replace(/\D/g, '');
-    if (!digits) return null;
-    if (digits.startsWith('972') && digits.length >= 11) return digits;
-    if (digits.startsWith('0') && digits.length >= 9) return `972${digits.slice(1)}`;
-    if (digits.startsWith('5') && digits.length === 9) return `972${digits}`;
-    return null;
-  };
-
-  const tomorrowIsoDate = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
-  };
-
   const handleCreateManualTrialLeads = async (group) => {
-    const prepared = manualTrialRows
-      .filter((r) => r.studentName.trim())
-      .map((r) => {
-        const studentName = r.studentName.trim();
-        const phone = normalizeIsraeliPhone(r.parentPhone);
-        return {
-          lead: {
-            student_full_name: studentName,
-            student_grade: r.grade.trim() || null,
-            parent_phone: phone,
-            parent_name: r.parentName.trim() || null,
-            group_id: group.id,
-            source_channel: 'phone',
-            status: 'before_class',
-            attended_trial: false,
-            created_by: loggedUser || null,
-            updated_by: loggedUser || null,
-          },
-          // פולואפ רק כשיש שם תלמיד + טלפון תקין (אחרת לא נכנס לטבלת הפולואפים)
-          shouldScheduleFollowup: Boolean(studentName && phone),
-        };
-      });
-
-    const payload = prepared.map((p) => p.lead);
-    if (!payload.length) {
+    const rows = manualTrialRows.filter((r) => r.studentName.trim());
+    if (!rows.length) {
       alert('נא להזין לפחות שם תלמיד אחד');
       return;
     }
 
-    const { error } = await supabase.from('trial_leads').insert(payload);
-    if (error) {
-      console.error(error);
-      alert(`יצירת שיעורי ניסיון נכשלה: ${error.message}`);
-      return;
-    }
-
-    const followups = prepared
-      .filter((p) => p.shouldScheduleFollowup)
-      .map((p) => ({
-        phone: p.lead.parent_phone,
-        send_at: tomorrowIsoDate(),
-        message_text: `היי ! אני רואה ש${p.lead.student_full_name} הגיע אלינו לשיעור התנסות - האם תרצו להירשם ?`,
-        status: 'pending',
-      }));
-
-    let followupCount = 0;
-    if (followups.length) {
-      const { error: followupError } = await supabase.from('scheduled_followups').insert(followups);
-      if (followupError) {
-        console.error(followupError);
-        alert(`הרשומות נשמרו, אך תזמון פולואפ נכשל: ${followupError.message}`);
-      } else {
-        followupCount = followups.length;
-      }
+    let okCount = 0;
+    const errors = [];
+    for (const row of rows) {
+      const result = await registerTrialLead({
+        groupId: group.id,
+        studentFullName: row.studentName,
+        studentGrade: row.grade,
+        parentName: row.parentName,
+        parentPhone: row.parentPhone,
+        needsPickup: Boolean(row.needsPickup),
+        sourceChannel: 'phone',
+        createdBy: loggedUser || null,
+      });
+      if (result.ok) okCount += 1;
+      else errors.push(`${row.studentName.trim()}: ${result.error}`);
     }
 
     await fetchLiveGroupsAndStudents();
-    setManualTrialRows([{ studentName: '', grade: '', parentPhone: '', parentName: '' }]);
+    setManualTrialRows([{ studentName: '', grade: '', parentPhone: '', parentName: '', needsPickup: false }]);
     setManualTrialGroupId(null);
-    triggerToast(
-      followupCount > 0
-        ? `✅ נוספו ${payload.length} שיעורי ניסיון · ${followupCount} פולואפים למחר`
-        : `✅ נוספו ${payload.length} שיעורי ניסיון (ללא פולואפ — חסר טלפון תקין)`
-    );
+
+    if (okCount && !errors.length) {
+      triggerToast(`✅ נוספו ${okCount} שיעורי ניסיון`);
+    } else if (okCount && errors.length) {
+      triggerToast(`נוספו ${okCount}, חלק נכשלו: ${errors[0]}`, true);
+    } else {
+      alert(errors[0] || 'יצירת שיעורי ניסיון נכשלה');
+    }
   };
 
   const handleOpenModal = (student) => {
@@ -775,7 +733,8 @@ export default function InstructorGroups() {
                       {isManualTrialOpen && (
                         <div style={{ marginBottom: '10px' }}>
                           {manualTrialRows.map((row, idx) => (
-                            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr 1.5fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
+                            <div key={idx} style={{ marginBottom: '8px' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr 1.5fr auto', gap: '6px', alignItems: 'center' }}>
                               <input
                                 className="trial-manual-input"
                                 placeholder="שם מלא תלמיד"
@@ -806,6 +765,15 @@ export default function InstructorGroups() {
                                 onClick={() => handleRemoveManualTrialRow(idx)}
                                 title="הסר שורה"
                               >×</button>
+                              </div>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#8aa0bc', marginTop: '4px', justifyContent: 'flex-end' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(row.needsPickup)}
+                                  onChange={(e) => handleManualTrialRowChange(idx, 'needsPickup', e.target.checked)}
+                                />
+                                צריך איסוף מצהרון
+                              </label>
                             </div>
                           ))}
                           <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
