@@ -21,6 +21,29 @@ function isUpcomingTrialLead(lead, todayIso) {
   return true;
 }
 
+const TRIAL_STATUS_META = {
+  before_class:   { label: 'לפני שיעור', color: '#93c5fd' },
+  after_class:    { label: 'אחרי שיעור', color: '#fcd34d' },
+  thinking:       { label: 'חושב', color: '#d8b4fe' },
+  not_interested: { label: 'לא מעוניין', color: '#fca5a5' },
+  registered:     { label: 'נרשם', color: '#86efac' },
+};
+
+function formatLeadWhen(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const now = Date.now();
+  const diffMin = Math.round((now - d.getTime()) / 60000);
+  if (diffMin < 1) return 'עכשיו';
+  if (diffMin < 60) return `לפני ${diffMin} דק׳`;
+  const diffHr = Math.round(diffMin / 60);
+  if (diffHr < 24) return `לפני ${diffHr} שע׳`;
+  const diffDay = Math.round(diffHr / 24);
+  if (diffDay < 7) return `לפני ${diffDay} ימים`;
+  return d.toLocaleDateString('he-IL');
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
 
@@ -38,6 +61,7 @@ export default function AdminDashboard() {
   });
   const [instructors, setInstructors] = useState([]);
   const [riskGroups, setRiskGroups] = useState([]);
+  const [recentLeads, setRecentLeads] = useState([]);
 
   const MAX_CAPACITY = 15;
 
@@ -48,12 +72,26 @@ export default function AdminDashboard() {
       const [{ data: dbGroups }, { data: dbUsers }, { data: trialLeads }] = await Promise.all([
         supabase.from('groups').select('*'),
         supabase.from('users').select('*'),
-        supabase.from('trial_leads').select('status, attended_trial, trial_date'),
+        supabase
+          .from('trial_leads')
+          .select('id,student_full_name,student_grade,parent_name,parent_phone,group_id,status,attended_trial,trial_date,created_at,created_by,source_channel')
+          .order('created_at', { ascending: false }),
       ]);
 
       const todayIso = localIsoDate(new Date());
       const upcomingTrials = (trialLeads || []).filter((lead) => isUpcomingTrialLead(lead, todayIso)).length;
       const attendedTrials = (trialLeads || []).filter((lead) => Boolean(lead.attended_trial)).length;
+
+      const groupsById = Object.fromEntries((dbGroups || []).map((g) => [g.id, g]));
+      setRecentLeads(
+        (trialLeads || []).slice(0, 40).map((lead) => {
+          const g = groupsById[lead.group_id];
+          return {
+            ...lead,
+            groupLabel: g ? `${g.venue} · ${g.city}` : `קבוצה #${lead.group_id}`,
+          };
+        })
+      );
 
       if (dbUsers && dbGroups) {
         const activeGroups = dbGroups.filter(g => g.is_active !== false);
@@ -178,9 +216,11 @@ export default function AdminDashboard() {
       <style>{`
         ${adminSidebarStyles}
 
-        .main-area { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; overflow-x: hidden; min-width: 0; }
+        .hq-global-wrapper { height: 100vh; min-height: 100vh; overflow: hidden; }
+        .main-area { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-width: 0; }
 
-        .content { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+        .content { padding: 24px; display: flex; flex-direction: column; gap: 20px; flex: 1; min-height: 0; overflow: hidden; }
+        .kpi-section { flex-shrink: 0; }
         .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
         .section-header-line { flex: 1; height: 1px; background: linear-gradient(90deg, #1a2a4a, transparent); }
         .section-title { font-family: 'Heebo', 'Rajdhani', sans-serif; font-size: 16px; letter-spacing: 0.4px; color: #ffffff; white-space: nowrap; font-weight: 700; }
@@ -194,20 +234,36 @@ export default function AdminDashboard() {
         .kpi-card.kpi-trial-attended::before { background: linear-gradient(90deg, #00e676, #00c8ff); }
         .kpi-label { font-family: 'Heebo', 'Rajdhani', sans-serif; font-size: 14px; color: #ffffff; letter-spacing: 0.3px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; width: 100%; }
         .kpi-label i { font-size: 15px; color: #ffffff; }
-        .kpi-value { font-family: 'Heebo', 'Rajdhani', sans-serif; font-size: 32px; font-weight: 800; color: #ffffff; line-height: 1; margin-bottom: 6px; width: 100%; text-align: center; }
-        .kpi-card.kpi-trial-future .kpi-value { color: #ffd36a; }
-        .kpi-card.kpi-trial-attended .kpi-value { color: #5dffb0; }
+        .kpi-value { font-family: 'Heebo', 'Rajdhani', sans-serif; font-size: 32px; font-weight: 800; color: #00c8ff; line-height: 1; margin-bottom: 6px; width: 100%; text-align: center; }
+        .kpi-card.kpi-trial-future .kpi-value { color: #f0a820; }
+        .kpi-card.kpi-trial-attended .kpi-value { color: #00e676; }
         .kpi-sub { font-family: 'Heebo', 'Rajdhani', sans-serif; font-size: 12px; color: #c5d4e8; font-weight: 600; width: 100%; text-align: center; }
         @media (max-width: 1400px) { .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
         
-        .panels-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .panel { background: #070e1c; border: 1px solid #1a2a4a; border-radius: 14px; overflow: hidden; }
-        .panel-head { padding: 14px 18px; border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; background: #060b18; }
-        .panel-head-title { display: flex; align-items: center; gap: 8px; font-family: 'Heebo', 'Rajdhani', sans-serif; font-size: 15px; letter-spacing: 0.3px; color: #ffffff; font-weight: 700; }
-        .panel-head-title i { font-size: 16px; }
-        .panel-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 500; }
+        .panels-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; flex: 1; min-height: 0; }
+        @media (max-width: 1200px) { .panels-row { grid-template-columns: 1fr; } }
+        .panel { background: #070e1c; border: 1px solid #1a2a4a; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; min-height: 0; height: 100%; }
+        .panel-head { padding: 14px 18px; border-bottom: 1px solid #1a2a4a; display: flex; align-items: center; justify-content: space-between; background: #060b18; flex-shrink: 0; gap: 8px; }
+        .panel-head-title { display: flex; align-items: center; gap: 8px; font-family: 'Heebo', 'Rajdhani', sans-serif; font-size: 14px; letter-spacing: 0.3px; color: #ffffff; font-weight: 700; min-width: 0; }
+        .panel-head-title i { font-size: 16px; flex-shrink: 0; }
+        .panel-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
         .badge-gold { background: #1a0f02; color: #c8860a; border: 1px solid #c8860a44; }
         .badge-danger { background: #1a0505; color: #ff4444; border: 1px solid #ff444444; }
+        .badge-cyan { background: #041820; color: #00c8ff; border: 1px solid #00c8ff44; cursor: pointer; }
+        .badge-cyan:hover { border-color: #00c8ff; color: #7dd3fc; }
+        .panel-body { flex: 1; min-height: 0; overflow-y: auto; }
+        .panel-empty { padding: 24px 18px; text-align: center; color: #4a6080; font-size: 13px; }
+
+        .lead-row { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #0d1a2e; gap: 10px; transition: background 0.2s; cursor: pointer; }
+        .lead-row:last-child { border-bottom: none; }
+        .lead-row:hover { background: #0a1428; }
+        .lead-avatar { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #0a1f3d, #152a50); border: 1px solid #1a3a6a; display: flex; align-items: center; justify-content: center; font-family: 'Orbitron', monospace; font-size: 10px; font-weight: 700; color: #00c8ff; flex-shrink: 0; }
+        .lead-info { flex: 1; min-width: 0; text-align: right; }
+        .lead-name { font-size: 13px; font-weight: 700; color: #c0d8f0; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .lead-meta { font-size: 11px; color: #3a5070; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .lead-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+        .lead-status { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+        .lead-when { font-size: 10px; color: #2a4060; font-family: 'Orbitron', monospace; }
         
         .bonus-row { display: flex; align-items: center; padding: 14px 18px; border-bottom: 1px solid #0d1a2e; gap: 12px; transition: background 0.2s; }
         .bonus-row:last-child { border-bottom: none; }
@@ -268,7 +324,7 @@ export default function AdminDashboard() {
 
         <div className="content">
           {/* KPI METRICS CARDS */}
-          <div>
+          <div className="kpi-section">
             <div className="section-header"><div className="section-icon"></div><div className="section-title">מבט על אראגון</div><div className="section-header-line"></div></div>
             <div className="kpi-grid">
               <div className="kpi-card"><div className="kpi-label"><i className="ti ti-users"></i> תלמידים פעילים</div><div className="kpi-value">{kpi.totalStudents}</div><div className="kpi-sub">ברחבי הרשת</div></div>
@@ -284,12 +340,46 @@ export default function AdminDashboard() {
           <div className="panels-row">
             <div className="panel">
               <div className="panel-head">
-                <div className="panel-head-title"><i className="ti ti-coin" style={{ color: '#c8860a' }}></i> מרכז בונוסים — BONUS CENTER</div>
+                <div className="panel-head-title"><i className="ti ti-user-heart" style={{ color: '#00c8ff' }}></i> המתעניינים האחרונים</div>
+                <button type="button" className="panel-badge badge-cyan" onClick={() => navigate('/admin/trials')}>לכל הרשימה</button>
+              </div>
+              <div className="panel-body">
+                {recentLeads.length === 0 ? (
+                  <div className="panel-empty">עדיין אין מתעניינים רשומים</div>
+                ) : (
+                  recentLeads.map((lead) => {
+                    const sm = TRIAL_STATUS_META[lead.status] || TRIAL_STATUS_META.before_class;
+                    const initials = (lead.student_full_name || 'מ').slice(0, 2);
+                    return (
+                      <div className="lead-row" key={lead.id} onClick={() => navigate('/admin/trials')}>
+                        <div className="lead-avatar">{initials}</div>
+                        <div className="lead-info">
+                          <div className="lead-name">{lead.student_full_name || '—'}</div>
+                          <div className="lead-meta">
+                            {lead.groupLabel}
+                            {lead.student_grade ? ` · כיתה ${lead.student_grade}` : ''}
+                            {lead.parent_name ? ` · ${lead.parent_name}` : ''}
+                          </div>
+                        </div>
+                        <div className="lead-side">
+                          <span className="lead-status" style={{ color: sm.color }}>{sm.label}</span>
+                          <span className="lead-when">{formatLeadWhen(lead.created_at)}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <div className="panel">
+              <div className="panel-head">
+                <div className="panel-head-title"><i className="ti ti-coin" style={{ color: '#c8860a' }}></i> מרכז בונוסים</div>
                 <div className="panel-badge badge-gold">{pendingCount > 0 ? `${pendingCount} ממתינים` : 'הכל שולם ✓'}</div>
               </div>
               <div className="panel-body">
                 {instructors.length === 0 ? (
-                  <div style={{ padding: '20px', textAllign: 'center', color: '#4a6080', fontSize: '13px' }}>אין מדריכים פעילים כרגע</div>
+                  <div className="panel-empty">אין מדריכים פעילים כרגע</div>
                 ) : (
                   instructors.map(inst => (
                     <div className="bonus-row" key={inst.id}>
@@ -305,12 +395,12 @@ export default function AdminDashboard() {
 
             <div className="panel">
               <div className="panel-head">
-                <div className="panel-head-title"><i className="ti ti-alert-triangle" style={{ color: '#ff4444' }}></i> ניהול סיכונים — RISK ALERTS</div>
+                <div className="panel-head-title"><i className="ti ti-alert-triangle" style={{ color: '#ff4444' }}></i> ניהול סיכונים</div>
                 <div className="panel-badge badge-danger">סכנת סגירה</div>
               </div>
               <div className="panel-body">
                 {riskGroups.length === 0 ? (
-                  <div style={{ padding: '25px', textAllign: 'center', color: '#4a6080', fontStyle: 'italic', fontSize: '12px' }}>✅ כל הקבוצות ברשת בתפוסה תקינה</div>
+                  <div className="panel-empty">✅ כל הקבוצות ברשת בתפוסה תקינה</div>
                 ) : (
                   riskGroups.map((g, idx) => {
                     const pct = Math.round((g.count / MAX_CAPACITY) * 100);

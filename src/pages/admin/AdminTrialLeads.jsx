@@ -23,6 +23,8 @@ export default function AdminTrialLeads() {
   const [searchText,   setSearchText]   = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterCity,   setFilterCity]   = useState('');
+  const [filterVenue,  setFilterVenue]  = useState('');
+  const [filterDay,    setFilterDay]    = useState('');
 
   const [editLead, setEditLead] = useState(null);
   const [showRegister, setShowRegister] = useState(false);
@@ -49,7 +51,7 @@ export default function AdminTrialLeads() {
     const [{ data: dbLeads }, { data: dbGroups }] = await Promise.all([
       supabase
         .from('trial_leads')
-        .select('id,student_full_name,student_grade,parent_name,parent_phone,group_id,status,attended_trial,attended_marked_at,created_by,created_at,needs_pickup_from_after_school,source_channel')
+        .select('id,student_full_name,student_grade,parent_name,parent_phone,group_id,status,attended_trial,attended_marked_at,created_by,created_at,needs_pickup_from_after_school,source_channel,trial_date')
         .order('created_at', { ascending: false }),
       supabase.from('groups').select('id,name,city,venue,day,is_active').eq('is_active', true).order('city'),
     ]);
@@ -94,6 +96,16 @@ export default function AdminTrialLeads() {
     closed:   leads.filter(l => l.status === 'registered' || l.status === 'not_interested').length,
   };
 
+  const yesterdayJs = (new Date().getDay() + 6) % 7;
+  const yesterdayIso = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  })();
+
   const filtered = leads.filter(l => {
     if (activeKpi === 'before')   { if (l.status !== 'before_class') return false; }
     if (activeKpi === 'attended') { if (!(l.status === 'after_class' || l.attended_trial)) return false; }
@@ -107,6 +119,22 @@ export default function AdminTrialLeads() {
       if (!g || g.city !== filterCity) return false;
     }
 
+    if (filterVenue) {
+      const g = groups.find(g => g.id === l.group_id);
+      if (!g || g.venue !== filterVenue) return false;
+    }
+
+    if (filterDay !== '') {
+      const g = groups.find(g => g.id === l.group_id);
+      if (filterDay === 'yesterday') {
+        const byDate = l.trial_date && String(l.trial_date).slice(0, 10) === yesterdayIso;
+        const byGroupDay = Number(g?.day) === yesterdayJs;
+        if (!byDate && !byGroupDay) return false;
+      } else if (Number(g?.day) !== Number(filterDay)) {
+        return false;
+      }
+    }
+
     if (searchText.trim()) {
       const q = searchText.trim().toLowerCase();
       const g = groups.find(g => g.id === l.group_id);
@@ -117,6 +145,12 @@ export default function AdminTrialLeads() {
   });
 
   const cities = [...new Set(groups.map(g => g.city).filter(Boolean))].sort();
+  const venues = [...new Set(
+    groups
+      .filter(g => !filterCity || g.city === filterCity)
+      .map(g => g.venue)
+      .filter(Boolean)
+  )].sort((a, b) => a.localeCompare(b, 'he'));
 
   const groupLabel = (gid) => {
     const g = groups.find(g => g.id === gid);
@@ -218,7 +252,7 @@ export default function AdminTrialLeads() {
         .tl-main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; overflow-x: hidden; }
 
         .tl-kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
-        .tl-kpi { background: linear-gradient(135deg,#070e1c,#0a1428); border: 1px solid #1a2a4a; border-radius: 12px; padding: 16px 18px; cursor: pointer; transition: border-color .2s, transform .15s; position: relative; overflow: hidden; user-select: none; }
+        .tl-kpi { background: linear-gradient(135deg,#070e1c,#0a1428); border: 1px solid #1a2a4a; border-radius: 12px; padding: 16px 18px; cursor: pointer; transition: border-color .2s, transform .15s; position: relative; overflow: hidden; user-select: none; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
         .tl-kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
         .tl-kpi.k-before::before   { background: linear-gradient(90deg,#3b82f6,#00c8ff); }
         .tl-kpi.k-attended::before { background: linear-gradient(90deg,#00e676,#00c8ff); }
@@ -226,14 +260,14 @@ export default function AdminTrialLeads() {
         .tl-kpi.k-closed::before   { background: linear-gradient(90deg,#f87171,#86efac); }
         .tl-kpi:hover { border-color:#00c8ff44; transform: translateY(-1px); }
         .tl-kpi.active { border-color:#00c8ff88; box-shadow: 0 0 18px rgba(0,200,255,0.1); }
-        .tl-kpi-val { font-family:'Orbitron',monospace; font-size:28px; font-weight:700; line-height:1; margin:8px 0 4px; }
+        .tl-kpi-val { font-family:'Heebo','Rajdhani',sans-serif; font-size:32px; font-weight:800; line-height:1; margin:10px 0 6px; width:100%; text-align:center; }
         .k-before .tl-kpi-val   { color:#93c5fd; }
         .k-attended .tl-kpi-val { color:#00e676; }
         .k-thinking .tl-kpi-val { color:#d8b4fe; }
         .k-closed .tl-kpi-val   { color:#fca5a5; }
-        .tl-kpi-lbl { font-size:11px; color:#4a6080; letter-spacing:1px; display:flex; align-items:center; gap:5px; }
-        .tl-kpi-lbl i { font-size:13px; }
-        .tl-kpi-sub { font-size:10px; color:#2a4060; }
+        .tl-kpi-lbl { font-family:'Heebo','Rajdhani',sans-serif; font-size:14px; color:#ffffff; letter-spacing:0.3px; display:flex; align-items:center; justify-content:center; gap:5px; font-weight:700; width:100%; }
+        .tl-kpi-lbl i { font-size:15px; color:#ffffff; }
+        .tl-kpi-sub { font-size:12px; color:#c5d4e8; font-weight:600; width:100%; text-align:center; }
         .tl-kpi-clear { position:absolute; top:8px; left:10px; font-size:10px; color:#00c8ff88; }
 
         .tl-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px; }
@@ -245,7 +279,7 @@ export default function AdminTrialLeads() {
 
         .tl-table-wrap { background:#070e1c; border:1px solid #1a2a4a; border-radius:12px; overflow:auto; }
         .tl-table { width:100%; border-collapse:collapse; min-width:860px; }
-        .tl-table th { padding:12px 14px; font-size:11px; color:#2a4060; letter-spacing:1px; text-align:right; border-bottom:1px solid #0d1a2e; background:#060b18; }
+        .tl-table th { padding:12px 14px; font-family:'Heebo','Rajdhani',sans-serif; font-size:13px; font-weight:700; color:#e8f0fa; letter-spacing:0.3px; text-align:right; border-bottom:1px solid #0d1a2e; background:#060b18; }
         .tl-table td { padding:12px 14px; font-size:13px; border-bottom:1px solid #0a1428; text-align:right; vertical-align:middle; }
         .tl-empty-row { text-align:center !important; color:#3a5070; padding:40px !important; }
         .tl-phone { color:#93c5fd; text-decoration:none; font-family:monospace; direction:ltr; display:inline-block; }
@@ -334,9 +368,20 @@ export default function AdminTrialLeads() {
                 <option key={k} value={k}>{v.label}</option>
               ))}
             </select>
-            <select className="tl-sel" value={filterCity} onChange={e => setFilterCity(e.target.value)}>
+            <select className="tl-sel" value={filterCity} onChange={e => { setFilterCity(e.target.value); setFilterVenue(''); }}>
               <option value="">כל הערים</option>
               {cities.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select className="tl-sel" value={filterVenue} onChange={e => setFilterVenue(e.target.value)}>
+              <option value="">כל המוקדים</option>
+              {venues.map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+            <select className="tl-sel" value={filterDay} onChange={e => setFilterDay(e.target.value)}>
+              <option value="">כל הימים</option>
+              <option value="yesterday">שיעורים שהיו אתמול</option>
+              {DAYS.map((d, i) => (
+                <option key={i} value={String(i)}>יום {d}</option>
+              ))}
             </select>
             <button className="tl-add-btn" type="button" onClick={() => setShowRegister(true)}>
               <i className="ti ti-user-plus"/> הרשמה לשיעור ניסיון

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 
 export const ADMIN_NAV = [
   { key: 'home', path: '/admin', icon: 'ti-layout-dashboard', label: 'בית' },
+  { key: 'trials', path: '/admin/trials', icon: 'ti-user-question', label: 'מתעניינים' },
   { key: 'shop', path: '/admin/shop', icon: 'ti-shopping-bag', label: 'חנות' },
   { key: 'challenges', path: '/admin/missions', icon: 'ti-sword', label: 'אתגרים' },
   { key: 'control', path: '/admin/control', icon: 'ti-calendar', label: 'לו"ז' },
@@ -13,7 +14,6 @@ export const ADMIN_NAV = [
   { key: 'mgmt-tasks', path: '/admin/operations/tasks', icon: 'ti-checkbox', label: 'משימות' },
   { key: 'mgmt-meetings', path: '/admin/operations/meetings', icon: 'ti-calendar-event', label: 'ישיבות' },
   { key: 'camps', path: '/admin/camps', icon: 'ti-tent', label: 'קייטנות' },
-  { key: 'trials', path: '/admin/trials', icon: 'ti-user-question', label: 'מתעניינים' },
 ];
 
 export const adminSidebarStyles = `
