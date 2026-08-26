@@ -196,6 +196,12 @@ export default function AdminControlSchedule() {
   };
 
   const handleSaveInstructorAssignment = async () => {
+    const currentGroup = groups.find((g) => g.id === selectedGroupId);
+    if (currentGroup?.isActive === false && formGroup.instructor) {
+      triggerToast('לא ניתן לשייך מדריך לקבוצה לא פעילה', true);
+      return;
+    }
+
     try {
       await supabase
         .from('groups')
@@ -354,6 +360,7 @@ export default function AdminControlSchedule() {
   };
 
   const sortedGroupsForAllocation = [...groups]
+    .filter((g) => g.isActive !== false)
     .sort((a, b) => a.city.localeCompare(b.city, 'he'))
     .filter(g => !studentSearchQuery || g.name.includes(studentSearchQuery) || g.city.includes(studentSearchQuery) || g.venue.includes(studentSearchQuery));
 
@@ -569,6 +576,7 @@ export default function AdminControlSchedule() {
 
               {DAYS.map((_, di) => {
                 const dayGroupsList = groups.filter(g => {
+                  if (g.isActive === false) return false;
                   if (g.day !== di) return false;
                   if (currentFilter === 'unassigned') return g.status === 'red';
                   if (currentFilter === 'city') {

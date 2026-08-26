@@ -127,7 +127,8 @@ export default function InstructorProfile() {
         const { data: dbGroups } = await supabase
           .from('groups')
           .select('id')
-          .eq('instructor', fullName);
+          .eq('instructor', fullName)
+          .neq('is_active', false);
 
         if (dbGroups) {
           const groupsCount = dbGroups.length;

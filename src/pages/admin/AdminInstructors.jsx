@@ -82,7 +82,7 @@ export default function AdminInstructors() {
         }
 
         const computedInstructors = dbUsers.map(user => {
-          const instructorGroups = dbGroups.filter(g => g.instructor === user.full_name);
+          const instructorGroups = dbGroups.filter(g => g.instructor === user.full_name && g.is_active !== false);
           
           let totalStudentsCount = 0;
           instructorGroups.forEach(g => {
@@ -360,6 +360,10 @@ export default function AdminInstructors() {
 
   const handleToggleGroupAssignment = async (group) => {
     const isCurrentlyAssigned = group.instructor === selectedInstructor.name;
+    if (!isCurrentlyAssigned && group.is_active === false) {
+      triggerToast('לא ניתן לשייך קבוצה לא פעילה למדריך', true);
+      return;
+    }
     const nextInstructor = isCurrentlyAssigned ? '' : selectedInstructor.name;
     const nextStatus = isCurrentlyAssigned ? 'red' : 'green';
 
@@ -387,7 +391,10 @@ export default function AdminInstructors() {
     return true; 
   });
 
-  const filteredGroupsForAssign = allGroups.filter(g => g.venue.includes(groupSearch) || g.city.includes(groupSearch) || g.name.includes(groupSearch));
+  const filteredGroupsForAssign = allGroups.filter(g => {
+    if (g.is_active === false) return false;
+    return g.venue.includes(groupSearch) || g.city.includes(groupSearch) || g.name.includes(groupSearch);
+  });
 
   return (
     <div className="hq-global-wrapper">

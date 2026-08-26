@@ -92,7 +92,8 @@ export default function InstructorSchedule() {
         const { data: dbGroups } = await supabase
           .from('groups')
           .select('*')
-          .eq('instructor', userData.full_name);
+          .eq('instructor', userData.full_name)
+          .neq('is_active', false);
 
         // 🟢 2. תיקון חסין: משיכת כל המתחמים מהענן למניעת קריסת ה-or עם סוגריים, נבצע סינון מדויק בצד לקוח
         const { data: dbCamps } = await supabase
@@ -289,7 +290,8 @@ export default function InstructorSchedule() {
         const { error } = await supabase
           .from('groups')
           .update({ status: 'green' })
-          .eq('instructor', userData.full_name);
+          .eq('instructor', userData.full_name)
+          .neq('is_active', false);
 
         if (error) {
           triggerToast('❌ שגיאה בעדכון הלו"ז בענן');

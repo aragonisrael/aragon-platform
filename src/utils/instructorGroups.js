@@ -60,17 +60,20 @@ export async function fetchInstructorGroups(supabase, username) {
     const { data, error } = await supabase
       .from('groups')
       .select('*')
-      .in('instructor', matchNames);
+      .in('instructor', matchNames)
+      .neq('is_active', false);
 
     if (!error && data?.length) groups = data;
   }
 
   if (groups.length === 0) {
-    const { data: allGroups, error } = await supabase.from('groups').select('*');
+    const { data: allGroups, error } = await supabase.from('groups').select('*').neq('is_active', false);
     if (!error && allGroups) {
       groups = allGroups.filter((g) => groupMatchesInstructor(g, userData));
     }
   }
+
+  groups = groups.filter((g) => g.is_active !== false);
 
   return { userData, groups };
 }

@@ -391,19 +391,28 @@ export default function AdminGroupsList() {
       return;
     }
 
+    const becomingInactive = formGroup.isActive === false;
+    const updatePayload = {
+      name: formGroup.name,
+      city: formGroup.city,
+      venue: formGroup.venue,
+      day: parseInt(formGroup.day, 10),
+      start_min: sMin,
+      dur: eMin - sMin,
+      is_active: formGroup.isActive,
+      grades: (formGroup.grades || []).join(',')
+    };
+
+    // קבוצה לא פעילה לא יכולה להישאר משויכת למדריך
+    if (becomingInactive) {
+      updatePayload.instructor = '';
+      updatePayload.status = 'red';
+    }
+
     try {
       await supabase
         .from('groups')
-        .update({
-          name: formGroup.name,
-          city: formGroup.city,
-          venue: formGroup.venue,
-          day: parseInt(formGroup.day, 10),
-          start_min: sMin,
-          dur: eMin - sMin,
-          is_active: formGroup.isActive,
-          grades: (formGroup.grades || []).join(',')
-        })
+        .update(updatePayload)
         .eq('id', selectedGroupId);
 
       await supabase
@@ -414,13 +423,27 @@ export default function AdminGroupsList() {
 
       await fetchLiveGroupsAndRosters();
       setIsStudentModalOpen(false);
-      triggerToast('הקבוצה עודכנה בשרת בהצלחה ✓');
+      triggerToast(
+        becomingInactive
+          ? 'הקבוצה סומנה כלא פעילה ושיוך המדריך הוסר ✓'
+          : 'הקבוצה עודכנה בשרת בהצלחה ✓'
+      );
     } catch (err) {
       console.error(err);
     }
   };
 
   const handleSaveGroupInstructorEdit = async () => {
+    const currentGroup = groups.find((g) => g.id === selectedGroupId);
+    if (currentGroup && currentGroup.isActive === false) {
+      triggerToast('לא ניתן לשייך מדריך לקבוצה לא פעילה', true);
+      return;
+    }
+    if (formGroup.isActive === false && formGroup.instructor) {
+      triggerToast('לא ניתן לשייך מדריך לקבוצה לא פעילה', true);
+      return;
+    }
+
     try {
       await supabase
         .from('groups')
@@ -1167,9 +1190,18 @@ export default function AdminGroupsList() {
               {/* טאב 4: ניהול שיוך מדריכים */}
               {modalTab === 4 && (
                 <div>
-                  <div className="mfield"><label>מדריך אחראי משוייך לחוג</label><select className="mselect" value={formGroup.instructor} onChange={(e) => setFormGroup({ ...formGroup, instructor: e.target.value })}><option value="">— ללא מדריך (קבוצה אדומה) —</option>{instructors.map((inst, idx) => <option key={idx} value={inst}>{inst}</option>)}</select></div>
-                  {formGroup.status === 'yellow' && formGroup.instructor && <div className="approval-banner"><i className="ti ti-clock"></i><div>הקבוצה ממתינה כעת לאישור הלו"ז של המדריך/ה {formGroup.instructor} בנייד.</div></div>}
-                  <div className="mrow"><button className="msave" type="button" onClick={handleSaveGroupInstructorEdit}>עדכן שיוך מדריך</button><button className="mcancel" type="button" onClick={() => setIsStudentModalOpen(false)}>ביטול</button></div>
+                  {formGroup.isActive === false ? (
+                    <div className="approval-banner" style={{ marginBottom: '12px' }}>
+                      <i className="ti ti-ban"></i>
+                      <div>קבוצה לא פעילה — לא ניתן לשייך מדריך. הפעל את הקבוצה בטאב הסטטוס כדי לאפשר שיוך.</div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mfield"><label>מדריך אחראי משוייך לחוג</label><select className="mselect" value={formGroup.instructor} onChange={(e) => setFormGroup({ ...formGroup, instructor: e.target.value })}><option value="">— ללא מדריך (קבוצה אדומה) —</option>{instructors.map((inst, idx) => <option key={idx} value={inst}>{inst}</option>)}</select></div>
+                      {formGroup.status === 'yellow' && formGroup.instructor && <div className="approval-banner"><i className="ti ti-clock"></i><div>הקבוצה ממתינה כעת לאישור הלו"ז של המדריך/ה {formGroup.instructor} בנייד.</div></div>}
+                      <div className="mrow"><button className="msave" type="button" onClick={handleSaveGroupInstructorEdit}>עדכן שיוך מדריך</button><button className="mcancel" type="button" onClick={() => setIsStudentModalOpen(false)}>ביטול</button></div>
+                    </>
+                  )}
                 </div>
               )}
 
