@@ -25,16 +25,13 @@ export default function AdminControlSchedule() {
   const [toast, setToast] = useState({ show: false, message: '', isWarn: false });
   const [activeModal, setActiveModal] = useState(null); 
   const [modalTab, setModalTab] = useState(1); 
-  const [currentFilter, setCurrentFilter] = useState('all'); 
+  const [viewMode, setViewMode] = useState('instructor'); // 'instructor' | 'unassigned'
   const [selectedInstructor, setSelectedInstructor] = useState('');
-  const [selectedCity, setSelectedCity] = useState(''); 
-  const [dimmedFilters, setDimmedFilters] = useState({ green: true, yellow: true, red: true });
   const [isPlaying, setIsPlaying] = useState(false);
 
   const [instructors, setInstructors] = useState([]);
   const [groups, setGroups] = useState([]);
 
-  const uniqueCities = [...new Set(groups.map(g => g.city))];
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [tooltip, setTooltip] = useState({ show: false, x: 0, y: 0, block: null });
 
@@ -53,10 +50,15 @@ export default function AdminControlSchedule() {
       const { data: dbInstructors } = await supabase
         .from('users')
         .select('full_name')
-        .eq('role', 'instructor');
+        .in('role', ['instructor', 'temp_instructor']);
       
       if (dbInstructors) {
-        setInstructors(dbInstructors.map(i => i.full_name));
+        setInstructors(
+          dbInstructors
+            .map((i) => i.full_name)
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b, 'he'))
+        );
       }
 
       const { data: dbGroups, error } = await supabase
@@ -100,6 +102,40 @@ export default function AdminControlSchedule() {
     }
   }, []);
 
+  const activeGroups = groups.filter((g) => g.isActive !== false);
+  const unassignedGroups = activeGroups.filter((g) => !(g.instructor || '').trim());
+  const unassignedCount = unassignedGroups.length;
+
+  const instructorsWithGroups = (() => {
+    const assignedNames = new Set(
+      activeGroups.map((g) => (g.instructor || '').trim()).filter(Boolean)
+    );
+    const fromUsers = instructors.filter((name) => assignedNames.has(name));
+    const extras = [...assignedNames]
+      .filter((name) => !fromUsers.includes(name))
+      .sort((a, b) => a.localeCompare(b, 'he'));
+    return [...fromUsers, ...extras];
+  })();
+
+  useEffect(() => {
+    if (instructorsWithGroups.length === 0) {
+      if (selectedInstructor) setSelectedInstructor('');
+      return;
+    }
+    if (!selectedInstructor || !instructorsWithGroups.includes(selectedInstructor)) {
+      setSelectedInstructor(instructorsWithGroups[0]);
+    }
+  }, [instructorsWithGroups.join('|'), selectedInstructor]);
+
+  const goInstructor = (direction) => {
+    if (instructorsWithGroups.length === 0) return;
+    setViewMode('instructor');
+    const currentIdx = instructorsWithGroups.indexOf(selectedInstructor);
+    const safeIdx = currentIdx >= 0 ? currentIdx : 0;
+    const nextIdx = (safeIdx + direction + instructorsWithGroups.length) % instructorsWithGroups.length;
+    setSelectedInstructor(instructorsWithGroups[nextIdx]);
+  };
+
   const minToStr = (m) => {
     const h = Math.floor(m / 60), mm = m % 60;
     return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
@@ -135,20 +171,6 @@ export default function AdminControlSchedule() {
       b.numCols = maxColIdx + 1;
     });
     return bs;
-  };
-
-  const getOpacity = (g) => {
-    if (currentFilter === 'unassigned') return g.status === 'red' ? 1 : 0;
-    if (currentFilter === 'city') {
-      if (selectedCity) { return g.city === selectedCity ? (dimmedFilters[g.status] ? 1 : 0) : 0; }
-      return dimmedFilters[g.status] ? 1 : 0;
-    }
-    if (currentFilter === 'inst' && selectedInstructor) {
-      if (g.instructor === selectedInstructor) { return 1; }
-      if (g.status === 'red' && dimmedFilters.red) { return 1; }
-      return 0;
-    }
-    return dimmedFilters[g.status] ? 1 : 0;
   };
 
   const toEng = (n) => {
@@ -430,17 +452,108 @@ export default function AdminControlSchedule() {
         .visualizer-bar { width: 2px; height: 3px; background: #00e676; }
 
         .content { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; overflow: hidden; }
-        .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
-        .tb-btn { display: flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 8px; border: 1px solid #1a2a4a; background: transparent; color: #4a6080; font-family: 'Heebo', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-        .tb-btn:hover { border-color: #00c8ff33; color: #00c8ff; background: #070e1c; }
-        .tb-btn.active { background: linear-gradient(135deg, #061828, #0a2040); border-color: #00c8ff55; color: #00c8ff; }
-        .tb-select { background: #060b18; border: 1px solid #1a2a4a; border-radius: 8px; padding: 7px 10px; color: #c0d8f0; font-family: 'Heebo', sans-serif; font-size: 12px; outline: none; cursor: pointer; }
-        .legend { display: flex; align-items: center; gap: 12px; margin-right: auto; }
+        .instructor-bar {
+          display: grid;
+          grid-template-columns: 1fr auto 1fr;
+          align-items: center;
+          gap: 12px;
+          flex-shrink: 0;
+          min-height: 52px;
+          padding: 6px 4px;
+          direction: rtl;
+        }
+        .instructor-bar-side { display: flex; align-items: center; gap: 10px; }
+        .instructor-bar-side.start { justify-content: flex-start; }
+        .instructor-bar-side.end { justify-content: flex-end; }
+        .inst-nav {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 14px;
+          direction: ltr;
+          min-width: 0;
+        }
+        .inst-nav-arrow {
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
+          border: 1px solid #1a2a4a;
+          background: #060b18;
+          color: #00c8ff;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
+          transition: all 0.15s;
+          flex-shrink: 0;
+        }
+        .inst-nav-arrow:hover:not(:disabled) {
+          border-color: #00c8ff66;
+          background: #0a1428;
+          box-shadow: 0 0 12px rgba(0, 200, 255, 0.2);
+        }
+        .inst-nav-arrow:disabled { opacity: 0.35; cursor: default; }
+        .inst-nav-name {
+          font-family: 'Heebo', sans-serif;
+          font-size: 22px;
+          font-weight: 800;
+          color: #ffffff;
+          text-align: center;
+          min-width: 160px;
+          max-width: 340px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          letter-spacing: 0.3px;
+        }
+        .inst-nav-meta {
+          font-size: 11px;
+          color: #4a6080;
+          text-align: center;
+          margin-top: 2px;
+          font-family: 'Heebo', sans-serif;
+        }
+        .unassigned-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 9px 14px;
+          border-radius: 10px;
+          border: 1px solid #ff555544;
+          background: #1a0408;
+          color: #ff8a96;
+          font-family: 'Heebo', sans-serif;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.15s;
+          white-space: nowrap;
+        }
+        .unassigned-btn:hover { border-color: #ff5555aa; color: #ff5555; box-shadow: 0 0 12px rgba(255, 85, 85, 0.2); }
+        .unassigned-btn.active {
+          background: linear-gradient(135deg, #2a0808, #3a1010);
+          border-color: #ff5555;
+          color: #ff5555;
+          box-shadow: 0 0 14px rgba(255, 85, 85, 0.25);
+        }
+        .unassigned-count {
+          min-width: 24px;
+          height: 24px;
+          padding: 0 7px;
+          border-radius: 12px;
+          background: #ff555522;
+          border: 1px solid #ff555555;
+          color: #ff5555;
+          font-size: 12px;
+          font-weight: 800;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .legend { display: flex; align-items: center; gap: 12px; }
         .legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #4a6080; }
         .leg-dot { width: 7px; height: 7px; border-radius: 50%; }
-        .overlay-filters { display: none; align-items: center; gap: 8px; padding: 7px 12px; background: #060b18; border: 1px solid #1a2a4a; border-radius: 8px; flex-wrap: wrap; flex-shrink: 0; }
-        .overlay-filters.show { display: flex; }
-        .overlay-label { font-size: 11px; color: #4a6080; letter-spacing: 1px; }
         
         .grid-outer { flex: 1; overflow: auto; border-radius: 12px; border: 1px solid #1a2a4a; background: #060b18; position: relative; }
         
@@ -544,26 +657,61 @@ export default function AdminControlSchedule() {
         </div>
 
         <div className="content">
-          <div className="toolbar">
-            <button className={`tb-btn ${currentFilter === 'all' ? 'active' : ''}`} type="button" onClick={() => setCurrentFilter('all')}><i className="ti ti-layout-grid"></i> הצג הכל</button>
-            <button className={`tb-btn ${currentFilter === 'inst' ? 'active' : ''}`} type="button" onClick={() => setCurrentFilter('inst')}><i className="ti ti-user-search"></i> לפי מדריך</button>
-            {currentFilter === 'inst' && <select className="tb-select" value={selectedInstructor} onChange={(e) => setSelectedInstructor(e.target.value)}><option value="">— בחר מדריך —</option>{instructors.map((i, idx) => <option key={idx} value={i}>{i}</option>)}</select>}
-            <button className={`tb-btn ${currentFilter === 'city' ? 'active' : ''}`} type="button" onClick={() => { setCurrentFilter('city'); setSelectedCity(''); }}><i className="ti ti-map-pin"></i> לפי עיר</button>
-            {currentFilter === 'city' && <select className="tb-select" value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)}><option value="">— בחר עיר —</option>{uniqueCities.map((c, idx) => <option key={idx} value={c}>{c}</option>)}</select>}
-            <button className={`tb-btn ${currentFilter === 'unassigned' ? 'active' : ''}`} type="button" onClick={() => setCurrentFilter('unassigned')}><i className="ti ti-alert-triangle"></i> ללא שיוך</button>
-            
-            <div className="legend">
-              <div className="legend-item"><div className="leg-dot" style={{ background: '#00e676' }}></div>אושר</div>
-              <div className="legend-item"><div className="leg-dot" style={{ background: '#f0a820' }}></div>ממתין</div>
-              <div className="legend-item"><div className="leg-dot" style={{ background: '#ff5555' }}></div>ללא מדריך</div>
+          <div className="instructor-bar">
+            <div className="instructor-bar-side start">
+              <button
+                type="button"
+                className={`unassigned-btn ${viewMode === 'unassigned' ? 'active' : ''}`}
+                onClick={() => setViewMode((prev) => (prev === 'unassigned' ? 'instructor' : 'unassigned'))}
+              >
+                <i className="ti ti-alert-triangle"></i>
+                קבוצות ללא שיוך
+                <span className="unassigned-count">{unassignedCount}</span>
+              </button>
             </div>
-          </div>
 
-          <div className={`overlay-filters ${currentFilter !== 'unassigned' ? 'show' : ''}`}>
-            <span className="overlay-label">הצג גם דהוי:</span>
-            <label className="ov-cb"><input type="checkbox" checked={dimmedFilters.green} onChange={(e) => setDimmedFilters({ ...dimmedFilters, green: e.target.checked })} /><span style={{ color: '#00e676' }}>✅ אושר</span></label>
-            <label className="ov-cb"><input type="checkbox" checked={dimmedFilters.yellow} onChange={(e) => setDimmedFilters({ ...dimmedFilters, yellow: e.target.checked })} /><span style={{ color: '#f0a820' }}>⚠️ ממתין</span></label>
-            <label className="ov-cb"><input type="checkbox" checked={dimmedFilters.red} onChange={(e) => setDimmedFilters({ ...dimmedFilters, red: e.target.checked })} /><span style={{ color: '#ff5555' }}>🔴 ללא מדריך</span></label>
+            <div className="inst-nav">
+              <button
+                type="button"
+                className="inst-nav-arrow"
+                title="מדריך קודם"
+                disabled={instructorsWithGroups.length < 2}
+                onClick={() => goInstructor(-1)}
+              >
+                <i className="ti ti-chevron-left"></i>
+              </button>
+              <div style={{ minWidth: 0 }}>
+                <div className="inst-nav-name">
+                  {viewMode === 'unassigned'
+                    ? 'קבוצות ללא שיוך'
+                    : (selectedInstructor || 'אין מדריכים משובצים')}
+                </div>
+                <div className="inst-nav-meta">
+                  {viewMode === 'unassigned'
+                    ? `${unassignedCount} קבוצות פעילות ממתינות לשיוך`
+                    : instructorsWithGroups.length > 0
+                      ? `${instructorsWithGroups.indexOf(selectedInstructor) + 1} / ${instructorsWithGroups.length} מדריכים משובצים`
+                      : 'אין קבוצות פעילות משויכות למדריכים'}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="inst-nav-arrow"
+                title="מדריך הבא"
+                disabled={instructorsWithGroups.length < 2}
+                onClick={() => goInstructor(1)}
+              >
+                <i className="ti ti-chevron-right"></i>
+              </button>
+            </div>
+
+            <div className="instructor-bar-side end">
+              <div className="legend">
+                <div className="legend-item"><div className="leg-dot" style={{ background: '#00e676' }}></div>אושר</div>
+                <div className="legend-item"><div className="leg-dot" style={{ background: '#f0a820' }}></div>ממתין</div>
+                <div className="legend-item"><div className="leg-dot" style={{ background: '#ff5555' }}></div>ללא מדריך</div>
+              </div>
+            </div>
           </div>
 
           <div className="grid-outer">
@@ -575,25 +723,17 @@ export default function AdminControlSchedule() {
               </div>
 
               {DAYS.map((_, di) => {
-                const dayGroupsList = groups.filter(g => {
-                  if (g.isActive === false) return false;
+                const dayGroupsList = activeGroups.filter((g) => {
                   if (g.day !== di) return false;
-                  if (currentFilter === 'unassigned') return g.status === 'red';
-                  if (currentFilter === 'city') {
-                    if (selectedCity && g.city !== selectedCity) return false;
-                    return dimmedFilters[g.status];
-                  }
-                  if (currentFilter === 'inst' && selectedInstructor) {
-                    if (g.instructor === selectedInstructor) return dimmedFilters[g.status];
-                    if (g.status === 'red' && dimmedFilters.red) return true;
-                    return false;
-                  }
-                  return dimmedFilters[g.status];
+                  if (viewMode === 'unassigned') return !(g.instructor || '').trim();
+                  return !!selectedInstructor && g.instructor === selectedInstructor;
                 });
 
-                let rawDayBlocks = [...dayGroupsList];
+                let rawDayBlocks = viewMode === 'unassigned'
+                  ? dayGroupsList.map((g) => ({ ...g, status: 'red' }))
+                  : [...dayGroupsList];
 
-                if (currentFilter === 'inst' && selectedInstructor) {
+                if (viewMode === 'instructor' && selectedInstructor) {
                   const instructorClasses = [...dayGroupsList]
                     .filter(g => g.instructor === selectedInstructor)
                     .sort((a, b) => a.startMin - b.startMin);
@@ -674,11 +814,8 @@ export default function AdminControlSchedule() {
                     })}
 
                     {laidBlocks.map(b => {
-                      const op = getOpacity(b); 
                       const isHelperBlock = String(b.id).includes('setup') || String(b.id).includes('cleanup');
                       const isTravelBlock = String(b.id).includes('travel');
-                      
-                      if (op === 0 && !isHelperBlock && !isTravelBlock) return null;
                       const hPx = Math.max(b.dur * PX_PER_MIN - 2, 18); 
                       const colW = (100 / b.numCols);
                       const relativeStartMin = b.startMin - (START_HOUR * 60);
@@ -692,7 +829,7 @@ export default function AdminControlSchedule() {
                           ) : (
                             <>
                               <div className="bname">{b.name}</div>
-                              {hPx > 30 && <div className="bmeta">{b.city}{b.instructor ? ` · ${b.instructor.split(' ')[0]}` : ''}</div>}
+                              {hPx > 30 && <div className="bmeta">{b.city}{b.venue ? ` · ${b.venue}` : ''}</div>}
                               {hPx > 20 && <div className="btime">{minToStr(b.startMin)}–{minToStr(b.startMin + b.dur)}</div>}
                             </>
                           )}
