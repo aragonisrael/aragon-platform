@@ -27,8 +27,8 @@ const STATUS_META = {
 };
 
 const DETERMINATION_LABELS = {
-  low: '0–1 שעות',
-  mid: '2–3 שעות',
+  low: 'לא הרבה, אני מאוד עמוס',
+  mid: 'אני לא יודע לענות על זה',
   high: 'כמה שיידרש כדי להצליח',
 };
 
