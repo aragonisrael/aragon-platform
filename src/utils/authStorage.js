@@ -78,5 +78,6 @@ export function routeForRole(role) {
   if (role === 'logistics') return '/admin/logistics';
   if (role === 'management') return '/management';
   if (role === 'instructor' || role === 'temp_instructor') return '/instructor';
+  if (role === 'unicorn') return '/unicorn';
   return '/student';
 }

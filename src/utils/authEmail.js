@@ -4,6 +4,7 @@ export const ARAGON_AUTH_EMAIL_DOMAIN = 'aragon.auth';
 /** שמות משתמש בעברית / מיוחדים → מזהה ASCII לאימייל Auth */
 const AUTH_EMAIL_LOCAL_ALIASES = {
   לוגיסטיקה: 'logistics',
+  יוניקורן: 'unicorn',
 };
 
 const ASCII_LOCAL_RE = /^[a-zA-Z0-9._+-]+$/;
@@ -39,6 +40,7 @@ export const AUTH_BOOTSTRAP_ROLES = new Set([
   'instructor',
   'temp_instructor',
   'student',
+  'unicorn',
 ]);
 
 export function isAuthBootstrapRole(role) {

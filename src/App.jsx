@@ -37,6 +37,7 @@ import AdminStudentsManagement from './pages/admin/AdminStudentsManagement';
 // 🔥 הייבוא הנכון של העמוד החדש לעולם האדמין
 import AdminCampsManagement from './pages/admin/AdminCampsManagement';
 import AdminTrialLeads from './pages/admin/AdminTrialLeads';
+import UnicornHome from './pages/unicorn/UnicornHome';
 
 // עמודי מערך הלוגיסטיקה והחמ"ל המשרדי המבוזר (Matrix HQ) 🚚
 import LogisticsDashboard from './pages/logistics/LogisticsDashboard';
@@ -171,6 +172,9 @@ export default function App() {
         {/* 🔥 הנתב החדש והנכון בתוך חבילת האדמינים! */}
         <Route path="/admin/camps" element={<ProtectedRoute allowedRoles={['admin']}><AdminCampsManagement /></ProtectedRoute>} />
         <Route path="/admin/trials" element={<ProtectedRoute allowedRoles={['admin']}><AdminTrialLeads /></ProtectedRoute>} />
+
+        {/* 🦄 פסגת יוניקורן — מבחן קבלה */}
+        <Route path="/unicorn" element={<ProtectedRoute allowedRoles={['unicorn']}><UnicornHome /></ProtectedRoute>} />
 
         {/* 🚚 מערך הלוגיסטיקה */}
         <Route path="/admin/logistics" element={<ProtectedRoute allowedRoles={['admin', 'logistics']}><LogisticsDashboard /></ProtectedRoute>} />

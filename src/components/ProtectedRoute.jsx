@@ -35,6 +35,7 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     if (role === 'logistics') return <Navigate to="/admin/logistics" replace />;
     if (role === 'management') return <Navigate to="/management" replace />;
     if (role === 'instructor' || role === 'temp_instructor') return <Navigate to="/instructor" replace />;
+    if (role === 'unicorn') return <Navigate to="/unicorn" replace />;
     return <Navigate to="/student" replace />;
   }
 
