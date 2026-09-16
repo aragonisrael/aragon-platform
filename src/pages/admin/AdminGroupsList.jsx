@@ -49,6 +49,8 @@ export default function AdminGroupsList() {
   const [formInstructor, setFormInstructor] = useState('');
   const [formStartStr, setFormStartStr] = useState('16:00');
   const [formEndStr, setFormEndStr] = useState('17:00');
+  const [formRegistrationUrl, setFormRegistrationUrl] = useState('');
+  const [formWhatsappGroupUrl, setFormWhatsappGroupUrl] = useState('');
 
   // אובייקט עריכה מורחב עבור הקונסולה המשולבת לקבוצה קיימת
   const [formGroup, setFormGroup] = useState({});
@@ -87,7 +89,9 @@ export default function AdminGroupsList() {
           dur: Number(g.dur || 60),
           status: g.status,
           isActive: g.is_active !== false,
-          grades: g.grades ? g.grades.split(',') : []
+          grades: g.grades ? g.grades.split(',') : [],
+          registrationUrl: g.registration_url || '',
+          whatsappGroupUrl: g.whatsapp_group_url || '',
         }));
         setGroups(mappedGroups);
       }
@@ -304,6 +308,8 @@ export default function AdminGroupsList() {
     setFormInstructor('');
     setFormStartStr('16:00');
     setFormEndStr('17:00');
+    setFormRegistrationUrl('');
+    setFormWhatsappGroupUrl('');
   };
 
   const handleOpenAddGroupModal = () => {
@@ -335,7 +341,9 @@ export default function AdminGroupsList() {
         dur: eMin - sMin,
         status: formInstructor ? 'yellow' : 'red',
         is_active: true,
-        grades: formGrades.length > 0 ? formGrades.join(',') : 'ד'
+        grades: formGrades.length > 0 ? formGrades.join(',') : 'ד',
+        registration_url: formRegistrationUrl.trim() || null,
+        whatsapp_group_url: formWhatsappGroupUrl.trim() || null,
       }]);
 
       if (error) throw error;
@@ -400,7 +408,9 @@ export default function AdminGroupsList() {
       start_min: sMin,
       dur: eMin - sMin,
       is_active: formGroup.isActive,
-      grades: (formGroup.grades || []).join(',')
+      grades: (formGroup.grades || []).join(','),
+      registration_url: (formGroup.registrationUrl || '').trim() || null,
+      whatsapp_group_url: (formGroup.whatsappGroupUrl || '').trim() || null,
     };
 
     // קבוצה לא פעילה לא יכולה להישאר משויכת למדריך
@@ -921,6 +931,7 @@ export default function AdminGroupsList() {
                   <th>סטטוס קבוצה</th>
                   <th>מיועד לכיתות</th>
                   <th>מדריך אחראי</th>
+                  <th>קישורים</th>
                 </tr>
               </thead>
               <tbody>
@@ -947,6 +958,16 @@ export default function AdminGroupsList() {
                         <span className="status-dot-cell" style={{ background: g.status === 'green' ? '#00e676' : g.status === 'yellow' ? '#f0a820' : '#ff5555' }}></span>
                         <span style={{ color: g.instructor ? '#cbd5e1' : '#ff5555', fontWeight: g.instructor ? '500' : '700' }}>
                           {g.instructor || '⚠ טרם שובץ מדריך'}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px' }}>
+                        <span style={{ color: g.registrationUrl ? '#00e676' : '#6b7c93' }}>
+                          {g.registrationUrl ? '✓ הרשמה' : '○ הרשמה'}
+                        </span>
+                        <span style={{ color: g.whatsappGroupUrl ? '#00e676' : '#6b7c93' }}>
+                          {g.whatsappGroupUrl ? '✓ וואצפ' : '○ וואצפ'}
                         </span>
                       </div>
                     </td>
@@ -996,6 +1017,8 @@ export default function AdminGroupsList() {
               </div>
               <div className="mfield"><label>מיועד לכיתות (בחירה מרובה)</label><div className="grade-grid">{gradesList.map(g => <div className="grade-cb" key={g}><input type="checkbox" id={`form_g_${g}`} checked={formGrades.includes(g)} onChange={() => toggleGradeSelection(g)} /><label htmlFor={`form_g_${g}`}>{g}</label></div>)}</div></div>
               <div className="mfield"><label>מדריך משוייך לקבוצה</label><select className="mselect" value={formInstructor} onChange={(e) => setFormInstructor(e.target.value)}><option value="">— ללא מדריך (קבוצה אדומה) —</option>{instructors.map((inst, idx) => <option key={idx} value={inst}>{inst}</option>)}</select></div>
+              <div className="mfield"><label>קישור להרשמה לחוג</label><input className="minput" type="url" dir="ltr" placeholder="https://..." value={formRegistrationUrl} onChange={(e) => setFormRegistrationUrl(e.target.value)} /></div>
+              <div className="mfield"><label>קישור לקבוצת וואצפ</label><input className="minput" type="url" dir="ltr" placeholder="https://chat.whatsapp.com/..." value={formWhatsappGroupUrl} onChange={(e) => setFormWhatsappGroupUrl(e.target.value)} /></div>
               <div className="mrow"><button className="msave" type="button" onClick={handleSaveNewGroup}>הוסף קבוצה</button><button className="mcancel" type="button" onClick={() => { setIsAddModalOpen(false); resetAddGroupForm(); }}>ביטול</button></div>
             </div>
           </div>
@@ -1014,7 +1037,7 @@ export default function AdminGroupsList() {
               <div className="tab-row">
                 <button className={`tab-btn ${modalTab === 1 ? 'active' : ''}`} type="button" onClick={() => setModalTab(1)}>👥 חניכים</button>
                 <button className={`tab-btn ${modalTab === 2 ? 'active' : ''}`} type="button" onClick={() => setModalTab(2)}>🎯 שיעורי ניסיון ({(groupTrialLeads[selectedGroupId] || []).length})</button>
-                <button className={`tab-btn ${modalTab === 3 ? 'active' : ''}`} type="button" onClick={() => setModalTab(3)}>✏️ ערוך קבוצה</button>
+                <button className={`tab-btn ${modalTab === 3 ? 'active' : ''}`} type="button" onClick={() => setModalTab(3)}>✏️ ערוך קבוצה / קישורים</button>
                 <button className={`tab-btn ${modalTab === 4 ? 'active' : ''}`} type="button" onClick={() => setModalTab(4)}>👤 מדריך</button>
                 <button className={`tab-btn ${modalTab === 5 ? 'active' : ''}`} type="button" onClick={() => setModalTab(5)}>📢 עדכון</button>
               </div>
@@ -1180,6 +1203,34 @@ export default function AdminGroupsList() {
                     </select>
                   </div>
                   <div className="mfield"><label>שכבת כיתות מיועדת</label><div className="grade-grid">{gradesList.map(g => <div className="grade-cb" key={g}><input type="checkbox" id={`edit_g_${g}`} checked={(formGroup.grades || []).includes(g)} onChange={() => toggleEditGradeSelection(g)} /><label htmlFor={`edit_g_${g}`}>{g}</label></div>)}</div></div>
+
+                  <div style={{ margin: '16px 0 10px', padding: '10px 12px', borderRadius: '8px', border: '1px solid #1a3a6a', background: '#071422' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#00c8ff', marginBottom: '10px' }}>
+                      <i className="ti ti-link"></i> קישורים לתבניות וואצפ
+                    </div>
+                    <div className="mfield" style={{ marginBottom: '10px' }}>
+                      <label>קישור להרשמה לחוג</label>
+                      <input
+                        className="minput"
+                        type="url"
+                        dir="ltr"
+                        placeholder="https://..."
+                        value={formGroup.registrationUrl || ''}
+                        onChange={(e) => setFormGroup({ ...formGroup, registrationUrl: e.target.value })}
+                      />
+                    </div>
+                    <div className="mfield" style={{ marginBottom: 0 }}>
+                      <label>קישור לקבוצת וואצפ</label>
+                      <input
+                        className="minput"
+                        type="url"
+                        dir="ltr"
+                        placeholder="https://chat.whatsapp.com/..."
+                        value={formGroup.whatsappGroupUrl || ''}
+                        onChange={(e) => setFormGroup({ ...formGroup, whatsappGroupUrl: e.target.value })}
+                      />
+                    </div>
+                  </div>
                   
                   <div className="mrow"><button className="msave" type="button" onClick={handleSaveGroupSettingsEdit}>שמור שינויים</button><button className="mcancel" type="button" onClick={() => setIsStudentModalOpen(false)}>ביטול</button></div>
                   
