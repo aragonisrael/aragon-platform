@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../supabaseClient';
 import aragonLogo from '../../assets/aragonlogo.png';
 import AdminSidebar, { adminSidebarStyles } from '../../components/admin/AdminSidebar';
+import { generateUniqueHebrewUsername, hebrewUsernameFromFullName } from '../../utils/hebrewUsername';
+import { provisionAuthUser } from '../../utils/provisionAuth';
 
 const SUBSCRIPTION_LABELS = {
   active: 'בתוקף',
@@ -91,7 +93,7 @@ export default function AdminStudentsManagement() {
 
   const fetchData = async () => {
     const [{ data: dbStudents, error: studentsError }, { data: dbGroups, error: groupsError }] = await Promise.all([
-      supabase.from('users').select('id, full_name, username, password, group_id, subscription_status').eq('role', 'student'),
+      supabase.from('users').select('id, full_name, username, password, group_id, coins, subscription_status').eq('role', 'student'),
       supabase.from('groups').select('id, name, city, venue, is_active'),
     ]);
 
@@ -136,34 +138,65 @@ export default function AdminStudentsManagement() {
     return linkedGroup.is_active === false ? 'inactive' : 'active';
   };
 
+  const handleFullNameChange = (fullName) => {
+    setNewStudent((prev) => ({
+      ...prev,
+      full_name: fullName,
+      username: hebrewUsernameFromFullName(fullName),
+    }));
+  };
+
   const handleCreateStudent = async () => {
-    if (!newStudent.full_name.trim() || !newStudent.username.trim() || !newStudent.password.trim()) {
-      triggerToast('יש למלא שם מלא, שם משתמש וסיסמה', true);
+    if (!newStudent.full_name.trim() || !newStudent.password.trim()) {
+      triggerToast('יש למלא שם מלא וסיסמה', true);
       return;
     }
 
     const nextGroupId = newStudent.group_id ? Number(newStudent.group_id) : null;
     const nextSubscription = getSubscriptionByGroup(nextGroupId);
 
-    const { error } = await supabase.from('users').insert([{
+    let generatedUsername;
+    try {
+      generatedUsername = await generateUniqueHebrewUsername(newStudent.full_name);
+    } catch (err) {
+      console.error(err);
+      triggerToast('לא הצלחנו ליצור שם משתמש. נסה שוב.', true);
+      return;
+    }
+
+    const { data: createdUser, error } = await supabase.from('users').insert([{
       full_name: newStudent.full_name.trim(),
-      username: newStudent.username.trim(),
+      username: generatedUsername,
       password: newStudent.password.trim(),
       role: 'student',
       group_id: nextGroupId,
       coins: 0,
       subscription_status: nextSubscription,
-    }]);
+    }]).select('id').single();
 
     if (error) {
       triggerToast(`יצירת תלמיד נכשלה: ${error.message}`, true);
       return;
     }
 
+    let authLinked = false;
+    try {
+      if (createdUser?.id) {
+        await provisionAuthUser(createdUser.id);
+        authLinked = true;
+      }
+    } catch (authErr) {
+      console.error(authErr);
+    }
+
     setIsCreateOpen(false);
     setNewStudent({ full_name: '', username: '', password: '12345678', group_id: '' });
     await fetchData();
-    triggerToast('התלמיד נוצר בהצלחה');
+    if (!authLinked) {
+      triggerToast('התלמיד נשמר, אבל חיבור ההתחברות המאובטחת נכשל', true);
+      return;
+    }
+    triggerToast(`התלמיד נוצר. שם משתמש: ${generatedUsername}`);
   };
 
   const handleSaveStudent = async () => {
@@ -239,11 +272,14 @@ export default function AdminStudentsManagement() {
         .students-main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; }
         .students-content { padding: 24px; }
         .students-panel { background: #070e1c; border: 1px solid #1a2a4a; border-radius: 12px; overflow: hidden; }
+        .students-table-wrap { overflow-x: auto; }
         .students-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #1a2a4a; background: #060b18; }
         .students-head-title { font-family: 'Orbitron', monospace; font-size: 12px; color: #00c8ff; }
         .students-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
-        .students-table { width: 100%; border-collapse: collapse; }
-        .students-table th, .students-table td { text-align: right; padding: 11px 13px; border-bottom: 1px solid #0d1a2e; font-size: 13px; }
+        .students-table { width: 100%; min-width: 980px; border-collapse: collapse; }
+        .students-table th, .students-table td { text-align: right; padding: 11px 13px; border-bottom: 1px solid #0d1a2e; font-size: 13px; white-space: nowrap; }
+        .students-password { font-family: 'Courier New', monospace; letter-spacing: 0.4px; direction: ltr; text-align: right; }
+        .students-coins { color: #ffd76a; font-weight: 700; }
         .students-table th { background: #060b18; color: #4a6080; font-size: 11px; }
         .students-badge { border: 1px solid #1a2a4a; border-radius: 999px; padding: 3px 10px; font-size: 11px; display: inline-block; }
         .students-badge.active { color: #00e676; border-color: #00e67655; background: #062012; }
@@ -256,6 +292,7 @@ export default function AdminStudentsManagement() {
         .students-row { display: flex; gap: 10px; }
         .students-field { margin-bottom: 12px; flex: 1; }
         .students-field label { display: block; margin-bottom: 5px; font-size: 11px; color: #4a6080; }
+        .students-hint { margin-top: 5px; font-size: 11px; color: #6a88b0; }
         .students-input, .students-select { width: 100%; background: #060b18; border: 1px solid #1a2a4a; color: #e0f0ff; border-radius: 8px; padding: 9px 10px; font-size: 13px; }
         .group-picker { display: flex; flex-direction: column; gap: 8px; }
         .group-picker-selected { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; background: #0a1428; border: 1px solid #1a4a80; border-radius: 8px; font-size: 12px; }
@@ -319,25 +356,35 @@ export default function AdminStudentsManagement() {
               <div className="table-badge">{filteredStudents.length} תלמידים</div>
             </div>
 
+            <div className="students-table-wrap">
             <table className="students-table">
               <thead>
                 <tr>
                   <th>שם מלא</th>
                   <th>שם משתמש</th>
+                  <th>סיסמה</th>
                   <th>קבוצה</th>
+                  <th>מטבעות</th>
                   <th>מנוי</th>
                   <th>פעולות</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredStudents.map((student) => {
-                  const group = student.group_id ? groupsById[student.group_id] : null;
+                  const group = student.group_id ? groupsById[Number(student.group_id)] : null;
                   const subscriptionStatus = student.subscription_status || 'inactive';
+                  const groupLabel = !student.group_id
+                    ? 'ללא קבוצה'
+                    : group
+                      ? `${group.venue} — ${group.name} · ${group.city}`
+                      : 'קבוצה לא נמצאה';
                   return (
                     <tr key={student.id}>
                       <td>{student.full_name || '—'}</td>
                       <td>{student.username || '—'}</td>
-                      <td>{group ? `${group.venue} — ${group.name}` : 'ללא קבוצה'}</td>
+                      <td className="students-password">{student.password || '—'}</td>
+                      <td>{groupLabel}</td>
+                      <td className="students-coins">{student.coins ?? 0}</td>
                       <td>
                         <span className={`students-badge ${subscriptionStatus === 'active' ? 'active' : 'inactive'}`}>
                           {SUBSCRIPTION_LABELS[subscriptionStatus] || 'לא בתוקף'}
@@ -354,6 +401,7 @@ export default function AdminStudentsManagement() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       </div>
@@ -364,12 +412,13 @@ export default function AdminStudentsManagement() {
             <div className="ops-modal-title">יצירת תלמיד חדש</div>
             <div className="students-field">
               <label>שם מלא</label>
-              <input className="students-input" value={newStudent.full_name} onChange={(e) => setNewStudent({ ...newStudent, full_name: e.target.value })} />
+              <input className="students-input" value={newStudent.full_name} onChange={(e) => handleFullNameChange(e.target.value)} placeholder="לדוגמה: ינאי שלג" />
             </div>
             <div className="students-row">
               <div className="students-field">
                 <label>שם משתמש</label>
-                <input className="students-input" value={newStudent.username} onChange={(e) => setNewStudent({ ...newStudent, username: e.target.value })} />
+                <input className="students-input" value={newStudent.username} readOnly placeholder="ינאי.שלג" />
+                <div className="students-hint">נוצר אוטומטית משם מלא: שם.משפחה</div>
               </div>
               <div className="students-field">
                 <label>סיסמה</label>

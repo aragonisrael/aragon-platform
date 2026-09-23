@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
 import { migrateStudentAuthUsers, provisionAuthUser } from '../../utils/provisionAuth';
+import { generateUniqueHebrewUsername } from '../../utils/hebrewUsername';
 import { isActiveTrialLead, normalizeIsraeliPhone, registerTrialLead, TRIAL_ACTIVE_STATUSES } from '../../utils/trialLeads';
 
 // ייבוא הלוגו הרשמי של אראגון למפקדה המרכזית
@@ -188,33 +189,6 @@ export default function AdminGroupsList() {
   const minToStr = (m) => {
     const h = Math.floor(m / 60), mm = m % 60;
     return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-  };
-
-  // 🟢 פונקציית הקסם החדשה: יצירת שם משתמש ייחודי בעברית מלאה חסין כפילויות ישירות מול ה-Database
-  const generateUniqueHebrewUsername = async (fullName) => {
-    // חיבור השם הפרטי ושם המשפחה באמצעות נקודה וניקוי רווחים כפולים
-    let baseUsername = fullName.trim().replace(/\s+/g, '.');
-    
-    let finalUsername = baseUsername;
-    let counter = 1;
-    let isUnique = false;
-
-    // ריצה בלולאה מול הטבלה בענן עד שמוצאים נתיב פנוי לחלוטין
-    while (!isUnique) {
-      const { data, error } = await supabase
-        .from('users')
-        .select('username')
-        .eq('username', finalUsername)
-        .maybeSingle();
-
-      if (!data) {
-        isUnique = true; // השם חופשי לחלוטין!
-      } else {
-        finalUsername = `${baseUsername}${counter}`; // השם תפוס, מצמידים מונה (הדס.ואקנין1, הדס.ואקנין2...)
-        counter++;
-      }
-    }
-    return finalUsername;
   };
 
   const uniqueCities = [...new Set(groups.map(g => g.city))];

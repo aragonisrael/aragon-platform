@@ -8,6 +8,7 @@ import { fetchInstructorGroups } from '../../utils/instructorGroups';
 // ייבוא צינור התקשורת ל-Supabase
 import { supabase } from '../../supabaseClient';
 import { provisionAuthUsers } from '../../utils/provisionAuth';
+import { hebrewUsernameFromFullName } from '../../utils/hebrewUsername';
 import { isActiveTrialLead, registerTrialLead } from '../../utils/trialLeads';
 import {
   COIN_AWARD_PRESETS,
@@ -179,7 +180,7 @@ export default function InstructorGroups() {
 
   // מנהל יצירת שמות משתמש בעברית מלאה חסין כפילויות
   const generateUniqueUsername = (fullName, takenUsernames) => {
-    const baseUsername = fullName.trim().replace(/\s+/g, '.');
+    const baseUsername = hebrewUsernameFromFullName(fullName);
     let finalUsername = baseUsername;
     let counter = 1;
     
