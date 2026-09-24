@@ -53,6 +53,87 @@ function formatDate(iso) {
   }
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function fileStamp() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+}
+
+const EXPORT_HEADERS = ['תלמיד', 'כיתה', 'בית ספר', 'עיר', 'הורה', 'טלפון', 'ציון 1+2', 'סטטוס', 'תאריך'];
+
+function exportCells(row) {
+  const status = (STATUS_META[row.status] || STATUS_META.failed).label;
+  return [
+    row.student_full_name || '',
+    row.grade || '',
+    row.school_name || '',
+    row.city || '',
+    row.parent_name || '',
+    formatPhone(row.parent_phone),
+    row.part12_percent != null ? `${row.part12_percent}%` : '',
+    status,
+    formatDate(row.created_at),
+  ];
+}
+
+function downloadExcel(list) {
+  const head = EXPORT_HEADERS.map((h) => `<th>${escapeHtml(h)}</th>`).join('');
+  const body = list
+    .map((row) => `<tr>${exportCells(row).map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`)
+    .join('');
+  const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"></head><body><table border="1"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></body></html>`;
+  const blob = new Blob(['\uFEFF', html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `unicorn-challenge-${fileStamp()}.xls`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportPdf(list) {
+  const popup = window.open('', '_blank');
+  if (!popup) return false;
+  const head = EXPORT_HEADERS.map((h) => `<th>${escapeHtml(h)}</th>`).join('');
+  const body = list
+    .map((row) => `<tr>${exportCells(row).map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`)
+    .join('');
+  popup.document.write(`<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>פסגת יוניקורן — רשימת נבחנים</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; margin: 24px; color: #111; }
+    h1 { font-size: 20px; margin: 0 0 6px; }
+    p { margin: 0 0 16px; color: #444; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: right; }
+    th { background: #0b1c33; color: #fff; }
+  </style>
+</head>
+<body>
+  <h1>פסגת יוניקורן — רשימת נבחנים</h1>
+  <p>${list.length} רשומות · ${escapeHtml(formatDate(new Date().toISOString()))}</p>
+  <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
+</body>
+</html>`);
+  popup.document.close();
+  popup.focus();
+  setTimeout(() => popup.print(), 250);
+  return true;
+}
+
 export default function UnicornHome() {
   const navigate = useNavigate();
   const { user, logoutContext } = useAuth();
@@ -247,6 +328,10 @@ export default function UnicornHome() {
         .uc-search { flex:1; min-width:180px; background:#060b18; border:1px solid #1a2a4a; border-radius:8px; padding:9px 12px; color:#c0d8f0; font-size:13px; outline:none; }
         .uc-sel { background:#060b18; border:1px solid #1a2a4a; border-radius:8px; padding:9px 12px; color:#c0d8f0; font-size:13px; }
         .uc-count { font-size:12px; color:#4a6080; }
+        .uc-export-btn { display:flex; align-items:center; gap:6px; background:transparent; border:1px solid #1a4a80; color:#7dd3fc; border-radius:8px; padding:8px 12px; cursor:pointer; font-size:12px; font-weight:700; }
+        .uc-export-btn:hover { border-color:#00c8ff; color:#00c8ff; }
+        .uc-export-btn.pdf { border-color:#5b3d8a; color:#d8b4fe; }
+        .uc-export-btn.pdf:hover { border-color:#c084fc; color:#e9d5ff; }
 
         .uc-table-wrap { background:#070e1c; border:1px solid #1a2a4a; border-radius:12px; overflow:auto; }
         .uc-table { width:100%; border-collapse:collapse; min-width:920px; }
@@ -370,6 +455,34 @@ export default function UnicornHome() {
             </select>
             <button type="button" className="uc-open-btn" onClick={fetchAll}>
               רענון
+            </button>
+            <button
+              type="button"
+              className="uc-export-btn"
+              onClick={() => {
+                if (!filtered.length) {
+                  showToast('אין רשומות לייצוא', true);
+                  return;
+                }
+                downloadExcel(filtered);
+                showToast('קובץ אקסל ירד');
+              }}
+            >
+              ייצוא לאקסל
+            </button>
+            <button
+              type="button"
+              className="uc-export-btn pdf"
+              onClick={() => {
+                if (!filtered.length) {
+                  showToast('אין רשומות לייצוא', true);
+                  return;
+                }
+                const opened = exportPdf(filtered);
+                if (!opened) showToast('הדפדפן חסם את החלון. אפשרו חלונות קופצים.', true);
+              }}
+            >
+              ייצוא ל־PDF
             </button>
             <span className="uc-count">{filtered.length} תוצאות</span>
           </div>
