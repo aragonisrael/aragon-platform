@@ -343,7 +343,9 @@ export default function AdminRecruitment() {
     showToast('המועמד נמחק');
   };
 
-  const publicUrl = campaign ? `${window.location.origin}/join/${campaign.slug}` : '';
+  const publicUrl = campaign?.slug === HANUKKAH_CAMPAIGN.slug
+    ? 'https://www.aragon.co.il/careers/camps'
+    : '';
 
   const copyText = async (value, okMsg) => {
     try {
@@ -789,17 +791,23 @@ export default function AdminRecruitment() {
               <span>מזהה קמפיין לטופס</span>
               <div className="rq-code">{campaign.slug}</div>
             </div>
-            <div className="rq-field">
-              <span>טופס באתר</span>
-              <div className="rq-code">{publicUrl}</div>
-            </div>
+            {publicUrl ? (
+              <div className="rq-field">
+                <span>טופס באתר</span>
+                <div className="rq-code">{publicUrl}</div>
+              </div>
+            ) : (
+              <div className="rq-help">לשאלון הזה אין עדיין עמוד באתר אראגון.</div>
+            )}
             <div className="rq-help">
               טופס פייסבוק מתחבר לאותה פונקציה <b>submit_recruitment_application</b> עם המזהה למעלה,
               ומקור <b>facebook</b>. שדות למיפוי: שם מלא, גיל, עיר, טלפון, ידע במחשבים, ניסיון בהדרכה. תעריף לשעה נשאר רק אצלנו באדמין.
             </div>
             <div className="rq-modal-actions">
               <button type="button" className="rq-btn ghost" onClick={() => copyText(campaign.slug, 'המזהה הועתק')}>העתק מזהה</button>
-              <button type="button" className="rq-btn ghost" onClick={() => copyText(publicUrl, 'הקישור הועתק')}>העתק קישור</button>
+              {publicUrl ? (
+                <button type="button" className="rq-btn ghost" onClick={() => copyText(publicUrl, 'הקישור הועתק')}>העתק קישור</button>
+              ) : null}
               <button type="button" className="rq-btn primary" onClick={() => setConnectOpen(false)}>סגירה</button>
             </div>
           </div>

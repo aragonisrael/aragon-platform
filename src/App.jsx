@@ -38,7 +38,6 @@ import AdminStudentsManagement from './pages/admin/AdminStudentsManagement';
 import AdminCampsManagement from './pages/admin/AdminCampsManagement';
 import AdminTrialLeads from './pages/admin/AdminTrialLeads';
 import AdminRecruitment from './pages/admin/AdminRecruitment';
-import JoinRecruitment from './pages/JoinRecruitment';
 import UnicornHome from './pages/unicorn/UnicornHome';
 
 // עמודי מערך הלוגיסטיקה והחמ"ל המשרדי המבוזר (Matrix HQ) 🚚
@@ -175,7 +174,6 @@ export default function App() {
         <Route path="/admin/camps" element={<ProtectedRoute allowedRoles={['admin']}><AdminCampsManagement /></ProtectedRoute>} />
         <Route path="/admin/trials" element={<ProtectedRoute allowedRoles={['admin']}><AdminTrialLeads /></ProtectedRoute>} />
         <Route path="/admin/recruitment" element={<ProtectedRoute allowedRoles={['admin']}><AdminRecruitment /></ProtectedRoute>} />
-        <Route path="/join/:slug" element={<JoinRecruitment />} />
 
         {/* 🦄 פסגת יוניקורן — מבחן קבלה */}
         <Route path="/unicorn" element={<ProtectedRoute allowedRoles={['unicorn']}><UnicornHome /></ProtectedRoute>} />
