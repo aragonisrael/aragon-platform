@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 export const ADMIN_NAV = [
   { key: 'home', path: '/admin', icon: 'ti-layout-dashboard', label: 'בית' },
   { key: 'trials', path: '/admin/trials', icon: 'ti-user-question', label: 'מתעניינים' },
+  { key: 'recruitment', path: '/admin/recruitment', icon: 'ti-briefcase', label: 'דרושים' },
   { key: 'shop', path: '/admin/shop', icon: 'ti-shopping-bag', label: 'חנות' },
   { key: 'challenges', path: '/admin/missions', icon: 'ti-sword', label: 'אתגרים' },
   { key: 'control', path: '/admin/control', icon: 'ti-calendar', label: 'לו"ז' },
@@ -20,7 +21,8 @@ export const adminSidebarStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Rajdhani:wght@400;500;600;700&display=swap');
   @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
   .hq-global-wrapper { width: 100%; min-height: 100vh; background: #050812; display: flex; font-family: 'Rajdhani', sans-serif; color: #e0f0ff; direction: rtl; }
-  .sidebar { width: 72px; background: #080f1e; border-left: 1px solid #1a2a4a; display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 8px; position: sticky; top: 0; height: 100vh; flex-shrink: 0; z-index: 10; }
+  .sidebar { width: 72px; background: #080f1e; border-left: 1px solid #1a2a4a; display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 8px; position: sticky; top: 0; height: 100vh; flex-shrink: 0; z-index: 10; overflow-y: auto; scrollbar-width: none; }
+  .sidebar::-webkit-scrollbar { display: none; }
   .sidebar-logo { width: 42px; height: 42px; border-radius: 50%; border: 2px solid #00c8ff; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; position: relative; font-family: 'Orbitron', monospace; font-size: 10px; font-weight: 700; color: #00c8ff; background: linear-gradient(135deg, #1a6fff, #00c8ff); }
   .nav-btn { width: 48px; height: 48px; border-radius: 10px; border: none; background: transparent; color: #4a6080; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; transition: all 0.2s; font-size: 10px; position: relative; }
   .nav-btn i { font-size: 20px; }
