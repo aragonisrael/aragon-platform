@@ -43,8 +43,11 @@ function pushSpark(existing, changePercent) {
   return [...arr, Number(next.toFixed(2))].slice(-24);
 }
 
+const ICON_PRESETS = ['🦄', '🚀', '💡', '⚡', '🧠', '🎯', '🔥', '💎', '🌟', '🛡️', '🎮', '📱'];
+
 function draftFrom(row) {
   return {
+    icon: row.icon || '🦄',
     valuation: String(row.valuation ?? ''),
     change_percent: String(row.change_percent ?? ''),
     raised_amount: String(row.raised_amount ?? ''),
@@ -62,7 +65,7 @@ export default function UnicornCompanies() {
   const [membersByCompany, setMembersByCompany] = useState({});
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: '', ticker: '', school: '', age_group: 'ה-ו', members: [emptyMember()] });
+  const [form, setForm] = useState({ name: '', ticker: '', icon: '🦄', school: '', age_group: 'ה-ו', members: [emptyMember()] });
   const [createdCreds, setCreatedCreds] = useState([]);
   const [teamCompany, setTeamCompany] = useState(null);
   const [newMember, setNewMember] = useState(emptyMember());
@@ -140,10 +143,13 @@ export default function UnicornCompanies() {
       return;
     }
 
+    const icon = String(draft.icon || '').trim() || '🦄';
+
     setSavingId(row.id);
     const { error } = await supabase
       .from('unicorn_market_companies')
       .update({
+        icon,
         valuation,
         change_percent: Number.isFinite(changePercent) ? changePercent : 0,
         raised_amount: Number.isFinite(raised) ? raised : 0,
@@ -224,7 +230,7 @@ export default function UnicornCompanies() {
         is_example: false,
         is_listed: true,
         accent: '#67e8f9',
-        icon: '🦄',
+        icon: String(form.icon || '').trim() || '🦄',
         award_title: null,
       }])
       .select('id, name')
@@ -248,7 +254,7 @@ export default function UnicornCompanies() {
 
     setCreating(false);
     setCreatedCreds(creds);
-    setForm({ name: '', ticker: '', school: '', age_group: 'ה-ו', members: [emptyMember()] });
+    setForm({ name: '', ticker: '', icon: '🦄', school: '', age_group: 'ה-ו', members: [emptyMember()] });
     showToast(creds.length ? `${company.name} עלתה לבורסה עם ${creds.length} תלמידים` : 'החברה נוצרה, בלי תלמידים');
     fetchCompanies();
   };
@@ -398,6 +404,11 @@ export default function UnicornCompanies() {
         .um-hint { font-size:11px; color:#4a6080; margin-top:4px; }
         .um-creds { background:#060b18; border:1px solid #1a4a80; border-radius:10px; padding:12px; margin-top:14px; }
         .um-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
+        .um-icon-cell { display:flex; flex-direction:column; gap:8px; align-items:flex-start; min-width:120px; }
+        .um-icon-preview { width:42px; height:42px; border-radius:12px; background:#0a1738; border:1px solid #1a2a4a; display:flex; align-items:center; justify-content:center; font-size:22px; }
+        .um-icon-presets { display:flex; flex-wrap:wrap; gap:4px; max-width:150px; }
+        .um-icon-chip { width:28px; height:28px; border-radius:8px; border:1px solid #1a2a4a; background:#060b18; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; padding:0; }
+        .um-icon-chip:hover, .um-icon-chip.on { border-color:#00c8ff88; background:#0a2040; }
       `}</style>
 
       <div className="um-toolbar">
@@ -425,6 +436,7 @@ export default function UnicornCompanies() {
               <tr>
                 <th>#</th>
                 <th>חברה</th>
+                <th>סמל</th>
                 <th>שווי ₪</th>
                 <th>שינוי %</th>
                 <th>גויס ₪</th>
@@ -466,6 +478,33 @@ export default function UnicornCompanies() {
                       ) : null}
                     </td>
                     <td>
+                      <div className="um-icon-cell">
+                        <div className="um-icon-preview">{draft.icon || '🦄'}</div>
+                        <input
+                          className="um-input narrow"
+                          value={draft.icon}
+                          onChange={(e) => updateDraft(row.id, 'icon', e.target.value)}
+                          disabled={offline}
+                          maxLength={8}
+                          aria-label="סמל החברה"
+                        />
+                        <div className="um-icon-presets">
+                          {ICON_PRESETS.map((emoji) => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              className={`um-icon-chip ${draft.icon === emoji ? 'on' : ''}`}
+                              disabled={offline}
+                              onClick={() => updateDraft(row.id, 'icon', emoji)}
+                              title={emoji}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </td>
+                    <td>
                       <input className="um-input" value={draft.valuation} onChange={(e) => updateDraft(row.id, 'valuation', e.target.value)} disabled={offline} />
                       <div style={{ color: '#4a6080', fontSize: 11, marginTop: 4 }}>₪{money(draft.valuation)}</div>
                     </td>
@@ -503,6 +542,25 @@ export default function UnicornCompanies() {
               <div>
                 <label className="um-label">סימול</label>
                 <input className="um-input" value={form.ticker} onChange={(e) => setForm({ ...form, ticker: e.target.value.toUpperCase() })} placeholder="NNF" />
+              </div>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <label className="um-label">סמל</label>
+              <div className="um-icon-cell">
+                <div className="um-icon-preview">{form.icon || '🦄'}</div>
+                <input className="um-input narrow" value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} maxLength={8} />
+                <div className="um-icon-presets">
+                  {ICON_PRESETS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      className={`um-icon-chip ${form.icon === emoji ? 'on' : ''}`}
+                      onClick={() => setForm({ ...form, icon: emoji })}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             <div className="um-grid" style={{ marginTop: 10 }}>
