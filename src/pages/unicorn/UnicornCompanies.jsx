@@ -47,6 +47,7 @@ const ICON_PRESETS = ['🦄', '🚀', '💡', '⚡', '🧠', '🎯', '🔥', '�
 
 function draftFrom(row) {
   return {
+    name: row.name || '',
     icon: row.icon || '🦄',
     valuation: String(row.valuation ?? ''),
     change_percent: String(row.change_percent ?? ''),
@@ -135,9 +136,14 @@ export default function UnicornCompanies() {
   const saveRow = async (row) => {
     if (offline) return;
     const draft = drafts[row.id];
+    const name = String(draft.name || '').trim();
     const valuation = Number(draft.valuation);
     const changePercent = Number(draft.change_percent);
     const raised = Number(draft.raised_amount);
+    if (!name) {
+      showToast('צריך שם חברה', true);
+      return;
+    }
     if (!Number.isFinite(valuation) || valuation < 0) {
       showToast('שווי לא תקין', true);
       return;
@@ -149,6 +155,7 @@ export default function UnicornCompanies() {
     const { error } = await supabase
       .from('unicorn_market_companies')
       .update({
+        name,
         icon,
         valuation,
         change_percent: Number.isFinite(changePercent) ? changePercent : 0,
@@ -163,7 +170,7 @@ export default function UnicornCompanies() {
       showToast('שמירה נכשלה: ' + error.message, true);
       return;
     }
-    showToast(`${row.name} עודכן. הריבוע באתר יזוז לפי השווי החדש.`);
+    showToast(`${name} עודכן. הריבוע באתר יזוז לפי השווי החדש.`);
     fetchCompanies();
   };
 
@@ -451,7 +458,13 @@ export default function UnicornCompanies() {
                   <tr key={row.id}>
                     <td className="um-rank">{index + 1}</td>
                     <td>
-                      <strong>{row.name}</strong>
+                      <input
+                        className="um-input"
+                        value={draft.name}
+                        onChange={(e) => updateDraft(row.id, 'name', e.target.value)}
+                        disabled={offline}
+                        aria-label="שם החברה"
+                      />
                       <div style={{ color: '#4a6080', fontSize: 12, marginTop: 4 }}>
                         {row.ticker}
                         {row.is_example ? <span className="um-badge" style={{ marginRight: 8 }}>דוגמה</span> : <span className="um-badge" style={{ marginRight: 8, color: '#86efac', borderColor: 'rgba(134,239,172,0.4)' }}>נבחרת</span>}
