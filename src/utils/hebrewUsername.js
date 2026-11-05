@@ -6,7 +6,7 @@ export function hebrewUsernameFromFullName(fullName) {
 }
 
 /** שם משתמש עברי ייחודי. אם הבסיס תפוס, מצמידים מונה: ינאי.שלג1 */
-export async function generateUniqueHebrewUsername(fullName) {
+export async function generateUniqueHebrewUsername(fullName, excludeUserId = null) {
   const baseUsername = hebrewUsernameFromFullName(fullName);
   if (!baseUsername) {
     throw new Error('missing full name');
@@ -18,12 +18,12 @@ export async function generateUniqueHebrewUsername(fullName) {
   while (true) {
     const { data, error } = await supabase
       .from('users')
-      .select('username')
+      .select('id, username')
       .eq('username', finalUsername)
       .maybeSingle();
 
     if (error) throw error;
-    if (!data) return finalUsername;
+    if (!data || (excludeUserId != null && String(data.id) === String(excludeUserId))) return finalUsername;
 
     finalUsername = `${baseUsername}${counter}`;
     counter++;

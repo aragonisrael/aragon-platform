@@ -75,6 +75,15 @@ export function AuthProvider({ children }) {
         await supabase.auth.signOut();
       }
 
+      const sessionUser = sessionStorage.getItem('aragon_logged_user');
+      const sessionRole = sessionStorage.getItem('aragon_logged_role');
+      if (!cancelled && sessionUser && sessionRole && !isAuthBootstrapRole(sessionRole)) {
+        setUser(sessionUser);
+        setRole(sessionRole);
+        setLoading(false);
+        return;
+      }
+
       const autoLogin = await tryDevWebAutoLogin();
       if (cancelled) return;
 

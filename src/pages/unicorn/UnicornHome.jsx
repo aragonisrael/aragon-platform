@@ -4,6 +4,7 @@ import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { adminSidebarStyles } from '../../components/admin/AdminSidebar';
 import aragonLogo from '../../assets/aragonlogo.png';
+import UnicornCompanies from './UnicornCompanies';
 
 const STATUS_META = {
   passed: {
@@ -144,6 +145,7 @@ export default function UnicornHome() {
   const [filterStatus, setFilterStatus] = useState('');
   const [detail, setDetail] = useState(null);
   const [toast, setToast] = useState(null);
+  const [tab, setTab] = useState('exam');
   const channelRef = useRef(null);
 
   const showToast = (msg, warn = false) => {
@@ -312,7 +314,7 @@ export default function UnicornHome() {
         ${adminSidebarStyles}
         @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;800&display=swap');
 
-        .uc-dash-main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; overflow-x: hidden; }
+        .uc-dash-main { flex: 1; display: flex; flex-direction: column; height: 100vh; min-height: 0; overflow-y: auto; overflow-x: hidden; min-width: 0; }
         .uc-kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
         .uc-kpi { background: linear-gradient(135deg,#070e1c,#0a1428); border: 1px solid #1a2a4a; border-radius: 12px; padding: 16px 18px; cursor: pointer; text-align: center; transition: border-color .2s, transform .15s; position: relative; }
         .uc-kpi:hover { border-color:#00c8ff44; transform: translateY(-1px); }
@@ -362,6 +364,9 @@ export default function UnicornHome() {
         .uc-toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:2000; background:#071828; border:1px solid rgba(0,200,255,0.35); color:#e0f0ff; padding:12px 18px; border-radius:12px; font-size:13px; }
         .uc-toast.warn { border-color:rgba(248,113,113,0.5); color:#fca5a5; }
         .uc-sidebar-mini { width:72px; background:#080f1e; border-left:1px solid #1a2a4a; display:flex; flex-direction:column; align-items:center; padding:16px 0; gap:8px; position:sticky; top:0; height:100vh; flex-shrink:0; }
+        .uc-tabs { display:flex; gap:8px; padding:14px 24px 0; background:#050812; }
+        .uc-tab { background:#070e1c; border:1px solid #1a2a4a; color:#8aa0bc; border-radius:10px; padding:10px 16px; cursor:pointer; font-size:15px; font-weight:700; }
+        .uc-tab.on { color:#00c8ff; border-color:#1a4a80; background:#0a2040; }
         @media (max-width: 900px) {
           .uc-kpi-grid { grid-template-columns: repeat(2,1fr); }
           .uc-meta-grid { grid-template-columns: 1fr; }
@@ -372,9 +377,13 @@ export default function UnicornHome() {
         <div className="sidebar-logo" title="Unicorn">
           <img src={aragonLogo} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
         </div>
-        <button type="button" className="nav-btn active" title="דשבורד">
+        <button type="button" className={`nav-btn ${tab === 'exam' ? 'active' : ''}`} title="מבחן קבלה" onClick={() => setTab('exam')}>
           <i className="ti ti-trophy" />
-          <span className="nav-label">יוניקורן</span>
+          <span className="nav-label">מבחן</span>
+        </button>
+        <button type="button" className={`nav-btn ${tab === 'companies' ? 'active' : ''}`} title="חברות" onClick={() => setTab('companies')}>
+          <i className="ti ti-building-bank" />
+          <span className="nav-label">חברות</span>
         </button>
         <div className="nav-spacer" />
         <button type="button" className="nav-btn logout-btn" onClick={handleLogout} title="יציאה">
@@ -388,7 +397,7 @@ export default function UnicornHome() {
           <div className="top-bar-brand">
             <div>
               <div className="brand-title">PISGAT UNICORN</div>
-              <div className="brand-sub">מבחן קבלה · ועדת נבחרת</div>
+              <div className="brand-sub">{tab === 'companies' ? 'בורסה · שווי חברות' : 'מבחן קבלה · ועדת נבחרת'}</div>
             </div>
           </div>
           <div className="top-bar-right">
@@ -401,7 +410,12 @@ export default function UnicornHome() {
           <div className="top-bar-neon" />
         </div>
 
-        <div className="ops-content">
+        <div className="uc-tabs">
+          <button type="button" className={`uc-tab ${tab === 'exam' ? 'on' : ''}`} onClick={() => setTab('exam')}>מבחן קבלה</button>
+          <button type="button" className={`uc-tab ${tab === 'companies' ? 'on' : ''}`} onClick={() => setTab('companies')}>חברות</button>
+        </div>
+
+        {tab === 'companies' ? <UnicornCompanies /> : <div className="ops-content">
           <div className="page-title">הגשות אתגר היוניקורן</div>
           <div className="page-sub">רשימה בזמן אמת · צפייה מלאה בכל שאלון · עדכון סטטוסים</div>
 
@@ -564,7 +578,7 @@ export default function UnicornHome() {
               </tbody>
             </table>
           </div>
-        </div>
+        </div>}
       </div>
 
       {detail && (
