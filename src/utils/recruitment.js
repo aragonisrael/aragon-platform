@@ -33,6 +33,7 @@ export const SOURCE_META = {
   manual: { label: 'ידני', color: '#9fb0c6' },
   website: { label: 'אתר', color: '#00d8b0' },
   facebook: { label: 'פייסבוק', color: '#8eb6ff' },
+  partners: { label: 'משתפי פעולה', color: '#e2b15a' },
 };
 
 export const EMPTY_CANDIDATE = {

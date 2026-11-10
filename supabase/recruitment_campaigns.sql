@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS public.recruitment_candidates (
     role IS NULL OR role IN ('assistant', 'instructor', 'pro_instructor', 'manager', 'logistics')
   ),
   CONSTRAINT recruitment_candidates_source_check CHECK (
-    source IN ('manual', 'website', 'facebook')
+    source IN ('manual', 'website', 'facebook', 'partners')
   )
 );
 
@@ -118,7 +118,7 @@ ALTER FUNCTION public.get_public_recruitment_campaign(text) OWNER TO postgres;
 REVOKE ALL ON FUNCTION public.get_public_recruitment_campaign(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_public_recruitment_campaign(text) TO anon, authenticated, service_role;
 
--- צינור אחד לאתר ולפייסבוק. source: website | facebook
+-- צינור אחד לאתר, לפייסבוק ולמשתפי פעולה. source: website | facebook | partners
 CREATE OR REPLACE FUNCTION public.submit_recruitment_application(
   p_campaign_slug text,
   p_full_name text,
@@ -156,7 +156,7 @@ BEGIN
     RAISE EXCEPTION 'invalid phone';
   END IF;
 
-  IF clean_source NOT IN ('website', 'facebook') THEN
+  IF clean_source NOT IN ('website', 'facebook', 'partners') THEN
     RAISE EXCEPTION 'invalid source';
   END IF;
 
