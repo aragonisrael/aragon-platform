@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { adminSidebarStyles } from '../../components/admin/AdminSidebar';
 import aragonLogo from '../../assets/aragonlogo.png';
 import UnicornCompanies from './UnicornCompanies';
+import UnicornLessons from './UnicornLessons';
 
 const STATUS_META = {
   passed: {
@@ -385,6 +386,10 @@ export default function UnicornHome() {
           <i className="ti ti-building-bank" />
           <span className="nav-label">חברות</span>
         </button>
+        <button type="button" className={`nav-btn ${tab === 'lessons' ? 'active' : ''}`} title="מערכי שיעור" onClick={() => setTab('lessons')}>
+          <i className="ti ti-presentation" />
+          <span className="nav-label">מערכים</span>
+        </button>
         <div className="nav-spacer" />
         <button type="button" className="nav-btn logout-btn" onClick={handleLogout} title="יציאה">
           <i className="ti ti-logout" />
@@ -397,7 +402,13 @@ export default function UnicornHome() {
           <div className="top-bar-brand">
             <div>
               <div className="brand-title">PISGAT UNICORN</div>
-              <div className="brand-sub">{tab === 'companies' ? 'בורסה · שווי חברות' : 'מבחן קבלה · ועדת נבחרת'}</div>
+              <div className="brand-sub">
+                {tab === 'companies'
+                  ? 'בורסה · שווי חברות'
+                  : tab === 'lessons'
+                    ? 'מערכי שיעור · מצגות PDF'
+                    : 'מבחן קבלה · ועדת נבחרת'}
+              </div>
             </div>
           </div>
           <div className="top-bar-right">
@@ -413,9 +424,10 @@ export default function UnicornHome() {
         <div className="uc-tabs">
           <button type="button" className={`uc-tab ${tab === 'exam' ? 'on' : ''}`} onClick={() => setTab('exam')}>מבחן קבלה</button>
           <button type="button" className={`uc-tab ${tab === 'companies' ? 'on' : ''}`} onClick={() => setTab('companies')}>חברות</button>
+          <button type="button" className={`uc-tab ${tab === 'lessons' ? 'on' : ''}`} onClick={() => setTab('lessons')}>מערכי שיעור</button>
         </div>
 
-        {tab === 'companies' ? <UnicornCompanies /> : <div className="ops-content">
+        {tab === 'companies' ? <UnicornCompanies /> : tab === 'lessons' ? <UnicornLessons /> : <div className="ops-content">
           <div className="page-title">הגשות אתגר היוניקורן</div>
           <div className="page-sub">רשימה בזמן אמת · צפייה מלאה בכל שאלון · עדכון סטטוסים</div>
 
