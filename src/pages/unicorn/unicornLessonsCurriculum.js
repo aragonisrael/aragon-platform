@@ -38,6 +38,18 @@ export const UNICORN_LESSONS = [
     title: 'פסיכולוגיית הצבעים ולוח השראה',
     fileName: 'unicorn5.pdf',
   },
+  {
+    id: 'lesson-6',
+    number: 6,
+    title: 'חשיפת המותג',
+    fileName: 'unicorn6.pdf',
+  },
+  {
+    id: 'lesson-7-8',
+    number: '7–8',
+    title: 'עיצוב מוצר בתלת-ממד · מהפרומפט למוצר',
+    fileName: 'unicorn7and8.pdf',
+  },
 ].map((lesson) => ({
   ...lesson,
   pdfUrl: getUnicornLessonPdfUrl(lesson.fileName),
