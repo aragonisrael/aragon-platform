@@ -50,6 +50,12 @@ export const UNICORN_LESSONS = [
     title: 'עיצוב מוצר בתלת-ממד · מהפרומפט למוצר',
     fileName: 'unicorn7and8.pdf',
   },
+  {
+    id: 'lesson-9',
+    number: 9,
+    title: 'מאחורי הקלעים של המוצר',
+    fileName: 'unicorn9.pdf',
+  },
 ].map((lesson) => ({
   ...lesson,
   pdfUrl: getUnicornLessonPdfUrl(lesson.fileName),
